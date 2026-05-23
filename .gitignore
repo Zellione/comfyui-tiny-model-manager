@@ -1,0 +1,7 @@
+data/
+frontend/node_modules/
+frontend/.angular/
+web/
+!web/index.html
+__pycache__/
+*.pyc

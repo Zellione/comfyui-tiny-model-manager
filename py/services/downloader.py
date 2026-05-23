@@ -1,0 +1,153 @@
+import asyncio
+import os
+import uuid
+from dataclasses import dataclass, field
+from typing import Optional, Callable, Awaitable
+import httpx
+import folder_paths
+
+from .. import config as cfg
+
+SUPPORTED_TYPES = {
+    "checkpoints": "checkpoints",
+    "loras": "loras",
+    "embeddings": "embeddings",
+    "vae": "vae",
+    "controlnet": "controlnet",
+    "upscale_models": "upscale_models",
+    "clip": "clip",
+    "unet": "unet",
+}
+
+
+@dataclass
+class DownloadTask:
+    id: str
+    url: str
+    model_type: str
+    filename: str
+    platform: str
+    source_id: str = ""
+    status: str = "queued"  # queued | downloading | done | error
+    progress: float = 0.0
+    downloaded_bytes: int = 0
+    total_bytes: int = 0
+    error: Optional[str] = None
+    dest_path: str = ""
+    on_complete: Optional[Callable[["DownloadTask"], Awaitable[None]]] = field(
+        default=None, repr=False
+    )
+
+
+_tasks: dict[str, DownloadTask] = {}
+_queue: asyncio.Queue = asyncio.Queue()
+_worker_started = False
+
+
+def _get_dest_dir(model_type: str) -> str:
+    try:
+        folders = folder_paths.get_folder_paths(model_type)
+        return folders[0]
+    except Exception:
+        return os.path.join(cfg.data_dir(), "models", model_type)
+
+
+def enqueue(
+    url: str,
+    model_type: str,
+    filename: str,
+    platform: str,
+    source_id: str = "",
+    on_complete: Optional[Callable[[DownloadTask], Awaitable[None]]] = None,
+) -> DownloadTask:
+    task = DownloadTask(
+        id=str(uuid.uuid4()),
+        url=url,
+        model_type=model_type,
+        filename=filename,
+        platform=platform,
+        source_id=source_id,
+        on_complete=on_complete,
+    )
+    dest_dir = _get_dest_dir(model_type)
+    os.makedirs(dest_dir, exist_ok=True)
+    task.dest_path = os.path.join(dest_dir, filename)
+    _tasks[task.id] = task
+    _queue.put_nowait(task)
+    _ensure_worker()
+    return task
+
+
+def get_all_tasks() -> list[dict]:
+    return [_task_to_dict(t) for t in _tasks.values()]
+
+
+def _task_to_dict(t: DownloadTask) -> dict:
+    return {
+        "id": t.id,
+        "url": t.url,
+        "model_type": t.model_type,
+        "filename": t.filename,
+        "platform": t.platform,
+        "source_id": t.source_id,
+        "status": t.status,
+        "progress": t.progress,
+        "downloaded_bytes": t.downloaded_bytes,
+        "total_bytes": t.total_bytes,
+        "error": t.error,
+    }
+
+
+def _ensure_worker():
+    global _worker_started
+    if not _worker_started:
+        _worker_started = True
+        asyncio.ensure_future(_worker())
+
+
+async def _worker():
+    while True:
+        task = await _queue.get()
+        await _run_download(task)
+        _queue.task_done()
+
+
+async def _run_download(task: DownloadTask):
+    task.status = "downloading"
+    settings = cfg.load_settings()
+    headers = {}
+    if task.platform == "civitai":
+        key = settings.get("civitai_api_key", "")
+        if key:
+            headers["Authorization"] = f"Bearer {key}"
+    elif task.platform == "huggingface":
+        token = settings.get("hf_token", "")
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+    try:
+        async with httpx.AsyncClient(timeout=None, follow_redirects=True) as client:
+            async with client.stream("GET", task.url, headers=headers) as resp:
+                resp.raise_for_status()
+                total = int(resp.headers.get("content-length", 0))
+                task.total_bytes = total
+                downloaded = 0
+                with open(task.dest_path, "wb") as f:
+                    async for chunk in resp.aiter_bytes(65536):
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        task.downloaded_bytes = downloaded
+                        task.progress = (downloaded / total * 100) if total else 0.0
+        task.status = "done"
+        task.progress = 100.0
+        if task.on_complete:
+            await task.on_complete(task)
+        from .metadata_fetcher import fetch_and_store
+        asyncio.ensure_future(
+            fetch_and_store(task.filename, task.model_type, task.platform, task.source_id)
+        )
+    except Exception as exc:
+        task.status = "error"
+        task.error = str(exc)
+        if os.path.isfile(task.dest_path):
+            os.remove(task.dest_path)

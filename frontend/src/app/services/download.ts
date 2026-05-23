@@ -1,0 +1,93 @@
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, interval, switchMap, startWith, shareReplay } from 'rxjs';
+import { map } from 'rxjs/operators';
+
+export interface DownloadTask {
+  id: string;
+  url: string;
+  model_type: string;
+  filename: string;
+  platform: string;
+  source_id: string;
+  status: 'queued' | 'downloading' | 'done' | 'error';
+  progress: number;
+  downloaded_bytes: number;
+  total_bytes: number;
+  error: string | null;
+}
+
+export interface CivitaiModel {
+  id: number;
+  name: string;
+  type: string;
+  description: string;
+  modelVersions: CivitaiVersion[];
+  creator: { username: string };
+  stats: { downloadCount: number; rating: number };
+}
+
+export interface CivitaiVersion {
+  id: number;
+  name: string;
+  downloadUrl: string;
+  trainedWords: string[];
+  files: { name: string; sizeKB: number; downloadUrl: string }[];
+  images: { url: string }[];
+}
+
+export interface HfModel {
+  id: string;
+  modelId: string;
+  downloads: number;
+  tags: string[];
+}
+
+const API = '/tiny-model-manager/api';
+
+@Injectable({ providedIn: 'root' })
+export class DownloadService {
+  readonly activeTasks$: Observable<DownloadTask[]>;
+
+  constructor(private http: HttpClient) {
+    this.activeTasks$ = interval(2000).pipe(
+      startWith(0),
+      switchMap(() =>
+        this.http
+          .get<{ success: boolean; data: DownloadTask[] }>(`${API}/download/status`)
+          .pipe(map(r => r.data))
+      ),
+      shareReplay(1)
+    );
+  }
+
+  searchCivitai(q: string, type = '', page = 1): Observable<{ items: CivitaiModel[]; metadata: any }> {
+    return this.http
+      .get<{ success: boolean; data: any }>(`${API}/search/civitai`, { params: { q, type, page } })
+      .pipe(map(r => ({ items: r.data.items ?? [], metadata: r.data.metadata ?? {} })));
+  }
+
+  searchHuggingFace(q: string, type = ''): Observable<HfModel[]> {
+    return this.http
+      .get<{ success: boolean; data: HfModel[] }>(`${API}/search/huggingface`, { params: { q, type } })
+      .pipe(map(r => r.data));
+  }
+
+  getHfFiles(repo: string): Observable<{ filename: string; size: number; url: string }[]> {
+    return this.http
+      .get<{ success: boolean; data: any[] }>(`${API}/search/huggingface/files`, { params: { repo } })
+      .pipe(map(r => r.data));
+  }
+
+  getCivitaiVersions(modelId: number): Observable<CivitaiVersion[]> {
+    return this.http
+      .get<{ success: boolean; data: CivitaiVersion[] }>(`${API}/civitai/versions/${modelId}`)
+      .pipe(map(r => r.data));
+  }
+
+  startDownload(url: string, model_type: string, filename: string, platform: string, source_id = ''): Observable<{ task_id: string }> {
+    return this.http
+      .post<{ success: boolean; data: { task_id: string } }>(`${API}/download`, { url, model_type, filename, platform, source_id })
+      .pipe(map(r => r.data));
+  }
+}

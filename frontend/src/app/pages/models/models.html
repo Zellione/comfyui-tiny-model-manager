@@ -1,0 +1,37 @@
+<h2>Installed Models</h2>
+
+@if (loading) {
+  <p>Loading…</p>
+} @else if (error) {
+  <p class="error">{{ error }}</p>
+} @else if (typeKeys.length === 0) {
+  <p>No models found.</p>
+} @else {
+  @for (type of typeKeys; track type) {
+    <section class="type-section">
+      <h3>{{ type }} <span class="badge">{{ modelsByType[type].length }}</span></h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Filename</th>
+            <th>Size</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (file of modelsByType[type]; track file.filename) {
+            <tr>
+              <td>
+                <a [routerLink]="['/models', type, file.filename]">{{ file.filename }}</a>
+              </td>
+              <td>{{ formatSize(file.size_bytes) }}</td>
+              <td>
+                <button class="btn-danger" (click)="deleteModel(type, file)">Delete</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  }
+}

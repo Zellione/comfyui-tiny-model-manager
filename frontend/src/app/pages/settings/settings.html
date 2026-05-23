@@ -1,0 +1,23 @@
+<h2>Settings</h2>
+
+<form class="settings-form" (ngSubmit)="save()">
+  <label>
+    <span>CivitAI API Key</span>
+    <input type="password" [(ngModel)]="settings.civitai_api_key" name="civitai_key" placeholder="Optional — for private models" />
+  </label>
+
+  <label>
+    <span>HuggingFace Token</span>
+    <input type="password" [(ngModel)]="settings.hf_token" name="hf_token" placeholder="Optional — for gated models" />
+  </label>
+
+  <label>
+    <span>Media Storage Directory</span>
+    <input type="text" [(ngModel)]="settings.media_dir" name="media_dir" placeholder="Leave blank to use default (data/media/)" />
+  </label>
+
+  <button type="submit" class="btn-primary">Save</button>
+
+  @if (saved) { <span class="msg-ok">Saved.</span> }
+  @if (error) { <span class="msg-err">{{ error }}</span> }
+</form>

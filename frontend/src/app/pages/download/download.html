@@ -1,0 +1,91 @@
+<h2>Download Models</h2>
+
+<!-- Active downloads -->
+@if (activeTasks.length > 0) {
+  <section class="active-downloads">
+    <h3>Active Downloads</h3>
+    @for (task of activeTasks; track task.id) {
+      <div class="task-row">
+        <span class="task-name">{{ task.filename }}</span>
+        <span class="badge">{{ task.status }}</span>
+        <div class="progress-bar"><div class="fill" [style.width]="activePct(task)"></div></div>
+        <span class="pct">{{ activePct(task) }}</span>
+      </div>
+    }
+  </section>
+}
+
+<!-- Search bar -->
+<div class="search-bar">
+  <div class="platform-tabs">
+    <button [class.active]="platform === 'civitai'" (click)="platform = 'civitai'">CivitAI</button>
+    <button [class.active]="platform === 'huggingface'" (click)="platform = 'huggingface'">HuggingFace</button>
+  </div>
+
+  <input [(ngModel)]="query" placeholder="Search models…" (keyup.enter)="search()" />
+  <select [(ngModel)]="modelType">
+    @for (t of modelTypes; track t) {
+      <option [value]="t">{{ t }}</option>
+    }
+  </select>
+  <button class="btn-primary" (click)="search()" [disabled]="searching">
+    {{ searching ? 'Searching…' : 'Search' }}
+  </button>
+</div>
+
+<!-- CivitAI results -->
+@if (platform === 'civitai') {
+  <div class="results">
+    @for (model of civitaiResults; track model.id) {
+      <div class="result-card" (click)="selectCivitai(model)" [class.selected]="selectedModel?.id === model.id">
+        <strong>{{ model.name }}</strong>
+        <span class="badge">{{ model.type }}</span>
+        <small>by {{ model.creator && model.creator.username }}</small>
+      </div>
+    }
+  </div>
+
+  @if (selectedModel) {
+    <div class="versions-panel">
+      <h3>Versions for: {{ selectedModel.name }}</h3>
+      @if (loadingVersions) {
+        <p>Loading versions…</p>
+      } @else {
+        @for (v of versions; track v.id) {
+          <div class="version-row">
+            <span>{{ v.name }}</span>
+            @if (v.files.length > 0) {
+              <small>{{ formatSize(v.files[0].sizeKB * 1024) }}</small>
+            }
+            <button class="btn-primary" (click)="downloadCivitai(v)">Download</button>
+          </div>
+        }
+      }
+    </div>
+  }
+}
+
+<!-- HuggingFace results -->
+@if (platform === 'huggingface') {
+  <div class="results">
+    @for (model of hfResults; track model.id) {
+      <div class="result-card" (click)="selectHf(model)">
+        <strong>{{ model.modelId || model.id }}</strong>
+        <small>{{ model.downloads | number }} downloads</small>
+      </div>
+    }
+  </div>
+
+  @if (hfFiles.length > 0) {
+    <div class="versions-panel">
+      <h3>Files</h3>
+      @for (f of hfFiles; track f.filename) {
+        <div class="version-row">
+          <span>{{ f.filename }}</span>
+          <small>{{ formatSize(f.size) }}</small>
+          <button class="btn-primary" (click)="downloadHf(f, '')">Download</button>
+        </div>
+      }
+    </div>
+  }
+}

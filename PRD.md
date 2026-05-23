@@ -1,0 +1,278 @@
+# Product Requirements Document — ComfyUI Tiny Model Manager
+
+## Overview
+
+ComfyUI Tiny Model Manager is a custom node for ComfyUI that provides a web-based dashboard to browse, download, and manage AI models and LoRAs from CivitAI and HuggingFace. It also exposes ComfyUI workflow nodes that insert models with their documented trigger words.
+
+---
+
+## Goals
+
+- Give users a single UI to discover and download models without leaving ComfyUI
+- Store model metadata (description, trigger words, preview images) locally so it is available offline
+- Expose workflow nodes that automatically populate trigger words for any downloaded LoRA
+
+---
+
+## Non-Goals
+
+- Model training or fine-tuning
+- Workflow management or sharing
+- Support for model formats outside of `.safetensors`, `.ckpt`, `.pt`, `.bin`, `.gguf`
+
+---
+
+## Architecture
+
+| Layer | Technology |
+|---|---|
+| Backend | Python, aiohttp (ComfyUI's built-in server) |
+| Database | SQLite via `aiosqlite` |
+| HTTP client | `httpx` (async) |
+| Frontend | Angular 19+ (standalone components, SCSS) |
+| Build output | `web/` directory served at `/tiny-model-manager` |
+
+---
+
+## Features
+
+### F-01 — Custom Node Bootstrap
+
+The extension registers itself into ComfyUI on startup with no manual steps.
+
+**Requirements:**
+- `__init__.py` exports `NODE_CLASS_MAPPINGS`, `NODE_DISPLAY_NAME_MAPPINGS`, and `WEB_DIRECTORY`
+- Routes are registered into `PromptServer.instance.routes` at import time
+- SQLite database schema is created on first run if it does not exist
+- `data/` directory (DB + settings + media) is created automatically
+
+---
+
+### F-02 — Standalone Web Dashboard
+
+A dark-themed Angular SPA served at `/tiny-model-manager` inside ComfyUI's web server.
+
+**Requirements:**
+- Navigable via top nav bar: Models | Download | Settings
+- Angular router handles client-side navigation; all unknown paths fall back to `index.html`
+- `base href` set to `/tiny-model-manager/` so Angular assets resolve correctly
+- Frontend build output goes directly into `web/` (no subdirectory)
+
+---
+
+### F-03 — Installed Model Browser
+
+Users can view all models currently installed in ComfyUI's model folders.
+
+**Requirements:**
+- Lists models grouped by type (checkpoints, loras, embeddings, vae, controlnet, upscale_models, clip, unet, and any other type registered in `folder_paths`)
+- Shows filename, file size, and a link to the model detail page
+- Each model entry has a Delete button (with confirmation dialog)
+- Deletion removes only the model file; metadata in the DB is preserved
+
+**API:**
+- `GET /tiny-model-manager/api/models` → `{ type: ModelFile[] }`
+- `DELETE /tiny-model-manager/api/models/{type}/{path}` → removes the file from disk
+
+---
+
+### F-04 — Model Search (CivitAI)
+
+Users can search for models on CivitAI and browse version details.
+
+**Requirements:**
+- Search by keyword, filterable by model type (checkpoints, loras, embeddings, vae, controlnet)
+- Results show model name, type, and creator
+- Selecting a result fetches available versions with file size
+- Each version has a Download button
+- Optional CivitAI API key (stored in settings) is sent as a Bearer token for authenticated requests
+
+**API:**
+- `GET /tiny-model-manager/api/search/civitai?q=&type=&page=`
+- `GET /tiny-model-manager/api/civitai/versions/{model_id}`
+
+---
+
+### F-05 — Model Search (HuggingFace)
+
+Users can search for models on HuggingFace and browse individual files.
+
+**Requirements:**
+- Search by keyword, filtered to `text-to-image` pipeline by default
+- Results show model ID and download count
+- Selecting a result lists available model files (`.safetensors`, `.ckpt`, `.pt`, `.bin`, `.gguf`)
+- Each file has a Download button
+- Optional HuggingFace token sent as a Bearer token for gated model access
+
+**API:**
+- `GET /tiny-model-manager/api/search/huggingface?q=&type=`
+- `GET /tiny-model-manager/api/search/huggingface/files?repo=`
+
+---
+
+### F-06 — Async Download Manager
+
+Files are downloaded in the background with live progress feedback in the UI.
+
+**Requirements:**
+- Downloads are queued; each runs one at a time
+- Progress (percentage, downloaded/total bytes) is updated as the file streams
+- Status values: `queued`, `downloading`, `done`, `error`
+- On error the partial file is removed from disk
+- The download panel polls `/api/download/status` every 2 seconds and displays progress bars for all active tasks
+- Download destination is the first path registered in ComfyUI's `folder_paths` for the selected model type
+
+**API:**
+- `POST /tiny-model-manager/api/download` body `{ url, model_type, filename, platform, source_id }`
+- `GET /tiny-model-manager/api/download/status`
+
+---
+
+### F-07 — Automatic Metadata Fetch
+
+After a download completes, metadata is fetched from the source platform and stored locally.
+
+**Requirements:**
+- For CivitAI: fetches description, trigger words, and up to 5 preview images from the first model version
+- For HuggingFace: fetches description, trigger words, and tags from the model card
+- Metadata failures are silent and do not affect the downloaded file
+- Preview images and videos are saved to `data/media/<model_basename>/`
+- Media type is inferred from file extension (`mp4`, `webm`, `mov` → video; everything else → image)
+
+---
+
+### F-08 — SQLite Metadata Storage
+
+All model metadata is persisted in a local SQLite database at `data/models.db`.
+
+**Schema:**
+
+| Table | Columns |
+|---|---|
+| `models` | id, filename, model_type, source_platform, source_id, description, created_at |
+| `trigger_words` | id, model_id (FK), word |
+| `model_media` | id, model_id (FK), media_type, local_path |
+
+**Requirements:**
+- `ON CONFLICT DO UPDATE` upsert so re-downloading a model refreshes its metadata
+- `ON DELETE CASCADE` so deleting a model record also removes its trigger words and media rows
+- Foreign keys enforced via `PRAGMA foreign_keys = ON`
+
+---
+
+### F-09 — Model Detail Page
+
+Users can view and edit metadata for any installed model.
+
+**Requirements:**
+- Accessed by clicking a model filename in the Models list
+- Shows description (editable textarea), trigger words (editable chip list), and a media gallery
+- Trigger words can be added (Enter key or Add button) and removed (× on each chip)
+- Save button PUTs updated metadata to the backend
+- Media gallery renders images inline and videos with native controls
+
+**API:**
+- `GET /tiny-model-manager/api/models/{type}/{path}/metadata`
+- `PUT /tiny-model-manager/api/models/{type}/{path}/metadata` body `{ description, trigger_words }`
+- `GET /tiny-model-manager/api/media/{path}` — serves files from `data/media/` (path traversal protected)
+
+---
+
+### F-10 — Settings Page
+
+Users can configure API credentials and the media storage directory.
+
+**Requirements:**
+- Fields: CivitAI API Key, HuggingFace Token, Media Storage Directory
+- Credentials are stored in `data/settings.json`
+- GET endpoint masks stored credentials (returns `***` instead of the actual value)
+- PUT endpoint only updates a credential if the submitted value is non-empty and not `***`
+- Leaving Media Storage Directory blank uses the default path `data/media/`
+
+**API:**
+- `GET /tiny-model-manager/api/settings`
+- `PUT /tiny-model-manager/api/settings`
+
+---
+
+### F-11 — LoRA Loader with Trigger Words (Workflow Node)
+
+A ComfyUI workflow node that loads a LoRA and outputs its stored trigger words as a string.
+
+**Requirements:**
+- Node name: `LoraLoaderWithTriggers`, display name: `LoRA Loader (with Trigger Words)`
+- Category: `tiny-model-manager`
+- Inputs: `model`, `clip`, `lora_name` (dropdown from installed loras), `strength_model`, `strength_clip`
+- Outputs: `model`, `clip`, `trigger_words` (comma-separated string from the DB)
+- Falls back to an empty string if the LoRA has no stored metadata
+
+---
+
+## Data Flow
+
+```
+User clicks Download
+       │
+       ▼
+POST /api/download
+       │
+       ▼
+downloader.enqueue()  ──►  asyncio.Queue
+                                  │
+                                  ▼
+                         _run_download()
+                           streams file
+                                  │
+                         file write complete
+                                  │
+                                  ▼
+                    metadata_fetcher.fetch_and_store()
+                    ├── civitai/hf API call
+                    ├── image download → data/media/
+                    └── upsert into SQLite
+```
+
+---
+
+## Directory Structure
+
+```
+comfyui-tiny-model-manager/
+├── __init__.py               # ComfyUI entry point
+├── requirements.txt          # aiosqlite, httpx
+├── .gitignore
+├── py/
+│   ├── config.py             # paths, settings load/save
+│   ├── db/
+│   │   ├── database.py       # schema creation, connection factory
+│   │   └── model_repo.py     # async CRUD helpers
+│   ├── nodes/
+│   │   └── lora_loader_with_triggers.py
+│   ├── routes/
+│   │   ├── __init__.py       # register_routes() wires all sub-routers
+│   │   ├── static.py         # SPA serving + fallback
+│   │   ├── models.py         # list + delete models
+│   │   ├── download.py       # search + download endpoints
+│   │   ├── metadata.py       # metadata CRUD + media serving
+│   │   └── settings.py       # settings CRUD
+│   └── services/
+│       ├── civitai.py
+│       ├── huggingface.py
+│       ├── downloader.py
+│       └── metadata_fetcher.py
+├── frontend/                 # Angular source
+│   └── src/app/
+│       ├── pages/
+│       │   ├── models/
+│       │   ├── download/
+│       │   ├── model-detail/
+│       │   └── settings/
+│       └── services/
+│           ├── model.ts
+│           └── download.ts
+├── web/                      # Angular build output (git-ignored)
+└── data/                     # Runtime data (git-ignored)
+    ├── models.db
+    ├── settings.json
+    └── media/
+```

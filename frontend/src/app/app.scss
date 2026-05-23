@@ -1,0 +1,39 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #1a1a1a;
+  color: #e0e0e0;
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 14px;
+}
+
+.navbar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #111;
+  border-bottom: 1px solid #333;
+
+  .brand {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #fff;
+    margin-right: auto;
+  }
+
+  a {
+    color: #aaa;
+    text-decoration: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    transition: color 0.15s;
+
+    &:hover { color: #fff; }
+    &.active { color: #4f9eff; }
+  }
+}
+
+main {
+  padding: 1.5rem;
+}
