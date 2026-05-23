@@ -6,7 +6,7 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 
 1. Install Python dependencies:
    ```
-   ..\..\..\..\..\python_embedded\python.exe -m pip install -r requirements.txt
+   ..\..\..\python_embeded\python.exe -m pip install -r requirements.txt
    ```
 2. Build the frontend (requires Node.js):
    ```
