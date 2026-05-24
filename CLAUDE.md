@@ -4,10 +4,10 @@ Goal: Dashboard to manage Models/LORAs and custom nodes to insert them with thei
 
 ## Tech Stack
 ### Frontend
-- Angular JS
+- Angular 21.2 (zoneless, no Zone.js)
 
 ### Backend
-- Python
+- Python 3.13.12
 - ComfyUI python_embedded can be found at ../../../python_embedded
 - pip need to be called with python.exe -m pip
 - Persistence through SQLite files in a subfolder folder
