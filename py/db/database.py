@@ -1,4 +1,5 @@
 import aiosqlite
+from contextlib import asynccontextmanager
 from .. import config as cfg
 
 _SCHEMA = """
@@ -27,11 +28,12 @@ CREATE TABLE IF NOT EXISTS model_media (
 """
 
 
-async def get_db() -> aiosqlite.Connection:
-    db = await aiosqlite.connect(cfg.db_path())
-    db.row_factory = aiosqlite.Row
-    await db.execute("PRAGMA foreign_keys = ON")
-    return db
+@asynccontextmanager
+async def get_db():
+    async with aiosqlite.connect(cfg.db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys = ON")
+        yield db
 
 
 async def init_db():
