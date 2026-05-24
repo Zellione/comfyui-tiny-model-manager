@@ -11,6 +11,8 @@ Goal: Dashboard to manage Models/LORAs and custom nodes to insert them with thei
 - ComfyUI python_embedded can be found at ../../../python_embedded
 - pip need to be called with python.exe -m pip
 - Persistence through SQLite files in a subfolder folder
+- Huggingface.co API (consult documentation: https://huggingface.co/.well-known/openapi.md)
+- CivitAI API (consult documentation: https://developer.civitai.com/site/reference/)
 
 For further information you can Check the official documentation https://docs.comfy.org/custom-nodes/overview
 
