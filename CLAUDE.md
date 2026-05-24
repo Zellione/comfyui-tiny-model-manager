@@ -16,17 +16,3 @@ For further information you can Check the official documentation https://docs.co
 
 ## Workflow
 - Commits and code comments always in english
-
-## Phases
-### Phase 1 - completed
-Create a skeleton folder structure and implement mendatory files according to documentation
-
-### Phase 2 - completed
-Create basic frontend UI and backend logic to download view and download models from huggingface and CivitAI using
-their APIs.
-Downloaded models should be put in the according model subfolders of ComfyUI.
-
-### Phase 3 - completed
-Model data like example images and videos should be downloaded on model download be stored in a configurable folder.
-The model meta information like description, trigger words and so on should be stored in a sqlite file.
-The installed models should be viewable in the frontend UI.
