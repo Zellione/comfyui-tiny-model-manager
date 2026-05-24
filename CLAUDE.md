@@ -18,3 +18,4 @@ For further information you can Check the official documentation https://docs.co
 
 ## Workflow
 - Commits and code comments always in english
+- Claude never mentions it self as Coauthor or uses EOF in commit message
