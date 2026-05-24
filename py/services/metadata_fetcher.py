@@ -13,12 +13,10 @@ async def fetch_and_store(filename: str, model_type: str, platform: str, source_
 
     try:
         if platform == "civitai" and source_id:
-            meta = await civitai.get_model_metadata(int(source_id))
-            description = meta.get("description") or ""
-            trigger_words = meta.get("trigger_words", [])
-            versions = await civitai.get_model_versions(int(source_id))
-            if versions:
-                image_urls = await civitai.get_version_images(versions[0]["id"])
+            meta = await civitai.get_version_metadata(int(source_id))
+            description = meta["description"]
+            trigger_words = meta["trigger_words"]
+            image_urls = meta["image_urls"]
         elif platform == "huggingface" and source_id:
             meta = await huggingface.get_model_card(source_id)
             description = meta.get("description") or ""

@@ -72,6 +72,20 @@ async def get_model_metadata(model_id: int) -> dict:
     }
 
 
+async def get_version_metadata(version_id: int) -> dict:
+    """Returns description, trigger words, and image URLs for a specific model version."""
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.get(f"{_BASE}/model-versions/{version_id}", headers=_headers())
+        resp.raise_for_status()
+        data = resp.json()
+    image_urls = [img["url"] for img in data.get("images", [])[:5] if img.get("url")]
+    return {
+        "description": data.get("description") or "",
+        "trigger_words": data.get("trainedWords", []),
+        "image_urls": image_urls,
+    }
+
+
 async def get_version_images(version_id: int, limit: int = 5) -> list[str]:
     """Returns up to `limit` image URLs for a model version."""
     async with httpx.AsyncClient(timeout=15) as client:

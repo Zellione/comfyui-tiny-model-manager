@@ -28,6 +28,7 @@ export class Download {
   selectedModel = signal<CivitaiModel | null>(null);
   versions = signal<CivitaiVersion[]>([]);
   hfFiles = signal<{ filename: string; size: number; url: string }[]>([]);
+  selectedHfRepoId = signal('');
 
   searching = signal(false);
   loadingVersions = signal(false);
@@ -75,14 +76,16 @@ export class Download {
   }
 
   selectHf(model: HfModel) {
+    const repoId = model.modelId ?? model.id;
+    this.selectedHfRepoId.set(repoId);
     this.hfFiles.set([]);
-    this.dlService.getHfFiles(model.modelId ?? model.id).subscribe({
+    this.dlService.getHfFiles(repoId).subscribe({
       next: files => this.hfFiles.set(files),
     });
   }
 
-  downloadHf(file: { filename: string; size: number; url: string }, repoId: string) {
-    this.dlService.startDownload(file.url, this.modelType(), file.filename, 'huggingface', repoId).subscribe();
+  downloadHf(file: { filename: string; size: number; url: string }) {
+    this.dlService.startDownload(file.url, this.modelType(), file.filename, 'huggingface', this.selectedHfRepoId()).subscribe();
   }
 
   formatSize(bytes: number): string {
