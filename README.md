@@ -33,6 +33,17 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | F-09 | Model detail page — view/edit description, trigger word chips, media gallery | Done |
 | F-10 | Settings page — CivitAI API key, HuggingFace token, custom media directory | Done |
 | F-11 | `LoraLoaderWithTriggers` ComfyUI workflow node — loads a LoRA and outputs its trigger words | Done |
+| F-12 | Settings moved into ComfyUI's native settings panel (standalone page removed) | TODO |
+| F-13 | Enhanced model view — card/grid + thumbnails, inline tags/triggers, bulk delete | TODO |
+| F-14 | Enhanced download view — result pagination, inline previews, batch download | TODO |
+| F-15 | Import & store tags from HuggingFace | TODO |
+| F-16 | Import & store tags from CivitAI + re-fetch metadata for installed models | TODO |
+| F-17 | Paste a direct HuggingFace file download link | TODO |
+| F-18 | Paste a direct CivitAI download link | TODO |
+| F-19 | Paste a HuggingFace repository link and pick a file | TODO |
+| F-20 | Paste a CivitAI model link and pick a version | TODO |
+| F-21 | Loader nodes for checkpoints, VAE, ControlNet, embeddings, upscale models | TODO |
+| F-22 | One-click insert of a model's loader node into the open workflow | TODO |
 
 ---
 
@@ -43,8 +54,9 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | GET | `/tiny-model-manager` | Serves the Angular SPA |
 | GET | `/tiny-model-manager/api/models` | List all installed models by type |
 | DELETE | `/tiny-model-manager/api/models/{type}/{path}` | Delete a model file |
-| GET | `/tiny-model-manager/api/models/{type}/{path}/metadata` | Get stored metadata |
-| PUT | `/tiny-model-manager/api/models/{type}/{path}/metadata` | Update description and trigger words |
+| GET | `/tiny-model-manager/api/models/{type}/{path}/metadata` | Get stored metadata (incl. tags) |
+| PUT | `/tiny-model-manager/api/models/{type}/{path}/metadata` | Update description, trigger words, tags |
+| POST | `/tiny-model-manager/api/models/{type}/{path}/refetch` | Re-fetch metadata/tags from the source (TODO) |
 | GET | `/tiny-model-manager/api/search/civitai` | Search CivitAI |
 | GET | `/tiny-model-manager/api/civitai/versions/{model_id}` | Get CivitAI model versions |
 | GET | `/tiny-model-manager/api/search/huggingface` | Search HuggingFace |
@@ -54,6 +66,9 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | GET | `/tiny-model-manager/api/media/{path}` | Serve a stored preview image/video |
 | GET | `/tiny-model-manager/api/settings` | Get current settings |
 | PUT | `/tiny-model-manager/api/settings` | Update settings |
+| POST | `/tiny-model-manager/api/workflow/insert` | Enqueue a 1-click node insert (TODO) |
+| GET | `/tiny-model-manager/api/workflow/pending` | Pending inserts for the ComfyUI JS extension (TODO) |
+| POST | `/tiny-model-manager/api/workflow/ack` | Mark a pending insert consumed (TODO) |
 
 ---
 

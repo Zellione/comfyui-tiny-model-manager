@@ -152,6 +152,7 @@ All model metadata is persisted in a local SQLite database at `data/models.db`.
 | `models` | id, filename, model_type, source_platform, source_id, description, created_at |
 | `trigger_words` | id, model_id (FK), word |
 | `model_media` | id, model_id (FK), media_type, local_path |
+| `tags` | id, model_id (FK), tag |
 
 **Requirements:**
 - `ON CONFLICT DO UPDATE` upsert so re-downloading a model refreshes its metadata
@@ -208,6 +209,150 @@ A ComfyUI workflow node that loads a LoRA and outputs its stored trigger words a
 
 ---
 
+### F-12 — Settings in ComfyUI Settings Panel
+
+Move credential/config management out of the standalone dashboard and into ComfyUI's native settings UI.
+
+> **Architecture note:** ComfyUI's settings panel API (`app.registerExtension`) only runs inside ComfyUI's own frontend, which is a separate document from the standalone SPA. This feature introduces a small hand-written ComfyUI JS extension loaded from `WEB_DIRECTORY`.
+
+**Requirements:**
+- A ComfyUI JS extension (`app.registerExtension`) registers settings entries under a "Tiny Model Manager" category: CivitAI API Key, HuggingFace Token, Media Storage Directory
+- Entries read from and write to the existing backend `GET/PUT /api/settings` (single source of truth: `data/settings.json`); masking rules (`***`) are preserved
+- The standalone Angular Settings page and its nav link are removed; the `/settings` route is dropped
+- The JS extension file lives outside the Angular build output so it is not overwritten on rebuild (see Directory Structure: `js/`)
+
+---
+
+### F-13 — Enhanced Model View
+
+Upgrade the installed-model browser from a plain table to a richer, card-based view.
+
+**Requirements:**
+- Card/grid layout per model showing a preview thumbnail sourced from the model's stored media (first image; placeholder when none)
+- Each card shows stored tags and trigger words inline (depends on F-15/F-16 persisting tags)
+- Bulk multi-select via per-card checkboxes with a batch Delete selected action (single confirmation dialog covering all selected files)
+- Existing grouping-by-type and per-model delete/detail navigation are retained
+
+**API:**
+- Reuses `GET /api/models` — extend each `ModelFile` with `metadata` (including `tags`) so cards render without N extra calls
+
+---
+
+### F-14 — Enhanced Download View
+
+Improve search browsing and allow downloading multiple files at once.
+
+**Requirements:**
+- Result pagination: "Load more" for CivitAI (cursor-based) and HuggingFace (page-based) instead of a single result page
+- Inline preview thumbnails on search result cards before a result is selected
+- Batch download: select multiple versions/files and enqueue them in one action; each becomes an independent task in the existing download queue
+
+**API:**
+- Reuses existing search endpoints (ensure they surface a preview image URL and a pagination cursor/page token)
+- Reuses `POST /api/download` per selected file (batch issued client-side)
+
+---
+
+### F-15 — Import Tags from HuggingFace
+
+Persist tags fetched from HuggingFace and make them visible/editable.
+
+**Requirements:**
+- `metadata_fetcher` stores `huggingface.get_model_card()` tags in the new `tags` table (see F-08)
+- Tags surface in metadata responses and on the model detail page
+
+---
+
+### F-16 — Import Tags from CivitAI
+
+Persist tags fetched from CivitAI and make them visible/editable, and allow backfilling existing models.
+
+**Requirements:**
+- `metadata_fetcher` stores `civitai.get_model_metadata()` tags in the `tags` table (see F-08)
+- A Re-fetch metadata action backfills description, trigger words, and tags for an already-installed model from its stored `source_platform` + `source_id`
+
+**API (shared with F-15):**
+- Extend `GET/PUT /api/models/{type}/{path}/metadata` to include a `tags` array
+- `POST /api/models/{type}/{path}/refetch` → re-pulls metadata from the source platform and upserts
+
+---
+
+### F-17 — Direct Download Link (HuggingFace)
+
+Paste a HuggingFace file URL to download without searching.
+
+**Requirements:**
+- Paste-a-link section on the Download page accepts a `https://huggingface.co/<repo>/resolve/<rev>/<file>` URL
+- Frontend parses repo, revision, and filename; user picks the target model type; submit calls `POST /api/download` with `platform="huggingface"` and `source_id=<repo>`
+
+---
+
+### F-18 — Direct Download Link (CivitAI)
+
+Paste a CivitAI direct / model-version download URL to download without searching.
+
+**Requirements:**
+- Accepts CivitAI download URLs (`.../api/download/models/<versionId>`); parses the version ID
+- Resolves filename / model type via existing version metadata; submits to `POST /api/download` with `platform="civitai"` and `source_id=<versionId>`
+
+---
+
+### F-19 — Model Repository Link (HuggingFace)
+
+Paste a HuggingFace repository page URL and pick a file to download.
+
+**Requirements:**
+- Accepts `https://huggingface.co/<repo>`; parses repo id
+- Calls existing `GET /api/search/huggingface/files?repo=` to list files; user selects file + model type, then downloads
+
+---
+
+### F-20 — Model Link (CivitAI)
+
+Paste a CivitAI model page URL and pick a version to download.
+
+**Requirements:**
+- Accepts `https://civitai.com/models/<modelId>...`; parses model id
+- Calls existing `GET /api/civitai/versions/{model_id}` to list versions/files; user selects file + model type, then downloads
+
+> F-17–F-20 share one "Paste a link" section on the Download page that auto-detects the link kind (direct file vs repo/model page, CivitAI vs HuggingFace) and routes to the matching flow above.
+
+---
+
+### F-21 — Loader Nodes for Other Model Types
+
+Add ComfyUI workflow loader nodes mirroring `LoraLoaderWithTriggers`, each surfacing stored trigger words.
+
+**Requirements:**
+- New nodes in category `tiny-model-manager`, registered in `NODE_CLASS_MAPPINGS`:
+  - **Checkpoint Loader (with Trigger Words)** → outputs `MODEL`, `CLIP`, `VAE`, `trigger_words`
+  - **VAE Loader** → outputs `VAE` (+ `trigger_words` where applicable)
+  - **ControlNet Loader** → outputs `CONTROL_NET` (+ `trigger_words`)
+  - **Embedding helper** → outputs the embedding's `trigger_words` string for prompt insertion
+  - **Upscale Model Loader** → outputs `UPSCALE_MODEL`
+- Each model-name dropdown is populated from `folder_paths.get_filename_list(<type>)`
+- Trigger words read from the DB via `model_repo.get_model_by_filename()`; empty string when absent
+
+---
+
+### F-22 — One-Click Add Model to Open Workflow
+
+Insert the matching loader node for a model into the currently open ComfyUI graph from the dashboard.
+
+> **Architecture note:** the dashboard runs in a separate document and cannot touch `app.graph` directly. A backend pending-insert queue bridges the SPA and a ComfyUI JS extension running inside ComfyUI's frontend.
+
+**Requirements:**
+- An Add to workflow button on the model list/detail enqueues an insert request on the backend
+- A ComfyUI JS extension polls the pending-insert endpoint; on a pending item it calls `LiteGraph.createNode()` for the model-type's loader node, pre-selects the model in the node's dropdown, adds it via `app.graph.add()`, and acknowledges the item
+- Maps model type → loader node from F-21 (e.g. `loras` → LoRA loader, `checkpoints` → Checkpoint loader)
+
+**API:**
+- `POST /tiny-model-manager/api/workflow/insert` body `{ model_type, filename }` → enqueues a pending insert
+- `GET /tiny-model-manager/api/workflow/pending` → returns queued inserts for the JS extension to apply
+- `POST /tiny-model-manager/api/workflow/ack` body `{ id }` → marks an insert consumed
+
+---
+
 ## Data Flow
 
 ```
@@ -247,14 +392,20 @@ comfyui-tiny-model-manager/
 │   │   ├── database.py       # schema creation, connection factory
 │   │   └── model_repo.py     # async CRUD helpers
 │   ├── nodes/
-│   │   └── lora_loader_with_triggers.py
+│   │   ├── lora_loader_with_triggers.py
+│   │   ├── checkpoint_loader_with_triggers.py
+│   │   ├── vae_loader.py
+│   │   ├── controlnet_loader.py
+│   │   ├── embedding_helper.py
+│   │   └── upscale_model_loader.py
 │   ├── routes/
 │   │   ├── __init__.py       # register_routes() wires all sub-routers
 │   │   ├── static.py         # SPA serving + fallback
 │   │   ├── models.py         # list + delete models
 │   │   ├── download.py       # search + download endpoints
-│   │   ├── metadata.py       # metadata CRUD + media serving
-│   │   └── settings.py       # settings CRUD
+│   │   ├── metadata.py       # metadata CRUD + media serving + re-fetch
+│   │   ├── settings.py       # settings CRUD
+│   │   └── workflow.py       # pending-insert queue for 1-click add
 │   └── services/
 │       ├── civitai.py
 │       ├── huggingface.py
@@ -270,6 +421,8 @@ comfyui-tiny-model-manager/
 │       └── services/
 │           ├── model.ts
 │           └── download.ts
+├── js/                       # Hand-written ComfyUI JS extension (settings + workflow insert)
+│   └── extension.js          # app.registerExtension(...)
 ├── web/                      # Angular build output (git-ignored)
 └── data/                     # Runtime data (git-ignored)
     ├── models.db
