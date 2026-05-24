@@ -20,20 +20,37 @@ def _headers() -> dict:
     return {}
 
 
-async def search_models(query: str, model_type: str = "", page: int = 1, limit: int = 20) -> dict:
-    params = {"query": query, "page": page, "limit": limit}
+async def search_models(query: str, model_type: str = "", page: int = 1, limit: int = 20, cursor: str = "") -> dict:
+    params: dict = {"limit": limit}
+    if query:
+        params["query"] = query
+        # CivitAI does not allow page with query; use cursor-based pagination instead
+        if cursor:
+            params["cursor"] = cursor
+    else:
+        params["page"] = page
     if model_type and model_type in CIVITAI_TYPE_MAP:
         params["types"] = CIVITAI_TYPE_MAP[model_type]
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.get(f"{_BASE}/models", params=params, headers=_headers())
-        resp.raise_for_status()
+        if not resp.is_success:
+            raise httpx.HTTPStatusError(
+                f"{resp.status_code} {resp.reason_phrase}: {resp.text}",
+                request=resp.request,
+                response=resp,
+            )
         return resp.json()
 
 
 async def get_model_versions(model_id: int) -> list:
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.get(f"{_BASE}/models/{model_id}", headers=_headers())
-        resp.raise_for_status()
+        if not resp.is_success:
+            raise httpx.HTTPStatusError(
+                f"{resp.status_code} {resp.reason_phrase}: {resp.text}",
+                request=resp.request,
+                response=resp,
+            )
         data = resp.json()
         return data.get("modelVersions", [])
 

@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { DownloadService, DownloadTask, CivitaiModel, CivitaiVersion, HfModel } from '../../services/download';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { DownloadService, DownloadTask, CivitaiModel, CivitaiVersion, CivitaiFile, HfModel } from '../../services/download';
 
 type Platform = 'civitai' | 'huggingface';
 type ModelType = 'checkpoints' | 'loras' | 'embeddings' | 'vae' | 'controlnet';
@@ -12,77 +13,76 @@ type ModelType = 'checkpoints' | 'loras' | 'embeddings' | 'vae' | 'controlnet';
   templateUrl: './download.html',
   styleUrl: './download.scss',
 })
-export class Download implements OnInit {
-  platform: Platform = 'civitai';
-  query = '';
-  modelType: ModelType = 'checkpoints';
+export class Download {
+  private dlService = inject(DownloadService);
+
+  platform = signal<Platform>('civitai');
+  query = signal('');
+  modelType = signal<ModelType>('checkpoints');
   modelTypes: ModelType[] = ['checkpoints', 'loras', 'embeddings', 'vae', 'controlnet'];
 
-  civitaiResults: CivitaiModel[] = [];
-  hfResults: HfModel[] = [];
-  activeTasks: DownloadTask[] = [];
+  civitaiResults = signal<CivitaiModel[]>([]);
+  hfResults = signal<HfModel[]>([]);
+  activeTasks = toSignal(this.dlService.activeTasks$, { initialValue: [] as DownloadTask[] });
 
-  selectedModel: CivitaiModel | null = null;
-  versions: CivitaiVersion[] = [];
-  hfFiles: { filename: string; size: number; url: string }[] = [];
+  selectedModel = signal<CivitaiModel | null>(null);
+  versions = signal<CivitaiVersion[]>([]);
+  hfFiles = signal<{ filename: string; size: number; url: string }[]>([]);
 
-  searching = false;
-  loadingVersions = false;
-
-  constructor(private dlService: DownloadService) {}
-
-  ngOnInit() {
-    this.dlService.activeTasks$.subscribe(tasks => (this.activeTasks = tasks));
-  }
+  searching = signal(false);
+  loadingVersions = signal(false);
+  versionsError = signal('');
 
   search() {
-    this.searching = true;
-    this.civitaiResults = [];
-    this.hfResults = [];
-    if (this.platform === 'civitai') {
-      this.dlService.searchCivitai(this.query, this.modelType).subscribe({
-        next: r => { this.civitaiResults = r.items; this.searching = false; },
-        error: () => { this.searching = false; },
+    this.searching.set(true);
+    this.civitaiResults.set([]);
+    this.hfResults.set([]);
+    if (this.platform() === 'civitai') {
+      this.dlService.searchCivitai(this.query(), this.modelType()).subscribe({
+        next: r => { this.civitaiResults.set(r.items); this.searching.set(false); },
+        error: () => { this.searching.set(false); },
       });
     } else {
-      this.dlService.searchHuggingFace(this.query, this.modelType).subscribe({
-        next: r => { this.hfResults = r; this.searching = false; },
-        error: () => { this.searching = false; },
+      this.dlService.searchHuggingFace(this.query(), this.modelType()).subscribe({
+        next: r => { this.hfResults.set(r); this.searching.set(false); },
+        error: () => { this.searching.set(false); },
       });
     }
   }
 
   selectCivitai(model: CivitaiModel) {
-    this.selectedModel = model;
-    this.versions = [];
-    this.loadingVersions = true;
+    this.selectedModel.set(model);
+    this.versions.set([]);
+    this.versionsError.set('');
+    this.loadingVersions.set(true);
     this.dlService.getCivitaiVersions(model.id).subscribe({
-      next: v => { this.versions = v; this.loadingVersions = false; },
-      error: () => { this.loadingVersions = false; },
+      next: v => { this.versions.set(v); this.loadingVersions.set(false); },
+      error: err => {
+        this.versionsError.set(err?.error?.error ?? 'Failed to load versions');
+        this.loadingVersions.set(false);
+      },
     });
   }
 
-  downloadCivitai(version: CivitaiVersion) {
-    const file = version.files[0];
-    if (!file) return;
+  downloadFile(file: CivitaiFile, versionId: number) {
     this.dlService.startDownload(
       file.downloadUrl,
-      this.modelType,
+      this.modelType(),
       file.name,
       'civitai',
-      String(this.selectedModel!.id)
+      String(versionId)
     ).subscribe();
   }
 
   selectHf(model: HfModel) {
-    this.hfFiles = [];
+    this.hfFiles.set([]);
     this.dlService.getHfFiles(model.modelId ?? model.id).subscribe({
-      next: files => (this.hfFiles = files),
+      next: files => this.hfFiles.set(files),
     });
   }
 
   downloadHf(file: { filename: string; size: number; url: string }, repoId: string) {
-    this.dlService.startDownload(file.url, this.modelType, file.filename, 'huggingface', repoId).subscribe();
+    this.dlService.startDownload(file.url, this.modelType(), file.filename, 'huggingface', repoId).subscribe();
   }
 
   formatSize(bytes: number): string {

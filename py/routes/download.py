@@ -9,8 +9,9 @@ def add_download_routes(routes):
         q = request.rel_url.query.get("q", "")
         model_type = request.rel_url.query.get("type", "")
         page = int(request.rel_url.query.get("page", 1))
+        cursor = request.rel_url.query.get("cursor", "")
         try:
-            data = await civitai.search_models(q, model_type, page)
+            data = await civitai.search_models(q, model_type, page, cursor=cursor)
             return web.json_response({"success": True, "data": data})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)

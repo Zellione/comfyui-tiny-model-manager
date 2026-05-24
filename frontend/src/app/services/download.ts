@@ -17,6 +17,26 @@ export interface DownloadTask {
   error: string | null;
 }
 
+export interface CivitaiFile {
+  id: number;
+  name: string;
+  type: string;
+  sizeKB: number;
+  downloadUrl: string;
+  primary: boolean;
+  metadata: { format: string; size: string; fp: string };
+}
+
+export interface CivitaiVersion {
+  id: number;
+  name: string;
+  baseModel: string;
+  downloadUrl: string;
+  trainedWords: string[];
+  files: CivitaiFile[];
+  images: { url: string }[];
+}
+
 export interface CivitaiModel {
   id: number;
   name: string;
@@ -24,16 +44,7 @@ export interface CivitaiModel {
   description: string;
   modelVersions: CivitaiVersion[];
   creator: { username: string };
-  stats: { downloadCount: number; rating: number };
-}
-
-export interface CivitaiVersion {
-  id: number;
-  name: string;
-  downloadUrl: string;
-  trainedWords: string[];
-  files: { name: string; sizeKB: number; downloadUrl: string }[];
-  images: { url: string }[];
+  stats: { downloadCount: number; thumbsUpCount: number; thumbsDownCount: number };
 }
 
 export interface HfModel {
@@ -61,9 +72,15 @@ export class DownloadService {
     );
   }
 
-  searchCivitai(q: string, type = '', page = 1): Observable<{ items: CivitaiModel[]; metadata: any }> {
+  searchCivitai(q: string, type = '', page = 1, cursor = ''): Observable<{ items: CivitaiModel[]; metadata: any }> {
+    const params: Record<string, string | number> = { q, type };
+    if (q && cursor) {
+      params['cursor'] = cursor;
+    } else {
+      params['page'] = page;
+    }
     return this.http
-      .get<{ success: boolean; data: any }>(`${API}/search/civitai`, { params: { q, type, page } })
+      .get<{ success: boolean; data: any }>(`${API}/search/civitai`, { params })
       .pipe(map(r => ({ items: r.data.items ?? [], metadata: r.data.metadata ?? {} })));
   }
 
