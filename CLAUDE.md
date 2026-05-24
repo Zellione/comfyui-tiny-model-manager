@@ -8,7 +8,7 @@ Goal: Dashboard to manage Models/LORAs and custom nodes to insert them with thei
 
 ### Backend
 - Python 3.13.12
-- ComfyUI python_embedded can be found at ../../../python_embedded
+- ComfyUI python_embedded can be found at ../../../python_embeded/
 - pip need to be called with python.exe -m pip
 - Persistence through SQLite files in a subfolder folder
 - Huggingface.co API (consult documentation: https://huggingface.co/.well-known/openapi.md)
