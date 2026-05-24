@@ -10,6 +10,8 @@ def add_model_routes(routes):
         try:
             result = {}
             for folder_type, (dirs, extensions) in folder_paths.folder_names_and_paths.items():
+                if folder_type == "configs":
+                    continue
                 models = []
                 for base_dir in dirs:
                     if not os.path.isdir(base_dir):
