@@ -34,7 +34,7 @@ async def search_models(query: str, model_type: str = "", limit: int = 20) -> li
 async def get_model_files(repo_id: str) -> list[dict]:
     """Returns model files (.safetensors etc.) from a HuggingFace repo."""
     async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(f"{_API}/models/{repo_id}", headers=_headers())
+        resp = await client.get(f"{_API}/models/{repo_id}", params={"blobs": "true"}, headers=_headers())
         resp.raise_for_status()
         data = resp.json()
     siblings = data.get("siblings", [])
