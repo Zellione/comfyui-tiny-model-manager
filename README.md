@@ -33,7 +33,7 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | F-09 | Model detail page — view/edit description, trigger word chips, media gallery | Done |
 | F-10 | Settings page — CivitAI API key, HuggingFace token, custom media directory | Done |
 | F-11 | `LoraLoaderWithTriggers` ComfyUI workflow node — loads a LoRA and outputs its trigger words | Done |
-| F-12 | Settings moved into ComfyUI's native settings panel (standalone page removed) | TODO |
+| F-12 | Settings moved into ComfyUI's native settings panel (standalone page removed) | Done |
 | F-13 | Enhanced model view — card/grid + thumbnails, inline tags/triggers, bulk delete | TODO |
 | F-14 | Enhanced download view — result pagination, inline previews, batch download | TODO |
 | F-15 | Import & store tags from HuggingFace | TODO |
@@ -104,7 +104,7 @@ py/
     metadata_fetcher.py       post-download metadata and image fetch
 frontend/
   src/app/
-    pages/                    Models, Download, ModelDetail, Settings
+    pages/                    Models, Download, ModelDetail
     services/                 ModelService, DownloadService
 web/                          Angular build output
 data/                         runtime — DB, settings, media (git-ignored)
