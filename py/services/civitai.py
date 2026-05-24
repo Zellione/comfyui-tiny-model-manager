@@ -79,8 +79,16 @@ async def get_version_metadata(version_id: int) -> dict:
         resp.raise_for_status()
         data = resp.json()
     image_urls = [img["url"] for img in data.get("images", [])[:5] if img.get("url")]
+    # Version-level description is usually null; fetch model-level description instead
+    description = data.get("description") or ""
+    model_id = data.get("modelId")
+    if model_id and not description:
+        async with httpx.AsyncClient(timeout=15) as client:
+            model_resp = await client.get(f"{_BASE}/models/{model_id}", headers=_headers())
+            if model_resp.is_success:
+                description = model_resp.json().get("description") or ""
     return {
-        "description": data.get("description") or "",
+        "description": description,
         "trigger_words": data.get("trainedWords", []),
         "image_urls": image_urls,
     }
