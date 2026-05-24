@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ModelService, ModelFile } from '../../services/model';
@@ -10,10 +10,10 @@ import { ModelService, ModelFile } from '../../services/model';
   styleUrl: './models.scss',
 })
 export class Models implements OnInit {
-  modelsByType: Record<string, ModelFile[]> = {};
-  typeKeys: string[] = [];
-  loading = true;
-  error = '';
+  modelsByType = signal<Record<string, ModelFile[]>>({});
+  typeKeys = computed(() => Object.keys(this.modelsByType()));
+  loading = signal(true);
+  error = signal('');
 
   constructor(private modelService: ModelService) {}
 
@@ -22,16 +22,15 @@ export class Models implements OnInit {
   }
 
   load() {
-    this.loading = true;
+    this.loading.set(true);
     this.modelService.listModels().subscribe({
       next: data => {
-        this.modelsByType = data;
-        this.typeKeys = Object.keys(data);
-        this.loading = false;
+        this.modelsByType.set(data);
+        this.loading.set(false);
       },
       error: err => {
-        this.error = err.message;
-        this.loading = false;
+        this.error.set(err.message);
+        this.loading.set(false);
       },
     });
   }
@@ -46,7 +45,7 @@ export class Models implements OnInit {
     if (!confirm(`Delete ${file.filename}?`)) return;
     this.modelService.deleteModel(type, file.filename).subscribe({
       next: () => this.load(),
-      error: err => alert('Delete failed: ' + err.message),
+      error: err => alert('Delete failed: ' + (err as Error).message),
     });
   }
 }

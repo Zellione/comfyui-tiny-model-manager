@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -13,13 +13,13 @@ import { ModelService, ModelMeta } from '../../services/model';
 export class ModelDetail implements OnInit {
   modelType = '';
   modelPath = '';
-  meta: ModelMeta | null = null;
+  meta = signal<ModelMeta | null>(null);
   editMeta: Partial<ModelMeta> = {};
   newTriggerWord = '';
-  loading = true;
-  saving = false;
-  error = '';
-  saved = false;
+  loading = signal(true);
+  saving = signal(false);
+  error = signal('');
+  saved = signal(false);
 
   constructor(private route: ActivatedRoute, private modelService: ModelService) {}
 
@@ -30,16 +30,16 @@ export class ModelDetail implements OnInit {
   }
 
   loadMeta() {
-    this.loading = true;
+    this.loading.set(true);
     this.modelService.getMetadata(this.modelType, this.modelPath).subscribe({
       next: m => {
-        this.meta = m;
+        this.meta.set(m);
         this.editMeta = { description: m.description, trigger_words: [...m.trigger_words] };
-        this.loading = false;
+        this.loading.set(false);
       },
       error: err => {
-        this.error = err.message;
-        this.loading = false;
+        this.error.set((err as Error).message);
+        this.loading.set(false);
       },
     });
   }
@@ -56,11 +56,11 @@ export class ModelDetail implements OnInit {
   }
 
   save() {
-    this.saving = true;
-    this.saved = false;
+    this.saving.set(true);
+    this.saved.set(false);
     this.modelService.updateMetadata(this.modelType, this.modelPath, this.editMeta).subscribe({
-      next: () => { this.saving = false; this.saved = true; },
-      error: err => { this.saving = false; this.error = err.message; },
+      next: () => { this.saving.set(false); this.saved.set(true); },
+      error: err => { this.saving.set(false); this.error.set((err as Error).message); },
     });
   }
 

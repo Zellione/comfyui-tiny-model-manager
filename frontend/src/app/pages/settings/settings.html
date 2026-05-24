@@ -18,6 +18,6 @@
 
   <button type="submit" class="btn-primary">Save</button>
 
-  @if (saved) { <span class="msg-ok">Saved.</span> }
-  @if (error) { <span class="msg-err">{{ error }}</span> }
+  @if (saved()) { <span class="msg-ok">Saved.</span> }
+  @if (error()) { <span class="msg-err">{{ error() }}</span> }
 </form>

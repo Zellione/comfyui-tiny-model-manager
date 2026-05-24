@@ -3,17 +3,17 @@
 <h2>{{ modelPath }}</h2>
 <p class="type-badge"><span class="badge">{{ modelType }}</span></p>
 
-@if (loading) {
+@if (loading()) {
   <p>Loading metadata…</p>
-} @else if (error) {
-  <p class="error">{{ error }}</p>
-} @else if (meta) {
+} @else if (error()) {
+  <p class="error">{{ error() }}</p>
+} @else if (meta()) {
   <div class="detail-layout">
 
     <!-- Media gallery -->
-    @if (meta.media && meta.media.length > 0) {
+    @if (meta()!.media && meta()!.media.length > 0) {
       <div class="gallery">
-        @for (m of meta.media; track m.id) {
+        @for (m of meta()!.media; track m.id) {
           @if (m.media_type === 'image') {
             <img [src]="mediaUrl(m.local_path)" alt="preview" />
           } @else {
@@ -43,10 +43,10 @@
         </div>
       </div>
 
-      <button class="btn-primary" (click)="save()" [disabled]="saving">
-        {{ saving ? 'Saving…' : 'Save' }}
+      <button class="btn-primary" (click)="save()" [disabled]="saving()">
+        {{ saving() ? 'Saving…' : 'Save' }}
       </button>
-      @if (saved) { <span class="msg-ok">Saved.</span> }
+      @if (saved()) { <span class="msg-ok">Saved.</span> }
     </div>
   </div>
 }

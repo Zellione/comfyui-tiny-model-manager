@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -19,24 +19,24 @@ const API = '/tiny-model-manager/api';
 })
 export class Settings implements OnInit {
   settings: AppSettings = { civitai_api_key: '', hf_token: '', media_dir: '' };
-  saved = false;
-  error = '';
+  saved = signal(false);
+  error = signal('');
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     this.http.get<{ success: boolean; data: AppSettings }>(`${API}/settings`).subscribe({
-      next: r => (this.settings = r.data),
+      next: r => { this.settings = r.data; this.cdr.markForCheck(); },
       error: () => {},
     });
   }
 
   save() {
-    this.saved = false;
-    this.error = '';
+    this.saved.set(false);
+    this.error.set('');
     this.http.put<{ success: boolean }>(`${API}/settings`, this.settings).subscribe({
-      next: () => (this.saved = true),
-      error: err => (this.error = err.message),
+      next: () => this.saved.set(true),
+      error: err => this.error.set((err as Error).message),
     });
   }
 }
