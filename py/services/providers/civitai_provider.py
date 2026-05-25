@@ -13,6 +13,8 @@ CIVITAI_TYPE_MAP = {
     "controlnet": "Controlnet",
 }
 
+CIVITAI_REVERSE_TYPE_MAP = {v: k for k, v in CIVITAI_TYPE_MAP.items()}
+
 
 class CivitaiProvider(ModelProvider):
     name = "civitai"
@@ -55,6 +57,29 @@ class CivitaiProvider(ModelProvider):
                 )
             data = resp.json()
             return data.get("modelVersions", [])
+
+    async def resolve_direct_link(self, version_id: int) -> dict:
+        """Resolves a CivitAI version ID to primary file info for direct download."""
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(f"{_BASE}/model-versions/{version_id}", headers=self.auth_headers())
+            resp.raise_for_status()
+            data = resp.json()
+        files = data.get("files", [])
+        primary = (
+            next((f for f in files if f.get("primary") and f.get("type") == "Model"), None)
+            or next((f for f in files if f.get("type") == "Model"), None)
+            or (files[0] if files else None)
+        )
+        if not primary:
+            raise ValueError("No downloadable file found for this version")
+        civitai_type = data.get("model", {}).get("type", "")
+        image_urls = [img["url"] for img in data.get("images", [])[:5] if img.get("url")]
+        return {
+            "filename": primary["name"],
+            "model_type": CIVITAI_REVERSE_TYPE_MAP.get(civitai_type, "checkpoints"),
+            "size_kb": primary.get("sizeKB", 0),
+            "image_urls": image_urls,
+        }
 
     async def fetch_metadata(self, source_id: str) -> ProviderMetadata:
         """Returns description, trigger words, image URLs, and tags for a model version."""

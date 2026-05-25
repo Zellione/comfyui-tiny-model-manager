@@ -48,6 +48,26 @@ def add_download_routes(routes):
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
 
+    @routes.get("/tiny-model-manager/api/huggingface/resolve")
+    async def hf_resolve(request):
+        repo_id = request.rel_url.query.get("repo", "")
+        if not repo_id:
+            return web.json_response({"success": False, "error": "Missing repo"}, status=400)
+        try:
+            result = await huggingface.resolve_direct_link(repo_id)
+            return web.json_response({"success": True, "data": result})
+        except Exception as exc:
+            return web.json_response({"success": False, "error": str(exc)}, status=500)
+
+    @routes.get("/tiny-model-manager/api/civitai/resolve/{version_id}")
+    async def civitai_resolve_version(request):
+        version_id = int(request.match_info["version_id"])
+        try:
+            result = await civitai.resolve_direct_link(version_id)
+            return web.json_response({"success": True, "data": result})
+        except Exception as exc:
+            return web.json_response({"success": False, "error": str(exc)}, status=500)
+
     @routes.post("/tiny-model-manager/api/download")
     async def start_download(request):
         body = await request.json()

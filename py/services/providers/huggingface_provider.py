@@ -62,6 +62,22 @@ class HuggingFaceProvider(ModelProvider):
                 })
         return result
 
+    async def resolve_direct_link(self, repo_id: str) -> dict:
+        """Returns preview image URLs for a HuggingFace repo for direct link preview."""
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(f"{_API}/models/{repo_id}", headers=self.auth_headers())
+            resp.raise_for_status()
+            data = resp.json()
+        image_urls = []
+        for sibling in data.get("siblings", []):
+            name = sibling.get("rfilename", "")
+            ext = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
+            if ext in IMAGE_EXTENSIONS:
+                image_urls.append(f"{_BASE}/{repo_id}/resolve/main/{name}")
+            if len(image_urls) >= 5:
+                break
+        return {"image_urls": image_urls}
+
     async def fetch_metadata(self, source_id: str) -> ProviderMetadata:
         """Returns description, tags, and preview image URLs from a HuggingFace model card."""
         async with httpx.AsyncClient(timeout=15) as client:
@@ -72,7 +88,7 @@ class HuggingFaceProvider(ModelProvider):
         for sibling in data.get("siblings", []):
             name = sibling.get("rfilename", "")
             ext = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
-            if ext in IMAGE_EXTENSIONS and "/" not in name:
+            if ext in IMAGE_EXTENSIONS:
                 image_urls.append(f"{_BASE}/{source_id}/resolve/main/{name}")
             if len(image_urls) >= 5:
                 break

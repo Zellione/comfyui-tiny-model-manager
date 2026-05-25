@@ -294,6 +294,10 @@ Paste a CivitAI direct / model-version download URL to download without searchin
 **Requirements:**
 - Accepts CivitAI download URLs (`.../api/download/models/<versionId>`); parses the version ID
 - Resolves filename / model type via existing version metadata; submits to `POST /api/download` with `platform="civitai"` and `source_id=<versionId>`
+- Model type is auto-detected from the CivitAI version response (`model.type`) and mapped to the internal type (checkpoints, loras, …); the model type dropdown is pre-filled and disabled (greyed out) since the type is known
+
+**API:**
+- `GET /tiny-model-manager/api/civitai/resolve/{version_id}` → `{ filename, model_type, size_kb }`
 
 ---
 

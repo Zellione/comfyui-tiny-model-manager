@@ -33,6 +33,13 @@ export interface CivitaiModel {
   stats: { downloadCount: number; thumbsUpCount: number; thumbsDownCount: number };
 }
 
+export interface CivitaiDirectLinkInfo {
+  filename: string;
+  model_type: string;
+  size_kb: number;
+  image_urls: string[];
+}
+
 const API = '/tiny-model-manager/api';
 
 @Injectable({ providedIn: 'root' })
@@ -54,6 +61,12 @@ export class CivitaiService {
   getVersions(modelId: number): Observable<CivitaiVersion[]> {
     return this.http
       .get<{ success: boolean; data: CivitaiVersion[] }>(`${API}/civitai/versions/${modelId}`)
+      .pipe(map(r => r.data));
+  }
+
+  resolveDirectLink(versionId: number): Observable<CivitaiDirectLinkInfo> {
+    return this.http
+      .get<{ success: boolean; data: CivitaiDirectLinkInfo }>(`${API}/civitai/resolve/${versionId}`)
       .pipe(map(r => r.data));
   }
 }

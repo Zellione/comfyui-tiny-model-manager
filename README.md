@@ -38,8 +38,8 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | F-14 | Enhanced download view — result pagination, inline previews, batch download | Done |
 | F-15 | Import & store tags from HuggingFace | Done |
 | F-16 | Import & store tags from CivitAI + re-fetch metadata for installed models | Done |
-| F-17 | Paste a direct HuggingFace file download link | TODO |
-| F-18 | Paste a direct CivitAI download link | TODO |
+| F-17 | Paste a direct HuggingFace file download link | Done |
+| F-18 | Paste a direct CivitAI download link | Done |
 | F-19 | Paste a HuggingFace repository link and pick a file | TODO |
 | F-20 | Paste a CivitAI model link and pick a version | TODO |
 | F-21 | Loader nodes for checkpoints, VAE, ControlNet, embeddings, upscale models | TODO |
@@ -59,7 +59,9 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | POST | `/tiny-model-manager/api/models/{type}/{path}/refetch` | Re-fetch metadata/tags from the source |
 | GET | `/tiny-model-manager/api/search/civitai` | Search CivitAI |
 | GET | `/tiny-model-manager/api/civitai/versions/{model_id}` | Get CivitAI model versions |
+| GET | `/tiny-model-manager/api/civitai/resolve/{version_id}` | Resolve a CivitAI direct download URL to filename + model type |
 | GET | `/tiny-model-manager/api/search/huggingface` | Search HuggingFace |
+| GET | `/tiny-model-manager/api/huggingface/resolve` | Resolve a HuggingFace repo to preview image URLs |
 | GET | `/tiny-model-manager/api/search/huggingface/files` | List files in a HF repo |
 | POST | `/tiny-model-manager/api/download` | Enqueue a download |
 | GET | `/tiny-model-manager/api/download/status` | Get all download task statuses |

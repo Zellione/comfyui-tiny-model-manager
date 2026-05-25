@@ -34,4 +34,10 @@ export class HuggingFaceService {
       .get<{ success: boolean; data: any[] }>(`${API}/search/huggingface/files`, { params: { repo } })
       .pipe(map(r => r.data));
   }
+
+  resolveDirectLink(repo: string): Observable<{ image_urls: string[] }> {
+    return this.http
+      .get<{ success: boolean; data: { image_urls: string[] } }>(`${API}/huggingface/resolve`, { params: { repo } })
+      .pipe(map(r => r.data));
+  }
 }

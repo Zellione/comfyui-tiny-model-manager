@@ -1,10 +1,13 @@
-import { Component, signal, inject, computed } from '@angular/core';
+import { Component, signal, inject, computed, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { toSignal, takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, switchMap, of, catchError } from 'rxjs';
 import { DownloadService, DownloadTask } from '../../services/download';
-import { CivitaiService, CivitaiModel, CivitaiVersion, CivitaiFile } from '../../services/civitai';
+import { CivitaiService, CivitaiModel, CivitaiVersion, CivitaiFile, CivitaiDirectLinkInfo } from '../../services/civitai';
 import { HuggingFaceService, HfModel } from '../../services/huggingface';
+import { detectLink, LinkKind } from '../../utils/link-detector';
 
 type Platform = 'civitai' | 'huggingface';
 type ModelType = 'checkpoints' | 'loras' | 'embeddings' | 'vae' | 'controlnet';
@@ -19,11 +22,31 @@ export class Download {
   private dlService = inject(DownloadService);
   private civitaiService = inject(CivitaiService);
   private hfService = inject(HuggingFaceService);
+  private destroyRef = inject(DestroyRef);
+  private pasteUrl$ = new Subject<string>();
 
   platform = signal<Platform>('civitai');
   query = signal('');
   modelType = signal<ModelType>('checkpoints');
   modelTypes: ModelType[] = ['checkpoints', 'loras', 'embeddings', 'vae', 'controlnet'];
+
+  // Paste-a-link section
+  pasteUrl      = signal('');
+  linkKind      = signal<LinkKind>({ type: 'empty' });
+  linkModelType = signal<ModelType>('checkpoints');
+  linkResolving = signal(false);
+  linkError     = signal('');
+  linkResolved  = signal<CivitaiDirectLinkInfo | null>(null);
+  linkImages    = signal<string[]>([]);
+
+  hfResolveKind       = computed(() => { const k = this.linkKind(); return k.type === 'hf-resolve' ? k : null; });
+  civitaiDownloadKind = computed(() => { const k = this.linkKind(); return k.type === 'civitai-download' ? k : null; });
+  canSubmitLink       = computed(() => {
+    const k = this.linkKind();
+    if (k.type === 'hf-resolve') return true;
+    if (k.type === 'civitai-download') return !!this.linkResolved() && !this.linkResolving();
+    return false;
+  });
 
   civitaiResults = signal<CivitaiModel[]>([]);
   hfResults = signal<HfModel[]>([]);
@@ -52,6 +75,71 @@ export class Download {
 
   selectedCivitaiCount = computed(() => this.selectedCivitaiFiles().size);
   selectedHfCount = computed(() => this.selectedHfFiles().size);
+
+  constructor() {
+    this.pasteUrl$
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap(url => {
+          const kind = detectLink(url);
+          this.linkKind.set(kind);
+          this.linkResolved.set(null);
+          this.linkImages.set([]);
+          this.linkError.set('');
+          if (kind.type === 'hf-resolve') {
+            this.linkResolving.set(true);
+            return this.hfService.resolveDirectLink(kind.repo).pipe(
+              catchError(() => of({ image_urls: [] as string[] }))
+            );
+          }
+          if (kind.type === 'civitai-download') {
+            this.linkResolving.set(true);
+            return this.civitaiService.resolveDirectLink(kind.versionId).pipe(
+              catchError(err => {
+                this.linkError.set(err?.error?.error ?? 'Failed to resolve link');
+                this.linkResolving.set(false);
+                return of(null);
+              })
+            );
+          }
+          return of(null);
+        }),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(result => {
+        if (result) {
+          if ('filename' in result) {
+            this.linkResolved.set(result as CivitaiDirectLinkInfo);
+            this.linkModelType.set((result.model_type as ModelType) ?? 'checkpoints');
+          }
+          this.linkImages.set(result.image_urls ?? []);
+        }
+        this.linkResolving.set(false);
+      });
+  }
+
+  onPasteUrlChange(url: string) {
+    this.pasteUrl.set(url);
+    this.pasteUrl$.next(url);
+  }
+
+  submitDirectLink() {
+    const kind = this.linkKind();
+    const type = this.linkModelType();
+    if (kind.type === 'hf-resolve') {
+      this.dlService.startDownload(this.pasteUrl(), type, kind.filename, 'huggingface', kind.repo).subscribe();
+    } else if (kind.type === 'civitai-download') {
+      const r = this.linkResolved();
+      if (!r) return;
+      this.dlService.startDownload(this.pasteUrl(), type, r.filename, 'civitai', String(kind.versionId)).subscribe();
+    }
+    this.pasteUrl.set('');
+    this.linkKind.set({ type: 'empty' });
+    this.linkResolved.set(null);
+    this.linkImages.set([]);
+    this.linkError.set('');
+  }
 
   search() {
     this.searching.set(true);

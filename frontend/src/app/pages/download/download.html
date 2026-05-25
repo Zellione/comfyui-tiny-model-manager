@@ -19,6 +19,71 @@
   </section>
 }
 
+<!-- Paste a link -->
+<div class="paste-link-section">
+  <h3>Paste a direct download link</h3>
+  <div class="paste-link-row">
+    <input
+      class="paste-url-input"
+      [ngModel]="pasteUrl()"
+      (ngModelChange)="onPasteUrlChange($event)"
+      placeholder="https://huggingface.co/…/resolve/… or https://civitai.com/api/download/models/…"
+    />
+  </div>
+
+  @if (linkResolving()) {
+    <p class="paste-status">Resolving…</p>
+  }
+  @if (linkError()) {
+    <p class="paste-error">{{ linkError() }}</p>
+  }
+  @if (hfResolveKind(); as k) {
+    <div class="paste-info">
+      <span class="badge">HuggingFace</span>
+      <span>{{ k.filename }}</span>
+      <small>{{ k.repo }}</small>
+    </div>
+  }
+  @if (civitaiDownloadKind()) {
+    @if (linkResolved(); as r) {
+      <div class="paste-info">
+        <span class="badge">CivitAI</span>
+        <span>{{ r.filename }}</span>
+        <small>{{ formatSize(r.size_kb * 1024) }}</small>
+      </div>
+    }
+  }
+  @if (linkImages().length > 0) {
+    <div class="paste-images">
+      @for (url of linkImages(); track url) {
+        <img [src]="url" alt="" loading="lazy" (error)="onImgError($event)" />
+      }
+    </div>
+  }
+
+  @if (linkKind().type === 'hf-repo' || linkKind().type === 'civitai-model') {
+    <p class="paste-status muted">Repo/model page links are not yet supported — use the Search tab instead.</p>
+  }
+  @if (linkKind().type === 'unknown' && pasteUrl()) {
+    <p class="paste-status muted">URL not recognized.</p>
+  }
+  @if (canSubmitLink()) {
+    <div class="paste-actions">
+      <select
+        [ngModel]="linkModelType()"
+        (ngModelChange)="linkModelType.set($event)"
+        [disabled]="!!civitaiDownloadKind()"
+        [title]="civitaiDownloadKind() ? 'Model type detected automatically from CivitAI' : ''"
+      >
+        @for (t of modelTypes; track t) {
+          <option [value]="t">{{ t }}</option>
+        }
+      </select>
+      <button class="btn-primary" (click)="submitDirectLink()">Download</button>
+    </div>
+  }
+</div>
+
 <!-- Search bar -->
 <div class="search-bar">
   <div class="platform-tabs">

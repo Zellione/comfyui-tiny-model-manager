@@ -124,3 +124,50 @@
   span { flex: 1; }
   small { color: #888; white-space: nowrap; }
 }
+
+.paste-link-section {
+  background: #222;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  h3 { margin: 0 0 0.75rem; font-size: 0.95rem; color: #ccc; }
+}
+
+.paste-link-row {
+  .paste-url-input { width: 100%; font-family: monospace; font-size: 0.8rem; }
+}
+
+.paste-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  span { flex: 1; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  small { color: #888; white-space: nowrap; }
+}
+
+.paste-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  select:disabled { opacity: 0.5; cursor: default; }
+}
+
+.paste-images {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  overflow-x: auto;
+  img {
+    height: 100px;
+    width: auto;
+    border-radius: 4px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+}
+
+.paste-status { margin: 0.5rem 0 0; font-size: 0.8rem; color: #aaa; }
+.paste-error  { margin: 0.5rem 0 0; font-size: 0.8rem; color: #f87171; }
+.muted        { color: #666; }
