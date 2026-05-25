@@ -41,7 +41,7 @@ def add_model_routes(routes):
                         f["metadata"] = {
                             "description": m.get("description", ""),
                             "trigger_words": m.get("trigger_words", []),
-                            "tags": [],
+                            "tags": m.get("tags", []),
                             "media": m.get("media", []),
                         }
             return web.json_response({"success": True, "data": result})
