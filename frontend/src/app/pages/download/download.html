@@ -8,8 +8,12 @@
       <div class="task-row">
         <span class="task-name">{{ task.filename }}</span>
         <span class="badge">{{ task.status }}</span>
-        <div class="progress-bar"><div class="fill" [style.width]="activePct(task)"></div></div>
-        <span class="pct">{{ activePct(task) }}</span>
+        @if (task.status === 'error' && task.error) {
+          <span class="task-error">{{ task.error }}</span>
+        } @else {
+          <div class="progress-bar"><div class="fill" [style.width]="activePct(task)"></div></div>
+          <span class="pct">{{ activePct(task) }}</span>
+        }
       </div>
     }
   </section>

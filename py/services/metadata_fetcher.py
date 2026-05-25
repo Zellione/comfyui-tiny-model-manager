@@ -3,7 +3,7 @@ import os
 import httpx
 from .. import config as cfg
 from ..db import model_repo
-from . import civitai, huggingface
+from .providers import get_provider
 
 
 async def fetch_and_store(filename: str, model_type: str, platform: str, source_id: str):
@@ -12,16 +12,12 @@ async def fetch_and_store(filename: str, model_type: str, platform: str, source_
     image_urls: list[str] = []
 
     try:
-        if platform == "civitai" and source_id:
-            meta = await civitai.get_version_metadata(int(source_id))
-            description = meta["description"]
-            trigger_words = meta["trigger_words"]
-            image_urls = meta["image_urls"]
-        elif platform == "huggingface" and source_id:
-            meta = await huggingface.get_model_card(source_id)
-            description = meta.get("description") or ""
-            trigger_words = meta.get("trigger_words", [])
-            image_urls = meta.get("image_urls", [])
+        provider = get_provider(platform)
+        if provider and source_id:
+            meta = await provider.fetch_metadata(source_id)
+            description = meta.description
+            trigger_words = meta.trigger_words
+            image_urls = meta.image_urls
     except Exception:
         pass  # metadata fetch failure should not break the download
 

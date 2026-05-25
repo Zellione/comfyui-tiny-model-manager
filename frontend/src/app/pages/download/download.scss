@@ -13,6 +13,7 @@
   .task-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pct { width: 3rem; text-align: right; font-size: 0.8rem; color: #aaa; }
   .progress-bar { flex: 1; }
+  .task-error { flex: 2; font-size: 0.8rem; color: #f87171; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 
 .search-bar {

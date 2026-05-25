@@ -2,7 +2,9 @@ import { Component, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { DownloadService, DownloadTask, CivitaiModel, CivitaiVersion, CivitaiFile, HfModel } from '../../services/download';
+import { DownloadService, DownloadTask } from '../../services/download';
+import { CivitaiService, CivitaiModel, CivitaiVersion, CivitaiFile } from '../../services/civitai';
+import { HuggingFaceService, HfModel } from '../../services/huggingface';
 
 type Platform = 'civitai' | 'huggingface';
 type ModelType = 'checkpoints' | 'loras' | 'embeddings' | 'vae' | 'controlnet';
@@ -15,6 +17,8 @@ type ModelType = 'checkpoints' | 'loras' | 'embeddings' | 'vae' | 'controlnet';
 })
 export class Download {
   private dlService = inject(DownloadService);
+  private civitaiService = inject(CivitaiService);
+  private hfService = inject(HuggingFaceService);
 
   platform = signal<Platform>('civitai');
   query = signal('');
@@ -61,7 +65,7 @@ export class Download {
     this.selectedHfFiles.set(new Set());
 
     if (this.platform() === 'civitai') {
-      this.dlService.searchCivitai(this.query(), this.modelType()).subscribe({
+      this.civitaiService.search(this.query(), this.modelType()).subscribe({
         next: r => {
           this.civitaiResults.set(r.items);
           this.civitaiCursor.set(r.metadata?.nextCursor ?? '');
@@ -71,7 +75,7 @@ export class Download {
         error: () => { this.searching.set(false); },
       });
     } else {
-      this.dlService.searchHuggingFace(this.query(), this.modelType(), 0).subscribe({
+      this.hfService.search(this.query(), this.modelType(), 0).subscribe({
         next: r => {
           this.hfResults.set(r.items);
           this.hfPage.set(r.nextPage);
@@ -86,7 +90,7 @@ export class Download {
   loadMore() {
     this.loadingMore.set(true);
     if (this.platform() === 'civitai') {
-      this.dlService.searchCivitai(this.query(), this.modelType(), 1, this.civitaiCursor()).subscribe({
+      this.civitaiService.search(this.query(), this.modelType(), 1, this.civitaiCursor()).subscribe({
         next: r => {
           this.civitaiResults.update(prev => [...prev, ...r.items]);
           this.civitaiCursor.set(r.metadata?.nextCursor ?? '');
@@ -96,7 +100,7 @@ export class Download {
         error: () => { this.loadingMore.set(false); },
       });
     } else {
-      this.dlService.searchHuggingFace(this.query(), this.modelType(), this.hfPage()).subscribe({
+      this.hfService.search(this.query(), this.modelType(), this.hfPage()).subscribe({
         next: r => {
           this.hfResults.update(prev => [...prev, ...r.items]);
           this.hfPage.set(r.nextPage);
@@ -114,7 +118,7 @@ export class Download {
     this.versionsError.set('');
     this.loadingVersions.set(true);
     this.selectedCivitaiFiles.set(new Map());
-    this.dlService.getCivitaiVersions(model.id).subscribe({
+    this.civitaiService.getVersions(model.id).subscribe({
       next: v => { this.versions.set(v); this.loadingVersions.set(false); },
       error: err => {
         this.versionsError.set(err?.error?.error ?? 'Failed to load versions');
@@ -156,7 +160,7 @@ export class Download {
     this.selectedHfRepoId.set(repoId);
     this.hfFiles.set([]);
     this.selectedHfFiles.set(new Set());
-    this.dlService.getHfFiles(repoId).subscribe({
+    this.hfService.getFiles(repoId).subscribe({
       next: files => this.hfFiles.set(files),
     });
   }

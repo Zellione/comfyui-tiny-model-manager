@@ -1,0 +1,37 @@
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+
+export interface HfModel {
+  id: string;
+  modelId: string;
+  downloads: number;
+  tags: string[];
+  thumbnail?: string;
+}
+
+export interface HfSearchResult {
+  items: HfModel[];
+  hasMore: boolean;
+  nextPage: number;
+}
+
+const API = '/tiny-model-manager/api';
+
+@Injectable({ providedIn: 'root' })
+export class HuggingFaceService {
+  constructor(private http: HttpClient) {}
+
+  search(q: string, type = '', p = 0): Observable<HfSearchResult> {
+    return this.http
+      .get<{ success: boolean; data: HfSearchResult }>(`${API}/search/huggingface`, { params: { q, type, p } })
+      .pipe(map(r => r.data));
+  }
+
+  getFiles(repo: string): Observable<{ filename: string; size: number; url: string }[]> {
+    return this.http
+      .get<{ success: boolean; data: any[] }>(`${API}/search/huggingface/files`, { params: { repo } })
+      .pipe(map(r => r.data));
+  }
+}

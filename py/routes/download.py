@@ -1,5 +1,6 @@
 from aiohttp import web
-from ..services import civitai, huggingface, downloader as dl
+from ..services import downloader as dl
+from ..services.providers import civitai, huggingface
 
 
 def add_download_routes(routes):
@@ -11,7 +12,7 @@ def add_download_routes(routes):
         page = int(request.rel_url.query.get("page", 1))
         cursor = request.rel_url.query.get("cursor", "")
         try:
-            data = await civitai.search_models(q, model_type, page, cursor=cursor)
+            data = await civitai.search(q, model_type, page=page, cursor=cursor)
             return web.json_response({"success": True, "data": data})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
@@ -22,7 +23,7 @@ def add_download_routes(routes):
         model_type = request.rel_url.query.get("type", "")
         p = int(request.rel_url.query.get("p", 0))
         try:
-            data = await huggingface.search_models(q, model_type, p=p)
+            data = await huggingface.search(q, model_type, p=p)
             return web.json_response({"success": True, "data": data})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)

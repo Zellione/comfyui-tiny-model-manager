@@ -7,6 +7,7 @@ import httpx
 import folder_paths
 
 from .. import config as cfg
+from .providers import get_provider
 
 SUPPORTED_TYPES = {
     "checkpoints": "checkpoints",
@@ -70,8 +71,8 @@ def enqueue(
         on_complete=on_complete,
     )
     dest_dir = _get_dest_dir(model_type)
-    os.makedirs(dest_dir, exist_ok=True)
     task.dest_path = os.path.join(dest_dir, filename)
+    os.makedirs(os.path.dirname(task.dest_path), exist_ok=True)
     _tasks[task.id] = task
     _queue.put_nowait(task)
     _ensure_worker()
@@ -114,16 +115,8 @@ async def _worker():
 
 async def _run_download(task: DownloadTask):
     task.status = "downloading"
-    settings = cfg.load_settings()
-    headers = {}
-    if task.platform == "civitai":
-        key = settings.get("civitai_api_key", "")
-        if key:
-            headers["Authorization"] = f"Bearer {key}"
-    elif task.platform == "huggingface":
-        token = settings.get("hf_token", "")
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
+    provider = get_provider(task.platform)
+    headers = provider.auth_headers() if provider else {}
 
     try:
         async with httpx.AsyncClient(timeout=None, follow_redirects=True) as client:
