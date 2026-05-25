@@ -44,6 +44,18 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | F-20 | Paste a CivitAI model link and pick a version | Done |
 | F-21 | Loader nodes for checkpoints, VAE, ControlNet, embeddings, upscale models | Done |
 | F-22 | One-click insert of a model's loader node into the open workflow | Done |
+| F-23 | Base model & source metadata — store base model (SDXL, Flux, …), source link; show on cards and detail page | TODO |
+| F-24 | Search filtering & sorting — filter by base model and file format; sort by downloads, rating, date (per platform) | TODO |
+| F-25 | Library filtering & sorting — filter and sort installed models by base model, file format, name, size, date | TODO |
+| F-26 | Mark already-installed models in download view — "In library" badge, hide download button | TODO |
+| F-27 | Hashed media folder names — store preview images under a deterministic hash to avoid basename collisions | TODO |
+| F-28 | Side-by-side download view — left list pane + right detail pane; first result selected by default | TODO |
+| F-29 | Hide base-model filter for HuggingFace — filter not available on HF, so omit it | TODO |
+| F-30 | Choose model type before HuggingFace download — user selects folder type since HF cannot auto-detect it | TODO |
+| F-31 | Editable model type — change folder type in detail page, moves file on disk | TODO |
+| F-32 | First-class metadata fields — base model stored as its own column, never as a tag | TODO |
+| F-33 | Model type selectable for every model — override folder type for any download, including CivitAI auto-detected | TODO |
+| F-34 | Notification system — green/red toast popups for save, download, workflow-insert, and error events | TODO |
 
 ---
 
