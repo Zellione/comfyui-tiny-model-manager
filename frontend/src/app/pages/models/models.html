@@ -57,6 +57,12 @@
                 </div>
               }
             </div>
+            <button class="btn-workflow card-workflow"
+                    [class.queued]="isQueuedForWorkflow(file.filename)"
+                    (click)="addToWorkflow(type, file.filename)"
+                    title="Add to open workflow">
+              {{ isQueuedForWorkflow(file.filename) ? '✓' : '+' }}
+            </button>
             <button class="btn-danger card-delete" (click)="deleteModel(type, file)">×</button>
           </div>
         }

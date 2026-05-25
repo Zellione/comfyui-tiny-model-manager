@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ModelService, ModelMeta } from '../../services/model';
+import { WorkflowService } from '../../services/workflow';
 
 @Component({
   selector: 'app-model-detail',
@@ -23,7 +24,11 @@ export class ModelDetail implements OnInit {
   error = signal('');
   saved = signal(false);
 
-  constructor(private route: ActivatedRoute, private modelService: ModelService) {}
+  constructor(
+    private route: ActivatedRoute,
+    private modelService: ModelService,
+    private workflowService: WorkflowService,
+  ) {}
 
   ngOnInit() {
     this.modelType = this.route.snapshot.paramMap.get('type') ?? '';
@@ -87,6 +92,12 @@ export class ModelDetail implements OnInit {
         this.refetching.set(false);
       },
       error: err => { this.error.set((err as Error).message); this.refetching.set(false); },
+    });
+  }
+
+  addToWorkflow() {
+    this.workflowService.addToWorkflow(this.modelType, this.modelPath).subscribe({
+      error: () => alert('Failed to enqueue model for workflow insertion.'),
     });
   }
 

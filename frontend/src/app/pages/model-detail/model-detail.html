@@ -70,6 +70,7 @@
         <button class="btn-secondary" (click)="refetch()" [disabled]="refetching()">
           {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
         </button>
+        <button class="btn-workflow" (click)="addToWorkflow()">Add to Workflow</button>
         @if (saved()) { <span class="msg-ok">Saved.</span> }
       </div>
     </div>

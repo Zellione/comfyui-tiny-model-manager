@@ -201,7 +201,7 @@ Users can configure API credentials and the media storage directory.
 A ComfyUI workflow node that loads a LoRA and outputs its stored trigger words as a string.
 
 **Requirements:**
-- Node name: `LoraLoaderWithTriggers`, display name: `LoRA Loader (with Trigger Words)`
+- Node name: `TMMLoraLoader`, display name: `LoRA Loader (with Trigger Words)`
 - Category: `tiny-model-manager`
 - Inputs: `model`, `clip`, `lora_name` (dropdown from installed loras), `strength_model`, `strength_clip`
 - Outputs: `model`, `clip`, `trigger_words` (comma-separated string from the DB)
@@ -325,17 +325,17 @@ Paste a CivitAI model page URL and pick a version to download.
 
 ### F-21 — Loader Nodes for Other Model Types
 
-Add ComfyUI workflow loader nodes mirroring `LoraLoaderWithTriggers`, each surfacing stored trigger words.
+Add ComfyUI workflow loader nodes for all major model types. Only the LoRA loader surfaces trigger words; the remaining loaders expose the raw model outputs only.
 
 **Requirements:**
-- New nodes in category `tiny-model-manager`, registered in `NODE_CLASS_MAPPINGS`:
-  - **Checkpoint Loader (with Trigger Words)** → outputs `MODEL`, `CLIP`, `VAE`, `trigger_words`
-  - **VAE Loader** → outputs `VAE` (+ `trigger_words` where applicable)
-  - **ControlNet Loader** → outputs `CONTROL_NET` (+ `trigger_words`)
-  - **Embedding helper** → outputs the embedding's `trigger_words` string for prompt insertion
-  - **Upscale Model Loader** → outputs `UPSCALE_MODEL`
+- New nodes in category `tiny-model-manager`, registered in `NODE_CLASS_MAPPINGS` with `TMM` prefix to avoid conflicts with ComfyUI built-ins:
+  - **`TMMCheckpointLoader`** (display: "Checkpoint Loader") → outputs `MODEL`, `CLIP`, `VAE`
+  - **`TMMVaeLoader`** (display: "VAE Loader") → outputs `VAE`
+  - **`TMMControlNetLoader`** (display: "ControlNet Loader") → outputs `CONTROL_NET`
+  - **`TMMEmbeddingHelper`** (display: "Embedding Helper") → outputs `embedding_ref` (STRING formatted as `embedding:<stem>`)
+  - **`TMMUpscaleModelLoader`** (display: "Upscale Model Loader") → outputs `UPSCALE_MODEL`
 - Each model-name dropdown is populated from `folder_paths.get_filename_list(<type>)`
-- Trigger words read from the DB via `model_repo.get_model_by_filename()`; empty string when absent
+- Trigger words are **not** exposed on these nodes; only `LoraLoaderWithTriggers` (F-11) retains a trigger_words output
 
 ---
 
@@ -347,7 +347,8 @@ Insert the matching loader node for a model into the currently open ComfyUI grap
 
 **Requirements:**
 - An Add to workflow button on the model list/detail enqueues an insert request on the backend
-- A ComfyUI JS extension polls the pending-insert endpoint; on a pending item it calls `LiteGraph.createNode()` for the model-type's loader node, pre-selects the model in the node's dropdown, adds it via `app.graph.add()`, and acknowledges the item
+- A ComfyUI JS extension polls the pending-insert endpoint every 500 ms; on a pending item it calls `LiteGraph.createNode()` for the model-type's loader node, pre-selects the model in the node's dropdown, adds it via `app.graph.add()`, and acknowledges the item
+- Widget value selection uses `findWidgetOption()` to handle ComfyUI's " (N)" disambiguation suffixes (appended when the same filename exists across multiple model base directories)
 - Maps model type → loader node from F-21 (e.g. `loras` → LoRA loader, `checkpoints` → Checkpoint loader)
 
 **API:**
@@ -439,6 +440,17 @@ Meta Data such as model type or trigger words shouldn't be tracked as tags but i
 ### F-33 - Model type should be selectable for every model offered
 
 This goes for pasted download link as the search itself
+
+---
+
+### F-34 - Add notification system
+
+Notification popups appear in the top middle of the dashboard if you:
+- saved something (green colored background)
+- added something to the workflow (green colored background)
+- clicked on a download link (green colored background)
+- a download is finished (green colored background)
+- in case of an error (red colored background)
 
 ---
 

@@ -41,6 +41,14 @@ button {
   &:hover { background: #444; }
 }
 
+.btn-workflow {
+  background: #1a3a2a;
+  color: #5ecf8a;
+  border: 1px solid #2a5a3a;
+  &:hover { background: #24503a; }
+  &.queued { background: #2a5a3a; color: #fff; border-color: #5ecf8a; }
+}
+
 input, select, textarea {
   background: #2a2a2a;
   border: 1px solid #444;

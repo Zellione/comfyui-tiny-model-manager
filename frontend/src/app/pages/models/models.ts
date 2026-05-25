@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { ModelService, ModelFile, ModelMeta } from '../../services/model';
+import { WorkflowService } from '../../services/workflow';
 
 const MEDIA_API = '/tiny-model-manager/api/media';
 
@@ -18,8 +19,9 @@ export class Models implements OnInit {
   loading = signal(true);
   error = signal('');
   selected = signal<Set<string>>(new Set());
+  queuedForWorkflow = signal<Set<string>>(new Set());
 
-  constructor(private modelService: ModelService) {}
+  constructor(private modelService: ModelService, private workflowService: WorkflowService) {}
 
   ngOnInit() {
     this.load();
@@ -78,6 +80,26 @@ export class Models implements OnInit {
     this.modelService.deleteModel(type, file.filename).subscribe({
       next: () => this.load(),
       error: err => alert('Delete failed: ' + (err as Error).message),
+    });
+  }
+
+  isQueuedForWorkflow(filename: string): boolean {
+    return this.queuedForWorkflow().has(filename);
+  }
+
+  addToWorkflow(type: string, filename: string) {
+    this.workflowService.addToWorkflow(type, filename).subscribe({
+      next: () => {
+        const s = new Set(this.queuedForWorkflow());
+        s.add(filename);
+        this.queuedForWorkflow.set(s);
+        setTimeout(() => {
+          const s2 = new Set(this.queuedForWorkflow());
+          s2.delete(filename);
+          this.queuedForWorkflow.set(s2);
+        }, 2000);
+      },
+      error: () => alert('Failed to enqueue model for workflow insertion.'),
     });
   }
 
