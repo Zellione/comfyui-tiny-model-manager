@@ -85,4 +85,10 @@
   input { flex: 1; }
 }
 
+.tag-list {
+  .label { font-size: 0.85rem; color: #aaa; display: block; margin-bottom: 0.4rem; }
+}
+
+.chip-tag { background: #2a1a4a; color: #b07df7; }
+
 .msg-ok { color: #2ecc71; margin-left: 0.75rem; }

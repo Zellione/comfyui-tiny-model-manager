@@ -50,6 +50,17 @@
         </div>
       </div>
 
+      @if (meta()!.tags?.length) {
+        <div class="tag-list">
+          <span class="label">Tags</span>
+          <div class="chips">
+            @for (t of meta()!.tags; track t) {
+              <span class="chip chip-tag">{{ t }}</span>
+            }
+          </div>
+        </div>
+      }
+
       <button class="btn-primary" (click)="save()" [disabled]="saving()">
         {{ saving() ? 'Saving…' : 'Save' }}
       </button>

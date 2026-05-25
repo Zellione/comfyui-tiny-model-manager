@@ -25,6 +25,12 @@ CREATE TABLE IF NOT EXISTS model_media (
     media_type TEXT NOT NULL,
     local_path TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    model_id INTEGER NOT NULL REFERENCES models(id) ON DELETE CASCADE,
+    tag TEXT NOT NULL
+);
 """
 
 

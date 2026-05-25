@@ -32,6 +32,16 @@ async def set_trigger_words(model_id: int, words: list[str]):
         await db.commit()
 
 
+async def set_tags(model_id: int, tags: list[str]):
+    async with get_db() as db:
+        await db.execute("DELETE FROM tags WHERE model_id = ?", (model_id,))
+        await db.executemany(
+            "INSERT INTO tags (model_id, tag) VALUES (?, ?)",
+            [(model_id, t) for t in tags],
+        )
+        await db.commit()
+
+
 async def add_media(model_id: int, media_type: str, local_path: str) -> int:
     async with get_db() as db:
         cursor = await db.execute(
@@ -54,7 +64,11 @@ async def get_model_by_filename(filename: str) -> dict | None:
         media = await (await db.execute(
             "SELECT id, media_type, local_path FROM model_media WHERE model_id = ?", (model["id"],)
         )).fetchall()
+        tags = await (await db.execute(
+            "SELECT tag FROM tags WHERE model_id = ?", (model["id"],)
+        )).fetchall()
         model["trigger_words"] = [r["word"] for r in words]
+        model["tags"] = [r["tag"] for r in tags]
         model["media"] = [dict(r) for r in media]
         return model
 
@@ -76,7 +90,11 @@ async def get_metadata_by_filenames(filenames: list[str]) -> dict[str, dict]:
             media = await (await db.execute(
                 "SELECT id, media_type, local_path FROM model_media WHERE model_id = ?", (m["id"],)
             )).fetchall()
+            tags = await (await db.execute(
+                "SELECT tag FROM tags WHERE model_id = ?", (m["id"],)
+            )).fetchall()
             m["trigger_words"] = [r["word"] for r in words]
+            m["tags"] = [r["tag"] for r in tags]
             m["media"] = [dict(r) for r in media]
             result[m["filename"]] = m
         return result

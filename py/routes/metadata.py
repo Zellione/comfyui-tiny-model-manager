@@ -17,7 +17,7 @@ def add_metadata_routes(routes):
             return web.json_response({"success": True, "data": {
                 "description": meta.get("description", ""),
                 "trigger_words": meta.get("trigger_words", []),
-                "tags": [],
+                "tags": meta.get("tags", []),
                 "media": meta.get("media", []),
             }})
         except Exception as exc:

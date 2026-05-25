@@ -10,6 +10,7 @@ async def fetch_and_store(filename: str, model_type: str, platform: str, source_
     description = ""
     trigger_words: list[str] = []
     image_urls: list[str] = []
+    tags: list[str] = []
 
     try:
         provider = get_provider(platform)
@@ -18,6 +19,7 @@ async def fetch_and_store(filename: str, model_type: str, platform: str, source_
             description = meta.description
             trigger_words = meta.trigger_words
             image_urls = meta.image_urls
+            tags = meta.tags
     except Exception:
         pass  # metadata fetch failure should not break the download
 
@@ -25,6 +27,7 @@ async def fetch_and_store(filename: str, model_type: str, platform: str, source_
         filename, model_type, platform, source_id, description
     )
     await model_repo.set_trigger_words(model_id, trigger_words)
+    await model_repo.set_tags(model_id, tags)
     await _download_images(model_id, filename, image_urls)
 
 
