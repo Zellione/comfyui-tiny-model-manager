@@ -8,6 +8,8 @@ class ProviderMetadata:
     trigger_words: list[str] = field(default_factory=list)
     image_urls: list[str] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
+    base_model: str = ""
+    civitai_model_id: str = ""
 
 
 class ModelProvider(ABC):

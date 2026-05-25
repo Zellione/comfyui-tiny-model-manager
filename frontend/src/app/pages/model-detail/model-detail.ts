@@ -41,7 +41,7 @@ export class ModelDetail implements OnInit {
     this.modelService.getMetadata(this.modelType, this.modelPath).subscribe({
       next: m => {
         this.meta.set(m);
-        this.editMeta = { description: m.description, trigger_words: [...m.trigger_words], tags: [...m.tags] };
+        this.editMeta = { description: m.description, trigger_words: [...m.trigger_words], tags: [...m.tags], base_model: m.base_model ?? '' };
         this.loading.set(false);
       },
       error: err => {
@@ -88,7 +88,7 @@ export class ModelDetail implements OnInit {
     this.modelService.refetchMetadata(this.modelType, this.modelPath).subscribe({
       next: m => {
         this.meta.set(m);
-        this.editMeta = { description: m.description, trigger_words: [...m.trigger_words], tags: [...m.tags] };
+        this.editMeta = { description: m.description, trigger_words: [...m.trigger_words], tags: [...m.tags], base_model: m.base_model ?? '' };
         this.refetching.set(false);
       },
       error: err => { this.error.set((err as Error).message); this.refetching.set(false); },

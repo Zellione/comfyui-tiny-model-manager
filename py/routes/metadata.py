@@ -3,6 +3,14 @@ from aiohttp import web
 from ..db import model_repo
 
 
+def _derive_source_url(source_platform: str, source_id: str, civitai_model_id: str) -> str:
+    if source_platform == "civitai" and civitai_model_id:
+        return f"https://civitai.com/models/{civitai_model_id}"
+    if source_platform == "huggingface" and source_id:
+        return f"https://huggingface.co/{source_id}"
+    return ""
+
+
 def add_metadata_routes(routes):
 
     @routes.get("/tiny-model-manager/api/models/{model_type}/{path:.*}/metadata")
@@ -11,14 +19,21 @@ def add_metadata_routes(routes):
         try:
             meta = await model_repo.get_model_by_filename(path)
             if not meta:
-                return web.json_response(
-                    {"success": True, "data": {"description": "", "trigger_words": [], "tags": [], "media": []}}
-                )
+                return web.json_response({"success": True, "data": {
+                    "description": "", "trigger_words": [], "tags": [], "media": [],
+                    "base_model": "", "source_platform": "", "source_url": "",
+                }})
+            source_url = _derive_source_url(
+                meta.get("source_platform", ""), meta.get("source_id", ""), meta.get("civitai_model_id", "")
+            )
             return web.json_response({"success": True, "data": {
                 "description": meta.get("description", ""),
                 "trigger_words": meta.get("trigger_words", []),
                 "tags": meta.get("tags", []),
                 "media": meta.get("media", []),
+                "base_model": meta.get("base_model", ""),
+                "source_platform": meta.get("source_platform", ""),
+                "source_url": source_url,
             }})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
@@ -31,7 +46,8 @@ def add_metadata_routes(routes):
             description = body.get("description", "")
             trigger_words = body.get("trigger_words", [])
             tags = body.get("tags", [])
-            await model_repo.update_model_meta(path, description, trigger_words, tags)
+            base_model = body.get("base_model")  # None means "not provided, don't update"
+            await model_repo.update_model_meta(path, description, trigger_words, tags, base_model=base_model)
             return web.json_response({"success": True})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
@@ -50,11 +66,17 @@ def add_metadata_routes(routes):
                 path, info["model_type"], info["source_platform"], info["source_id"], skip_media=True
             )
             meta = await model_repo.get_model_by_filename(path) or {}
+            source_url = _derive_source_url(
+                meta.get("source_platform", ""), meta.get("source_id", ""), meta.get("civitai_model_id", "")
+            )
             return web.json_response({"success": True, "data": {
                 "description": meta.get("description", ""),
                 "trigger_words": meta.get("trigger_words", []),
                 "tags": meta.get("tags", []),
                 "media": meta.get("media", []),
+                "base_model": meta.get("base_model", ""),
+                "source_platform": meta.get("source_platform", ""),
+                "source_url": source_url,
             }})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)

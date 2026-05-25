@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS models (
     source_platform TEXT,
     source_id TEXT,
     description TEXT DEFAULT '',
+    base_model TEXT NOT NULL DEFAULT '',
+    civitai_model_id TEXT,
     created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -42,7 +44,23 @@ async def get_db():
         yield db
 
 
+async def _migrate_db():
+    """Add columns introduced after the initial schema; safe to re-run (ignores existing columns)."""
+    migrations = [
+        "ALTER TABLE models ADD COLUMN base_model TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE models ADD COLUMN civitai_model_id TEXT",
+    ]
+    async with aiosqlite.connect(cfg.db_path()) as db:
+        for sql in migrations:
+            try:
+                await db.execute(sql)
+            except Exception:
+                pass  # column already exists
+        await db.commit()
+
+
 async def init_db():
     async with aiosqlite.connect(cfg.db_path()) as db:
         await db.executescript(_SCHEMA)
         await db.commit()
+    await _migrate_db()

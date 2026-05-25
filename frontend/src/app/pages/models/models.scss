@@ -98,9 +98,27 @@
   border-radius: 3px;
   line-height: 1.4;
 
-  &.chip-trigger { background: #1a3a5c; color: #7db8f7; }
-  &.chip-tag     { background: #2a1a4a; color: #b07df7; }
-  &.chip-more    { background: #333;    color: #aaa; }
+  &.chip-trigger    { background: #1a3a5c; color: #7db8f7; }
+  &.chip-tag        { background: #2a1a4a; color: #b07df7; }
+  &.chip-more       { background: #333;    color: #aaa; }
+  &.chip-base-model { background: #1a3a2a; color: #5fc98a; }
+  &.chip-platform   { background: #2a2a1a; color: #c9a85f; }
+}
+
+.card-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.2rem;
+}
+
+.source-icon-link {
+  color: #4f9eff;
+  font-size: 0.7rem;
+  text-decoration: none;
+  line-height: 1;
+  &:hover { text-decoration: underline; }
 }
 
 .card-delete {

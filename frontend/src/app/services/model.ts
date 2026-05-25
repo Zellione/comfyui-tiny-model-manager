@@ -16,6 +16,9 @@ export interface ModelMeta {
   trigger_words: string[];
   tags: string[];
   media: MediaItem[];
+  base_model: string;
+  source_platform: string;
+  source_url: string;
 }
 
 export interface MediaItem {

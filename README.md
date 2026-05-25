@@ -44,7 +44,7 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | F-20 | Paste a CivitAI model link and pick a version | Done |
 | F-21 | Loader nodes for checkpoints, VAE, ControlNet, embeddings, upscale models | Done |
 | F-22 | One-click insert of a model's loader node into the open workflow | Done |
-| F-23 | Base model & source metadata — store base model (SDXL, Flux, …), source link; show on cards and detail page | TODO |
+| F-23 | Base model & source metadata — store base model (SDXL, Flux, …), source link; show on cards and detail page | Done |
 | F-24 | Search filtering & sorting — filter by base model and file format; sort by downloads, rating, date (per platform) | TODO |
 | F-25 | Library filtering & sorting — filter and sort installed models by base model, file format, name, size, date | TODO |
 | F-26 | Mark already-installed models in download view — "In library" badge, hide download button | TODO |
@@ -64,11 +64,11 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | Method | Path | Description |
 |---|---|---|
 | GET | `/tiny-model-manager` | Serves the Angular SPA |
-| GET | `/tiny-model-manager/api/models` | List all installed models by type |
+| GET | `/tiny-model-manager/api/models` | List all installed models by type; each entry includes `metadata` with `description`, `trigger_words`, `tags`, `media`, `base_model`, `source_platform`, `source_url` |
 | DELETE | `/tiny-model-manager/api/models/{type}/{path}` | Delete a model file |
-| GET | `/tiny-model-manager/api/models/{type}/{path}/metadata` | Get stored metadata (incl. tags) |
-| PUT | `/tiny-model-manager/api/models/{type}/{path}/metadata` | Update description, trigger words, tags |
-| POST | `/tiny-model-manager/api/models/{type}/{path}/refetch` | Re-fetch metadata/tags from the source |
+| GET | `/tiny-model-manager/api/models/{type}/{path}/metadata` | Get stored metadata — returns `description`, `trigger_words`, `tags`, `media`, `base_model`, `source_platform`, `source_url` |
+| PUT | `/tiny-model-manager/api/models/{type}/{path}/metadata` | Update `description`, `trigger_words`, `tags`, and optionally `base_model` |
+| POST | `/tiny-model-manager/api/models/{type}/{path}/refetch` | Re-fetch metadata/tags from the source platform; response includes `base_model` and `source_url` |
 | GET | `/tiny-model-manager/api/search/civitai` | Search CivitAI |
 | GET | `/tiny-model-manager/api/civitai/versions/{model_id}` | Get CivitAI model versions |
 | GET | `/tiny-model-manager/api/civitai/resolve/{version_id}` | Resolve a CivitAI direct download URL to filename + model type |
@@ -100,6 +100,70 @@ All nodes are available under the `tiny-model-manager` category in the ComfyUI n
 | **Upscale Model Loader** | `model_name` | `upscale_model` |
 
 The dashboard's "+" button on any model card (and the "Add to Workflow" button on the detail page) creates the matching node at the centre of the currently open workflow.
+
+---
+
+## Database Schema
+
+All metadata is stored in `data/models.db` (SQLite). Foreign keys are enforced (`PRAGMA foreign_keys = ON`). Child rows are removed automatically when their parent model row is deleted (`ON DELETE CASCADE`).
+
+```
+┌─────────────────────────────────────────────────────┐
+│                       models                        │
+├──────────────────┬──────────────────────────────────┤
+│ id               │ INTEGER  PK AUTOINCREMENT        │
+│ filename         │ TEXT     UNIQUE NOT NULL         │  ← relative path from the model type's base dir
+│ model_type       │ TEXT                             │  ← checkpoints | loras | vae | …
+│ source_platform  │ TEXT                             │  ← "civitai" | "huggingface"
+│ source_id        │ TEXT                             │  ← CivitAI version ID or HuggingFace repo
+│ description      │ TEXT     DEFAULT ''              │
+│ base_model       │ TEXT     NOT NULL DEFAULT ''     │  ← e.g. "SDXL 1.0", "Flux.1 D", "Pony"
+│ civitai_model_id │ TEXT                             │  ← CivitAI model page ID (used to build source_url)
+│ created_at       │ TEXT     DEFAULT datetime('now') │
+└──────────────────┴──────────────────────────────────┘
+          │  1
+          │
+          │  N
+          ├──────────────────────────────────────────┐
+          │                trigger_words              │
+          │  ├───────────────────────────────────────┤
+          │  │ id        │ INTEGER  PK AUTOINCREMENT  │
+          │  │ model_id  │ INTEGER  FK → models.id   │
+          │  │ word      │ TEXT NOT NULL              │
+          │  └───────────────────────────────────────┘
+          │  N
+          │
+          ├──────────────────────────────────────────┐
+          │                 model_media               │
+          │  ├───────────────────────────────────────┤
+          │  │ id         │ INTEGER  PK AUTOINCREMENT │
+          │  │ model_id   │ INTEGER  FK → models.id  │
+          │  │ media_type │ TEXT  ("image" | "video") │
+          │  │ local_path │ TEXT  (abs path on disk)  │
+          │  └───────────────────────────────────────┘
+          │  N
+          │
+          └──────────────────────────────────────────┐
+                             tags                     │
+             ├───────────────────────────────────────┤
+             │ id        │ INTEGER  PK AUTOINCREMENT  │
+             │ model_id  │ INTEGER  FK → models.id   │
+             │ tag       │ TEXT NOT NULL              │
+             └───────────────────────────────────────┘
+```
+
+### Field notes
+
+| Field | Source | Notes |
+|---|---|---|
+| `source_id` | CivitAI: version ID; HuggingFace: repo path (`user/repo`) | Used to re-fetch metadata |
+| `civitai_model_id` | CivitAI version API response (`modelId`) | Combined with `source_platform` to derive `source_url` at read time: `https://civitai.com/models/<id>` |
+| `base_model` | CivitAI: `baseModel` field on the version; HuggingFace: blank (user-editable) | Displayed on cards and the detail page; editable in the UI |
+| `source_url` | Derived — not stored | Computed by the API from `source_platform` + `source_id`/`civitai_model_id`; HuggingFace: `https://huggingface.co/<source_id>` |
+
+### Migration
+
+The schema is created on first run. Two columns added after the initial release (`base_model`, `civitai_model_id`) are applied automatically on every startup via `ALTER TABLE … ADD COLUMN` (idempotent — existing columns are silently skipped).
 
 ---
 

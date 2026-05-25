@@ -7,19 +7,24 @@ _MAX_PATH = 1_000
 _ALLOWED_MEDIA_TYPES = {"image", "video"}
 
 
-async def upsert_model(filename: str, model_type: str, source_platform: str, source_id: str, description: str) -> int:
+async def upsert_model(
+    filename: str, model_type: str, source_platform: str, source_id: str, description: str,
+    base_model: str = "", civitai_model_id: str = "",
+) -> int:
     async with get_db() as db:
         cursor = await db.execute(
             """
-            INSERT INTO models (filename, model_type, source_platform, source_id, description)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO models (filename, model_type, source_platform, source_id, description, base_model, civitai_model_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(filename) DO UPDATE SET
                 model_type = excluded.model_type,
                 source_platform = excluded.source_platform,
                 source_id = excluded.source_id,
-                description = excluded.description
+                description = excluded.description,
+                base_model = excluded.base_model,
+                civitai_model_id = excluded.civitai_model_id
             """,
-            (filename, model_type, source_platform, source_id, description[:_MAX_DESCRIPTION]),
+            (filename, model_type, source_platform, source_id, description[:_MAX_DESCRIPTION], base_model, civitai_model_id),
         )
         await db.commit()
         if cursor.lastrowid:
@@ -31,19 +36,22 @@ async def upsert_model(filename: str, model_type: str, source_platform: str, sou
 async def upsert_model_with_meta(
     filename: str, model_type: str, source_platform: str, source_id: str,
     description: str, trigger_words: list[str], tags: list[str],
+    base_model: str = "", civitai_model_id: str = "",
 ) -> int:
     async with get_db() as db:
         cursor = await db.execute(
             """
-            INSERT INTO models (filename, model_type, source_platform, source_id, description)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO models (filename, model_type, source_platform, source_id, description, base_model, civitai_model_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(filename) DO UPDATE SET
                 model_type = excluded.model_type,
                 source_platform = excluded.source_platform,
                 source_id = excluded.source_id,
-                description = excluded.description
+                description = excluded.description,
+                base_model = excluded.base_model,
+                civitai_model_id = excluded.civitai_model_id
             """,
-            (filename, model_type, source_platform, source_id, description[:_MAX_DESCRIPTION]),
+            (filename, model_type, source_platform, source_id, description[:_MAX_DESCRIPTION], base_model, civitai_model_id),
         )
         if cursor.lastrowid:
             model_id = cursor.lastrowid
@@ -145,13 +153,22 @@ async def get_metadata_by_filenames(filenames: list[str]) -> dict[str, dict]:
         return result
 
 
-async def update_model_meta(filename: str, description: str, trigger_words: list[str], tags: list[str] | None = None):
+async def update_model_meta(
+    filename: str, description: str, trigger_words: list[str],
+    tags: list[str] | None = None, base_model: str | None = None,
+):
     if tags is None:
         tags = []
     async with get_db() as db:
-        await db.execute(
-            "UPDATE models SET description = ? WHERE filename = ?", (description[:_MAX_DESCRIPTION], filename)
-        )
+        if base_model is not None:
+            await db.execute(
+                "UPDATE models SET description = ?, base_model = ? WHERE filename = ?",
+                (description[:_MAX_DESCRIPTION], base_model, filename),
+            )
+        else:
+            await db.execute(
+                "UPDATE models SET description = ? WHERE filename = ?", (description[:_MAX_DESCRIPTION], filename)
+            )
         row = await (await db.execute("SELECT id FROM models WHERE filename = ?", (filename,))).fetchone()
         if row:
             model_id = row["id"]

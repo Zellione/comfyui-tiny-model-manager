@@ -37,6 +37,22 @@
         <textarea [(ngModel)]="editMeta.description" rows="6"></textarea>
       </label>
 
+      <label>
+        <span>Base Model</span>
+        <input type="text" [(ngModel)]="editMeta.base_model" placeholder="e.g. SDXL 1.0, Flux.1 D, Pony" />
+      </label>
+
+      @if (meta()!.source_platform || meta()!.source_url) {
+        <div class="source-info">
+          @if (meta()!.source_platform) {
+            <span class="badge source-badge">{{ meta()!.source_platform === 'civitai' ? 'CivitAI' : 'HuggingFace' }}</span>
+          }
+          @if (meta()!.source_url) {
+            <a [href]="meta()!.source_url" target="_blank" rel="noopener" class="source-link">View on source ↗</a>
+          }
+        </div>
+      }
+
       <div class="trigger-words">
         <span class="label">Trigger Words</span>
         <div class="chips">

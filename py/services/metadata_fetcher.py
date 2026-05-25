@@ -12,6 +12,8 @@ async def fetch_and_store(filename: str, model_type: str, platform: str, source_
     image_urls: list[str] = []
     tags: list[str] = []
 
+    base_model = ""
+    civitai_model_id = ""
     try:
         provider = get_provider(platform)
         if provider and source_id:
@@ -20,11 +22,14 @@ async def fetch_and_store(filename: str, model_type: str, platform: str, source_
             trigger_words = meta.trigger_words
             image_urls = meta.image_urls
             tags = meta.tags
+            base_model = meta.base_model
+            civitai_model_id = meta.civitai_model_id
     except Exception:
         pass  # metadata fetch failure should not break the download
 
     model_id = await model_repo.upsert_model_with_meta(
-        filename, model_type, platform, source_id, description, trigger_words, tags
+        filename, model_type, platform, source_id, description, trigger_words, tags,
+        base_model=base_model, civitai_model_id=civitai_model_id,
     )
     if not skip_media:
         await _download_images(model_id, filename, image_urls)

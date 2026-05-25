@@ -2,6 +2,7 @@ import os
 import folder_paths
 from aiohttp import web
 from ..db import model_repo
+from .metadata import _derive_source_url
 
 
 def add_model_routes(routes):
@@ -38,11 +39,17 @@ def add_model_routes(routes):
                 for f in files:
                     m = meta_map.get(f["filename"])
                     if m:
+                        source_url = _derive_source_url(
+                            m.get("source_platform", ""), m.get("source_id", ""), m.get("civitai_model_id", "")
+                        )
                         f["metadata"] = {
                             "description": m.get("description", ""),
                             "trigger_words": m.get("trigger_words", []),
                             "tags": m.get("tags", []),
                             "media": m.get("media", []),
+                            "base_model": m.get("base_model", ""),
+                            "source_platform": m.get("source_platform", ""),
+                            "source_url": source_url,
                         }
             return web.json_response({"success": True, "data": result})
         except Exception as exc:

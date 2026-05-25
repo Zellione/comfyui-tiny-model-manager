@@ -54,7 +54,30 @@
     gap: 0.3rem;
     span { font-size: 0.85rem; color: #aaa; }
     textarea { resize: vertical; width: 100%; }
+    input[type="text"] { width: 100%; }
   }
+}
+
+.source-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.source-badge {
+  background: #1a3a5c;
+  color: #4f9eff;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.source-link {
+  color: #4f9eff;
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
 }
 
 .trigger-words {

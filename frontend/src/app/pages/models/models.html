@@ -56,6 +56,17 @@
                   }
                 </div>
               }
+              <div class="card-source">
+                @if (file.metadata?.base_model) {
+                  <span class="chip chip-base-model">{{ file.metadata!.base_model }}</span>
+                }
+                @if (file.metadata?.source_platform) {
+                  <span class="chip chip-platform">{{ file.metadata!.source_platform === 'civitai' ? 'CivitAI' : 'HuggingFace' }}</span>
+                }
+                @if (file.metadata?.source_url) {
+                  <a class="source-icon-link" [href]="file.metadata!.source_url" target="_blank" rel="noopener" title="View on source platform">↗</a>
+                }
+              </div>
             </div>
             <button class="btn-workflow card-workflow"
                     [class.queued]="isQueuedForWorkflow(file.filename)"

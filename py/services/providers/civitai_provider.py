@@ -86,7 +86,7 @@ class CivitaiProvider(ModelProvider):
         }
 
     async def fetch_metadata(self, source_id: str) -> ProviderMetadata:
-        """Returns description, trigger words, image URLs, and tags for a model version."""
+        """Returns description, trigger words, image URLs, tags, base model, and model ID for a version."""
         version_id = int(source_id)
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(f"{_BASE}/model-versions/{version_id}", headers=self.auth_headers())
@@ -94,8 +94,10 @@ class CivitaiProvider(ModelProvider):
             data = resp.json()
         image_urls = [img["url"] for img in data.get("images", [])[:5] if img.get("url")]
         description = data.get("description") or ""
+        base_model = data.get("baseModel", "")
         tags: list[str] = []
         model_id = data.get("modelId")
+        civitai_model_id = str(model_id) if model_id else ""
         if model_id:
             async with httpx.AsyncClient(timeout=15) as client:
                 model_resp = await client.get(f"{_BASE}/models/{model_id}", headers=self.auth_headers())
@@ -108,4 +110,6 @@ class CivitaiProvider(ModelProvider):
             trigger_words=data.get("trainedWords", []),
             image_urls=image_urls,
             tags=tags,
+            base_model=base_model,
+            civitai_model_id=civitai_model_id,
         )
