@@ -358,99 +358,199 @@ Insert the matching loader node for a model into the currently open ComfyUI grap
 
 ---
 
-### F-23 - Save additional parameters and show it in model view
+### F-23 — Base Model & Source Metadata
 
-- save download source (huggingface or civitai) in database and show it in model view.
-- save model type (sdxl, illustrious, anima, qwen, ...) and in case of lora the model type its for.
-- the link to the model page on civitai or huggingface
+Persist and surface where a model came from and which base model it targets.
 
----
+**Requirements:**
+- New `base_model` column on the `models` table (e.g. `SDXL 1.0`, `Illustrious`, `Pony`,
+  `Flux.1 D`, `Qwen`) — extends the F-08 schema
+- On download and on re-fetch, `base_model` is auto-populated from CivitAI's version `baseModel`
+  field; HuggingFace downloads leave it blank (no reliable source field)
+- `base_model` is manually editable from the model detail page (see F-31) so HuggingFace models
+  and corrections can be set by hand
+- For LoRAs, the base model is the architecture the LoRA is trained for (same field)
+- The model detail page and model cards (F-13) show: download source (CivitAI / HuggingFace, from
+  `source_platform`), base model, and a clickable link to the model's page on the source platform
+- The source page URL is derived from `source_platform` + `source_id` (CivitAI:
+  `https://civitai.com/models/<modelId>`, resolved via the version response; HuggingFace:
+  `https://huggingface.co/<repo>`)
 
-### F-24 - Make search filterable and orderable
-
-#### Filter
-- by model type (SDXL, Illustrious, Anima, qwen, z image turbo, flux, chroma and so on)...
-- by file format (safetensors, GGUF, ...)
-
-#### Order
-- have a look what filters are offered by civitai and huggingface
-
----
-
-### F-25 - Make model view filterable and orderable
-
-#### Filter
-- by model type (SDXL, Illustrious, Anima, qwen, z image turbo, flux, chroma and so on)...
-- by file format (safetensors, GGUF, ...)
-
-#### Order
-- have a look what filters are offered by civitai and huggingface
+**API:**
+- Extend `GET /api/models` and `GET/PUT /api/models/{type}/{path}/metadata` to include
+  `base_model` and a derived `source_url`
 
 ---
 
-### F-26 - Download view: Mark models already in library
+### F-24 — Search Filtering & Sorting
 
-If a model is already in library we mark it as already downloaded and do not show download option.
-This goes for search and for url pasting.
+Add filter and sort controls to the CivitAI and HuggingFace search.
 
----
+**Requirements:**
+- **Filter by base model** (SDXL, Illustrious, Pony, Flux, Qwen, Z Image Turbo, Chroma, …) —
+  options populated dynamically from the platform's available values; applied server-side where
+  the platform supports it (CivitAI `baseModels` param), hidden for HuggingFace (see F-29)
+- **Filter by file format** (`.safetensors`, `.gguf`, `.ckpt`, `.pt`, `.bin`)
+- **Sort (CivitAI):** Most Downloaded / Highest Rated / Newest, plus a time period
+  (Day / Week / Month / Year / All Time) — maps to CivitAI's `sort` + `period` params
+- **Sort (HuggingFace):** Downloads / Likes / Trending / Recently Updated / Recently Created —
+  maps to HuggingFace's `sort` (`downloads`, `likes`, `trending`, `lastModified`, `createdAt`)
+  + `direction`
+- Defaults preserve current behaviour (HuggingFace defaults to downloads, descending)
 
-### F-27 - save images in hashed folder names
-
-Images should be saved in hashed folder names. The hash can be stored in database.
-This way we won't have collisions with models that have the same name.
-
----
-
-### F-28 - Move download overview to a side-by-side view
-
-Download view should be side-by-side:
-- Left side has a list style layout. It shows a thumbnail, the name, the model type (checkpoint, lora, ...), the base model type in case of lora (SDXL, Anima, ...), and a truncated tag list
-- The right side shows a detail view, containing a formatted view of the description, the image gallery, the name, the tags, the trigger words, the download button and a link to view the model on the website (huggingface, civitai)
-- Clicking on a list item on the left side will open its detail view on the right side.
-- By default the detail view of the first result item is opened
-- In case of no search results do not show the side-by-side view, instead show a box containing a message explaining that there were no search results.
+**API:**
+- Extend `GET /api/search/civitai` with `base_model`, `format`, `sort`, `period` query params
+- Extend `GET /api/search/huggingface` with `sort`, `direction`, `format` query params
 
 ---
 
-### F-29 - Omit search filter for huggingface
+### F-25 — Library Filtering & Sorting
 
-In case of huggingface do not show the search filter for model type.
+Add the same filtering and sorting to the installed-model browser.
 
----
-
-### F-30 - Huggingface: Before download choose model type
-
-In case of huggingface have the user select a model type (checkpoint, lora, ...) since we cannot determine it automatically
-
----
-
-### F-31 - Model Type editable
-
-Model type should be editable in model detail view and a change should move the model to the appropriate folder.
+**Requirements:**
+- **Filter by base model** (built dynamically from the distinct `base_model` values present in
+  the library) and **by file format** (file extension), in addition to the existing
+  grouping-by-type
+- **Sort by** name, file size, date added (`created_at`), or recently modified
+- Applied client-side over the data already returned by `GET /api/models` — no new endpoint
 
 ---
 
-### F-32 - Meta data not as tags
+### F-26 — Mark Already-Installed Models in Download View
 
-Meta Data such as model type or trigger words shouldn't be tracked as tags but instead as their own data base fields.
+Indicate which search results and pasted links are already in the library and suppress their
+download action.
+
+**Requirements:**
+- For each search-result file/version, and for resolved paste-a-link targets, compare the target
+  filename against installed models; if present, show an "In library" badge and hide/disable the
+  Download button
+- Applies to CivitAI search, HuggingFace search, and the paste-a-link flows (F-17–F-20)
+- Matching is by the resolved filename (the name the file would be saved as on disk)
+
+**API:**
+- Reuses installed-model filenames from `GET /api/models` client-side; no new endpoint
 
 ---
 
-### F-33 - Model type should be selectable for every model offered
+### F-27 — Hashed Media Folder Names
 
-This goes for pasted download link as the search itself
+Store preview media under a hashed folder name instead of the model basename to avoid collisions.
+
+**Requirements:**
+- Media is saved to `data/media/<hash>/`, where `<hash>` is derived deterministically (e.g.
+  SHA-1 of the filename, or of `source_platform` + `source_id`)
+- The hash is stored on the model's row (new `media_hash` column — extends the F-08 schema) so the
+  detail page and gallery can locate the media
+- Replaces the current `data/media/<model_basename>/` scheme (F-07), preventing collisions between
+  different models that share the same display name
+- `model_media.local_path` continues to point at the actual stored file (now under the hashed
+  folder); the `GET /api/media/{path}` path-traversal guard is retained
 
 ---
 
-### F-34 - Add notification system
+### F-28 — Side-by-Side Download View
 
-Notification popups appear in the top middle of the dashboard if you:
-- saved something (green colored background)
-- added something to the workflow (green colored background)
-- clicked on a download link (green colored background)
-- a download is finished (green colored background)
-- in case of an error (red colored background)
+Rework the search-results area into a master–detail layout.
+
+**Requirements:**
+- **Left pane** — a scrollable list; each row shows a thumbnail, the name, the model type
+  (checkpoint, lora, …), the base model (for LoRAs and wherever known), and a truncated tag list
+- **Right pane** — a detail view for the selected item: formatted description, image gallery,
+  name, tags, trigger words, the Download button, and a link to the model on its source platform
+- Clicking a row on the left opens its detail on the right
+- The first result is selected by default
+- When there are no results, the side-by-side view is hidden and replaced by a message box
+  explaining that there were no search results
+- Works for both CivitAI and HuggingFace result sets
+
+---
+
+### F-29 — Hide Base-Model Filter for HuggingFace
+
+HuggingFace search has no base-model facet, so the filter is not offered there.
+
+**Requirements:**
+- The base-model filter control (F-24) is shown for CivitAI and hidden whenever the active search
+  platform is HuggingFace
+- The remaining controls (keyword, sort, file format) stay available
+
+---
+
+### F-30 — Choose Model Type Before HuggingFace Download
+
+HuggingFace does not expose the target folder type, so the user picks it before downloading.
+
+**Requirements:**
+- Before enqueuing a HuggingFace download (a search-result file or a pasted repo link), the user
+  selects the target model type (checkpoints, loras, embeddings, vae, controlnet, …)
+- The selected type is sent as `model_type` to `POST /api/download` and determines the destination
+  folder
+- For CivitAI the type is auto-detected from the version response (existing F-18 behaviour) and
+  need not be chosen — though F-33 still allows overriding it
+
+---
+
+### F-31 — Editable Model Type (relocates file)
+
+Allow changing a model's folder type from the detail page, moving the file on disk.
+
+**Requirements:**
+- The model detail page shows the model type as an editable dropdown (checkpoints, loras,
+  embeddings, vae, controlnet, …)
+- Changing it moves the model file from its current folder to the first registered `folder_paths`
+  directory for the new type
+- The `models.model_type` row is updated; trigger words, tags, media (hashed folder, F-27),
+  description, and source info are preserved
+- The base model (F-23) is editable from the same page
+
+**API:**
+- `POST /api/models/{type}/{path}/move` body `{ new_type }` → relocates the file on disk and
+  updates the DB row
+
+---
+
+### F-32 — First-Class Metadata Fields (not tags)
+
+Store structured metadata as dedicated fields rather than folding it into the generic tag list.
+
+**Requirements:**
+- Base model is stored in its own `models.base_model` column (F-23), never as a tag
+- Trigger words remain in the dedicated `trigger_words` table (already the case) and are never
+  mixed into `tags`
+- The generic `tags` table holds only descriptive tags fetched from the source platform
+- Metadata responses expose `base_model`, `trigger_words`, and `tags` as distinct fields
+
+---
+
+### F-33 — Model Type Selectable for Every Model
+
+Let the user pick or override the target folder type for any downloadable model — from search
+results and from pasted links alike.
+
+**Requirements:**
+- A model-type dropdown is available for every downloadable item: CivitAI search results,
+  HuggingFace search results, and all paste-a-link flows (F-17–F-20)
+- Where the type is auto-detected (CivitAI), the dropdown is pre-filled with the detected type but
+  remains changeable — this relaxes F-18's "pre-filled and disabled (greyed out)" behaviour
+- For HuggingFace, selection is required (F-30)
+- The chosen type is passed as `model_type` to `POST /api/download`
+
+---
+
+### F-34 — Notification System
+
+Toast notifications surface action outcomes across the dashboard.
+
+**Requirements:**
+- Toasts appear at the top-center of the dashboard
+- **Green (success)** toasts for: metadata or settings saved, a model added to the workflow
+  (F-22), a download enqueued from a link, and a download completing
+- **Red (error)** toasts for any failed action (failed save, failed download, API error)
+- Toasts auto-dismiss after a few seconds and can be manually dismissed
+- A shared Angular notification service is used by all pages; download-completion toasts are raised
+  when the download-status poll (F-06) observes a task transitioning to `done` or `error`
 
 ---
 
