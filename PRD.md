@@ -353,6 +353,43 @@ Insert the matching loader node for a model into the currently open ComfyUI grap
 
 ---
 
+### F-23 - Save additional parameters and show it in model view
+
+- save download source (huggingface or civitai) in database and show it in model view.
+- save model type (sdxl, illustrious, anima, qwen, ...) and in case of lora the model type its for.
+- the link to the model page on civitai or huggingface
+
+---
+
+### F-24 - Make search filterable and orderable
+
+#### Filter
+- by model type (SDXL, Illustrious, Anima, qwen, z image turbo, flux, chroma and so on)...
+- by file format (safetensors, GGUF, ...)
+
+#### Order
+- have a look what filters are offered by civitai and huggingface
+
+---
+
+### F-25 - Make model view filterable and orderable
+
+#### Filter
+- by model type (SDXL, Illustrious, Anima, qwen, z image turbo, flux, chroma and so on)...
+- by file format (safetensors, GGUF, ...)
+
+#### Order
+- have a look what filters are offered by civitai and huggingface
+
+---
+
+### F-26 - Download view: Mark models already in library
+
+If a model is already in library we mark it as already downloaded and do not show download option.
+This goes for search and for url pasting.
+
+---
+
 ## Data Flow
 
 ```
