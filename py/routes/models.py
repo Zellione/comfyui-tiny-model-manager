@@ -1,6 +1,7 @@
 import os
 import folder_paths
 from aiohttp import web
+from ..db import model_repo
 
 
 def add_model_routes(routes):
@@ -31,6 +32,18 @@ def add_model_routes(routes):
                                 })
                 if models:
                     result[folder_type] = models
+            all_filenames = [f["filename"] for files in result.values() for f in files]
+            meta_map = await model_repo.get_metadata_by_filenames(all_filenames)
+            for files in result.values():
+                for f in files:
+                    m = meta_map.get(f["filename"])
+                    if m:
+                        f["metadata"] = {
+                            "description": m.get("description", ""),
+                            "trigger_words": m.get("trigger_words", []),
+                            "tags": [],
+                            "media": m.get("media", []),
+                        }
             return web.json_response({"success": True, "data": result})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)

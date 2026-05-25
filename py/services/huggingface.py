@@ -11,6 +11,7 @@ HF_TYPE_MAP = {
 }
 
 MODEL_EXTENSIONS = {".safetensors", ".ckpt", ".pt", ".bin", ".gguf"}
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 
 
 def _headers() -> dict:
@@ -52,13 +53,22 @@ async def get_model_files(repo_id: str) -> list[dict]:
 
 
 async def get_model_card(repo_id: str) -> dict:
-    """Returns description and tags from a HuggingFace model card."""
+    """Returns description, tags, and preview image URLs from a HuggingFace model card."""
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.get(f"{_API}/models/{repo_id}", headers=_headers())
         resp.raise_for_status()
         data = resp.json()
+    image_urls = []
+    for sibling in data.get("siblings", []):
+        name = sibling.get("rfilename", "")
+        ext = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
+        if ext in IMAGE_EXTENSIONS and "/" not in name:
+            image_urls.append(f"{_BASE}/{repo_id}/resolve/main/{name}")
+        if len(image_urls) >= 5:
+            break
     return {
         "description": data.get("cardData", {}).get("description", ""),
         "trigger_words": data.get("cardData", {}).get("trigger", []),
         "tags": data.get("tags", []),
+        "image_urls": image_urls,
     }

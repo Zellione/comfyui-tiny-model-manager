@@ -21,6 +21,7 @@ async def fetch_and_store(filename: str, model_type: str, platform: str, source_
             meta = await huggingface.get_model_card(source_id)
             description = meta.get("description") or ""
             trigger_words = meta.get("trigger_words", [])
+            image_urls = meta.get("image_urls", [])
     except Exception:
         pass  # metadata fetch failure should not break the download
 
@@ -38,7 +39,7 @@ async def _download_images(model_id: int, filename: str, urls: list[str]):
     dest_dir = os.path.join(cfg.media_dir(), base_name)
     os.makedirs(dest_dir, exist_ok=True)
 
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
         for i, url in enumerate(urls[:5]):
             try:
                 ext = url.rsplit(".", 1)[-1].split("?")[0] or "jpg"

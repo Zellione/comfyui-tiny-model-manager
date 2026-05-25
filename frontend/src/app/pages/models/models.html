@@ -9,29 +9,59 @@
 } @else {
   @for (type of typeKeys(); track type) {
     <section class="type-section">
-      <h3>{{ type }} <span class="badge">{{ modelsByType()[type].length }}</span></h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Filename</th>
-            <th>Size</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (file of modelsByType()[type]; track file.filename) {
-            <tr>
-              <td>
-                <a [routerLink]="['/models', type, file.filename]">{{ file.filename }}</a>
-              </td>
-              <td>{{ formatSize(file.size_bytes) }}</td>
-              <td>
-                <button class="btn-danger" (click)="deleteModel(type, file)">Delete</button>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
+      <div class="section-header">
+        <h3>{{ type }} <span class="badge">{{ modelsByType()[type].length }}</span></h3>
+        @if (selectedForType(type).length > 0) {
+          <button class="btn-danger" (click)="deleteSelected(type)">
+            Delete selected ({{ selectedForType(type).length }})
+          </button>
+        }
+      </div>
+      <div class="card-grid">
+        @for (file of modelsByType()[type]; track file.filename) {
+          <div class="model-card" [class.selected]="isSelected(type, file.filename)">
+            <input
+              type="checkbox"
+              class="card-checkbox"
+              [checked]="isSelected(type, file.filename)"
+              (change)="toggleSelect(type, file.filename)" />
+            <a [routerLink]="['/models', type, file.filename]" class="thumb-link">
+              @if (thumbnailUrl(file.metadata)) {
+                <img class="thumb" [src]="thumbnailUrl(file.metadata)!" alt="" loading="lazy" />
+              } @else {
+                <div class="thumb thumb-placeholder"></div>
+              }
+            </a>
+            <div class="card-body">
+              <a class="card-name" [routerLink]="['/models', type, file.filename]" [title]="file.filename">
+                {{ file.filename }}
+              </a>
+              <span class="card-size">{{ formatSize(file.size_bytes) }}</span>
+              @if (file.metadata?.trigger_words?.length) {
+                <div class="chips">
+                  @for (w of file.metadata!.trigger_words.slice(0, 3); track w) {
+                    <span class="chip chip-trigger">{{ w }}</span>
+                  }
+                  @if (file.metadata!.trigger_words.length > 3) {
+                    <span class="chip chip-more">+{{ file.metadata!.trigger_words.length - 3 }}</span>
+                  }
+                </div>
+              }
+              @if (file.metadata?.tags?.length) {
+                <div class="chips">
+                  @for (t of file.metadata!.tags.slice(0, 3); track t) {
+                    <span class="chip chip-tag">{{ t }}</span>
+                  }
+                  @if (file.metadata!.tags.length > 3) {
+                    <span class="chip chip-more">+{{ file.metadata!.tags.length - 3 }}</span>
+                  }
+                </div>
+              }
+            </div>
+            <button class="btn-danger card-delete" (click)="deleteModel(type, file)">×</button>
+          </div>
+        }
+      </div>
     </section>
   }
 }

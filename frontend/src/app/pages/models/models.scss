@@ -1,6 +1,118 @@
 .type-section {
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
 }
-a { color: #4f9eff; text-decoration: none; }
-a:hover { text-decoration: underline; }
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+
+  h3 { margin: 0; }
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.model-card {
+  position: relative;
+  background: #222;
+  border: 1px solid #333;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+
+  &:hover { border-color: #555; }
+  &.selected { border-color: #4f9eff; }
+}
+
+.card-checkbox {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 1;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.thumb-link { display: block; }
+
+.thumb {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  display: block;
+}
+
+.thumb-placeholder {
+  width: 100%;
+  aspect-ratio: 1;
+  background: #2a2a2a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &::after {
+    content: '?';
+    color: #555;
+    font-size: 2rem;
+  }
+}
+
+.card-body {
+  padding: 0.5rem 0.75rem 2.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.card-name {
+  color: #4f9eff;
+  text-decoration: none;
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+
+  &:hover { text-decoration: underline; }
+}
+
+.card-size {
+  color: #888;
+  font-size: 0.72rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.2rem;
+}
+
+.chip {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  line-height: 1.4;
+
+  &.chip-trigger { background: #1a3a5c; color: #7db8f7; }
+  &.chip-tag     { background: #2a1a4a; color: #b07df7; }
+  &.chip-more    { background: #333;    color: #aaa; }
+}
+
+.card-delete {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.8rem;
+  line-height: 1;
+  border-radius: 3px;
+}
+
 .error { color: #e74c3c; }
