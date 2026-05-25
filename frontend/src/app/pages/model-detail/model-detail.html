@@ -11,17 +11,24 @@
   <div class="detail-layout">
 
     <!-- Media gallery -->
-    @if (meta()!.media && meta()!.media.length > 0) {
-      <div class="gallery">
+    <div class="gallery">
+      @if (meta()!.media && meta()!.media.length > 0) {
         @for (m of meta()!.media; track m.id) {
           @if (m.media_type === 'image') {
-            <img [src]="mediaUrl(m.local_path)" alt="preview" />
+            <div class="gallery-item">
+              <div class="gallery-placeholder"></div>
+              <img [src]="mediaUrl(m.local_path)" alt="preview" />
+            </div>
           } @else {
             <video [src]="mediaUrl(m.local_path)" controls></video>
           }
         }
-      </div>
-    }
+      } @else {
+        <div class="gallery-item">
+          <div class="gallery-placeholder"></div>
+        </div>
+      }
+    </div>
 
     <!-- Edit panel -->
     <div class="edit-panel">

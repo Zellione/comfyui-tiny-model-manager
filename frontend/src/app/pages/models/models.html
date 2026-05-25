@@ -26,10 +26,9 @@
               [checked]="isSelected(type, file.filename)"
               (change)="toggleSelect(type, file.filename)" />
             <a [routerLink]="['/models', type, file.filename]" class="thumb-link">
+              <div class="thumb-placeholder"></div>
               @if (thumbnailUrl(file.metadata)) {
                 <img class="thumb" [src]="thumbnailUrl(file.metadata)!" alt="" loading="lazy" />
-              } @else {
-                <div class="thumb thumb-placeholder"></div>
               }
             </a>
             <div class="card-body">
