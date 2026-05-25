@@ -253,7 +253,7 @@ Improve search browsing and allow downloading multiple files at once.
 
 ---
 
-### F-15 — Import Tags from HuggingFace ✓
+### F-15 — Import Tags from HuggingFace
 
 Persist tags fetched from HuggingFace and make them visible/editable.
 
@@ -411,6 +411,18 @@ Download view should be side-by-side:
 ### F-29 - Omit search filter for huggingface
 
 In case of hugging face do not show the search filter for model type.
+
+---
+
+### F-30 - Huggingface: Before download choose model type
+
+In case of hugging face have the user select a model type (checkpoint, lora, ...) since we cannot determine it automatically
+
+---
+
+### F-31 - Model Type editable
+
+Model type should be editable in model detail view and a change should move the model to the appropriate folder.
 
 ---
 

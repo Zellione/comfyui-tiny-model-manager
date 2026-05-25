@@ -100,16 +100,30 @@ async def get_metadata_by_filenames(filenames: list[str]) -> dict[str, dict]:
         return result
 
 
-async def update_model_meta(filename: str, description: str, trigger_words: list[str]):
+async def update_model_meta(filename: str, description: str, trigger_words: list[str], tags: list[str] = []):
     async with get_db() as db:
         await db.execute(
             "UPDATE models SET description = ? WHERE filename = ?", (description, filename)
         )
         row = await (await db.execute("SELECT id FROM models WHERE filename = ?", (filename,))).fetchone()
         if row:
-            await db.execute("DELETE FROM trigger_words WHERE model_id = ?", (row["id"],))
+            model_id = row["id"]
+            await db.execute("DELETE FROM trigger_words WHERE model_id = ?", (model_id,))
             await db.executemany(
                 "INSERT INTO trigger_words (model_id, word) VALUES (?, ?)",
-                [(row["id"], w) for w in trigger_words],
+                [(model_id, w) for w in trigger_words],
+            )
+            await db.execute("DELETE FROM tags WHERE model_id = ?", (model_id,))
+            await db.executemany(
+                "INSERT INTO tags (model_id, tag) VALUES (?, ?)",
+                [(model_id, t) for t in tags],
             )
         await db.commit()
+
+
+async def get_model_source_info(filename: str) -> dict | None:
+    async with get_db() as db:
+        row = await (await db.execute(
+            "SELECT source_platform, source_id, model_type FROM models WHERE filename = ?", (filename,)
+        )).fetchone()
+        return dict(row) if row else None

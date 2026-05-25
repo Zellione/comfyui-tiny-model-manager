@@ -30,8 +30,32 @@ def add_metadata_routes(routes):
             body = await request.json()
             description = body.get("description", "")
             trigger_words = body.get("trigger_words", [])
-            await model_repo.update_model_meta(path, description, trigger_words)
+            tags = body.get("tags", [])
+            await model_repo.update_model_meta(path, description, trigger_words, tags)
             return web.json_response({"success": True})
+        except Exception as exc:
+            return web.json_response({"success": False, "error": str(exc)}, status=500)
+
+    @routes.post("/tiny-model-manager/api/models/{model_type}/{path:.*}/refetch")
+    async def refetch_metadata(request):
+        path = request.match_info["path"]
+        try:
+            info = await model_repo.get_model_source_info(path)
+            if not info or not info.get("source_platform") or not info.get("source_id"):
+                return web.json_response(
+                    {"success": False, "error": "No source info stored for this model"}, status=400
+                )
+            from ..services import metadata_fetcher
+            await metadata_fetcher.fetch_and_store(
+                path, info["model_type"], info["source_platform"], info["source_id"], skip_media=True
+            )
+            meta = await model_repo.get_model_by_filename(path) or {}
+            return web.json_response({"success": True, "data": {
+                "description": meta.get("description", ""),
+                "trigger_words": meta.get("trigger_words", []),
+                "tags": meta.get("tags", []),
+                "media": meta.get("media", []),
+            }})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
 

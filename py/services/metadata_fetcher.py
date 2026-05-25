@@ -6,7 +6,7 @@ from ..db import model_repo
 from .providers import get_provider
 
 
-async def fetch_and_store(filename: str, model_type: str, platform: str, source_id: str):
+async def fetch_and_store(filename: str, model_type: str, platform: str, source_id: str, skip_media: bool = False):
     description = ""
     trigger_words: list[str] = []
     image_urls: list[str] = []
@@ -28,7 +28,8 @@ async def fetch_and_store(filename: str, model_type: str, platform: str, source_
     )
     await model_repo.set_trigger_words(model_id, trigger_words)
     await model_repo.set_tags(model_id, tags)
-    await _download_images(model_id, filename, image_urls)
+    if not skip_media:
+        await _download_images(model_id, filename, image_urls)
 
 
 async def _download_images(model_id: int, filename: str, urls: list[str]):

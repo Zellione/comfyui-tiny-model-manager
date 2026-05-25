@@ -50,21 +50,28 @@
         </div>
       </div>
 
-      @if (meta()!.tags?.length) {
-        <div class="tag-list">
-          <span class="label">Tags</span>
-          <div class="chips">
-            @for (t of meta()!.tags; track t) {
-              <span class="chip chip-tag">{{ t }}</span>
-            }
-          </div>
+      <div class="trigger-words">
+        <span class="label">Tags</span>
+        <div class="chips">
+          @for (t of editMeta.tags; track t) {
+            <span class="chip chip-tag">{{ t }}<button (click)="removeTag(t)">×</button></span>
+          }
         </div>
-      }
+        <div class="add-word">
+          <input [(ngModel)]="newTag" placeholder="Add tag" (keyup.enter)="addTag()" />
+          <button class="btn-secondary" (click)="addTag()">Add</button>
+        </div>
+      </div>
 
-      <button class="btn-primary" (click)="save()" [disabled]="saving()">
-        {{ saving() ? 'Saving…' : 'Save' }}
-      </button>
-      @if (saved()) { <span class="msg-ok">Saved.</span> }
+      <div class="actions">
+        <button class="btn-primary" (click)="save()" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+        <button class="btn-secondary" (click)="refetch()" [disabled]="refetching()">
+          {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
+        </button>
+        @if (saved()) { <span class="msg-ok">Saved.</span> }
+      </div>
     </div>
   </div>
 }
