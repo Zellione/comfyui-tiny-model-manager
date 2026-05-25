@@ -20,8 +20,9 @@ def add_download_routes(routes):
     async def search_hf(request):
         q = request.rel_url.query.get("q", "")
         model_type = request.rel_url.query.get("type", "")
+        p = int(request.rel_url.query.get("p", 0))
         try:
-            data = await huggingface.search_models(q, model_type)
+            data = await huggingface.search_models(q, model_type, p=p)
             return web.json_response({"success": True, "data": data})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)

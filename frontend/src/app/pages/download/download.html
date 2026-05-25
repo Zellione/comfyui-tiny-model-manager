@@ -38,16 +38,39 @@
   <div class="results">
     @for (model of civitaiResults(); track model.id) {
       <div class="result-card" (click)="selectCivitai(model)" [class.selected]="selectedModel()?.id === model.id">
-        <strong>{{ model.name }}</strong>
-        <span class="badge">{{ model.type }}</span>
-        <small>by {{ model.creator && model.creator.username }}</small>
+        <div class="thumbnail">
+          <div class="placeholder"></div>
+          @if (civitaiThumb(model)) {
+            <img [src]="civitaiThumb(model)" alt="" loading="lazy" (error)="onImgError($event)" />
+          }
+        </div>
+        <div class="card-body">
+          <strong>{{ model.name }}</strong>
+          <span class="badge">{{ model.type }}</span>
+          <small>by {{ model.creator && model.creator.username }}</small>
+        </div>
       </div>
     }
   </div>
 
+  @if (civitaiHasMore()) {
+    <div class="load-more-row">
+      <button class="btn-secondary load-more" (click)="loadMore()" [disabled]="loadingMore()">
+        {{ loadingMore() ? 'Loading…' : 'Load more' }}
+      </button>
+    </div>
+  }
+
   @if (selectedModel()) {
     <div class="versions-panel">
-      <h3>Versions for: {{ selectedModel()!.name }}</h3>
+      <div class="versions-header">
+        <h3>Versions for: {{ selectedModel()!.name }}</h3>
+        @if (selectedCivitaiCount() > 0) {
+          <button class="btn-primary" (click)="downloadSelectedCivitai()">
+            Download selected ({{ selectedCivitaiCount() }})
+          </button>
+        }
+      </div>
       @if (loadingVersions()) {
         <p>Loading versions…</p>
       } @else if (versionsError()) {
@@ -61,8 +84,9 @@
             </div>
             @for (f of v.files; track f.id) {
               <div class="version-row">
+                <input type="checkbox" [checked]="isCivitaiFileSelected(v.id, f)" (change)="toggleCivitaiFile(v.id, f)" (click)="$event.stopPropagation()" />
                 <span>{{ f.name }}</span>
-                @if (f.metadata?.format) {
+                @if (f.metadata.format) {
                   <span class="badge">{{ f.metadata.format }}{{ f.metadata.fp ? ' · ' + f.metadata.fp : '' }}</span>
                 }
                 <small>{{ formatSize(f.sizeKB * 1024) }}</small>
@@ -81,17 +105,41 @@
   <div class="results">
     @for (model of hfResults(); track model.id) {
       <div class="result-card" (click)="selectHf(model)">
-        <strong>{{ model.modelId || model.id }}</strong>
-        <small>{{ model.downloads | number }} downloads</small>
+        <div class="thumbnail">
+          <div class="placeholder"></div>
+          @if (model.thumbnail) {
+            <img [src]="model.thumbnail" alt="" loading="lazy" (error)="onImgError($event)" />
+          }
+        </div>
+        <div class="card-body">
+          <strong>{{ model.modelId || model.id }}</strong>
+          <small>{{ model.downloads | number }} downloads</small>
+        </div>
       </div>
     }
   </div>
 
+  @if (hfHasMore()) {
+    <div class="load-more-row">
+      <button class="btn-secondary load-more" (click)="loadMore()" [disabled]="loadingMore()">
+        {{ loadingMore() ? 'Loading…' : 'Load more' }}
+      </button>
+    </div>
+  }
+
   @if (hfFiles().length > 0) {
     <div class="versions-panel">
-      <h3>Files</h3>
+      <div class="versions-header">
+        <h3>Files</h3>
+        @if (selectedHfCount() > 0) {
+          <button class="btn-primary" (click)="downloadSelectedHf()">
+            Download selected ({{ selectedHfCount() }})
+          </button>
+        }
+      </div>
       @for (f of hfFiles(); track f.filename) {
         <div class="version-row">
+          <input type="checkbox" [checked]="isHfFileSelected(f.filename)" (change)="toggleHfFile(f.filename)" />
           <span>{{ f.filename }}</span>
           <small>{{ formatSize(f.size) }}</small>
           <button class="btn-primary" (click)="downloadHf(f)">Download</button>

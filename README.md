@@ -35,7 +35,7 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | F-11 | `LoraLoaderWithTriggers` ComfyUI workflow node — loads a LoRA and outputs its trigger words | Done |
 | F-12 | Settings moved into ComfyUI's native settings panel (standalone page removed) | Done |
 | F-13 | Enhanced model view — card/grid + thumbnails, inline tags/triggers, bulk delete | Done |
-| F-14 | Enhanced download view — result pagination, inline previews, batch download | TODO |
+| F-14 | Enhanced download view — result pagination, inline previews, batch download | Done |
 | F-15 | Import & store tags from HuggingFace | TODO |
 | F-16 | Import & store tags from CivitAI + re-fetch metadata for installed models | TODO |
 | F-17 | Paste a direct HuggingFace file download link | TODO |

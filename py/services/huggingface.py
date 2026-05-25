@@ -22,14 +22,25 @@ def _headers() -> dict:
     return {}
 
 
-async def search_models(query: str, model_type: str = "", limit: int = 20) -> list:
-    params = {"search": query, "limit": limit, "sort": "downloads", "direction": -1}
+async def search_models(query: str, model_type: str = "", limit: int = 20, p: int = 0) -> dict:
+    params = {"search": query, "limit": limit, "sort": "downloads", "direction": -1, "p": p, "full": "true"}
     pipeline = HF_TYPE_MAP.get(model_type, "text-to-image")
     params["pipeline_tag"] = pipeline
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.get(f"{_API}/models", params=params, headers=_headers())
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
+    for model in data:
+        repo_id = model.get("modelId") or model.get("id", "")
+        thumbnail = ""
+        for sibling in model.get("siblings", []):
+            name = sibling.get("rfilename", "")
+            ext = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
+            if ext in IMAGE_EXTENSIONS and "/" not in name:
+                thumbnail = f"{_BASE}/{repo_id}/resolve/main/{name}"
+                break
+        model["thumbnail"] = thumbnail
+    return {"items": data, "hasMore": len(data) == limit, "nextPage": p + 1}
 
 
 async def get_model_files(repo_id: str) -> list[dict]:

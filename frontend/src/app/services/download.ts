@@ -52,6 +52,13 @@ export interface HfModel {
   modelId: string;
   downloads: number;
   tags: string[];
+  thumbnail?: string;
+}
+
+export interface HfSearchResult {
+  items: HfModel[];
+  hasMore: boolean;
+  nextPage: number;
 }
 
 const API = '/tiny-model-manager/api';
@@ -84,9 +91,9 @@ export class DownloadService {
       .pipe(map(r => ({ items: r.data.items ?? [], metadata: r.data.metadata ?? {} })));
   }
 
-  searchHuggingFace(q: string, type = ''): Observable<HfModel[]> {
+  searchHuggingFace(q: string, type = '', p = 0): Observable<HfSearchResult> {
     return this.http
-      .get<{ success: boolean; data: HfModel[] }>(`${API}/search/huggingface`, { params: { q, type } })
+      .get<{ success: boolean; data: HfSearchResult }>(`${API}/search/huggingface`, { params: { q, type, p } })
       .pipe(map(r => r.data));
   }
 
