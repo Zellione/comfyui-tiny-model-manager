@@ -36,7 +36,7 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | F-12 | Settings moved into ComfyUI's native settings panel (standalone page removed) | Done |
 | F-13 | Enhanced model view — card/grid + thumbnails, inline tags/triggers, bulk delete | Done |
 | F-14 | Enhanced download view — result pagination, inline previews, batch download | Done |
-| F-15 | Import & store tags from HuggingFace | TODO |
+| F-15 | Import & store tags from HuggingFace | Done |
 | F-16 | Import & store tags from CivitAI + re-fetch metadata for installed models | TODO |
 | F-17 | Paste a direct HuggingFace file download link | TODO |
 | F-18 | Paste a direct CivitAI download link | TODO |
