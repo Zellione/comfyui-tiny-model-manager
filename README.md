@@ -32,7 +32,7 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | F-08 | SQLite metadata storage — models, trigger words, media paths persisted in `data/models.db` | Done |
 | F-09 | Model detail page — view/edit description, trigger word chips, media gallery | Done |
 | F-10 | Settings page — CivitAI API key, HuggingFace token, custom media directory | Done |
-| F-11 | `LoraLoaderWithTriggers` ComfyUI workflow node — loads a LoRA and outputs its trigger words | Done |
+| F-11 | `TMMLoraLoader` ComfyUI workflow node — loads a LoRA and outputs its trigger words | Done |
 | F-12 | Settings moved into ComfyUI's native settings panel (standalone page removed) | Done |
 | F-13 | Enhanced model view — card/grid + thumbnails, inline tags/triggers, bulk delete | Done |
 | F-14 | Enhanced download view — result pagination, inline previews, batch download | Done |
@@ -42,8 +42,8 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | F-18 | Paste a direct CivitAI download link | Done |
 | F-19 | Paste a HuggingFace repository link and pick a file | Done |
 | F-20 | Paste a CivitAI model link and pick a version | Done |
-| F-21 | Loader nodes for checkpoints, VAE, ControlNet, embeddings, upscale models | TODO |
-| F-22 | One-click insert of a model's loader node into the open workflow | TODO |
+| F-21 | Loader nodes for checkpoints, VAE, ControlNet, embeddings, upscale models | Done |
+| F-22 | One-click insert of a model's loader node into the open workflow | Done |
 
 ---
 
@@ -68,18 +68,26 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | GET | `/tiny-model-manager/api/media/{path}` | Serve a stored preview image/video |
 | GET | `/tiny-model-manager/api/settings` | Get current settings |
 | PUT | `/tiny-model-manager/api/settings` | Update settings |
-| POST | `/tiny-model-manager/api/workflow/insert` | Enqueue a 1-click node insert (TODO) |
-| GET | `/tiny-model-manager/api/workflow/pending` | Pending inserts for the ComfyUI JS extension (TODO) |
-| POST | `/tiny-model-manager/api/workflow/ack` | Mark a pending insert consumed (TODO) |
+| POST | `/tiny-model-manager/api/workflow/insert` | Enqueue a 1-click node insert |
+| GET | `/tiny-model-manager/api/workflow/pending` | Pending inserts for the ComfyUI JS extension |
+| POST | `/tiny-model-manager/api/workflow/ack` | Mark a pending insert consumed |
 
 ---
 
-## Workflow Node
+## Workflow Nodes
 
-**LoRA Loader (with Trigger Words)** — available under the `tiny-model-manager` category in the ComfyUI node menu.
+All nodes are available under the `tiny-model-manager` category in the ComfyUI node menu.
 
-Inputs: `model`, `clip`, `lora_name`, `strength_model`, `strength_clip`
-Outputs: `model`, `clip`, `trigger_words` (comma-separated string)
+| Node | Inputs | Outputs |
+|---|---|---|
+| **LoRA Loader (with Trigger Words)** | `model`, `clip`, `lora_name`, `strength_model`, `strength_clip` | `model`, `clip`, `trigger_words` |
+| **Checkpoint Loader** | `ckpt_name` | `model`, `clip`, `vae` |
+| **VAE Loader** | `vae_name` | `vae` |
+| **ControlNet Loader** | `control_net_name` | `control_net` |
+| **Embedding Helper** | `embedding_name` | `embedding_ref` (formatted string for prompt use) |
+| **Upscale Model Loader** | `model_name` | `upscale_model` |
+
+The dashboard's "+" button on any model card (and the "Add to Workflow" button on the detail page) creates the matching node at the centre of the currently open workflow.
 
 ---
 
@@ -92,13 +100,20 @@ py/
     database.py               SQLite schema and connection factory
     model_repo.py             async CRUD helpers
   nodes/
+    _utils.py                 shared DB helper (trigger word lookup)
     lora_loader_with_triggers.py
+    checkpoint_loader_with_triggers.py
+    vae_loader_with_triggers.py
+    controlnet_loader_with_triggers.py
+    embedding_helper.py
+    upscale_model_loader.py
   routes/
     static.py                 SPA serving
     models.py                 model list/delete
     download.py               search and download
     metadata.py               metadata CRUD and media serving
     settings.py               settings CRUD
+    workflow.py               in-memory queue for 1-click node insert
   services/
     civitai.py                CivitAI API client
     huggingface.py            HuggingFace API client
@@ -107,7 +122,7 @@ py/
 frontend/
   src/app/
     pages/                    Models, Download, ModelDetail
-    services/                 ModelService, DownloadService
+    services/                 ModelService, DownloadService, WorkflowService
 web/                          Angular build output
 data/                         runtime — DB, settings, media (git-ignored)
 ```
