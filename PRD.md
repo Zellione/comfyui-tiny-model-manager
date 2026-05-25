@@ -414,19 +414,31 @@ Download view should be side-by-side:
 
 ### F-29 - Omit search filter for huggingface
 
-In case of hugging face do not show the search filter for model type.
+In case of huggingface do not show the search filter for model type.
 
 ---
 
 ### F-30 - Huggingface: Before download choose model type
 
-In case of hugging face have the user select a model type (checkpoint, lora, ...) since we cannot determine it automatically
+In case of huggingface have the user select a model type (checkpoint, lora, ...) since we cannot determine it automatically
 
 ---
 
 ### F-31 - Model Type editable
 
 Model type should be editable in model detail view and a change should move the model to the appropriate folder.
+
+---
+
+### F-32 - Meta data not as tags
+
+Meta Data such as model type or trigger words shouldn't be tracked as tags but instead as their own data base fields.
+
+---
+
+### F-33 - Model type should be selectable for every model offered
+
+This goes for pasted download link as the search itself
 
 ---
 
