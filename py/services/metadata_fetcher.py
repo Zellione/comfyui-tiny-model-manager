@@ -23,11 +23,9 @@ async def fetch_and_store(filename: str, model_type: str, platform: str, source_
     except Exception:
         pass  # metadata fetch failure should not break the download
 
-    model_id = await model_repo.upsert_model(
-        filename, model_type, platform, source_id, description
+    model_id = await model_repo.upsert_model_with_meta(
+        filename, model_type, platform, source_id, description, trigger_words, tags
     )
-    await model_repo.set_trigger_words(model_id, trigger_words)
-    await model_repo.set_tags(model_id, tags)
     if not skip_media:
         await _download_images(model_id, filename, image_urls)
 

@@ -12,7 +12,9 @@ def add_static_routes(routes, ext_dir: str):
     @routes.get("/tiny-model-manager/{tail:.*}")
     async def static_files(request):
         tail = request.match_info.get("tail", "")
-        file_path = os.path.join(web_dir, tail)
+        file_path = os.path.normpath(os.path.join(web_dir, tail))
+        if not file_path.startswith(os.path.normpath(web_dir)):
+            return web.Response(status=403)
         if os.path.isfile(file_path):
             return web.FileResponse(file_path)
         # SPA fallback: serve index.html for any unmatched path
