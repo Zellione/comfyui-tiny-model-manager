@@ -253,7 +253,7 @@ Improve search browsing and allow downloading multiple files at once.
 
 ---
 
-### F-15 — Import Tags from HuggingFace
+### F-15 — Import Tags from HuggingFace ✓
 
 Persist tags fetched from HuggingFace and make them visible/editable.
 
@@ -387,6 +387,30 @@ Insert the matching loader node for a model into the currently open ComfyUI grap
 
 If a model is already in library we mark it as already downloaded and do not show download option.
 This goes for search and for url pasting.
+
+---
+
+### F-27 - save images in hashed folder names
+
+Images should be saved in hashed folder names. The hash can be stored in database.
+This way we won't have collisions with models that have the same name.
+
+---
+
+### F-28 - Move download overview to a side-by-side view
+
+Download view should be side-by-side:
+- Left side has a list style layout. It shows a thumbnail, the name, the model type (checkpoint, lora, ...), the base model type in case of lora (SDXL, Anima, ...), and a truncated tag list
+- The right side shows a detail view, containing a formatted view of the description, the image gallery, the name, the tags, the trigger words, the download button and a link to view the model on the website (huggingface, civitai)
+- Clicking on a list item on the left side will open its detail view on the right side.
+- By default the detail view of the first result item is opened
+- In case of no search results do not show the side-by-side view, instead show a box containing a message explaining that there were no search results.
+
+---
+
+### F-29 - Omit search filter for huggingface
+
+In case of hugging face do not show the search filter for model type.
 
 ---
 
