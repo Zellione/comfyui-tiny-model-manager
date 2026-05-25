@@ -46,7 +46,7 @@ class CivitaiProvider(ModelProvider):
                 )
             return resp.json()
 
-    async def get_model_versions(self, model_id: int) -> list:
+    async def get_model_versions(self, model_id: int) -> dict:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(f"{_BASE}/models/{model_id}", headers=self.auth_headers())
             if not resp.is_success:
@@ -56,7 +56,11 @@ class CivitaiProvider(ModelProvider):
                     response=resp,
                 )
             data = resp.json()
-            return data.get("modelVersions", [])
+        civitai_type = data.get("type", "")
+        return {
+            "versions": data.get("modelVersions", []),
+            "model_type": CIVITAI_REVERSE_TYPE_MAP.get(civitai_type, "checkpoints"),
+        }
 
     async def resolve_direct_link(self, version_id: int) -> dict:
         """Resolves a CivitAI version ID to primary file info for direct download."""

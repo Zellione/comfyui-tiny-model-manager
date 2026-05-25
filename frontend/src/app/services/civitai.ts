@@ -40,6 +40,11 @@ export interface CivitaiDirectLinkInfo {
   image_urls: string[];
 }
 
+export interface CivitaiVersionsResult {
+  versions: CivitaiVersion[];
+  model_type: string;
+}
+
 const API = '/tiny-model-manager/api';
 
 @Injectable({ providedIn: 'root' })
@@ -58,9 +63,9 @@ export class CivitaiService {
       .pipe(map(r => ({ items: r.data.items ?? [], metadata: r.data.metadata ?? {} })));
   }
 
-  getVersions(modelId: number): Observable<CivitaiVersion[]> {
+  getVersions(modelId: number): Observable<CivitaiVersionsResult> {
     return this.http
-      .get<{ success: boolean; data: CivitaiVersion[] }>(`${API}/civitai/versions/${modelId}`)
+      .get<{ success: boolean; data: CivitaiVersionsResult }>(`${API}/civitai/versions/${modelId}`)
       .pipe(map(r => r.data));
   }
 

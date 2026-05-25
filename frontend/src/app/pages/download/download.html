@@ -21,13 +21,13 @@
 
 <!-- Paste a link -->
 <div class="paste-link-section">
-  <h3>Paste a direct download link</h3>
+  <h3>Paste a link</h3>
   <div class="paste-link-row">
     <input
       class="paste-url-input"
       [ngModel]="pasteUrl()"
       (ngModelChange)="onPasteUrlChange($event)"
-      placeholder="https://huggingface.co/…/resolve/… or https://civitai.com/api/download/models/…"
+      placeholder="https://huggingface.co/… or https://civitai.com/models/…"
     />
   </div>
 
@@ -37,6 +37,8 @@
   @if (linkError()) {
     <p class="paste-error">{{ linkError() }}</p>
   }
+
+  <!-- F-17: HuggingFace direct file URL -->
   @if (hfResolveKind(); as k) {
     <div class="paste-info">
       <span class="badge">HuggingFace</span>
@@ -44,6 +46,8 @@
       <small>{{ k.repo }}</small>
     </div>
   }
+
+  <!-- F-18: CivitAI version download URL -->
   @if (civitaiDownloadKind()) {
     @if (linkResolved(); as r) {
       <div class="paste-info">
@@ -53,6 +57,7 @@
       </div>
     }
   }
+
   @if (linkImages().length > 0) {
     <div class="paste-images">
       @for (url of linkImages(); track url) {
@@ -61,12 +66,11 @@
     </div>
   }
 
-  @if (linkKind().type === 'hf-repo' || linkKind().type === 'civitai-model') {
-    <p class="paste-status muted">Repo/model page links are not yet supported — use the Search tab instead.</p>
-  }
   @if (linkKind().type === 'unknown' && pasteUrl()) {
     <p class="paste-status muted">URL not recognized.</p>
   }
+
+  <!-- F-17/F-18: single-file download action -->
   @if (canSubmitLink()) {
     <div class="paste-actions">
       <select
@@ -81,6 +85,94 @@
       </select>
       <button class="btn-primary" (click)="submitDirectLink()">Download</button>
     </div>
+  }
+
+  <!-- F-19: HuggingFace repository page URL -->
+  @if (hfRepoKind(); as k) {
+    <div class="paste-info">
+      <span class="badge">HuggingFace</span>
+      <span>{{ k.repo }}</span>
+    </div>
+    @if (linkHfFiles().length > 0) {
+      <div class="versions-panel">
+        <div class="versions-header">
+          <h3>Files in {{ k.repo }}</h3>
+          <div class="paste-actions-inline">
+            <select [ngModel]="linkModelType()" (ngModelChange)="linkModelType.set($event)">
+              @for (t of modelTypes; track t) {
+                <option [value]="t">{{ t }}</option>
+              }
+            </select>
+            @if (linkHfSelectedCount() > 0) {
+              <button class="btn-primary" (click)="downloadSelectedLinkHf()">
+                Download selected ({{ linkHfSelectedCount() }})
+              </button>
+            }
+          </div>
+        </div>
+        @for (f of linkHfFiles(); track f.filename) {
+          <div class="version-row">
+            <input type="checkbox" [checked]="isLinkHfFileSelected(f.filename)" (change)="toggleLinkHfFile(f.filename)" />
+            <span>{{ f.filename }}</span>
+            <small>{{ formatSize(f.size) }}</small>
+            <button class="btn-primary" (click)="downloadLinkHfFile(f)">Download</button>
+          </div>
+        }
+      </div>
+    }
+  }
+
+  <!-- F-20: CivitAI model page URL -->
+  @if (civitaiModelKind()) {
+    <div class="paste-info">
+      <span class="badge">CivitAI</span>
+    </div>
+    @if (linkVersionsError()) {
+      <p class="paste-error">{{ linkVersionsError() }}</p>
+    }
+    @if (linkVersions().length > 0) {
+      <div class="versions-panel">
+        <div class="versions-header">
+          <h3>Versions</h3>
+          <div class="paste-actions-inline">
+            <select
+              [ngModel]="linkModelType()"
+              (ngModelChange)="linkModelType.set($event)"
+              [disabled]="true"
+              title="Model type detected automatically from CivitAI"
+            >
+              @for (t of modelTypes; track t) {
+                <option [value]="t">{{ t }}</option>
+              }
+            </select>
+            @if (linkCivitaiSelectedCount() > 0) {
+              <button class="btn-primary" (click)="downloadSelectedLinkCivitai()">
+                Download selected ({{ linkCivitaiSelectedCount() }})
+              </button>
+            }
+          </div>
+        </div>
+        @for (v of linkVersions(); track v.id) {
+          <div class="version-section">
+            <div class="version-header">
+              <strong>{{ v.name }}</strong>
+              @if (v.baseModel) { <span class="badge">{{ v.baseModel }}</span> }
+            </div>
+            @for (f of v.files; track f.id) {
+              <div class="version-row">
+                <input type="checkbox" [checked]="isLinkCivitaiFileSelected(v.id, f)" (change)="toggleLinkCivitaiFile(v.id, f)" (click)="$event.stopPropagation()" />
+                <span>{{ f.name }}</span>
+                @if (f.metadata.format) {
+                  <span class="badge">{{ f.metadata.format }}{{ f.metadata.fp ? ' · ' + f.metadata.fp : '' }}</span>
+                }
+                <small>{{ formatSize(f.sizeKB * 1024) }}</small>
+                <button class="btn-primary" (click)="downloadLinkFile(f, v.id)">Download</button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
   }
 </div>
 

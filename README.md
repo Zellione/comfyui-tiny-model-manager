@@ -40,8 +40,8 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | F-16 | Import & store tags from CivitAI + re-fetch metadata for installed models | Done |
 | F-17 | Paste a direct HuggingFace file download link | Done |
 | F-18 | Paste a direct CivitAI download link | Done |
-| F-19 | Paste a HuggingFace repository link and pick a file | TODO |
-| F-20 | Paste a CivitAI model link and pick a version | TODO |
+| F-19 | Paste a HuggingFace repository link and pick a file | Done |
+| F-20 | Paste a CivitAI model link and pick a version | Done |
 | F-21 | Loader nodes for checkpoints, VAE, ControlNet, embeddings, upscale models | TODO |
 | F-22 | One-click insert of a model's loader node into the open workflow | TODO |
 
