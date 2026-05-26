@@ -50,6 +50,7 @@ def add_model_routes(routes):
                             "base_model": m.get("base_model", ""),
                             "source_platform": m.get("source_platform", ""),
                             "source_url": source_url,
+                            "created_at": m.get("created_at", ""),
                         }
             return web.json_response({"success": True, "data": result})
         except Exception as exc:

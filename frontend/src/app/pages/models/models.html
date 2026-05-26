@@ -1,16 +1,100 @@
 <h2>Installed Models</h2>
 
+@if (!loading() && !error() && hasAnyModels()) {
+  <div class="filter-bar">
+    <div class="filter-group">
+      <label class="filter-label">Base model</label>
+      <select class="filter-select"
+              [value]="baseModelFilter()"
+              (change)="baseModelFilter.set($any($event.target).value)">
+        <option value="">All</option>
+        <option value="__unknown__">Unknown</option>
+        @for (bm of availableBaseModels(); track bm) {
+          <option [value]="bm">{{ bm }}</option>
+        }
+      </select>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">Format</label>
+      <select class="filter-select"
+              [value]="formatFilter()"
+              (change)="formatFilter.set($any($event.target).value)">
+        @for (opt of formatOptions; track opt.value) {
+          <option [value]="opt.value">{{ opt.label }}</option>
+        }
+      </select>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">Source</label>
+      <select class="filter-select"
+              [value]="sourceFilter()"
+              (change)="sourceFilter.set($any($event.target).value)">
+        @for (opt of sourceOptions; track opt.value) {
+          <option [value]="opt.value">{{ opt.label }}</option>
+        }
+      </select>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">Sort by</label>
+      <select class="filter-select"
+              [value]="sortBy()"
+              (change)="sortBy.set($any($event.target).value)">
+        @for (opt of sortOptions; track opt.value) {
+          <option [value]="opt.value">{{ opt.label }}</option>
+        }
+      </select>
+    </div>
+    <div class="filter-group filter-group-tags">
+      <label class="filter-label">Tags</label>
+      <div class="tag-filter-control">
+        @if (tagFilter().length > 0) {
+          <div class="tag-chips">
+            @for (tag of tagFilter(); track tag) {
+              <span class="chip chip-tag-filter">
+                {{ tag }}
+                <button class="chip-remove" (click)="removeTag(tag)">×</button>
+              </span>
+            }
+          </div>
+        }
+        <div class="tag-input-wrap">
+          <input class="tag-input"
+                 type="text"
+                 placeholder="Filter by tag…"
+                 [value]="tagInput()"
+                 (input)="tagInput.set($any($event.target).value)"
+                 (keydown.enter)="addTagFromInput()" />
+          @if (tagSuggestions().length > 0) {
+            <div class="tag-suggestions">
+              @for (s of tagSuggestions(); track s) {
+                <button class="tag-suggestion" (mousedown)="addTag(s)">{{ s }}</button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+    <button class="btn-clear"
+            [disabled]="!hasActiveFilters()"
+            (click)="clearAllFilters()">
+      Reset all filters
+    </button>
+  </div>
+}
+
 @if (loading()) {
   <p>Loading…</p>
 } @else if (error()) {
   <p class="error">{{ error() }}</p>
-} @else if (typeKeys().length === 0) {
+} @else if (!hasAnyModels()) {
   <p>No models found.</p>
+} @else if (filteredTypeKeys().length === 0) {
+  <p>No models match the current filters. <button class="btn-link" (click)="clearAllFilters()">Reset filters</button></p>
 } @else {
-  @for (type of typeKeys(); track type) {
+  @for (type of filteredTypeKeys(); track type) {
     <section class="type-section">
       <div class="section-header">
-        <h3>{{ type }} <span class="badge">{{ modelsByType()[type].length }}</span></h3>
+        <h3>{{ type }} <span class="badge">{{ filteredModelsByType()[type].length }}</span></h3>
         @if (selectedForType(type).length > 0) {
           <button class="btn-danger" (click)="deleteSelected(type)">
             Delete selected ({{ selectedForType(type).length }})
@@ -18,7 +102,7 @@
         }
       </div>
       <div class="card-grid">
-        @for (file of modelsByType()[type]; track file.filename) {
+        @for (file of filteredModelsByType()[type]; track file.filename) {
           <div class="model-card" [class.selected]="isSelected(type, file.filename)">
             <input
               type="checkbox"

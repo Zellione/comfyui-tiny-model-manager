@@ -415,9 +415,17 @@ Add the same filtering and sorting to the installed-model browser.
 
 **Requirements:**
 - **Filter by base model** (built dynamically from the distinct `base_model` values present in
-  the library) and **by file format** (file extension), in addition to the existing
-  grouping-by-type
+  the library), **by file format** (file extension), and **by source platform** (CivitAI /
+  HuggingFace / Unknown / all) — "Unknown" covers models installed before the tool was set up
+  that have no source record, in addition to the existing grouping-by-type
+- An **"Unknown" base model option** in the dropdown shows all models where no base model has
+  been set
+- **Filter by tags** (multi-select): an input field with autocomplete from tags present in the
+  library; each added tag appears as a removable chip; models must carry all active tags
+  (AND matching)
 - **Sort by** name, file size, date added (`created_at`), or recently modified
+- A **"Reset all filters"** button clears every active filter simultaneously; it is always
+  visible but disabled when no filters are active
 - Applied client-side over the data already returned by `GET /api/models` — no new endpoint
 
 ---

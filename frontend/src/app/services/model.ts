@@ -19,6 +19,7 @@ export interface ModelMeta {
   base_model: string;
   source_platform: string;
   source_url: string;
+  created_at?: string;
 }
 
 export interface MediaItem {

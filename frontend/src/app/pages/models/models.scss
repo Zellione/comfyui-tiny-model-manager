@@ -142,3 +142,145 @@
 }
 
 .error { color: #e74c3c; }
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.filter-label {
+  font-size: 0.72rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.filter-select {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  color: #ddd;
+  border-radius: 4px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+
+  &:focus { outline: none; border-color: #4f9eff; }
+}
+
+.btn-clear {
+  background: transparent;
+  border: 1px solid #555;
+  color: #aaa;
+  border-radius: 4px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  align-self: flex-end;
+
+  &:hover { border-color: #888; color: #ddd; }
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #4f9eff;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+  text-decoration: underline;
+}
+
+.filter-group-tags {
+  flex: 1 1 200px;
+}
+
+.tag-filter-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.chip-tag-filter {
+  background: #2a1a4a;
+  color: #b07df7;
+  font-size: 0.72rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.chip-remove {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.9em;
+  line-height: 1;
+  opacity: 0.7;
+  &:hover { opacity: 1; }
+}
+
+.tag-input-wrap {
+  position: relative;
+}
+
+.tag-input {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  color: #ddd;
+  border-radius: 4px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+  width: 100%;
+  box-sizing: border-box;
+
+  &:focus { outline: none; border-color: #4f9eff; }
+}
+
+.tag-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+}
+
+.tag-suggestion {
+  background: none;
+  border: none;
+  color: #ddd;
+  text-align: left;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+
+  &:hover { background: #3a3a3a; }
+}
+
+.btn-clear {
+  &:disabled { opacity: 0.35; cursor: default; border-color: #444; color: #666; }
+}
