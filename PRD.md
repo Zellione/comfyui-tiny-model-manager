@@ -441,9 +441,15 @@ download action.
   Download button
 - Applies to CivitAI search, HuggingFace search, and the paste-a-link flows (F-17–F-20)
 - Matching is by the resolved filename (the name the file would be saved as on disk)
+- The Download button reflects live download state: shows "Downloading…" (disabled) while the task
+  is queued or in progress; reverts to "Download" on error (allowing retry); switches to "In library"
+  on success without requiring a page reload
+- The "In library" indicator is the same size as the Download button (matching padding, font-size,
+  and border-radius) so the row layout does not shift between states
 
 **API:**
 - Reuses installed-model filenames from `GET /api/models` client-side; no new endpoint
+- Reuses the existing download-status poll (`GET /api/download/status`) to drive live button state
 
 ---
 

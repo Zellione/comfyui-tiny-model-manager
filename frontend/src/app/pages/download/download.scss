@@ -179,3 +179,11 @@
 .paste-status { margin: 0.5rem 0 0; font-size: 0.8rem; color: #aaa; }
 .paste-error  { margin: 0.5rem 0 0; font-size: 0.8rem; color: #f87171; }
 .muted        { color: #666; }
+
+.btn-library {
+  background: #14532d;
+  color: #86efac;
+  cursor: default;
+  pointer-events: none;
+  white-space: nowrap;
+}

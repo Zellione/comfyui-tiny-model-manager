@@ -7,6 +7,7 @@ import { debounceTime, distinctUntilChanged, switchMap, of, catchError, map } fr
 import { DownloadService, DownloadTask } from '../../services/download';
 import { CivitaiService, CivitaiModel, CivitaiVersion, CivitaiFile, CivitaiDirectLinkInfo } from '../../services/civitai';
 import { HuggingFaceService, HfModel } from '../../services/huggingface';
+import { ModelService } from '../../services/model';
 import { detectLink, LinkKind } from '../../utils/link-detector';
 
 type HfFileItem = { filename: string; size: number; url: string };
@@ -24,6 +25,7 @@ export class Download {
   private dlService = inject(DownloadService);
   private civitaiService = inject(CivitaiService);
   private hfService = inject(HuggingFaceService);
+  private modelService = inject(ModelService);
   private destroyRef = inject(DestroyRef);
   private pasteUrl$ = new Subject<string>();
 
@@ -91,10 +93,18 @@ export class Download {
   linkCivitaiSelected      = signal(new Map<string, { file: CivitaiFile; versionId: number }>());
   linkCivitaiSelectedCount = computed(() => this.linkCivitaiSelected().size);
 
+  installedFilenames = signal(new Set<string>());
+
   hfResolveKind       = computed(() => { const k = this.linkKind(); return k.type === 'hf-resolve' ? k : null; });
   civitaiDownloadKind = computed(() => { const k = this.linkKind(); return k.type === 'civitai-download' ? k : null; });
   hfRepoKind          = computed(() => { const k = this.linkKind(); return k.type === 'hf-repo' ? k : null; });
   civitaiModelKind    = computed(() => { const k = this.linkKind(); return k.type === 'civitai-model' ? k : null; });
+  linkFilename        = computed(() => {
+    const k = this.linkKind();
+    if (k.type === 'hf-resolve') return k.filename;
+    if (k.type === 'civitai-download') return this.linkResolved()?.filename ?? '';
+    return '';
+  });
   canSubmitLink       = computed(() => {
     const k = this.linkKind();
     if (k.type === 'hf-resolve') return true;
@@ -231,6 +241,29 @@ export class Download {
         this.linkResolving.set(false);
       });
 
+    this.modelService.listModels().pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(models => {
+      const names = new Set<string>();
+      for (const files of Object.values(models)) {
+        for (const f of files) names.add(f.filename);
+      }
+      this.installedFilenames.set(names);
+    });
+
+    toObservable(this.activeTasks).pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(tasks => {
+      const done = tasks.filter(t => t.status === 'done').map(t => t.filename);
+      if (done.length > 0) {
+        this.installedFilenames.update(prev => {
+          const next = new Set(prev);
+          done.forEach(f => next.add(f));
+          return next;
+        });
+      }
+    });
+
     toObservable(this.filterParams).pipe(
       skip(1),
       debounceTime(300),
@@ -238,6 +271,16 @@ export class Download {
     ).subscribe(() => {
       if (this.hasSearched()) this.search();
     });
+  }
+
+  fileStatus(filename: string): 'idle' | 'downloading' | 'installed' | 'error' {
+    const task = this.activeTasks().find(t => t.filename === filename);
+    if (task) {
+      if (task.status === 'done') return 'installed';
+      if (task.status === 'error') return 'error';
+      return 'downloading';
+    }
+    return this.installedFilenames().has(filename) ? 'installed' : 'idle';
   }
 
   onPasteUrlChange(url: string) {

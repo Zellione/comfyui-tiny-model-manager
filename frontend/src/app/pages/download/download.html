@@ -83,7 +83,11 @@
           <option [value]="t">{{ t }}</option>
         }
       </select>
-      <button class="btn-primary" (click)="submitDirectLink()">Download</button>
+      @switch (fileStatus(linkFilename())) {
+        @case ('installed') { <button class="btn-library">In library</button> }
+        @case ('downloading') { <button class="btn-primary" disabled>Downloading…</button> }
+        @default { <button class="btn-primary" (click)="submitDirectLink()">Download</button> }
+      }
     </div>
   }
 
@@ -115,7 +119,11 @@
             <input type="checkbox" [checked]="isLinkHfFileSelected(f.filename)" (change)="toggleLinkHfFile(f.filename)" />
             <span>{{ f.filename }}</span>
             <small>{{ formatSize(f.size) }}</small>
-            <button class="btn-primary" (click)="downloadLinkHfFile(f)">Download</button>
+            @switch (fileStatus(f.filename)) {
+              @case ('installed') { <button class="btn-library">In library</button> }
+              @case ('downloading') { <button class="btn-primary" disabled>Downloading…</button> }
+              @default { <button class="btn-primary" (click)="downloadLinkHfFile(f)">Download</button> }
+            }
           </div>
         }
       </div>
@@ -166,7 +174,11 @@
                   <span class="badge">{{ f.metadata.format }}{{ f.metadata.fp ? ' · ' + f.metadata.fp : '' }}</span>
                 }
                 <small>{{ formatSize(f.sizeKB * 1024) }}</small>
-                <button class="btn-primary" (click)="downloadLinkFile(f, v.id)">Download</button>
+                @switch (fileStatus(f.name)) {
+                  @case ('installed') { <button class="btn-library">In library</button> }
+                  @case ('downloading') { <button class="btn-primary" disabled>Downloading…</button> }
+                  @default { <button class="btn-primary" (click)="downloadLinkFile(f, v.id)">Download</button> }
+                }
               </div>
             }
           </div>
@@ -287,7 +299,11 @@
                   <span class="badge">{{ f.metadata.format }}{{ f.metadata.fp ? ' · ' + f.metadata.fp : '' }}</span>
                 }
                 <small>{{ formatSize(f.sizeKB * 1024) }}</small>
-                <button class="btn-primary" (click)="downloadFile(f, v.id)">Download</button>
+                @switch (fileStatus(f.name)) {
+                  @case ('installed') { <button class="btn-library">In library</button> }
+                  @case ('downloading') { <button class="btn-primary" disabled>Downloading…</button> }
+                  @default { <button class="btn-primary" (click)="downloadFile(f, v.id)">Download</button> }
+                }
               </div>
             }
           </div>
@@ -339,7 +355,11 @@
           <input type="checkbox" [checked]="isHfFileSelected(f.filename)" (change)="toggleHfFile(f.filename)" />
           <span>{{ f.filename }}</span>
           <small>{{ formatSize(f.size) }}</small>
-          <button class="btn-primary" (click)="downloadHf(f)">Download</button>
+          @switch (fileStatus(f.filename)) {
+            @case ('installed') { <button class="btn-library">In library</button> }
+            @case ('downloading') { <button class="btn-primary" disabled>Downloading…</button> }
+            @default { <button class="btn-primary" (click)="downloadHf(f)">Download</button> }
+          }
         </div>
       }
     </div>
