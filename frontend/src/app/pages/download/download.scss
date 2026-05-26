@@ -145,7 +145,7 @@
 
 .split-view {
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: 1fr 280px;
   gap: 1rem;
   align-items: start;
 
@@ -327,26 +327,71 @@
 
 // ── Gallery ───────────────────────────────────────────────────────────────────
 
-.detail-gallery {
-  display: flex;
-  gap: 0.5rem;
-  overflow-x: auto;
+.gallery {
   margin-bottom: 1rem;
+}
+
+.gallery-main {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #111;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img, video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+}
+
+.gallery-thumbs {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
   padding-bottom: 0.25rem;
 
   scrollbar-width: thin;
   scrollbar-color: #333 transparent;
   &::-webkit-scrollbar { height: 4px; }
   &::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+}
+
+.gallery-thumb {
+  width: 72px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #252525;
+  cursor: pointer;
+  border: 2px solid transparent;
+  position: relative;
+  transition: border-color 0.12s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover { border-color: #555; }
+  &.active { border-color: #4f9eff; }
 
   img {
-    height: 160px;
-    width: auto;
-    border-radius: 5px;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
-    flex-shrink: 0;
-    border: 1px solid #2a2a2a;
+    display: block;
   }
+}
+
+.video-icon {
+  font-size: 1.2rem;
+  color: #aaa;
+  pointer-events: none;
 }
 
 // ── Chips ─────────────────────────────────────────────────────────────────────

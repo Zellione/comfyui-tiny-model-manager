@@ -141,6 +141,7 @@ export class Download {
 
   selectedModel = signal<CivitaiModel | null>(null);
   selectedHfModel = signal<HfModel | null>(null);
+  galleryIndex = signal<number>(0);
   versions = signal<CivitaiVersion[]>([]);
   hfFiles = signal<{ filename: string; size: number; url: string }[]>([]);
   selectedHfRepoId = signal('');
@@ -430,6 +431,7 @@ export class Download {
 
   selectCivitai(model: CivitaiModel) {
     this.selectedModel.set(model);
+    this.galleryIndex.set(0);
     this.versions.set([]);
     this.versionsError.set('');
     this.loadingVersions.set(true);
@@ -529,6 +531,18 @@ export class Download {
 
   civitaiGalleryImages(model: CivitaiModel): string[] {
     return (model.modelVersions?.[0]?.images ?? []).slice(0, 8).map(i => i.url).filter(Boolean);
+  }
+
+  isVideo(url: string): boolean {
+    const lower = url.toLowerCase();
+    return lower.includes('.mp4') || lower.includes('.webm') || lower.includes('.mov');
+  }
+
+  setGalleryIndex(i: number) { this.galleryIndex.set(i); }
+
+  currentGalleryUrl(model: CivitaiModel): string {
+    const images = this.civitaiGalleryImages(model);
+    return images[this.galleryIndex()] ?? '';
   }
 
   civitaiModelBaseModel(model: CivitaiModel): string {

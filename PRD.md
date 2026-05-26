@@ -474,24 +474,28 @@ Store preview media under a hashed folder name instead of the model basename to 
 Rework the search-results area into a master–detail layout.
 
 **Requirements:**
-- **Left pane** — a scrollable list (max-height capped, internal scroll); each row shows a
-  thumbnail, the name, the model type (checkpoint, lora, …), the base model (for LoRAs and
-  wherever known), and a truncated tag list (≤ 2 tags shown inline)
-- **Right pane** — a detail view for the selected item: formatted description, image gallery,
-  name, tags as chips, trigger words as chips, the version + file picker (with batch-download
-  checkboxes, moved from the old below-results panel), and a link to the model on its source
+- **Left pane (detail)** — the detail view for the selected item occupies the wider left column:
+  image/video gallery, name, tags as chips, trigger words as chips, formatted description, the
+  version + file picker (with batch-download checkboxes), and a link to the model on its source
   platform
-- HuggingFace right pane shows: model ID, download count, format badges, tags chips, and the
+- **Right pane (list)** — a narrow scrollable list (max-height capped, internal scroll); each
+  row shows a thumbnail, the name, the model type (checkpoint, lora, …), the base model (for
+  LoRAs and wherever known), and a truncated tag list (≤ 2 tags shown inline)
+- HuggingFace detail pane shows: model ID, download count, format badges, tags chips, and the
   file list (auto-fetched on selection)
-- Clicking a row on the left opens its detail on the right; the versions/files panel is
-  embedded in the right pane, not appended below the list
+- The **image/video gallery** in the detail pane shows a large main view with a scrollable
+  thumbnail strip below it; clicking a thumbnail promotes it to the main view; video items
+  (`.mp4`, `.webm`, `.mov`) render in a `<video controls>` element in the main view and show a
+  play-icon overlay on their thumbnail
+- Clicking a row in the list pane opens its detail in the left pane; the versions/files panel is
+  embedded in the detail pane, not appended below the list
 - The first result is selected by default (auto-select after every new search)
-- **"Load more"** button lives at the bottom of the left list pane (not below the split view)
+- **"Load more"** button lives at the bottom of the right list pane (not below the split view)
 - When no search has been performed, show a centered prompt card with instructions
 - When there are no results, the side-by-side view is hidden and replaced by a message box
   explaining that there were no search results
 - Works for both CivitAI and HuggingFace result sets
-- **Responsive**: on screens ≤ 768 px the layout stacks vertically (list on top, detail below)
+- **Responsive**: on screens ≤ 768 px the layout stacks vertically (detail on top, list below)
 - **Modern visual design**: refined hover/selected states, clean typography hierarchy, subtle
   depth on the detail pane
 

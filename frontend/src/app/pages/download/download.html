@@ -266,69 +266,7 @@
 } @else {
   <div class="split-view">
 
-    <!-- LEFT LIST PANE -->
-    <div class="list-pane">
-
-      @if (platform() === 'civitai') {
-        @for (model of filteredCivitaiResults(); track model.id) {
-          <div class="list-row" [class.selected]="selectedModel()?.id === model.id" (click)="selectCivitai(model)">
-            <div class="row-thumb">
-              @if (civitaiThumb(model)) {
-                <img [src]="civitaiThumb(model)" alt="" loading="lazy" (error)="onImgError($event)" />
-              }
-            </div>
-            <div class="row-info">
-              <span class="row-name">{{ model.name }}</span>
-              <div class="row-meta">
-                <span class="badge">{{ model.type }}</span>
-                @if (civitaiModelBaseModel(model)) {
-                  <span class="badge badge-accent">{{ civitaiModelBaseModel(model) }}</span>
-                }
-                @for (tag of (model.tags ?? []); track tag; let i = $index) {
-                  @if (i < 2) { <span class="tag-chip">{{ tag }}</span> }
-                }
-              </div>
-            </div>
-          </div>
-        }
-        @if (civitaiHasMore()) {
-          <button class="btn-secondary load-more-inline" (click)="loadMore()" [disabled]="loadingMore()">
-            {{ loadingMore() ? 'Loading…' : 'Load more' }}
-          </button>
-        }
-      }
-
-      @if (platform() === 'huggingface') {
-        @for (model of filteredHfResults(); track model.id) {
-          <div class="list-row" [class.selected]="selectedHfModel()?.id === model.id" (click)="selectHf(model)">
-            <div class="row-thumb">
-              @if (model.thumbnail) {
-                <img [src]="model.thumbnail" alt="" loading="lazy" (error)="onImgError($event)" />
-              }
-            </div>
-            <div class="row-info">
-              <span class="row-name">{{ model.modelId || model.id }}</span>
-              <div class="row-meta">
-                @for (fmt of (model.formats ?? []); track fmt) {
-                  <span class="badge">{{ fmt }}</span>
-                }
-                @for (tag of model.tags; track tag; let i = $index) {
-                  @if (i < 2) { <span class="tag-chip">{{ tag }}</span> }
-                }
-              </div>
-            </div>
-          </div>
-        }
-        @if (hfHasMore()) {
-          <button class="btn-secondary load-more-inline" (click)="loadMore()" [disabled]="loadingMore()">
-            {{ loadingMore() ? 'Loading…' : 'Load more' }}
-          </button>
-        }
-      }
-
-    </div><!-- /list-pane -->
-
-    <!-- RIGHT DETAIL PANE -->
+    <!-- LEFT DETAIL PANE -->
     <div class="detail-pane">
 
       <!-- CivitAI detail -->
@@ -354,11 +292,28 @@
           </div>
         </div>
 
-        <!-- Image gallery -->
+        <!-- Image / video gallery -->
         @if (civitaiGalleryImages(model).length > 0) {
-          <div class="detail-gallery">
-            @for (url of civitaiGalleryImages(model); track url) {
-              <img [src]="url" alt="" loading="lazy" (error)="onImgError($event)" />
+          <div class="gallery">
+            <div class="gallery-main">
+              @if (isVideo(currentGalleryUrl(model))) {
+                <video [src]="currentGalleryUrl(model)" controls loop muted autoplay></video>
+              } @else {
+                <img [src]="currentGalleryUrl(model)" alt="" (error)="onImgError($event)" />
+              }
+            </div>
+            @if (civitaiGalleryImages(model).length > 1) {
+              <div class="gallery-thumbs">
+                @for (url of civitaiGalleryImages(model); track url; let i = $index) {
+                  <div class="gallery-thumb" [class.active]="galleryIndex() === i" (click)="setGalleryIndex(i)">
+                    @if (isVideo(url)) {
+                      <span class="video-icon">▶</span>
+                    } @else {
+                      <img [src]="url" alt="" loading="lazy" (error)="onImgError($event)" />
+                    }
+                  </div>
+                }
+              </div>
             }
           </div>
         }
@@ -493,6 +448,68 @@
       }
 
     </div><!-- /detail-pane -->
+
+    <!-- RIGHT LIST PANE -->
+    <div class="list-pane">
+
+      @if (platform() === 'civitai') {
+        @for (model of filteredCivitaiResults(); track model.id) {
+          <div class="list-row" [class.selected]="selectedModel()?.id === model.id" (click)="selectCivitai(model)">
+            <div class="row-thumb">
+              @if (civitaiThumb(model)) {
+                <img [src]="civitaiThumb(model)" alt="" loading="lazy" (error)="onImgError($event)" />
+              }
+            </div>
+            <div class="row-info">
+              <span class="row-name">{{ model.name }}</span>
+              <div class="row-meta">
+                <span class="badge">{{ model.type }}</span>
+                @if (civitaiModelBaseModel(model)) {
+                  <span class="badge badge-accent">{{ civitaiModelBaseModel(model) }}</span>
+                }
+                @for (tag of (model.tags ?? []); track tag; let i = $index) {
+                  @if (i < 2) { <span class="tag-chip">{{ tag }}</span> }
+                }
+              </div>
+            </div>
+          </div>
+        }
+        @if (civitaiHasMore()) {
+          <button class="btn-secondary load-more-inline" (click)="loadMore()" [disabled]="loadingMore()">
+            {{ loadingMore() ? 'Loading…' : 'Load more' }}
+          </button>
+        }
+      }
+
+      @if (platform() === 'huggingface') {
+        @for (model of filteredHfResults(); track model.id) {
+          <div class="list-row" [class.selected]="selectedHfModel()?.id === model.id" (click)="selectHf(model)">
+            <div class="row-thumb">
+              @if (model.thumbnail) {
+                <img [src]="model.thumbnail" alt="" loading="lazy" (error)="onImgError($event)" />
+              }
+            </div>
+            <div class="row-info">
+              <span class="row-name">{{ model.modelId || model.id }}</span>
+              <div class="row-meta">
+                @for (fmt of (model.formats ?? []); track fmt) {
+                  <span class="badge">{{ fmt }}</span>
+                }
+                @for (tag of model.tags; track tag; let i = $index) {
+                  @if (i < 2) { <span class="tag-chip">{{ tag }}</span> }
+                }
+              </div>
+            </div>
+          </div>
+        }
+        @if (hfHasMore()) {
+          <button class="btn-secondary load-more-inline" (click)="loadMore()" [disabled]="loadingMore()">
+            {{ loadingMore() ? 'Loading…' : 'Load more' }}
+          </button>
+        }
+      }
+
+    </div><!-- /list-pane -->
 
   </div><!-- /split-view -->
 }
