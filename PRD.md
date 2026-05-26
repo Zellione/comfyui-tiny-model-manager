@@ -474,28 +474,29 @@ Store preview media under a hashed folder name instead of the model basename to 
 Rework the search-results area into a master–detail layout.
 
 **Requirements:**
-- **Left pane (detail)** — the detail view for the selected item occupies the wider left column:
-  image/video gallery, name, tags as chips, trigger words as chips, formatted description, the
-  version + file picker (with batch-download checkboxes), and a link to the model on its source
-  platform
-- **Right pane (list)** — a narrow scrollable list (max-height capped, internal scroll); each
-  row shows a thumbnail, the name, the model type (checkpoint, lora, …), the base model (for
-  LoRAs and wherever known), and a truncated tag list (≤ 2 tags shown inline)
-- HuggingFace detail pane shows: model ID, download count, format badges, tags chips, and the
-  file list (auto-fetched on selection)
-- The **image/video gallery** in the detail pane shows a large main view with a scrollable
-  thumbnail strip below it; clicking a thumbnail promotes it to the main view; video items
-  (`.mp4`, `.webm`, `.mov`) render in a `<video controls>` element in the main view and show a
-  play-icon overlay on their thumbnail
-- Clicking a row in the list pane opens its detail in the left pane; the versions/files panel is
-  embedded in the detail pane, not appended below the list
+- **Left outer pane** — a narrow scrollable list (max-height capped, internal scroll); each row
+  shows a thumbnail, the name, the model type (checkpoint, lora, …), the base model (for LoRAs
+  and wherever known), and a truncated tag list (≤ 2 tags shown inline)
+- **Right outer pane** — a detail view for the selected item, itself split into two inner columns:
+  - **Inner left** — image/video gallery (large main view + scrollable thumbnail strip), name,
+    tags as chips, trigger words as chips, and formatted description
+  - **Inner right** — version + file picker with batch-download checkboxes and a link to the
+    model on its source platform
+- The detail pane header (title, badges, source link, stats) spans both inner columns
+- HuggingFace inner left shows: tags chips; inner right shows: files list (auto-fetched)
+- The **image/video gallery** shows a large main view with a scrollable thumbnail strip below;
+  clicking a thumbnail promotes it to the main view; video items (`.mp4`, `.webm`, `.mov`)
+  render in a `<video controls>` element in the main view and show a play-icon overlay on
+  their thumbnail
+- Clicking a row in the left list opens its detail in the right pane; gallery index resets
 - The first result is selected by default (auto-select after every new search)
-- **"Load more"** button lives at the bottom of the right list pane (not below the split view)
+- **"Load more"** button lives at the bottom of the left list pane
 - When no search has been performed, show a centered prompt card with instructions
 - When there are no results, the side-by-side view is hidden and replaced by a message box
   explaining that there were no search results
 - Works for both CivitAI and HuggingFace result sets
-- **Responsive**: on screens ≤ 768 px the layout stacks vertically (detail on top, list below)
+- **Responsive**: outer split stacks at ≤ 768 px (list on top, detail below); inner detail split
+  stacks at ≤ 900 px (gallery/info on top, download list below)
 - **Modern visual design**: refined hover/selected states, clean typography hierarchy, subtle
   depth on the detail pane
 
