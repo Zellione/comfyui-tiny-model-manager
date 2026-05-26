@@ -474,15 +474,26 @@ Store preview media under a hashed folder name instead of the model basename to 
 Rework the search-results area into a master–detail layout.
 
 **Requirements:**
-- **Left pane** — a scrollable list; each row shows a thumbnail, the name, the model type
-  (checkpoint, lora, …), the base model (for LoRAs and wherever known), and a truncated tag list
+- **Left pane** — a scrollable list (max-height capped, internal scroll); each row shows a
+  thumbnail, the name, the model type (checkpoint, lora, …), the base model (for LoRAs and
+  wherever known), and a truncated tag list (≤ 2 tags shown inline)
 - **Right pane** — a detail view for the selected item: formatted description, image gallery,
-  name, tags, trigger words, the Download button, and a link to the model on its source platform
-- Clicking a row on the left opens its detail on the right
-- The first result is selected by default
+  name, tags as chips, trigger words as chips, the version + file picker (with batch-download
+  checkboxes, moved from the old below-results panel), and a link to the model on its source
+  platform
+- HuggingFace right pane shows: model ID, download count, format badges, tags chips, and the
+  file list (auto-fetched on selection)
+- Clicking a row on the left opens its detail on the right; the versions/files panel is
+  embedded in the right pane, not appended below the list
+- The first result is selected by default (auto-select after every new search)
+- **"Load more"** button lives at the bottom of the left list pane (not below the split view)
+- When no search has been performed, show a centered prompt card with instructions
 - When there are no results, the side-by-side view is hidden and replaced by a message box
   explaining that there were no search results
 - Works for both CivitAI and HuggingFace result sets
+- **Responsive**: on screens ≤ 768 px the layout stacks vertically (list on top, detail below)
+- **Modern visual design**: refined hover/selected states, clean typography hierarchy, subtle
+  depth on the detail pane
 
 ---
 

@@ -140,6 +140,7 @@ export class Download {
   activeTasks = toSignal(this.dlService.activeTasks$, { initialValue: [] as DownloadTask[] });
 
   selectedModel = signal<CivitaiModel | null>(null);
+  selectedHfModel = signal<HfModel | null>(null);
   versions = signal<CivitaiVersion[]>([]);
   hfFiles = signal<{ filename: string; size: number; url: string }[]>([]);
   selectedHfRepoId = signal('');
@@ -381,6 +382,7 @@ export class Download {
           this.civitaiCursor.set(r.metadata?.nextCursor ?? '');
           this.civitaiHasMore.set(!!r.metadata?.nextCursor);
           this.searching.set(false);
+          if (r.items.length > 0) this.selectCivitai(r.items[0]);
         },
         error: () => { this.searching.set(false); },
       });
@@ -391,6 +393,7 @@ export class Download {
           this.hfPage.set(r.nextPage);
           this.hfHasMore.set(r.hasMore);
           this.searching.set(false);
+          if (r.items.length > 0) this.selectHf(r.items[0]);
         },
         error: () => { this.searching.set(false); },
       });
@@ -470,6 +473,7 @@ export class Download {
 
   selectHf(model: HfModel) {
     const repoId = model.modelId ?? model.id;
+    this.selectedHfModel.set(model);
     this.selectedHfRepoId.set(repoId);
     this.hfFiles.set([]);
     this.selectedHfFiles.set(new Set());
@@ -521,6 +525,26 @@ export class Download {
 
   civitaiThumb(model: CivitaiModel): string {
     return model.modelVersions?.[0]?.images?.[0]?.url ?? '';
+  }
+
+  civitaiGalleryImages(model: CivitaiModel): string[] {
+    return (model.modelVersions?.[0]?.images ?? []).slice(0, 8).map(i => i.url).filter(Boolean);
+  }
+
+  civitaiModelBaseModel(model: CivitaiModel): string {
+    return model.modelVersions?.[0]?.baseModel ?? '';
+  }
+
+  civitaiTriggerWords(model: CivitaiModel): string[] {
+    return model.modelVersions?.[0]?.trainedWords ?? [];
+  }
+
+  civitaiSourceUrl(model: CivitaiModel): string {
+    return `https://civitai.com/models/${model.id}`;
+  }
+
+  hfSourceUrl(model: HfModel): string {
+    return `https://huggingface.co/${model.modelId ?? model.id}`;
   }
 
   onImgError(event: Event) {

@@ -28,6 +28,7 @@ export interface CivitaiModel {
   name: string;
   type: string;
   description: string;
+  tags?: string[];
   modelVersions: CivitaiVersion[];
   creator: { username: string };
   stats: { downloadCount: number; thumbsUpCount: number; thumbsDownCount: number };

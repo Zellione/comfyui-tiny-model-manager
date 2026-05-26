@@ -49,7 +49,7 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | F-25 | Library filtering & sorting — filter by base model, source, format, and tags; sort by name, size, or date | Done |
 | F-26 | Mark already-installed models in download view — live button states: "Downloading…" while in progress, "In library" on success, retry on error | Done |
 | F-27 | Hashed media folder names — store preview images under a deterministic hash to avoid basename collisions | TODO |
-| F-28 | Side-by-side download view — left list pane + right detail pane; first result selected by default | TODO |
+| F-28 | Side-by-side download view — left list pane + right detail pane; first result selected by default; responsive (stacks on mobile) | Done |
 | F-29 | Hide base-model filter for HuggingFace — filter not available on HF, so omit it | TODO |
 | F-30 | Choose model type before HuggingFace download — user selects folder type since HF cannot auto-detect it | TODO |
 | F-31 | Editable model type — change folder type in detail page, moves file on disk | TODO |
