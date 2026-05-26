@@ -17,4 +17,9 @@ def register_routes(routes, ext_dir: str):
     add_metadata_routes(routes)
     add_settings_routes(routes)
     register_workflow_routes(routes)
-    asyncio.ensure_future(init_db())
+    async def _startup():
+        await init_db()
+        from ..services.metadata_fetcher import migrate_existing_media
+        await migrate_existing_media()
+
+    asyncio.ensure_future(_startup())

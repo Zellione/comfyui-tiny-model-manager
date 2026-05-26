@@ -42,6 +42,59 @@ async def fetch_and_store(filename: str, model_type: str, platform: str, source_
         await _download_images(model_id, media_hash, image_urls)
 
 
+async def migrate_existing_media():
+    """One-time startup migration: moves media from data/media/<basename>/ to data/media/<hash>/."""
+    import shutil
+    from ..db.database import get_db
+
+    async with get_db() as db:
+        rows = await (await db.execute("""
+            SELECT DISTINCT m.id, m.filename, m.source_platform, m.source_id
+            FROM models m
+            JOIN model_media mm ON mm.model_id = m.id
+            WHERE m.media_hash = ''
+        """)).fetchall()
+
+        for row in rows:
+            media_hash = _compute_media_hash(
+                row['source_platform'] or '', row['source_id'] or '', row['filename']
+            )
+            new_dir = os.path.join(cfg.media_dir(), media_hash)
+            os.makedirs(new_dir, exist_ok=True)
+
+            media_rows = await (await db.execute(
+                "SELECT id, local_path FROM model_media WHERE model_id = ?", (row['id'],)
+            )).fetchall()
+
+            old_dir = None
+            for media_row in media_rows:
+                old_path = media_row['local_path']
+                new_path = os.path.join(new_dir, os.path.basename(old_path))
+                if os.path.isfile(old_path) and old_path != new_path:
+                    try:
+                        shutil.move(old_path, new_path)
+                    except Exception:
+                        pass
+                    old_dir = os.path.dirname(old_path)
+                await db.execute(
+                    "UPDATE model_media SET local_path = ? WHERE id = ?",
+                    (new_path, media_row['id']),
+                )
+
+            await db.execute(
+                "UPDATE models SET media_hash = ? WHERE id = ?", (media_hash, row['id'])
+            )
+
+            if old_dir and os.path.isdir(old_dir):
+                try:
+                    if not os.listdir(old_dir):
+                        os.rmdir(old_dir)
+                except Exception:
+                    pass
+
+        await db.commit()
+
+
 async def _download_images(model_id: int, media_hash: str, urls: list[str]):
     if not urls:
         return
