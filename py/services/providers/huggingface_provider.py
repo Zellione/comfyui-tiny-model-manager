@@ -25,9 +25,13 @@ class HuggingFaceProvider(ModelProvider):
             return {"Authorization": f"Bearer {token}"}
         return {}
 
-    async def search(self, query: str, model_type: str = "", limit: int = 20, p: int = 0, **kwargs) -> dict:
-        params = {"search": query, "limit": limit, "sort": "downloads", "direction": -1, "p": p, "full": "true"}
-        params["pipeline_tag"] = HF_TYPE_MAP.get(model_type, "text-to-image")
+    async def search(self, query: str, model_type: str = "", limit: int = 20, p: int = 0,
+                     sort: str = "downloads", direction: int = -1, format: str = "", **kwargs) -> dict:
+        params: dict = {"search": query, "limit": limit, "sort": sort, "direction": direction, "p": p, "full": "true"}
+        if format == ".gguf":
+            params["filter"] = "gguf"
+        else:
+            params["pipeline_tag"] = HF_TYPE_MAP.get(model_type, "text-to-image")
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(f"{_API}/models", params=params, headers=self.auth_headers())
             resp.raise_for_status()
@@ -35,13 +39,16 @@ class HuggingFaceProvider(ModelProvider):
         for model in data:
             repo_id = model.get("modelId") or model.get("id", "")
             thumbnail = ""
+            exts: set[str] = set()
             for sibling in model.get("siblings", []):
                 name = sibling.get("rfilename", "")
                 ext = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
-                if ext in IMAGE_EXTENSIONS and "/" not in name:
+                if ext in IMAGE_EXTENSIONS and "/" not in name and not thumbnail:
                     thumbnail = f"{_BASE}/{repo_id}/resolve/main/{name}"
-                    break
+                if ext in MODEL_EXTENSIONS:
+                    exts.add(ext)
             model["thumbnail"] = thumbnail
+            model["formats"] = list(exts)
         return {"items": data, "hasMore": len(data) == limit, "nextPage": p + 1}
 
     async def get_model_files(self, repo_id: str) -> list[dict]:

@@ -397,6 +397,11 @@ Add filter and sort controls to the CivitAI and HuggingFace search.
   maps to HuggingFace's `sort` (`downloads`, `likes`, `trending`, `lastModified`, `createdAt`)
   + `direction`
 - Defaults preserve current behaviour (HuggingFace defaults to downloads, descending)
+- Filter and sort changes auto-trigger a new search immediately (no need to press Search again),
+  provided at least one explicit search has already been performed
+- For HuggingFace, when `.gguf` format is selected the search uses `filter=gguf`
+  server-side (replacing the `pipeline_tag` restriction) so that GGUF repositories
+  are discoverable
 
 **API:**
 - Extend `GET /api/search/civitai` with `base_model`, `format`, `sort`, `period` query params

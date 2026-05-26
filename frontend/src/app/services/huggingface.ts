@@ -9,6 +9,7 @@ export interface HfModel {
   downloads: number;
   tags: string[];
   thumbnail?: string;
+  formats?: string[];
 }
 
 export interface HfSearchResult {
@@ -23,9 +24,9 @@ const API = '/tiny-model-manager/api';
 export class HuggingFaceService {
   constructor(private http: HttpClient) {}
 
-  search(q: string, type = '', p = 0): Observable<HfSearchResult> {
+  search(q: string, type = '', p = 0, sort = 'downloads', direction = -1, format = ''): Observable<HfSearchResult> {
     return this.http
-      .get<{ success: boolean; data: HfSearchResult }>(`${API}/search/huggingface`, { params: { q, type, p } })
+      .get<{ success: boolean; data: HfSearchResult }>(`${API}/search/huggingface`, { params: { q, type, p, sort, direction, format } })
       .pipe(map(r => r.data));
   }
 

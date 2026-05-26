@@ -11,8 +11,12 @@ def add_download_routes(routes):
         model_type = request.rel_url.query.get("type", "")
         page = int(request.rel_url.query.get("page", 1))
         cursor = request.rel_url.query.get("cursor", "")
+        base_model = request.rel_url.query.get("base_model", "")
+        sort = request.rel_url.query.get("sort", "")
+        period = request.rel_url.query.get("period", "")
         try:
-            data = await civitai.search(q, model_type, page=page, cursor=cursor)
+            data = await civitai.search(q, model_type, page=page, cursor=cursor,
+                                        base_model=base_model, sort=sort, period=period)
             return web.json_response({"success": True, "data": data})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
@@ -22,8 +26,11 @@ def add_download_routes(routes):
         q = request.rel_url.query.get("q", "")
         model_type = request.rel_url.query.get("type", "")
         p = int(request.rel_url.query.get("p", 0))
+        sort = request.rel_url.query.get("sort", "downloads")
+        direction = int(request.rel_url.query.get("direction", -1))
+        format = request.rel_url.query.get("format", "")
         try:
-            data = await huggingface.search(q, model_type, p=p)
+            data = await huggingface.search(q, model_type, p=p, sort=sort, direction=direction, format=format)
             return web.json_response({"success": True, "data": data})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)

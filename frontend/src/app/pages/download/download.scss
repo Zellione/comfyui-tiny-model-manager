@@ -25,6 +25,14 @@
   input { flex: 1; min-width: 200px; }
 }
 
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  width: 100%;
+}
+
 .platform-tabs {
   display: flex;
   gap: 0.25rem;

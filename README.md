@@ -45,7 +45,7 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | F-21 | Loader nodes for checkpoints, VAE, ControlNet, embeddings, upscale models | Done |
 | F-22 | One-click insert of a model's loader node into the open workflow | Done |
 | F-23 | Base model & source metadata — store base model (SDXL, Flux, …), source link; show on cards and detail page | Done |
-| F-24 | Search filtering & sorting — filter by base model and file format; sort by downloads, rating, date (per platform) | TODO |
+| F-24 | Search filtering & sorting — filter by base model and file format; sort by downloads, rating, date (per platform); auto-applies on change; GGUF repos discoverable via HF `filter=gguf` | Done |
 | F-25 | Library filtering & sorting — filter and sort installed models by base model, file format, name, size, date | TODO |
 | F-26 | Mark already-installed models in download view — "In library" badge, hide download button | TODO |
 | F-27 | Hashed media folder names — store preview images under a deterministic hash to avoid basename collisions | TODO |
@@ -69,10 +69,10 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | GET | `/tiny-model-manager/api/models/{type}/{path}/metadata` | Get stored metadata — returns `description`, `trigger_words`, `tags`, `media`, `base_model`, `source_platform`, `source_url` |
 | PUT | `/tiny-model-manager/api/models/{type}/{path}/metadata` | Update `description`, `trigger_words`, `tags`, and optionally `base_model` |
 | POST | `/tiny-model-manager/api/models/{type}/{path}/refetch` | Re-fetch metadata/tags from the source platform; response includes `base_model` and `source_url` |
-| GET | `/tiny-model-manager/api/search/civitai` | Search CivitAI |
+| GET | `/tiny-model-manager/api/search/civitai` | Search CivitAI — params: `q`, `type`, `base_model`, `sort`, `period`, `page`, `cursor` |
 | GET | `/tiny-model-manager/api/civitai/versions/{model_id}` | Get CivitAI model versions |
 | GET | `/tiny-model-manager/api/civitai/resolve/{version_id}` | Resolve a CivitAI direct download URL to filename + model type |
-| GET | `/tiny-model-manager/api/search/huggingface` | Search HuggingFace |
+| GET | `/tiny-model-manager/api/search/huggingface` | Search HuggingFace — params: `q`, `type`, `sort`, `direction`, `format`, `p` |
 | GET | `/tiny-model-manager/api/huggingface/resolve` | Resolve a HuggingFace repo to preview image URLs |
 | GET | `/tiny-model-manager/api/search/huggingface/files` | List files in a HF repo |
 | POST | `/tiny-model-manager/api/download` | Enqueue a download |

@@ -51,12 +51,18 @@ const API = '/tiny-model-manager/api';
 export class CivitaiService {
   constructor(private http: HttpClient) {}
 
-  search(q: string, type = '', page = 1, cursor = ''): Observable<{ items: CivitaiModel[]; metadata: any }> {
+  search(q: string, type = '', page = 1, cursor = '',
+         baseModel = '', sort = '', period = ''): Observable<{ items: CivitaiModel[]; metadata: any }> {
     const params: Record<string, string | number> = { q, type };
     if (q && cursor) {
       params['cursor'] = cursor;
     } else {
       params['page'] = page;
+    }
+    if (baseModel) params['base_model'] = baseModel;
+    if (sort) {
+      params['sort'] = sort;
+      if (period) params['period'] = period;
     }
     return this.http
       .get<{ success: boolean; data: any }>(`${API}/search/civitai`, { params })

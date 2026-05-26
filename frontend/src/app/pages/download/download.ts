@@ -1,8 +1,8 @@
 import { Component, signal, inject, computed, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { toSignal, takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Subject } from 'rxjs';
+import { toSignal, toObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subject, skip } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, of, catchError, map } from 'rxjs';
 import { DownloadService, DownloadTask } from '../../services/download';
 import { CivitaiService, CivitaiModel, CivitaiVersion, CivitaiFile, CivitaiDirectLinkInfo } from '../../services/civitai';
@@ -27,10 +27,49 @@ export class Download {
   private destroyRef = inject(DestroyRef);
   private pasteUrl$ = new Subject<string>();
 
+  readonly civitaiSortOptions = [
+    { label: 'Most Downloaded', value: 'Most Downloaded' },
+    { label: 'Highest Rated',   value: 'Highest Rated' },
+    { label: 'Newest',          value: 'Newest' },
+  ];
+  readonly civitaiPeriodOptions = [
+    { label: 'All Time', value: 'AllTime' },
+    { label: 'Year',     value: 'Year' },
+    { label: 'Month',    value: 'Month' },
+    { label: 'Week',     value: 'Week' },
+    { label: 'Day',      value: 'Day' },
+  ];
+  readonly hfSortOptions = [
+    { label: 'Downloads',        value: 'downloads' },
+    { label: 'Likes',            value: 'likes' },
+    { label: 'Trending',         value: 'trending' },
+    { label: 'Recently Updated', value: 'lastModified' },
+    { label: 'Recently Created', value: 'createdAt' },
+  ];
+  readonly formatOptions = [
+    { label: 'All formats',  value: '' },
+    { label: '.safetensors', value: '.safetensors' },
+    { label: '.gguf',        value: '.gguf' },
+    { label: '.ckpt',        value: '.ckpt' },
+    { label: '.pt',          value: '.pt' },
+    { label: '.bin',         value: '.bin' },
+  ];
+  readonly civitaiBaseModelOptions = [
+    'SD 1.5', 'SD 2.1', 'SDXL 1.0', 'Pony', 'Illustrious',
+    'Flux.1 D', 'Flux.1 S', 'Stable Cascade', 'SDXL Turbo', 'Chroma', 'Qwen',
+  ];
+
   platform = signal<Platform>('civitai');
   query = signal('');
   modelType = signal<ModelType>('checkpoints');
   modelTypes: ModelType[] = ['checkpoints', 'loras', 'embeddings', 'vae', 'controlnet'];
+
+  civitaiSort      = signal('');
+  civitaiPeriod    = signal('AllTime');
+  civitaiBaseModel = signal('');
+  hfSort           = signal('downloads');
+  formatFilter     = signal('');
+  hasSearched      = signal(false);
 
   // Paste-a-link section
   pasteUrl      = signal('');
@@ -65,6 +104,29 @@ export class Download {
 
   civitaiResults = signal<CivitaiModel[]>([]);
   hfResults = signal<HfModel[]>([]);
+
+  filteredCivitaiResults = computed(() => {
+    const fmt = this.formatFilter();
+    if (!fmt) return this.civitaiResults();
+    return this.civitaiResults().filter(m =>
+      m.modelVersions?.some(v => v.files?.some(f => f.name.toLowerCase().endsWith(fmt)))
+    );
+  });
+
+  filteredHfResults = computed(() => {
+    const fmt = this.formatFilter();
+    if (!fmt) return this.hfResults();
+    return this.hfResults().filter(m => m.formats?.includes(fmt));
+  });
+
+  private filterParams = computed(() => ({
+    civitaiSort:      this.civitaiSort(),
+    civitaiPeriod:    this.civitaiPeriod(),
+    civitaiBaseModel: this.civitaiBaseModel(),
+    hfSort:           this.hfSort(),
+    formatFilter:     this.formatFilter(),
+  }));
+
   activeTasks = toSignal(this.dlService.activeTasks$, { initialValue: [] as DownloadTask[] });
 
   selectedModel = signal<CivitaiModel | null>(null);
@@ -168,6 +230,14 @@ export class Download {
         }
         this.linkResolving.set(false);
       });
+
+    toObservable(this.filterParams).pipe(
+      skip(1),
+      debounceTime(300),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(() => {
+      if (this.hasSearched()) this.search();
+    });
   }
 
   onPasteUrlChange(url: string) {
@@ -247,6 +317,7 @@ export class Download {
   }
 
   search() {
+    this.hasSearched.set(true);
     this.searching.set(true);
     this.civitaiResults.set([]);
     this.hfResults.set([]);
@@ -258,7 +329,10 @@ export class Download {
     this.selectedHfFiles.set(new Set());
 
     if (this.platform() === 'civitai') {
-      this.civitaiService.search(this.query(), this.modelType()).subscribe({
+      this.civitaiService.search(
+        this.query(), this.modelType(), 1, '',
+        this.civitaiBaseModel(), this.civitaiSort(), this.civitaiPeriod()
+      ).subscribe({
         next: r => {
           this.civitaiResults.set(r.items);
           this.civitaiCursor.set(r.metadata?.nextCursor ?? '');
@@ -268,7 +342,7 @@ export class Download {
         error: () => { this.searching.set(false); },
       });
     } else {
-      this.hfService.search(this.query(), this.modelType(), 0).subscribe({
+      this.hfService.search(this.query(), this.modelType(), 0, this.hfSort(), -1, this.formatFilter()).subscribe({
         next: r => {
           this.hfResults.set(r.items);
           this.hfPage.set(r.nextPage);
@@ -283,7 +357,10 @@ export class Download {
   loadMore() {
     this.loadingMore.set(true);
     if (this.platform() === 'civitai') {
-      this.civitaiService.search(this.query(), this.modelType(), 1, this.civitaiCursor()).subscribe({
+      this.civitaiService.search(
+        this.query(), this.modelType(), 1, this.civitaiCursor(),
+        this.civitaiBaseModel(), this.civitaiSort(), this.civitaiPeriod()
+      ).subscribe({
         next: r => {
           this.civitaiResults.update(prev => [...prev, ...r.items]);
           this.civitaiCursor.set(r.metadata?.nextCursor ?? '');
@@ -293,7 +370,7 @@ export class Download {
         error: () => { this.loadingMore.set(false); },
       });
     } else {
-      this.hfService.search(this.query(), this.modelType(), this.hfPage()).subscribe({
+      this.hfService.search(this.query(), this.modelType(), this.hfPage(), this.hfSort(), -1, this.formatFilter()).subscribe({
         next: r => {
           this.hfResults.update(prev => [...prev, ...r.items]);
           this.hfPage.set(r.nextPage);

@@ -192,12 +192,48 @@
   <button class="btn-primary" (click)="search()" [disabled]="searching()">
     {{ searching() ? 'Searching…' : 'Search' }}
   </button>
+
+  <div class="filter-row">
+    @if (platform() === 'civitai') {
+      <select [ngModel]="civitaiBaseModel()" (ngModelChange)="civitaiBaseModel.set($event)">
+        <option value="">All base models</option>
+        @for (bm of civitaiBaseModelOptions; track bm) {
+          <option [value]="bm">{{ bm }}</option>
+        }
+      </select>
+      <select [ngModel]="civitaiSort()" (ngModelChange)="civitaiSort.set($event)">
+        <option value="">Default sort</option>
+        @for (o of civitaiSortOptions; track o.value) {
+          <option [value]="o.value">{{ o.label }}</option>
+        }
+      </select>
+      @if (civitaiSort()) {
+        <select [ngModel]="civitaiPeriod()" (ngModelChange)="civitaiPeriod.set($event)">
+          @for (o of civitaiPeriodOptions; track o.value) {
+            <option [value]="o.value">{{ o.label }}</option>
+          }
+        </select>
+      }
+    } @else {
+      <select [ngModel]="hfSort()" (ngModelChange)="hfSort.set($event)">
+        @for (o of hfSortOptions; track o.value) {
+          <option [value]="o.value">{{ o.label }}</option>
+        }
+      </select>
+    }
+
+    <select [ngModel]="formatFilter()" (ngModelChange)="formatFilter.set($event)">
+      @for (o of formatOptions; track o.value) {
+        <option [value]="o.value">{{ o.label }}</option>
+      }
+    </select>
+  </div>
 </div>
 
 <!-- CivitAI results -->
 @if (platform() === 'civitai') {
   <div class="results">
-    @for (model of civitaiResults(); track model.id) {
+    @for (model of filteredCivitaiResults(); track model.id) {
       <div class="result-card" (click)="selectCivitai(model)" [class.selected]="selectedModel()?.id === model.id">
         <div class="thumbnail">
           <div class="placeholder"></div>
@@ -264,7 +300,7 @@
 <!-- HuggingFace results -->
 @if (platform() === 'huggingface') {
   <div class="results">
-    @for (model of hfResults(); track model.id) {
+    @for (model of filteredHfResults(); track model.id) {
       <div class="result-card" (click)="selectHf(model)">
         <div class="thumbnail">
           <div class="placeholder"></div>

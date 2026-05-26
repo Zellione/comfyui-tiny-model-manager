@@ -25,7 +25,8 @@ class CivitaiProvider(ModelProvider):
             return {"Authorization": f"Bearer {key}"}
         return {}
 
-    async def search(self, query: str, model_type: str = "", page: int = 1, limit: int = 20, cursor: str = "", **kwargs) -> dict:
+    async def search(self, query: str, model_type: str = "", page: int = 1, limit: int = 20,
+                     cursor: str = "", base_model: str = "", sort: str = "", period: str = "", **kwargs) -> dict:
         params: dict = {"limit": limit}
         if query:
             params["query"] = query
@@ -36,6 +37,12 @@ class CivitaiProvider(ModelProvider):
             params["page"] = page
         if model_type and model_type in CIVITAI_TYPE_MAP:
             params["types"] = CIVITAI_TYPE_MAP[model_type]
+        if base_model:
+            params["baseModels"] = base_model
+        if sort:
+            params["sort"] = sort
+            if period:
+                params["period"] = period
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(f"{_BASE}/models", params=params, headers=self.auth_headers())
             if not resp.is_success:

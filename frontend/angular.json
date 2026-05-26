@@ -22,6 +22,7 @@
           "builder": "@angular/build:application",
           "options": {
             "outputPath": {"base": "../web", "browser": ""},
+            "baseHref": "/tiny-model-manager/",
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
