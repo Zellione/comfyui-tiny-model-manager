@@ -272,7 +272,7 @@
 
 .detail-body {
   display: grid;
-  grid-template-columns: 1fr 260px;
+  grid-template-columns: 1fr 480px;
   gap: 1rem;
   align-items: start;
 
@@ -352,7 +352,7 @@
 
 .gallery-main {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: 200px;
   background: #111;
   border-radius: 6px;
   overflow: hidden;
@@ -451,7 +451,7 @@
   color: #aaa;
   line-height: 1.65;
   margin-bottom: 1rem;
-  max-height: 180px;
+  max-height: 55vh;
   overflow-y: auto;
   padding-right: 0.25rem;
 
