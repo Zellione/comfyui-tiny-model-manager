@@ -1,9 +1,15 @@
 """Fetches and stores model metadata after a download completes."""
+import hashlib
 import os
 import httpx
 from .. import config as cfg
 from ..db import model_repo
 from .providers import get_provider
+
+
+def _compute_media_hash(platform: str, source_id: str, filename: str) -> str:
+    key = f"{platform}:{source_id}" if (platform and source_id) else filename
+    return hashlib.sha1(key.encode()).hexdigest()
 
 
 async def fetch_and_store(filename: str, model_type: str, platform: str, source_id: str, skip_media: bool = False):
@@ -27,19 +33,19 @@ async def fetch_and_store(filename: str, model_type: str, platform: str, source_
     except Exception:
         pass  # metadata fetch failure should not break the download
 
+    media_hash = _compute_media_hash(platform, source_id, filename)
     model_id = await model_repo.upsert_model_with_meta(
         filename, model_type, platform, source_id, description, trigger_words, tags,
-        base_model=base_model, civitai_model_id=civitai_model_id,
+        base_model=base_model, civitai_model_id=civitai_model_id, media_hash=media_hash,
     )
     if not skip_media:
-        await _download_images(model_id, filename, image_urls)
+        await _download_images(model_id, media_hash, image_urls)
 
 
-async def _download_images(model_id: int, filename: str, urls: list[str]):
+async def _download_images(model_id: int, media_hash: str, urls: list[str]):
     if not urls:
         return
-    base_name = os.path.splitext(os.path.basename(filename))[0]
-    dest_dir = os.path.join(cfg.media_dir(), base_name)
+    dest_dir = os.path.join(cfg.media_dir(), media_hash)
     os.makedirs(dest_dir, exist_ok=True)
 
     async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
