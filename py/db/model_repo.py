@@ -9,22 +9,23 @@ _ALLOWED_MEDIA_TYPES = {"image", "video"}
 
 async def upsert_model(
     filename: str, model_type: str, source_platform: str, source_id: str, description: str,
-    base_model: str = "", civitai_model_id: str = "",
+    base_model: str = "", civitai_model_id: str = "", media_hash: str = "",
 ) -> int:
     async with get_db() as db:
         cursor = await db.execute(
             """
-            INSERT INTO models (filename, model_type, source_platform, source_id, description, base_model, civitai_model_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO models (filename, model_type, source_platform, source_id, description, base_model, civitai_model_id, media_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(filename) DO UPDATE SET
                 model_type = excluded.model_type,
                 source_platform = excluded.source_platform,
                 source_id = excluded.source_id,
                 description = excluded.description,
                 base_model = excluded.base_model,
-                civitai_model_id = excluded.civitai_model_id
+                civitai_model_id = excluded.civitai_model_id,
+                media_hash = excluded.media_hash
             """,
-            (filename, model_type, source_platform, source_id, description[:_MAX_DESCRIPTION], base_model, civitai_model_id),
+            (filename, model_type, source_platform, source_id, description[:_MAX_DESCRIPTION], base_model, civitai_model_id, media_hash),
         )
         await db.commit()
         if cursor.lastrowid:
@@ -36,22 +37,23 @@ async def upsert_model(
 async def upsert_model_with_meta(
     filename: str, model_type: str, source_platform: str, source_id: str,
     description: str, trigger_words: list[str], tags: list[str],
-    base_model: str = "", civitai_model_id: str = "",
+    base_model: str = "", civitai_model_id: str = "", media_hash: str = "",
 ) -> int:
     async with get_db() as db:
         cursor = await db.execute(
             """
-            INSERT INTO models (filename, model_type, source_platform, source_id, description, base_model, civitai_model_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO models (filename, model_type, source_platform, source_id, description, base_model, civitai_model_id, media_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(filename) DO UPDATE SET
                 model_type = excluded.model_type,
                 source_platform = excluded.source_platform,
                 source_id = excluded.source_id,
                 description = excluded.description,
                 base_model = excluded.base_model,
-                civitai_model_id = excluded.civitai_model_id
+                civitai_model_id = excluded.civitai_model_id,
+                media_hash = excluded.media_hash
             """,
-            (filename, model_type, source_platform, source_id, description[:_MAX_DESCRIPTION], base_model, civitai_model_id),
+            (filename, model_type, source_platform, source_id, description[:_MAX_DESCRIPTION], base_model, civitai_model_id, media_hash),
         )
         if cursor.lastrowid:
             model_id = cursor.lastrowid

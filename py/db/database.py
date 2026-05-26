@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS models (
     description TEXT DEFAULT '',
     base_model TEXT NOT NULL DEFAULT '',
     civitai_model_id TEXT,
+    media_hash TEXT NOT NULL DEFAULT '',
     created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -49,6 +50,7 @@ async def _migrate_db():
     migrations = [
         "ALTER TABLE models ADD COLUMN base_model TEXT NOT NULL DEFAULT ''",
         "ALTER TABLE models ADD COLUMN civitai_model_id TEXT",
+        "ALTER TABLE models ADD COLUMN media_hash TEXT NOT NULL DEFAULT ''",
     ]
     async with aiosqlite.connect(cfg.db_path()) as db:
         for sql in migrations:
