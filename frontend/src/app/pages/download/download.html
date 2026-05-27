@@ -101,28 +101,20 @@
       <div class="versions-panel">
         <div class="versions-header">
           <h3>Files in {{ k.repo }}</h3>
-          <div class="paste-actions-inline">
-            <select [ngModel]="linkModelType()" (ngModelChange)="linkModelType.set($event)">
-              @for (t of modelTypes; track t) {
-                <option [value]="t">{{ t }}</option>
-              }
-            </select>
-            @if (linkHfSelectedCount() > 0) {
-              <button class="btn-primary" (click)="downloadSelectedLinkHf()">
-                Download selected ({{ linkHfSelectedCount() }})
-              </button>
-            }
-          </div>
         </div>
         @for (f of linkHfFiles(); track f.filename) {
           <div class="version-row">
             <div class="version-row-top">
-              <input type="checkbox" [checked]="isLinkHfFileSelected(f.filename)" (change)="toggleLinkHfFile(f.filename)" />
               <span>{{ f.filename }}</span>
             </div>
             <div class="version-row-bottom">
               <div class="row-format"></div>
               <small>{{ formatSize(f.size) }}</small>
+              <select [ngModel]="linkHfRowType(f.filename)" (ngModelChange)="setLinkHfRowType(f.filename, $event)">
+                @for (t of modelTypes; track t) {
+                  <option [value]="t">{{ t }}</option>
+                }
+              </select>
               @switch (fileStatus(f.filename)) {
                 @case ('installed') { <button class="btn-library">In library</button> }
                 @case ('downloading') { <button class="btn-primary" disabled>Downloading…</button> }
@@ -535,16 +527,6 @@
             <div class="versions-section">
               <div class="versions-section-header">
                 <h3>Files</h3>
-                <select [ngModel]="hfDownloadType()" (ngModelChange)="hfDownloadType.set($event)">
-                  @for (t of modelTypes; track t) {
-                    <option [value]="t">{{ t }}</option>
-                  }
-                </select>
-                @if (selectedHfCount() > 0) {
-                  <button class="btn-primary" (click)="downloadSelectedHf()">
-                    Download selected ({{ selectedHfCount() }})
-                  </button>
-                }
               </div>
               @if (hfFiles().length === 0) {
                 <p class="detail-loading">Loading files…</p>
@@ -552,12 +534,16 @@
                 @for (f of hfFiles(); track f.filename) {
                   <div class="version-row">
                     <div class="version-row-top">
-                      <input type="checkbox" [checked]="isHfFileSelected(f.filename)" (change)="toggleHfFile(f.filename)" />
                       <span>{{ f.filename }}</span>
                     </div>
                     <div class="version-row-bottom">
                       <div class="row-format"></div>
                       <small>{{ formatSize(f.size) }}</small>
+                      <select [ngModel]="hfRowType(f.filename)" (ngModelChange)="setHfRowType(f.filename, $event)">
+                        @for (t of modelTypes; track t) {
+                          <option [value]="t">{{ t }}</option>
+                        }
+                      </select>
                       @switch (fileStatus(f.filename)) {
                         @case ('installed') { <button class="btn-library">In library</button> }
                         @case ('downloading') { <button class="btn-primary" disabled>Downloading…</button> }

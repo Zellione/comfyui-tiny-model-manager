@@ -64,8 +64,16 @@ export class Download {
   platform = signal<Platform>('civitai');
   query = signal('');
   modelType = signal<ModelType>('checkpoints');
-  hfDownloadType = signal<ModelType>('checkpoints');
   modelTypes: ModelType[] = ['checkpoints', 'loras', 'embeddings', 'vae', 'controlnet'];
+
+  hfRowTypes     = signal<Record<string, ModelType>>({});
+  linkHfRowTypes = signal<Record<string, ModelType>>({});
+
+  hfRowType(name: string): ModelType { return this.hfRowTypes()[name] ?? 'checkpoints'; }
+  setHfRowType(name: string, t: ModelType) { this.hfRowTypes.update(m => ({ ...m, [name]: t })); }
+
+  linkHfRowType(name: string): ModelType { return this.linkHfRowTypes()[name] ?? 'checkpoints'; }
+  setLinkHfRowType(name: string, t: ModelType) { this.linkHfRowTypes.update(m => ({ ...m, [name]: t })); }
 
   civitaiSort      = signal('');
   civitaiPeriod    = signal('AllTime');
@@ -84,9 +92,7 @@ export class Download {
   linkImages    = signal<string[]>([]);
 
   // F-19: HF repo link state
-  linkHfFiles         = signal<HfFileItem[]>([]);
-  linkHfSelected      = signal(new Set<string>());
-  linkHfSelectedCount = computed(() => this.linkHfSelected().size);
+  linkHfFiles = signal<HfFileItem[]>([]);
 
   // F-20: CivitAI model link state
   linkVersions             = signal<CivitaiVersion[]>([]);
@@ -162,11 +168,8 @@ export class Download {
 
   // Batch selection: key = `${versionId}_${fileId}` → {file, versionId}
   selectedCivitaiFiles = signal(new Map<string, { file: CivitaiFile; versionId: number }>());
-  // key = filename
-  selectedHfFiles = signal(new Set<string>());
 
   selectedCivitaiCount = computed(() => this.selectedCivitaiFiles().size);
-  selectedHfCount = computed(() => this.selectedHfFiles().size);
 
   constructor() {
     this.pasteUrl$
@@ -180,7 +183,6 @@ export class Download {
           this.linkImages.set([]);
           this.linkError.set('');
           this.linkHfFiles.set([]);
-          this.linkHfSelected.set(new Set());
           this.linkVersions.set([]);
           this.linkVersionsError.set('');
           this.linkCivitaiSelected.set(new Map());
@@ -310,33 +312,11 @@ export class Download {
     this.linkError.set('');
   }
 
-  // F-19 — HF repo link methods
-  toggleLinkHfFile(filename: string) {
-    this.linkHfSelected.update(prev => {
-      const next = new Set(prev);
-      if (next.has(filename)) { next.delete(filename); } else { next.add(filename); }
-      return next;
-    });
-  }
-
-  isLinkHfFileSelected(filename: string): boolean {
-    return this.linkHfSelected().has(filename);
-  }
-
+  // F-19 — HF repo link method
   downloadLinkHfFile(f: HfFileItem) {
     const kind = this.linkKind();
     const repo = kind.type === 'hf-repo' ? kind.repo : '';
-    this.dlService.startDownload(f.url, this.linkModelType(), f.filename, 'huggingface', repo).subscribe();
-  }
-
-  downloadSelectedLinkHf() {
-    const kind = this.linkKind();
-    const repo = kind.type === 'hf-repo' ? kind.repo : '';
-    for (const filename of this.linkHfSelected()) {
-      const f = this.linkHfFiles().find(x => x.filename === filename);
-      if (f) this.dlService.startDownload(f.url, this.linkModelType(), f.filename, 'huggingface', repo).subscribe();
-    }
-    this.linkHfSelected.set(new Set());
+    this.dlService.startDownload(f.url, this.linkHfRowType(f.filename), f.filename, 'huggingface', repo).subscribe();
   }
 
   // F-20 — CivitAI model link methods
@@ -374,7 +354,6 @@ export class Download {
     this.hfPage.set(0);
     this.hfHasMore.set(false);
     this.selectedCivitaiFiles.set(new Map());
-    this.selectedHfFiles.set(new Set());
 
     if (this.platform() === 'civitai') {
       this.civitaiService.search(
@@ -488,7 +467,6 @@ export class Download {
     this.selectedHfRepoId.set(repoId);
     this.hfFiles.set([]);
     this.hfDescription.set('');
-    this.selectedHfFiles.set(new Set());
     this.hfService.getFiles(repoId).subscribe({
       next: files => {
         if (this.selectedHfRepoId() !== repoId) return;
@@ -510,35 +488,8 @@ export class Download {
     }
   }
 
-  toggleHfFile(filename: string) {
-    this.selectedHfFiles.update(prev => {
-      const next = new Set(prev);
-      if (next.has(filename)) {
-        next.delete(filename);
-      } else {
-        next.add(filename);
-      }
-      return next;
-    });
-  }
-
-  isHfFileSelected(filename: string): boolean {
-    return this.selectedHfFiles().has(filename);
-  }
-
   downloadHf(file: { filename: string; size: number; url: string }) {
-    this.dlService.startDownload(file.url, this.hfDownloadType(), file.filename, 'huggingface', this.selectedHfRepoId()).subscribe();
-  }
-
-  downloadSelectedHf() {
-    const files = this.hfFiles();
-    for (const filename of this.selectedHfFiles()) {
-      const file = files.find(f => f.filename === filename);
-      if (file) {
-        this.dlService.startDownload(file.url, this.hfDownloadType(), file.filename, 'huggingface', this.selectedHfRepoId()).subscribe();
-      }
-    }
-    this.selectedHfFiles.set(new Set());
+    this.dlService.startDownload(file.url, this.hfRowType(file.filename), file.filename, 'huggingface', this.selectedHfRepoId()).subscribe();
   }
 
   formatSize(bytes: number): string {

@@ -251,6 +251,10 @@ Improve search browsing and allow downloading multiple files at once.
 - Reuses existing search endpoints (ensure they surface a preview image URL and a pagination cursor/page token)
 - Reuses `POST /api/download` per selected file (batch issued client-side)
 
+> **Note (refined by F-30):** Batch download applies to CivitAI only. HuggingFace uses per-file
+> download (no batch select, no shared header dropdown, no row checkboxes) — each file has its own
+> model-type dropdown and Download button.
+
 ---
 
 ### F-15 — Import Tags from HuggingFace
@@ -513,6 +517,8 @@ HuggingFace search has no base-model facet, so the filter is not offered there.
 **Requirements:**
 - The base-model filter control (F-24) is shown for CivitAI and hidden whenever the active search
   platform is HuggingFace
+- The model-type search dropdown is also hidden for HuggingFace because it does not affect HF
+  search results (all HuggingFace results map to the text-to-image pipeline regardless of type)
 - The remaining controls (keyword, sort, file format) stay available
 
 ---
@@ -522,10 +528,15 @@ HuggingFace search has no base-model facet, so the filter is not offered there.
 HuggingFace does not expose the target folder type, so the user picks it before downloading.
 
 **Requirements:**
-- Before enqueuing a HuggingFace download (a search-result file or a pasted repo link), the user
-  selects the target model type (checkpoints, loras, embeddings, vae, controlnet, …)
-- The selected type is sent as `model_type` to `POST /api/download` and determines the destination
-  folder
+- A per-file model-type dropdown is displayed immediately in front of the Download button on every
+  HuggingFace file row — both in the search-results "Files" pane and in the paste-a-link HF
+  repository file list
+- Each file carries its own independently chosen type; downloading a file sends that row's selected
+  type as `model_type` to `POST /api/download`, which determines the destination folder
+- HuggingFace has no batch "Download selected" — every file is downloaded individually via its own
+  Download button; there are no row checkboxes and no shared header dropdown in HF file lists
+- CivitAI retains batch download (checkboxes + "Download selected") and its auto-detected model
+  type; this feature does not affect CivitAI flows
 - For CivitAI the type is auto-detected from the version response (existing F-18 behaviour) and
   need not be chosen — though F-33 still allows overriding it
 
