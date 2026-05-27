@@ -55,6 +55,17 @@ def add_download_routes(routes):
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
 
+    @routes.get("/tiny-model-manager/api/huggingface/readme")
+    async def hf_readme(request):
+        repo_id = request.rel_url.query.get("repo", "")
+        if not repo_id:
+            return web.json_response({"success": False, "error": "Missing repo"}, status=400)
+        try:
+            text = await huggingface.get_readme(repo_id)
+            return web.json_response({"success": True, "data": {"description": text}})
+        except Exception as exc:
+            return web.json_response({"success": False, "error": str(exc)}, status=500)
+
     @routes.get("/tiny-model-manager/api/huggingface/resolve")
     async def hf_resolve(request):
         repo_id = request.rel_url.query.get("repo", "")

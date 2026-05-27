@@ -464,6 +464,8 @@
   color: var(--text-2);
   line-height: 1.65;
   margin-bottom: 1rem;
+  white-space: pre-wrap;
+  word-break: break-word;
 
   p { margin: 0 0 0.5rem; }
   h1, h2, h3, h4 { font-size: 0.85rem; margin: 0.5rem 0 0.25rem; color: var(--text); }

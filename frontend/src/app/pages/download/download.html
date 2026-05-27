@@ -576,8 +576,10 @@
           </div>
         }
 
-        @if (model.description) {
-          <div class="detail-desc">{{ model.description }}</div>
+        @if (hfDescriptionLoading()) {
+          <p class="detail-loading">Loading description…</p>
+        } @else if (hfDescription()) {
+          <div class="detail-desc">{{ hfDescription() }}</div>
         }
 
       }

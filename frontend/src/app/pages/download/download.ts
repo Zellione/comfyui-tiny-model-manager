@@ -145,6 +145,8 @@ export class Download {
   versions = signal<CivitaiVersion[]>([]);
   hfFiles = signal<{ filename: string; size: number; url: string }[]>([]);
   selectedHfRepoId = signal('');
+  hfDescription = signal('');
+  hfDescriptionLoading = signal(false);
 
   searching = signal(false);
   loadingVersions = signal(false);
@@ -484,12 +486,22 @@ export class Download {
     this.selectedHfModel.set(model);
     this.selectedHfRepoId.set(repoId);
     this.hfFiles.set([]);
+    this.hfDescription.set('');
+    this.hfDescriptionLoading.set(true);
     this.selectedHfFiles.set(new Set());
     this.hfService.getFiles(repoId).subscribe({
       next: files => {
         if (this.selectedHfRepoId() !== repoId) return;
         this.hfFiles.set(files);
       },
+    });
+    this.hfService.getReadme(repoId).subscribe({
+      next: desc => {
+        if (this.selectedHfRepoId() !== repoId) return;
+        this.hfDescription.set(desc);
+        this.hfDescriptionLoading.set(false);
+      },
+      error: () => { this.hfDescriptionLoading.set(false); },
     });
   }
 

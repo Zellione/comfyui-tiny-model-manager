@@ -77,6 +77,20 @@ class HuggingFaceProvider(ModelProvider):
                 })
         return result
 
+    async def get_readme(self, repo_id: str) -> str:
+        """Fetches README.md and returns its body with YAML front matter stripped."""
+        url = f"{_BASE}/{repo_id}/resolve/main/README.md"
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(url, headers=self.auth_headers())
+            if resp.status_code != 200:
+                return ""
+            text = resp.text
+        if text.startswith("---"):
+            end = text.find("\n---", 3)
+            if end != -1:
+                text = text[end + 4:].lstrip("\n")
+        return text.strip()
+
     async def resolve_direct_link(self, repo_id: str) -> dict:
         """Returns preview image URLs for a HuggingFace repo for direct link preview."""
         async with httpx.AsyncClient(timeout=15) as client:
