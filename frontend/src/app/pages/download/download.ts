@@ -64,6 +64,7 @@ export class Download {
   platform = signal<Platform>('civitai');
   query = signal('');
   modelType = signal<ModelType>('checkpoints');
+  hfDownloadType = signal<ModelType>('checkpoints');
   modelTypes: ModelType[] = ['checkpoints', 'loras', 'embeddings', 'vae', 'controlnet'];
 
   civitaiSort      = signal('');
@@ -526,7 +527,7 @@ export class Download {
   }
 
   downloadHf(file: { filename: string; size: number; url: string }) {
-    this.dlService.startDownload(file.url, this.modelType(), file.filename, 'huggingface', this.selectedHfRepoId()).subscribe();
+    this.dlService.startDownload(file.url, this.hfDownloadType(), file.filename, 'huggingface', this.selectedHfRepoId()).subscribe();
   }
 
   downloadSelectedHf() {
@@ -534,7 +535,7 @@ export class Download {
     for (const filename of this.selectedHfFiles()) {
       const file = files.find(f => f.filename === filename);
       if (file) {
-        this.dlService.startDownload(file.url, this.modelType(), file.filename, 'huggingface', this.selectedHfRepoId()).subscribe();
+        this.dlService.startDownload(file.url, this.hfDownloadType(), file.filename, 'huggingface', this.selectedHfRepoId()).subscribe();
       }
     }
     this.selectedHfFiles.set(new Set());

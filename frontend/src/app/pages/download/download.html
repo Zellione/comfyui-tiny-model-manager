@@ -207,11 +207,13 @@
   </div>
 
   <input [ngModel]="query()" (ngModelChange)="query.set($event)" placeholder="Search models…" (keyup.enter)="search()" />
-  <select [ngModel]="modelType()" (ngModelChange)="modelType.set($event)">
-    @for (t of modelTypes; track t) {
-      <option [value]="t">{{ t }}</option>
-    }
-  </select>
+  @if (platform() === 'civitai') {
+    <select [ngModel]="modelType()" (ngModelChange)="modelType.set($event)">
+      @for (t of modelTypes; track t) {
+        <option [value]="t">{{ t }}</option>
+      }
+    </select>
+  }
   <button class="btn-primary" (click)="search()" [disabled]="searching()">
     {{ searching() ? 'Searching…' : 'Search' }}
   </button>
@@ -533,6 +535,11 @@
             <div class="versions-section">
               <div class="versions-section-header">
                 <h3>Files</h3>
+                <select [ngModel]="hfDownloadType()" (ngModelChange)="hfDownloadType.set($event)">
+                  @for (t of modelTypes; track t) {
+                    <option [value]="t">{{ t }}</option>
+                  }
+                </select>
                 @if (selectedHfCount() > 0) {
                   <button class="btn-primary" (click)="downloadSelectedHf()">
                     Download selected ({{ selectedHfCount() }})
