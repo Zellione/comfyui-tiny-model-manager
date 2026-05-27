@@ -2,10 +2,10 @@
 
 .active-downloads {
   margin-bottom: 1.5rem;
-  background: #1e1e1e;
-  border: 1px solid #2a2a2a;
+  background: var(--surface);
+  border: 1px solid var(--border);
   padding: 1rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .task-row {
@@ -15,25 +15,25 @@
   margin-bottom: 0.5rem;
 
   .task-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pct { width: 3rem; text-align: right; font-size: 0.8rem; color: #aaa; }
+  .pct { width: 3rem; text-align: right; font-size: 0.8rem; color: var(--text-3); }
   .progress-bar { flex: 1; }
-  .task-error { flex: 2; font-size: 0.8rem; color: #f87171; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .task-error { flex: 2; font-size: 0.8rem; color: var(--danger); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 
 // ── Paste a link ─────────────────────────────────────────────────────────────
 
 .paste-link-section {
-  background: #1e1e1e;
-  border: 1px solid #2a2a2a;
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   padding: 1rem;
   margin-bottom: 1.5rem;
 
-  h3 { margin: 0 0 0.75rem; font-size: 0.95rem; color: #ccc; }
+  h3 { margin: 0 0 0.75rem; font-size: 0.95rem; color: var(--text-2); }
 }
 
 .paste-link-row {
-  .paste-url-input { width: 100%; font-family: monospace; font-size: 0.8rem; }
+  .paste-url-input { width: 100%; font-family: var(--font-mono); font-size: 0.8rem; }
 }
 
 .paste-info {
@@ -43,7 +43,7 @@
   margin-top: 0.5rem;
 
   span { flex: 1; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  small { color: #888; white-space: nowrap; }
+  small { color: var(--text-3); white-space: nowrap; }
 }
 
 .paste-actions {
@@ -70,15 +70,15 @@
   img {
     height: 100px;
     width: auto;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     object-fit: cover;
     flex-shrink: 0;
   }
 }
 
-.paste-status { margin: 0.5rem 0 0; font-size: 0.8rem; color: #aaa; }
-.paste-error  { margin: 0.5rem 0 0; font-size: 0.8rem; color: #f87171; }
-.muted        { color: #666; }
+.paste-status { margin: 0.5rem 0 0; font-size: 0.8rem; color: var(--text-3); }
+.paste-error  { margin: 0.5rem 0 0; font-size: 0.8rem; color: var(--danger); }
+.muted        { color: var(--text-3); }
 
 // ── Search bar ───────────────────────────────────────────────────────────────
 
@@ -105,20 +105,20 @@
   gap: 0.25rem;
 
   button {
-    background: #252525;
-    color: #888;
-    border-radius: 6px;
+    background: var(--surface-hi);
+    color: var(--text-3);
+    border-radius: var(--radius-sm);
     padding: 0.4rem 0.9rem;
     font-size: 0.85rem;
-    transition: background 0.15s, color 0.15s;
+    transition: background var(--dur), color var(--dur);
 
     &.active {
-      background: #1a3a5e;
-      color: #4f9eff;
-      box-shadow: inset 0 0 0 1px #2a5a8e;
+      background: color-mix(in oklch, var(--accent) 20%, var(--surface));
+      color: var(--accent);
+      box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--accent) 50%, transparent);
     }
 
-    &:not(.active):hover { background: #2e2e2e; color: #ccc; }
+    &:not(.active):hover { background: var(--surface-2); color: var(--text-2); }
   }
 }
 
@@ -131,10 +131,10 @@
   justify-content: center;
   gap: 0.75rem;
   padding: 3rem 2rem;
-  background: #1a1a1a;
-  border: 1px dashed #2e2e2e;
-  border-radius: 10px;
-  color: #666;
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-3);
   text-align: center;
 
   .empty-icon { font-size: 2rem; line-height: 1; }
@@ -164,12 +164,11 @@
   overflow-y: auto;
   padding-right: 2px;
 
-  // subtle scrollbar
   scrollbar-width: thin;
-  scrollbar-color: #333 transparent;
+  scrollbar-color: var(--border-strong) transparent;
   &::-webkit-scrollbar { width: 4px; }
   &::-webkit-scrollbar-track { background: transparent; }
-  &::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+  &::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
 }
 
 .list-row {
@@ -177,20 +176,20 @@
   gap: 0.65rem;
   align-items: center;
   padding: 0.55rem 0.6rem;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   border: 1px solid transparent;
-  transition: background 0.12s, border-color 0.12s;
+  transition: background var(--dur), border-color var(--dur);
   background: transparent;
 
   &:hover {
-    background: #232323;
-    border-color: #333;
+    background: var(--surface-hi);
+    border-color: var(--border);
   }
 
   &.selected {
-    background: #0f1e30;
-    border-color: #2a5a8e;
+    background: var(--accent-soft);
+    border-color: color-mix(in oklch, var(--accent) 50%, transparent);
   }
 }
 
@@ -200,7 +199,7 @@
   border-radius: 5px;
   overflow: hidden;
   flex-shrink: 0;
-  background: #252525;
+  background: var(--surface-hi);
 
   img {
     width: 100%;
@@ -220,7 +219,7 @@
   display: block;
   font-size: 0.82rem;
   font-weight: 600;
-  color: #ddd;
+  color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -239,8 +238,8 @@
   padding: 0.1rem 0.45rem;
   border-radius: 10px;
   font-size: 0.68rem;
-  background: #252525;
-  color: #777;
+  background: var(--surface-hi);
+  color: var(--text-3);
   white-space: nowrap;
   max-width: 90px;
   overflow: hidden;
@@ -248,8 +247,8 @@
 }
 
 .badge-accent {
-  background: #1a2e1a;
-  color: #6db86d;
+  background: color-mix(in oklch, var(--success) 18%, transparent);
+  color: var(--success);
 }
 
 .load-more-inline {
@@ -263,9 +262,9 @@
 // ── Right detail pane ─────────────────────────────────────────────────────────
 
 .detail-pane {
-  background: #1a1a1a;
-  border: 1px solid #2a2a2a;
-  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   padding: 1.25rem;
   min-height: 200px;
 }
@@ -292,7 +291,7 @@
 .detail-header {
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid #252525;
+  border-bottom: 1px solid var(--border);
 }
 
 .detail-title-row {
@@ -307,7 +306,7 @@
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
-  color: #f0f0f0;
+  color: var(--text);
   line-height: 1.3;
   flex: 1;
   min-width: 0;
@@ -315,16 +314,16 @@
 
 .source-link {
   font-size: 0.75rem;
-  color: #4f9eff;
+  color: var(--accent);
   text-decoration: none;
   white-space: nowrap;
   padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  border: 1px solid #1a3a5e;
-  transition: background 0.12s;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in oklch, var(--accent) 40%, transparent);
+  transition: background var(--dur);
   flex-shrink: 0;
 
-  &:hover { background: #1a3a5e; }
+  &:hover { background: var(--accent-soft); }
 }
 
 .detail-meta-row {
@@ -336,12 +335,12 @@
 
 .meta-author {
   font-size: 0.78rem;
-  color: #888;
+  color: var(--text-3);
 }
 
 .meta-stat {
   font-size: 0.78rem;
-  color: #666;
+  color: var(--text-3);
 }
 
 // ── Gallery ───────────────────────────────────────────────────────────────────
@@ -353,8 +352,8 @@
 .gallery-main {
   width: 100%;
   height: 320px;
-  background: #111;
-  border-radius: 6px;
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
   overflow: hidden;
   margin-bottom: 0.5rem;
   display: flex;
@@ -376,28 +375,28 @@
   padding-bottom: 0.25rem;
 
   scrollbar-width: thin;
-  scrollbar-color: #333 transparent;
+  scrollbar-color: var(--border-strong) transparent;
   &::-webkit-scrollbar { height: 4px; }
-  &::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+  &::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
 }
 
 .gallery-thumb {
   width: 72px;
   height: 52px;
   flex-shrink: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  background: #252525;
+  background: var(--surface-hi);
   cursor: pointer;
   border: 2px solid transparent;
   position: relative;
-  transition: border-color 0.12s;
+  transition: border-color var(--dur);
   display: flex;
   align-items: center;
   justify-content: center;
 
-  &:hover { border-color: #555; }
-  &.active { border-color: #4f9eff; }
+  &:hover { border-color: var(--border-strong); }
+  &.active { border-color: var(--accent); }
 
   img {
     width: 100%;
@@ -409,7 +408,7 @@
 
 .video-icon {
   font-size: 1.2rem;
-  color: #aaa;
+  color: var(--text-3);
   pointer-events: none;
 }
 
@@ -424,7 +423,7 @@
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #666;
+  color: var(--text-3);
   margin-bottom: 0.35rem;
 }
 
@@ -448,7 +447,7 @@
 
 .detail-desc {
   font-size: 0.82rem;
-  color: #aaa;
+  color: var(--text-2);
   line-height: 1.65;
   margin-bottom: 1rem;
   max-height: 55vh;
@@ -456,21 +455,20 @@
   padding-right: 0.25rem;
 
   scrollbar-width: thin;
-  scrollbar-color: #333 transparent;
+  scrollbar-color: var(--border-strong) transparent;
   &::-webkit-scrollbar { width: 3px; }
-  &::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+  &::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
 
-  // strip raw HTML presentation for readability
   p { margin: 0 0 0.5rem; }
-  h1, h2, h3, h4 { font-size: 0.85rem; margin: 0.5rem 0 0.25rem; color: #ccc; }
+  h1, h2, h3, h4 { font-size: 0.85rem; margin: 0.5rem 0 0.25rem; color: var(--text); }
   ul, ol { padding-left: 1.25rem; margin: 0 0 0.5rem; }
-  a { color: #4f9eff; }
+  a { color: var(--accent); }
 }
 
 // ── Versions / files section ──────────────────────────────────────────────────
 
 .versions-section {
-  border-top: 1px solid #252525;
+  border-top: 1px solid var(--border);
   padding-top: 0.75rem;
   margin-top: 0.25rem;
 }
@@ -481,7 +479,7 @@
   justify-content: space-between;
   margin-bottom: 0.5rem;
 
-  h3 { margin: 0; font-size: 0.85rem; color: #aaa; }
+  h3 { margin: 0; font-size: 0.85rem; color: var(--text-2); }
 }
 
 .version-section {
@@ -494,7 +492,7 @@
   gap: 0.5rem;
   padding: 0.35rem 0;
   font-size: 0.82rem;
-  color: #ccc;
+  color: var(--text);
 }
 
 .version-row {
@@ -502,7 +500,7 @@
   flex-direction: column;
   gap: 0.3rem;
   padding: 0.55rem 0;
-  border-bottom: 1px solid #212121;
+  border-bottom: 1px solid var(--surface-hi);
 }
 
 .version-row-top {
@@ -510,8 +508,8 @@
   align-items: center;
   gap: 0.5rem;
 
-  input[type="checkbox"] { flex-shrink: 0; cursor: pointer; accent-color: #4f9eff; }
-  span { flex: 1; font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  input[type="checkbox"] { flex-shrink: 0; cursor: pointer; accent-color: var(--accent); }
+  span { flex: 1; font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 }
 
 .version-row-bottom {
@@ -520,11 +518,11 @@
   gap: 0.5rem;
   padding-left: 1.5rem;
 
-  small { color: #666; font-size: 0.75rem; }
+  small { color: var(--text-3); font-size: 0.75rem; }
 }
 
-.detail-loading { font-size: 0.82rem; color: #666; margin: 0.5rem 0; }
-.detail-error   { font-size: 0.82rem; color: #f87171; margin: 0.5rem 0; }
+.detail-loading { font-size: 0.82rem; color: var(--text-3); margin: 0.5rem 0; }
+.detail-error   { font-size: 0.82rem; color: var(--danger); margin: 0.5rem 0; }
 
 // ── In-library button ─────────────────────────────────────────────────────────
 
@@ -536,12 +534,12 @@
   white-space: nowrap;
 }
 
-// ── Shared panel styles (paste-a-link reuses these) ──────────────────────────
+// ── Shared panel styles ───────────────────────────────────────────────────────
 
 .versions-panel {
-  background: #1e1e1e;
-  border: 1px solid #2a2a2a;
-  border-radius: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   padding: 1rem;
   margin-top: 0.75rem;
 }
@@ -552,4 +550,14 @@
   justify-content: space-between;
   margin-bottom: 0.75rem;
   h3 { margin: 0; }
+}
+
+// ── Page container ────────────────────────────────────────────────────────────
+
+// Download page wraps its content in a page-level container
+:host {
+  display: block;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 28px 28px 80px;
 }
