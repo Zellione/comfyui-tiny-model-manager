@@ -56,6 +56,9 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | F-32 | First-class metadata fields — base model stored as its own column, never as a tag | TODO |
 | F-33 | Model type selectable for every model — override folder type for any download, including CivitAI auto-detected | TODO |
 | F-34 | Notification system — green/red toast popups for save, download, workflow-insert, and error events | TODO |
+| F-35 | Automatic subfolder organization by base model — toggle to store/reorganize models into `<type>/<base_model>/` subfolders (`Unknown` when none) | TODO |
+| F-36 | Filter download search results by tags — server-side tag query (HuggingFace AND-multi, CivitAI single tag) | TODO |
+| F-37 | Always-visible "Load more" with empty/error states — button below the list, red + disabled with the failure reason | TODO |
 
 ---
 
@@ -66,6 +69,7 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | GET | `/tiny-model-manager` | Serves the Angular SPA |
 | GET | `/tiny-model-manager/api/models` | List all installed models by type; each entry includes `metadata` with `description`, `trigger_words`, `tags`, `media`, `base_model`, `source_platform`, `source_url` |
 | DELETE | `/tiny-model-manager/api/models/{type}/{path}` | Delete a model file |
+| POST | `/tiny-model-manager/api/models/organize` | Move all installed models into base-model subfolders; returns moved/skipped/error counts |
 | GET | `/tiny-model-manager/api/models/{type}/{path}/metadata` | Get stored metadata — returns `description`, `trigger_words`, `tags`, `media`, `base_model`, `source_platform`, `source_url` |
 | PUT | `/tiny-model-manager/api/models/{type}/{path}/metadata` | Update `description`, `trigger_words`, `tags`, and optionally `base_model` |
 | POST | `/tiny-model-manager/api/models/{type}/{path}/refetch` | Re-fetch metadata/tags from the source platform; response includes `base_model` and `source_url` |

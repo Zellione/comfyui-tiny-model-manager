@@ -593,6 +593,75 @@ Toast notifications surface action outcomes across the dashboard.
 
 ---
 
+### F-35 — Automatic Subfolder Organization by Base Model
+
+Optionally store downloaded models in subfolders named after their base model to keep large
+libraries tidy.
+
+**Requirements:**
+- A toggle, **"Organize models into subfolders"**, lives in ComfyUI's native settings panel
+  (consistent with F-12) and is stored in `data/settings.json` as `organize_into_subfolders`
+  (default off)
+- When enabled, a downloaded model is placed in `<type_dir>/<base_model>/<filename>`
+  (e.g. `loras/SDXL 1.0/my-lora.safetensors`); the base-model name is sanitised for filesystem use
+- Models with no base model — all HuggingFace downloads and any with an empty `base_model` — go into
+  an **`Unknown`** subfolder
+- Because `base_model` is only known after the post-download metadata fetch (F-07 / F-23),
+  organisation happens as a move once metadata resolves; the `models.filename` column is updated to
+  the new relative path so detail/gallery lookups keep working
+- A **"Organize into subfolders"** action on the Models page reorganises the **existing library**:
+  every installed model is moved into its base-model subfolder (or `Unknown`), preserving trigger
+  words, tags, media, description, and source info; the action is idempotent and re-runnable
+- Loader nodes are unaffected — `folder_paths.get_filename_list()` already recurses subfolders
+
+**API:**
+- `POST /tiny-model-manager/api/models/organize` → moves all installed model files into base-model
+  subfolders and updates the DB; returns `{ moved, skipped, errors }`
+- Reuses `GET/PUT /api/settings` for the toggle
+
+---
+
+### F-36 — Filter Download Search Results by Tags
+
+Add a tag filter to the CivitAI and HuggingFace search, applied server-side by each platform.
+
+**Requirements:**
+- A multi-tag chip input on the Download page (consistent with the library tag filter, F-25);
+  adding or removing a tag re-runs the search immediately
+- Tag filtering is applied **server-side** via each platform's API:
+  - **HuggingFace** — tags map to repeated `filter` params (AND matching), combined with the
+    existing `pipeline_tag` / `gguf` filter
+  - **CivitAI** — the `/models` API supports a single `tag` param, so the first selected tag is
+    applied server-side (multi-tag server filtering is HuggingFace-only)
+- Tags are passed through to the "Load more" pagination calls so paged results stay filtered
+- Defaults preserve current behaviour when no tag is set
+
+**API:**
+- Extend `GET /api/search/civitai` with a `tags` param (comma-separated; first tag applied)
+- Extend `GET /api/search/huggingface` with a `tags` param (comma-separated; all applied as `filter`,
+  AND-matched)
+
+---
+
+### F-37 — Always-Visible "Load More" with Failure States
+
+Move the search-result "Load more" button below the list so it is always visible, and give it
+explicit empty/error states.
+
+**Requirements:**
+- The Load more button is rendered **below** the left result list (outside the scroll area) so it
+  stays visible regardless of scroll position; one control serves both CivitAI and HuggingFace
+- Button states:
+  - **more available** → "Load more", clickable
+  - **loading** → "Loading…", disabled
+  - **end of results** (successful page, nothing more) → neutral, disabled, "No more results"
+  - **empty or error response** → **red and unclickable**, with an indication of *why* it failed
+    (the HTTP error message, or "No results returned")
+- The failure state is cleared when a new search is run
+- Works for both platforms within the F-28 side-by-side layout
+
+---
+
 ## Data Flow
 
 ```
