@@ -518,7 +518,9 @@
   gap: 0.5rem;
   padding-left: 1.5rem;
 
-  small { color: var(--text-3); font-size: 0.75rem; }
+  .row-format { flex: 1; min-width: 0; }
+  small { color: var(--text-3); font-size: 0.75rem; width: 4.5rem; text-align: right; flex-shrink: 0; white-space: nowrap; }
+  button { width: 8rem; flex-shrink: 0; justify-content: center; }
 }
 
 .detail-loading { font-size: 0.82rem; color: var(--text-3); margin: 0.5rem 0; }

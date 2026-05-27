@@ -430,6 +430,7 @@ export class Download {
   }
 
   selectCivitai(model: CivitaiModel) {
+    const targetId = model.id;
     this.selectedModel.set(model);
     this.galleryIndex.set(0);
     this.versions.set([]);
@@ -437,8 +438,13 @@ export class Download {
     this.loadingVersions.set(true);
     this.selectedCivitaiFiles.set(new Map());
     this.civitaiService.getVersions(model.id).subscribe({
-      next: v => { this.versions.set(v.versions); this.loadingVersions.set(false); },
+      next: v => {
+        if (this.selectedModel()?.id !== targetId) return;
+        this.versions.set(v.versions);
+        this.loadingVersions.set(false);
+      },
       error: err => {
+        if (this.selectedModel()?.id !== targetId) return;
         this.versionsError.set(err?.error?.error ?? 'Failed to load versions');
         this.loadingVersions.set(false);
       },
@@ -480,7 +486,10 @@ export class Download {
     this.hfFiles.set([]);
     this.selectedHfFiles.set(new Set());
     this.hfService.getFiles(repoId).subscribe({
-      next: files => this.hfFiles.set(files),
+      next: files => {
+        if (this.selectedHfRepoId() !== repoId) return;
+        this.hfFiles.set(files);
+      },
     });
   }
 

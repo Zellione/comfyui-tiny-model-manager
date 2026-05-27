@@ -116,14 +116,19 @@
         </div>
         @for (f of linkHfFiles(); track f.filename) {
           <div class="version-row">
-            <input type="checkbox" [checked]="isLinkHfFileSelected(f.filename)" (change)="toggleLinkHfFile(f.filename)" />
-            <span>{{ f.filename }}</span>
-            <small>{{ formatSize(f.size) }}</small>
-            @switch (fileStatus(f.filename)) {
-              @case ('installed') { <button class="btn-library">In library</button> }
-              @case ('downloading') { <button class="btn-primary" disabled>Downloading…</button> }
-              @default { <button class="btn-primary" (click)="downloadLinkHfFile(f)">Download</button> }
-            }
+            <div class="version-row-top">
+              <input type="checkbox" [checked]="isLinkHfFileSelected(f.filename)" (change)="toggleLinkHfFile(f.filename)" />
+              <span>{{ f.filename }}</span>
+            </div>
+            <div class="version-row-bottom">
+              <div class="row-format"></div>
+              <small>{{ formatSize(f.size) }}</small>
+              @switch (fileStatus(f.filename)) {
+                @case ('installed') { <button class="btn-library">In library</button> }
+                @case ('downloading') { <button class="btn-primary" disabled>Downloading…</button> }
+                @default { <button class="btn-primary" (click)="downloadLinkHfFile(f)">Download</button> }
+              }
+            </div>
           </div>
         }
       </div>
@@ -173,9 +178,11 @@
                   <span>{{ f.name }}</span>
                 </div>
                 <div class="version-row-bottom">
-                  @if (f.metadata.format) {
-                    <span class="badge">{{ f.metadata.format }}{{ f.metadata.fp ? ' · ' + f.metadata.fp : '' }}</span>
-                  }
+                  <div class="row-format">
+                    @if (f.metadata.format) {
+                      <span class="badge">{{ f.metadata.format }}{{ f.metadata.fp ? ' · ' + f.metadata.fp : '' }}</span>
+                    }
+                  </div>
                   <small>{{ formatSize(f.sizeKB * 1024) }}</small>
                   @switch (fileStatus(f.name)) {
                     @case ('installed') { <button class="btn-library">In library</button> }
@@ -451,9 +458,11 @@
                           <span>{{ f.name }}</span>
                         </div>
                         <div class="version-row-bottom">
-                          @if (f.metadata.format) {
-                            <span class="badge">{{ f.metadata.format }}{{ f.metadata.fp ? ' · ' + f.metadata.fp : '' }}</span>
-                          }
+                          <div class="row-format">
+                            @if (f.metadata.format) {
+                              <span class="badge">{{ f.metadata.format }}{{ f.metadata.fp ? ' · ' + f.metadata.fp : '' }}</span>
+                            }
+                          </div>
                           <small>{{ formatSize(f.sizeKB * 1024) }}</small>
                           @switch (fileStatus(f.name)) {
                             @case ('installed') { <button class="btn-library">In library</button> }
@@ -523,14 +532,19 @@
               } @else {
                 @for (f of hfFiles(); track f.filename) {
                   <div class="version-row">
-                    <input type="checkbox" [checked]="isHfFileSelected(f.filename)" (change)="toggleHfFile(f.filename)" />
-                    <span>{{ f.filename }}</span>
-                    <small>{{ formatSize(f.size) }}</small>
-                    @switch (fileStatus(f.filename)) {
-                      @case ('installed') { <button class="btn-library">In library</button> }
-                      @case ('downloading') { <button class="btn-primary" disabled>Downloading…</button> }
-                      @default { <button class="btn-primary" (click)="downloadHf(f)">Download</button> }
-                    }
+                    <div class="version-row-top">
+                      <input type="checkbox" [checked]="isHfFileSelected(f.filename)" (change)="toggleHfFile(f.filename)" />
+                      <span>{{ f.filename }}</span>
+                    </div>
+                    <div class="version-row-bottom">
+                      <div class="row-format"></div>
+                      <small>{{ formatSize(f.size) }}</small>
+                      @switch (fileStatus(f.filename)) {
+                        @case ('installed') { <button class="btn-library">In library</button> }
+                        @case ('downloading') { <button class="btn-primary" disabled>Downloading…</button> }
+                        @default { <button class="btn-primary" (click)="downloadHf(f)">Download</button> }
+                      }
+                    </div>
                   </div>
                 }
               }
