@@ -34,6 +34,8 @@
 
   --dur:  160ms;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  color-scheme: dark;
 }
 
 [data-theme="light"] {
@@ -47,6 +49,8 @@
   --text:   #18181b;
   --text-2: #555560;
   --text-3: #8a8a93;
+
+  color-scheme: light;
 }
 
 // ── Reset / base ──────────────────────────────────────────────────────────────
@@ -141,6 +145,7 @@ input, select, textarea {
   font-family: var(--font-sans);
   outline: none;
   &:focus { border-color: var(--accent); }
+  option { background-color: var(--surface-2); color: var(--text); }
 }
 
 // ── Utility ───────────────────────────────────────────────────────────────────
