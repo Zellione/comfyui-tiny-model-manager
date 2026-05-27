@@ -20,7 +20,7 @@ export interface CivitaiVersion {
   downloadUrl: string;
   trainedWords: string[];
   files: CivitaiFile[];
-  images: { url: string }[];
+  images: { url: string; type?: string }[];
 }
 
 export interface CivitaiModel {
@@ -28,6 +28,7 @@ export interface CivitaiModel {
   name: string;
   type: string;
   description: string;
+  tags?: string[];
   modelVersions: CivitaiVersion[];
   creator: { username: string };
   stats: { downloadCount: number; thumbsUpCount: number; thumbsDownCount: number };

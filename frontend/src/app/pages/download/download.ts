@@ -140,9 +140,13 @@ export class Download {
   activeTasks = toSignal(this.dlService.activeTasks$, { initialValue: [] as DownloadTask[] });
 
   selectedModel = signal<CivitaiModel | null>(null);
+  selectedHfModel = signal<HfModel | null>(null);
+  galleryIndex = signal<number>(0);
   versions = signal<CivitaiVersion[]>([]);
   hfFiles = signal<{ filename: string; size: number; url: string }[]>([]);
   selectedHfRepoId = signal('');
+  hfDescription = signal('');
+  hfDescriptionLoading = signal(false);
 
   searching = signal(false);
   loadingVersions = signal(false);
@@ -381,6 +385,7 @@ export class Download {
           this.civitaiCursor.set(r.metadata?.nextCursor ?? '');
           this.civitaiHasMore.set(!!r.metadata?.nextCursor);
           this.searching.set(false);
+          if (r.items.length > 0) this.selectCivitai(r.items[0]);
         },
         error: () => { this.searching.set(false); },
       });
@@ -391,6 +396,7 @@ export class Download {
           this.hfPage.set(r.nextPage);
           this.hfHasMore.set(r.hasMore);
           this.searching.set(false);
+          if (r.items.length > 0) this.selectHf(r.items[0]);
         },
         error: () => { this.searching.set(false); },
       });
@@ -426,14 +432,21 @@ export class Download {
   }
 
   selectCivitai(model: CivitaiModel) {
+    const targetId = model.id;
     this.selectedModel.set(model);
+    this.galleryIndex.set(0);
     this.versions.set([]);
     this.versionsError.set('');
     this.loadingVersions.set(true);
     this.selectedCivitaiFiles.set(new Map());
     this.civitaiService.getVersions(model.id).subscribe({
-      next: v => { this.versions.set(v.versions); this.loadingVersions.set(false); },
+      next: v => {
+        if (this.selectedModel()?.id !== targetId) return;
+        this.versions.set(v.versions);
+        this.loadingVersions.set(false);
+      },
       error: err => {
+        if (this.selectedModel()?.id !== targetId) return;
         this.versionsError.set(err?.error?.error ?? 'Failed to load versions');
         this.loadingVersions.set(false);
       },
@@ -470,12 +483,30 @@ export class Download {
 
   selectHf(model: HfModel) {
     const repoId = model.modelId ?? model.id;
+    this.selectedHfModel.set(model);
     this.selectedHfRepoId.set(repoId);
     this.hfFiles.set([]);
+    this.hfDescription.set('');
     this.selectedHfFiles.set(new Set());
     this.hfService.getFiles(repoId).subscribe({
-      next: files => this.hfFiles.set(files),
+      next: files => {
+        if (this.selectedHfRepoId() !== repoId) return;
+        this.hfFiles.set(files);
+      },
     });
+    if (model.description) {
+      this.hfDescription.set(model.description);
+    } else {
+      this.hfDescriptionLoading.set(true);
+      this.hfService.getReadme(repoId).subscribe({
+        next: desc => {
+          if (this.selectedHfRepoId() !== repoId) return;
+          this.hfDescription.set(desc);
+          this.hfDescriptionLoading.set(false);
+        },
+        error: () => { this.hfDescriptionLoading.set(false); },
+      });
+    }
   }
 
   toggleHfFile(filename: string) {
@@ -521,6 +552,46 @@ export class Download {
 
   civitaiThumb(model: CivitaiModel): string {
     return model.modelVersions?.[0]?.images?.[0]?.url ?? '';
+  }
+
+  civitaiGalleryImages(model: CivitaiModel): string[] {
+    return (model.modelVersions?.[0]?.images ?? []).slice(0, 8).map(i => i.url).filter(Boolean);
+  }
+
+  isVideo(url: string): boolean {
+    const lower = url.toLowerCase();
+    return lower.includes('.mp4') || lower.includes('.webm') || lower.includes('.mov');
+  }
+
+  setGalleryIndex(i: number) { this.galleryIndex.set(i); }
+
+  currentGalleryUrl(model: CivitaiModel): string {
+    const images = this.civitaiGalleryImages(model);
+    return images[this.galleryIndex()] ?? '';
+  }
+
+  civitaiModelBaseModel(model: CivitaiModel): string {
+    return model.modelVersions?.[0]?.baseModel ?? '';
+  }
+
+  hfGalleryImages(model: HfModel): string[] {
+    return model.images ?? [];
+  }
+
+  currentHfGalleryUrl(model: HfModel): string {
+    return this.hfGalleryImages(model)[this.galleryIndex()] ?? '';
+  }
+
+  civitaiTriggerWords(model: CivitaiModel): string[] {
+    return model.modelVersions?.[0]?.trainedWords ?? [];
+  }
+
+  civitaiSourceUrl(model: CivitaiModel): string {
+    return `https://civitai.com/models/${model.id}`;
+  }
+
+  hfSourceUrl(model: HfModel): string {
+    return `https://huggingface.co/${model.modelId ?? model.id}`;
   }
 
   onImgError(event: Event) {

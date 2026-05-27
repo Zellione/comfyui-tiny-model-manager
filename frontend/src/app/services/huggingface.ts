@@ -10,6 +10,8 @@ export interface HfModel {
   tags: string[];
   thumbnail?: string;
   formats?: string[];
+  images?: string[];
+  description?: string;
 }
 
 export interface HfSearchResult {
@@ -34,6 +36,12 @@ export class HuggingFaceService {
     return this.http
       .get<{ success: boolean; data: any[] }>(`${API}/search/huggingface/files`, { params: { repo } })
       .pipe(map(r => r.data));
+  }
+
+  getReadme(repo: string): Observable<string> {
+    return this.http
+      .get<{ success: boolean; data: { description: string } }>(`${API}/huggingface/readme`, { params: { repo } })
+      .pipe(map(r => r.data.description));
   }
 
   resolveDirectLink(repo: string): Observable<{ image_urls: string[] }> {

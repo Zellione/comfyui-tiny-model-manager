@@ -39,16 +39,24 @@ class HuggingFaceProvider(ModelProvider):
         for model in data:
             repo_id = model.get("modelId") or model.get("id", "")
             thumbnail = ""
+            images: list[str] = []
             exts: set[str] = set()
             for sibling in model.get("siblings", []):
                 name = sibling.get("rfilename", "")
                 ext = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
-                if ext in IMAGE_EXTENSIONS and "/" not in name and not thumbnail:
-                    thumbnail = f"{_BASE}/{repo_id}/resolve/main/{name}"
+                if ext in IMAGE_EXTENSIONS and "/" not in name:
+                    url = f"{_BASE}/{repo_id}/resolve/main/{name}"
+                    if not thumbnail:
+                        thumbnail = url
+                    if len(images) < 8:
+                        images.append(url)
                 if ext in MODEL_EXTENSIONS:
                     exts.add(ext)
-            model["thumbnail"] = thumbnail
-            model["formats"] = list(exts)
+            card_data = model.get("cardData") or {}
+            model["thumbnail"]   = thumbnail
+            model["images"]      = images
+            model["formats"]     = list(exts)
+            model["description"] = card_data.get("description", "") or ""
         return {"items": data, "hasMore": len(data) == limit, "nextPage": p + 1}
 
     async def get_model_files(self, repo_id: str) -> list[dict]:
@@ -68,6 +76,20 @@ class HuggingFaceProvider(ModelProvider):
                     "url": f"{_BASE}/{repo_id}/resolve/main/{name}",
                 })
         return result
+
+    async def get_readme(self, repo_id: str) -> str:
+        """Fetches README.md and returns its body with YAML front matter stripped."""
+        url = f"{_BASE}/{repo_id}/resolve/main/README.md"
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+            resp = await client.get(url, headers=self.auth_headers())
+            if resp.status_code != 200:
+                return ""
+            text = resp.text
+        if text.startswith("---"):
+            end = text.find("\n---", 3)
+            if end != -1:
+                text = text[end + 4:].lstrip("\n")
+        return text.strip()
 
     async def resolve_direct_link(self, repo_id: str) -> dict:
         """Returns preview image URLs for a HuggingFace repo for direct link preview."""

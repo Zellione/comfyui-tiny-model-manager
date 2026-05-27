@@ -142,7 +142,9 @@ export class Models implements OnInit {
   hasActiveFilters = computed(() =>
     !!this.baseModelFilter() || !!this.formatFilter() || !!this.sourceFilter() || this.tagFilter().length > 0
   );
-  hasAnyModels = computed(() => Object.keys(this.modelsByType()).length > 0);
+  hasAnyModels     = computed(() => Object.keys(this.modelsByType()).length > 0);
+  hasAnySelected   = computed(() => this.selected().size > 0);
+  totalSelected    = computed(() => this.selected().size);
 
   constructor(private modelService: ModelService, private workflowService: WorkflowService) {}
 
@@ -260,6 +262,30 @@ export class Models implements OnInit {
     if (!files.length) return;
     if (!confirm(`Delete ${files.length} model(s)?`)) return;
     forkJoin(files.map(f => this.modelService.deleteModel(type, f))).subscribe({
+      next: () => this.load(),
+      error: err => alert('Delete failed: ' + (err as Error).message),
+    });
+  }
+
+  clearSelection() {
+    this.selected.set(new Set());
+  }
+
+  deleteAllSelected() {
+    const byType: Record<string, string[]> = {};
+    for (const key of this.selected()) {
+      const sep = key.indexOf('::');
+      const type = key.slice(0, sep);
+      const filename = key.slice(sep + 2);
+      if (!byType[type]) byType[type] = [];
+      byType[type].push(filename);
+    }
+    const total = this.selected().size;
+    if (!confirm(`Delete ${total} model(s)?`)) return;
+    const deletes = Object.entries(byType).flatMap(([type, files]) =>
+      files.map(f => this.modelService.deleteModel(type, f))
+    );
+    forkJoin(deletes).subscribe({
       next: () => this.load(),
       error: err => alert('Delete failed: ' + (err as Error).message),
     });

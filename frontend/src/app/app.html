@@ -1,8 +1,18 @@
-<nav class="navbar">
-  <span class="brand">Tiny Model Manager</span>
-  <a routerLink="/models" routerLinkActive="active">Models</a>
-  <a routerLink="/download" routerLinkActive="active">Download</a>
-</nav>
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">τ</div>
+    <div class="brand-name">Tiny Model Manager</div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <a class="tab" routerLink="/models" routerLinkActive="active">Models</a>
+    <a class="tab" routerLink="/download" routerLinkActive="active">Download</a>
+  </nav>
+  <div class="topbar-right">
+    <button class="icon-btn" (click)="toggleTheme()" [title]="isDark() ? 'Switch to light mode' : 'Switch to dark mode'">
+      {{ isDark() ? '☀' : '☾' }}
+    </button>
+  </div>
+</header>
 <main>
   <router-outlet />
 </main>
