@@ -483,11 +483,15 @@ Rework the search-results area into a master–detail layout.
   - **Inner right** — version + file picker with batch-download checkboxes and a link to the
     model on its source platform
 - The detail pane header (title, badges, source link, stats) spans both inner columns
-- HuggingFace inner left shows: tags chips; inner right shows: files list (auto-fetched)
+- HuggingFace inner left shows: gallery images sourced from the repo's root image siblings
+  (`.jpg`, `.png`, `.webp`, `.gif`) when available, plus tags chips; inner right shows: files
+  list (auto-fetched); README description is loaded lazily and displayed full-width below the body
+- Tags, trigger words (CivitAI), and description are placed full-width below the two-column body;
+  the versions/files column is height-capped to the gallery height (320 px) with internal scroll
 - The **image/video gallery** shows a large main view with a scrollable thumbnail strip below;
   clicking a thumbnail promotes it to the main view; video items (`.mp4`, `.webm`, `.mov`)
   render in a `<video controls>` element in the main view and show a play-icon overlay on
-  their thumbnail
+  their thumbnail; the thumbnail strip is vertical on the left of the main image
 - Clicking a row in the left list opens its detail in the right pane; gallery index resets
 - The first result is selected by default (auto-select after every new search)
 - **"Load more"** button lives at the bottom of the left list pane
