@@ -369,10 +369,9 @@
         <!-- Inner two-column body -->
         <div class="detail-body">
 
-          <!-- Left: gallery + info -->
+          <!-- Left: gallery only -->
           <div class="detail-media">
 
-            <!-- Image / video gallery -->
             @if (civitaiGalleryImages(model).length > 0) {
               <div class="gallery">
                 @if (civitaiGalleryImages(model).length > 1) {
@@ -396,35 +395,6 @@
                   }
                 </div>
               </div>
-            }
-
-            <!-- Tags -->
-            @if ((model.tags ?? []).length > 0) {
-              <div class="chip-section">
-                <span class="chip-label">Tags</span>
-                <div class="chip-list">
-                  @for (tag of model.tags ?? []; track tag) {
-                    <span class="tag-chip">{{ tag }}</span>
-                  }
-                </div>
-              </div>
-            }
-
-            <!-- Trigger words -->
-            @if (civitaiTriggerWords(model).length > 0) {
-              <div class="chip-section">
-                <span class="chip-label">Trigger words</span>
-                <div class="chip-list">
-                  @for (w of civitaiTriggerWords(model); track w) {
-                    <span class="trigger-chip">{{ w }}</span>
-                  }
-                </div>
-              </div>
-            }
-
-            <!-- Description -->
-            @if (model.description) {
-              <div class="detail-desc" [innerHTML]="model.description"></div>
             }
 
           </div><!-- /detail-media -->
@@ -479,6 +449,34 @@
           </div><!-- /detail-downloads -->
 
         </div><!-- /detail-body -->
+
+        <!-- Full-width: tags, trigger words, description -->
+        @if ((model.tags ?? []).length > 0) {
+          <div class="chip-section">
+            <span class="chip-label">Tags</span>
+            <div class="chip-list">
+              @for (tag of model.tags ?? []; track tag) {
+                <span class="tag-chip">{{ tag }}</span>
+              }
+            </div>
+          </div>
+        }
+
+        @if (civitaiTriggerWords(model).length > 0) {
+          <div class="chip-section">
+            <span class="chip-label">Trigger words</span>
+            <div class="chip-list">
+              @for (w of civitaiTriggerWords(model); track w) {
+                <span class="trigger-chip">{{ w }}</span>
+              }
+            </div>
+          </div>
+        }
+
+        @if (model.description) {
+          <div class="detail-desc" [innerHTML]="model.description"></div>
+        }
+
       }
 
       <!-- HuggingFace detail -->
@@ -502,19 +500,8 @@
         <!-- Inner two-column body -->
         <div class="detail-body">
 
-          <!-- Left: tags -->
-          <div class="detail-media">
-            @if (model.tags.length > 0) {
-              <div class="chip-section">
-                <span class="chip-label">Tags</span>
-                <div class="chip-list">
-                  @for (tag of model.tags; track tag) {
-                    <span class="tag-chip">{{ tag }}</span>
-                  }
-                </div>
-              </div>
-            }
-          </div><!-- /detail-media -->
+          <!-- Left: empty (tags moved below) -->
+          <div class="detail-media"></div><!-- /detail-media -->
 
           <!-- Right: files list -->
           <div class="detail-downloads">
@@ -552,6 +539,18 @@
           </div><!-- /detail-downloads -->
 
         </div><!-- /detail-body -->
+
+        @if (model.tags.length > 0) {
+          <div class="chip-section">
+            <span class="chip-label">Tags</span>
+            <div class="chip-list">
+              @for (tag of model.tags; track tag) {
+                <span class="tag-chip">{{ tag }}</span>
+              }
+            </div>
+          </div>
+        }
+
       }
 
     </div><!-- /detail-pane -->
