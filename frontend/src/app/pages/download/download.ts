@@ -487,7 +487,6 @@ export class Download {
     this.selectedHfRepoId.set(repoId);
     this.hfFiles.set([]);
     this.hfDescription.set('');
-    this.hfDescriptionLoading.set(true);
     this.selectedHfFiles.set(new Set());
     this.hfService.getFiles(repoId).subscribe({
       next: files => {
@@ -495,14 +494,19 @@ export class Download {
         this.hfFiles.set(files);
       },
     });
-    this.hfService.getReadme(repoId).subscribe({
-      next: desc => {
-        if (this.selectedHfRepoId() !== repoId) return;
-        this.hfDescription.set(desc);
-        this.hfDescriptionLoading.set(false);
-      },
-      error: () => { this.hfDescriptionLoading.set(false); },
-    });
+    if (model.description) {
+      this.hfDescription.set(model.description);
+    } else {
+      this.hfDescriptionLoading.set(true);
+      this.hfService.getReadme(repoId).subscribe({
+        next: desc => {
+          if (this.selectedHfRepoId() !== repoId) return;
+          this.hfDescription.set(desc);
+          this.hfDescriptionLoading.set(false);
+        },
+        error: () => { this.hfDescriptionLoading.set(false); },
+      });
+    }
   }
 
   toggleHfFile(filename: string) {

@@ -80,7 +80,7 @@ class HuggingFaceProvider(ModelProvider):
     async def get_readme(self, repo_id: str) -> str:
         """Fetches README.md and returns its body with YAML front matter stripped."""
         url = f"{_BASE}/{repo_id}/resolve/main/README.md"
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
             resp = await client.get(url, headers=self.auth_headers())
             if resp.status_code != 200:
                 return ""

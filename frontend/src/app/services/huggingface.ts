@@ -11,6 +11,7 @@ export interface HfModel {
   thumbnail?: string;
   formats?: string[];
   images?: string[];
+  description?: string;
 }
 
 export interface HfSearchResult {
