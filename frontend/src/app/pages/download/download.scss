@@ -271,7 +271,7 @@
 
 .detail-body {
   display: grid;
-  grid-template-columns: 1fr 720px;
+  grid-template-columns: 1fr 580px;
   gap: 1rem;
   align-items: start;
 
@@ -346,16 +346,19 @@
 // ── Gallery ───────────────────────────────────────────────────────────────────
 
 .gallery {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
   margin-bottom: 1rem;
+  align-items: flex-start;
 }
 
 .gallery-main {
-  width: 100%;
+  flex: 1;
   height: 320px;
   background: var(--bg-2);
   border-radius: var(--radius-sm);
   overflow: hidden;
-  margin-bottom: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -370,19 +373,23 @@
 
 .gallery-thumbs {
   display: flex;
+  flex-direction: column;
   gap: 0.4rem;
-  overflow-x: auto;
-  padding-bottom: 0.25rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 320px;
+  padding-right: 2px;
 
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
-  &::-webkit-scrollbar { height: 4px; }
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
   &::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
 }
 
 .gallery-thumb {
-  width: 72px;
-  height: 52px;
+  width: 58px;
+  height: 80px;
   flex-shrink: 0;
   border-radius: var(--radius-sm);
   overflow: hidden;

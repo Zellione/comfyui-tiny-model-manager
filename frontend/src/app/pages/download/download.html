@@ -375,13 +375,6 @@
             <!-- Image / video gallery -->
             @if (civitaiGalleryImages(model).length > 0) {
               <div class="gallery">
-                <div class="gallery-main">
-                  @if (isVideo(currentGalleryUrl(model))) {
-                    <video [src]="currentGalleryUrl(model)" controls loop muted autoplay></video>
-                  } @else {
-                    <img [src]="currentGalleryUrl(model)" alt="" (error)="onImgError($event)" />
-                  }
-                </div>
                 @if (civitaiGalleryImages(model).length > 1) {
                   <div class="gallery-thumbs">
                     @for (url of civitaiGalleryImages(model); track url; let i = $index) {
@@ -395,6 +388,13 @@
                     }
                   </div>
                 }
+                <div class="gallery-main">
+                  @if (isVideo(currentGalleryUrl(model))) {
+                    <video [src]="currentGalleryUrl(model)" controls loop muted autoplay></video>
+                  } @else {
+                    <img [src]="currentGalleryUrl(model)" alt="" (error)="onImgError($event)" />
+                  }
+                </div>
               </div>
             }
 
