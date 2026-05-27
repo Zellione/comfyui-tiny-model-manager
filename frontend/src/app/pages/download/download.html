@@ -500,8 +500,33 @@
         <!-- Inner two-column body -->
         <div class="detail-body">
 
-          <!-- Left: empty (tags moved below) -->
-          <div class="detail-media"></div><!-- /detail-media -->
+          <!-- Left: gallery -->
+          <div class="detail-media">
+            @if (hfGalleryImages(model).length > 0) {
+              <div class="gallery">
+                @if (hfGalleryImages(model).length > 1) {
+                  <div class="gallery-thumbs">
+                    @for (url of hfGalleryImages(model); track url; let i = $index) {
+                      <div class="gallery-thumb" [class.active]="galleryIndex() === i" (click)="setGalleryIndex(i)">
+                        @if (isVideo(url)) {
+                          <span class="video-icon">▶</span>
+                        } @else {
+                          <img [src]="url" alt="" loading="lazy" (error)="onImgError($event)" />
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+                <div class="gallery-main">
+                  @if (isVideo(currentHfGalleryUrl(model))) {
+                    <video [src]="currentHfGalleryUrl(model)" controls loop muted autoplay></video>
+                  } @else {
+                    <img [src]="currentHfGalleryUrl(model)" alt="" (error)="onImgError($event)" />
+                  }
+                </div>
+              </div>
+            }
+          </div><!-- /detail-media -->
 
           <!-- Right: files list -->
           <div class="detail-downloads">
@@ -549,6 +574,10 @@
               }
             </div>
           </div>
+        }
+
+        @if (model.description) {
+          <div class="detail-desc">{{ model.description }}</div>
         }
 
       }

@@ -39,16 +39,24 @@ class HuggingFaceProvider(ModelProvider):
         for model in data:
             repo_id = model.get("modelId") or model.get("id", "")
             thumbnail = ""
+            images: list[str] = []
             exts: set[str] = set()
             for sibling in model.get("siblings", []):
                 name = sibling.get("rfilename", "")
                 ext = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
-                if ext in IMAGE_EXTENSIONS and "/" not in name and not thumbnail:
-                    thumbnail = f"{_BASE}/{repo_id}/resolve/main/{name}"
+                if ext in IMAGE_EXTENSIONS and "/" not in name:
+                    url = f"{_BASE}/{repo_id}/resolve/main/{name}"
+                    if not thumbnail:
+                        thumbnail = url
+                    if len(images) < 8:
+                        images.append(url)
                 if ext in MODEL_EXTENSIONS:
                     exts.add(ext)
-            model["thumbnail"] = thumbnail
-            model["formats"] = list(exts)
+            card_data = model.get("cardData") or {}
+            model["thumbnail"]   = thumbnail
+            model["images"]      = images
+            model["formats"]     = list(exts)
+            model["description"] = card_data.get("description", "") or ""
         return {"items": data, "hasMore": len(data) == limit, "nextPage": p + 1}
 
     async def get_model_files(self, repo_id: str) -> list[dict]:

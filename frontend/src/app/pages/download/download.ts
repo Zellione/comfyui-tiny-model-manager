@@ -558,6 +558,14 @@ export class Download {
     return model.modelVersions?.[0]?.baseModel ?? '';
   }
 
+  hfGalleryImages(model: HfModel): string[] {
+    return model.images ?? [];
+  }
+
+  currentHfGalleryUrl(model: HfModel): string {
+    return this.hfGalleryImages(model)[this.galleryIndex()] ?? '';
+  }
+
   civitaiTriggerWords(model: CivitaiModel): string[] {
     return model.modelVersions?.[0]?.trainedWords ?? [];
   }

@@ -10,6 +10,8 @@ export interface HfModel {
   tags: string[];
   thumbnail?: string;
   formats?: string[];
+  images?: string[];
+  description?: string;
 }
 
 export interface HfSearchResult {
