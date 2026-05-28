@@ -6,6 +6,26 @@ Goal: Dashboard to manage Models/LORAs and custom nodes to insert them with thei
 ### Frontend
 - Angular 21.2 (zoneless, no Zone.js)
 
+#### Build
+ComfyUI serves the compiled output in `web/` (git-ignored). Any change to `frontend/` or `js/`
+requires a rebuild before it takes effect. Run from the `frontend/` directory:
+
+```
+# once, or after changing package.json dependencies
+npm install
+
+# production build → outputs to ../web/  (default configuration is production)
+npx ng build
+
+# auto-rebuild during active development
+npx ng build --watch --configuration development
+```
+
+The `js/` ComfyUI extension folder is copied into `web/` as a build asset — it is bundled by
+the same `ng build` call and must not be deployed separately.
+
+The Python backend (`py/`) needs no build step; changes take effect after restarting ComfyUI.
+
 ### Backend
 - Python 3.13.12
 - ComfyUI python_embedded can be found at ../../../python_embeded/
