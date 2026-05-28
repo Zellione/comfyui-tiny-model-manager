@@ -1,7 +1,6 @@
 <a routerLink="/models" class="back">← Back to Models</a>
 
 <h2>{{ modelPath }}</h2>
-<p class="type-badge"><span class="badge">{{ modelType }}</span></p>
 
 @if (loading()) {
   <p>Loading metadata…</p>
@@ -35,6 +34,13 @@
       <label>
         <span>Description</span>
         <textarea [(ngModel)]="editMeta.description" rows="6"></textarea>
+      </label>
+
+      <label>
+        <span>Model Type</span>
+        <select [(ngModel)]="editType">
+          @for (t of modelTypes(); track t) { <option [value]="t">{{ t }}</option> }
+        </select>
       </label>
 
       <label>
