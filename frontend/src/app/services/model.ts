@@ -59,4 +59,14 @@ export class ModelService {
       .post<{ success: boolean; data: ModelMeta }>(`${API}/models/${modelType}/${path}/refetch`, {})
       .pipe(map(r => r.data));
   }
+
+  getModelTypes(): Observable<string[]> {
+    return this.http
+      .get<{ success: boolean; data: string[] }>(`${API}/model-types`)
+      .pipe(map(r => r.data));
+  }
+
+  moveModel(modelType: string, path: string, newType: string): Observable<void> {
+    return this.http.post<void>(`${API}/models/${modelType}/${path}/move`, { new_type: newType });
+  }
 }

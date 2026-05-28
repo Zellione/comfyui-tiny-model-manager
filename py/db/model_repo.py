@@ -187,6 +187,14 @@ async def update_model_meta(
         await db.commit()
 
 
+async def update_model_type(filename: str, new_type: str):
+    async with get_db() as db:
+        await db.execute(
+            "UPDATE models SET model_type = ? WHERE filename = ?", (new_type, filename)
+        )
+        await db.commit()
+
+
 async def get_model_source_info(filename: str) -> dict | None:
     async with get_db() as db:
         row = await (await db.execute(

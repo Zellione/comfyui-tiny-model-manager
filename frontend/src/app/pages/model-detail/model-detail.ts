@@ -1,7 +1,9 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { of } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
 import { ModelService, ModelMeta } from '../../services/model';
 import { WorkflowService } from '../../services/workflow';
 
@@ -14,6 +16,8 @@ import { WorkflowService } from '../../services/workflow';
 export class ModelDetail implements OnInit {
   modelType = '';
   modelPath = '';
+  editType = '';
+  modelTypes = signal<string[]>([]);
   meta = signal<ModelMeta | null>(null);
   editMeta: Partial<ModelMeta> = {};
   newTriggerWord = '';
@@ -26,6 +30,7 @@ export class ModelDetail implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private modelService: ModelService,
     private workflowService: WorkflowService,
   ) {}
@@ -33,6 +38,8 @@ export class ModelDetail implements OnInit {
   ngOnInit() {
     this.modelType = this.route.snapshot.paramMap.get('type') ?? '';
     this.modelPath = this.route.snapshot.paramMap.get('path') ?? '';
+    this.editType = this.modelType;
+    this.modelService.getModelTypes().subscribe(types => this.modelTypes.set(types));
     this.loadMeta();
   }
 
@@ -42,6 +49,7 @@ export class ModelDetail implements OnInit {
       next: m => {
         this.meta.set(m);
         this.editMeta = { description: m.description, trigger_words: [...m.trigger_words], tags: [...m.tags], base_model: m.base_model ?? '' };
+        this.editType = this.modelType;
         this.loading.set(false);
       },
       error: err => {
@@ -76,8 +84,24 @@ export class ModelDetail implements OnInit {
   save() {
     this.saving.set(true);
     this.saved.set(false);
-    this.modelService.updateMetadata(this.modelType, this.modelPath, this.editMeta).subscribe({
-      next: () => { this.saving.set(false); this.saved.set(true); },
+    this.error.set('');
+    const typeChanged = !!this.editType && this.editType !== this.modelType;
+    const move$ = typeChanged
+      ? this.modelService.moveModel(this.modelType, this.modelPath, this.editType)
+      : of(undefined as void);
+    move$.pipe(
+      switchMap(() => {
+        if (typeChanged) this.modelType = this.editType;
+        return this.modelService.updateMetadata(this.modelType, this.modelPath, this.editMeta);
+      })
+    ).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.saved.set(true);
+        if (typeChanged) {
+          this.router.navigate(['/models', this.modelType, this.modelPath]);
+        }
+      },
       error: err => { this.saving.set(false); this.error.set((err as Error).message); },
     });
   }
@@ -89,6 +113,7 @@ export class ModelDetail implements OnInit {
       next: m => {
         this.meta.set(m);
         this.editMeta = { description: m.description, trigger_words: [...m.trigger_words], tags: [...m.tags], base_model: m.base_model ?? '' };
+        this.editType = this.modelType;
         this.refetching.set(false);
       },
       error: err => { this.error.set((err as Error).message); this.refetching.set(false); },
