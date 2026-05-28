@@ -105,12 +105,19 @@ def add_model_routes(routes):
                     or not dest_dir.startswith(os.path.normpath(models_dir) + os.sep)):
                 return web.json_response({"success": False, "error": "Unknown model type"}, status=400)
 
-            # Locate source file (same pattern as delete_model, with traversal guard)
+            # Locate source file. The type dropdown and the move destination both use
+            # physical folder names under models_dir, but some physical folders (e.g.
+            # "clip") are not registered folder_paths keys. Search the physical folder
+            # first, then any registered dirs for the type, so a model previously moved
+            # into a physical-only folder can still be relocated.
             src = None
-            src_dirs, _ = folder_paths.folder_names_and_paths.get(model_type, ([], set()))
+            src_dirs = [os.path.join(models_dir, model_type)]
+            registered, _ = folder_paths.folder_names_and_paths.get(model_type, ([], set()))
+            src_dirs.extend(registered)
             for base_dir in src_dirs:
+                base_norm = os.path.normpath(base_dir)
                 candidate = os.path.normpath(os.path.join(base_dir, rel_path))
-                if not candidate.startswith(os.path.normpath(base_dir)):
+                if not candidate.startswith(base_norm + os.sep):
                     continue
                 if os.path.isfile(candidate):
                     src = candidate
