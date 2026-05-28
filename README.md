@@ -50,8 +50,8 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 | F-26 | Mark already-installed models in download view — live button states: "Downloading…" while in progress, "In library" on success, retry on error | Done |
 | F-27 | Hashed media folder names — store preview images under a deterministic hash to avoid basename collisions | Done |
 | F-28 | Side-by-Side Download View — master–detail layout, vertical gallery with thumbnail strip, batch-download checkboxes, HuggingFace gallery + README description, responsive | Done |
-| F-29 | Hide base-model filter for HuggingFace — filter not available on HF, so omit it | TODO |
-| F-30 | Choose model type before HuggingFace download — user selects folder type since HF cannot auto-detect it | TODO |
+| F-29 | Hide model-type dropdown on HuggingFace search — no-op there (every type maps to text-to-image); base-model filter already hidden | Done |
+| F-30 | Choose model type before HuggingFace download — per-file model-type dropdown in front of each Download button (search results + paste-a-link repo) | Done |
 | F-31 | Editable model type — change folder type in detail page, moves file on disk | TODO |
 | F-32 | First-class metadata fields — base model stored as its own column, never as a tag | TODO |
 | F-33 | Model type selectable for every model — override folder type for any download, including CivitAI auto-detected | TODO |
