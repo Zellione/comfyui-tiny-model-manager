@@ -281,13 +281,17 @@ export class Download {
   }
 
   fileStatus(filename: string): 'idle' | 'downloading' | 'installed' | 'error' {
-    const task = this.activeTasks().find(t => t.filename === filename);
+    // HuggingFace files may have a subfolder prefix in their listed name (e.g.
+    // "split_files/model.safetensors"). The downloader strips this to the basename
+    // before saving, so we match on the basename here for correct status resolution.
+    const base = filename.split('/').pop() ?? filename;
+    const task = this.activeTasks().find(t => t.filename === base);
     if (task) {
       if (task.status === 'done') return 'installed';
       if (task.status === 'error') return 'error';
       return 'downloading';
     }
-    return this.installedFilenames().has(filename) ? 'installed' : 'idle';
+    return this.installedFilenames().has(base) ? 'installed' : 'idle';
   }
 
   onPasteUrlChange(url: string) {
