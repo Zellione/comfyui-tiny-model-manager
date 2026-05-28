@@ -61,6 +61,10 @@ def enqueue(
     source_id: str = "",
     on_complete: Optional[Callable[[DownloadTask], Awaitable[None]]] = None,
 ) -> DownloadTask:
+    # Strip subfolder prefixes from HuggingFace filenames (e.g. "split_files/model.safetensors"
+    # → "model.safetensors"). The download URL is a separate field and remains untouched.
+    if platform == "huggingface":
+        filename = os.path.basename(filename)
     task = DownloadTask(
         id=str(uuid.uuid4()),
         url=url,
