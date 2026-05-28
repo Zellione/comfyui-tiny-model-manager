@@ -78,7 +78,14 @@ def add_model_routes(routes):
     @routes.get("/tiny-model-manager/api/model-types")
     async def list_model_types(request):
         try:
-            types = [t for t in folder_paths.folder_names_and_paths.keys() if t != "configs"]
+            models_dir = folder_paths.models_dir
+            types = []
+            if os.path.isdir(models_dir):
+                for name in os.listdir(models_dir):
+                    if name == "configs":
+                        continue
+                    if os.path.isdir(os.path.join(models_dir, name)):
+                        types.append(name)
             return web.json_response({"success": True, "data": sorted(types)})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
@@ -90,10 +97,13 @@ def add_model_routes(routes):
         try:
             body = await request.json()
             new_type = body.get("new_type", "")
-            if new_type not in folder_paths.folder_names_and_paths or new_type == "configs":
+
+            # Validate new_type as a safe physical folder name under models_dir
+            models_dir = folder_paths.models_dir
+            dest_dir = os.path.normpath(os.path.join(models_dir, new_type))
+            if (not new_type or new_type in ("configs", "custom_nodes")
+                    or not dest_dir.startswith(os.path.normpath(models_dir) + os.sep)):
                 return web.json_response({"success": False, "error": "Unknown model type"}, status=400)
-            if new_type == model_type:
-                return web.json_response({"success": True})  # no-op
 
             # Locate source file (same pattern as delete_model, with traversal guard)
             src = None
@@ -108,11 +118,12 @@ def add_model_routes(routes):
             if not src:
                 return web.json_response({"success": False, "error": "File not found"}, status=404)
 
-            # Resolve destination (first registered dir for new_type)
-            dest_dir = folder_paths.get_folder_paths(new_type)[0]
+            # Destination is the literal models/<new_type> folder
             dest = os.path.normpath(os.path.join(dest_dir, rel_path))
-            if not dest.startswith(os.path.normpath(dest_dir)):
+            if not dest.startswith(dest_dir + os.sep):
                 return web.json_response({"success": False, "error": "Invalid destination path"}, status=400)
+            if os.path.normpath(src) == dest:
+                return web.json_response({"success": True})  # already in target folder
             if os.path.exists(dest):
                 return web.json_response({"success": False, "error": "Target file already exists"}, status=409)
 
