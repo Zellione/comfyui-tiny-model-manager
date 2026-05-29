@@ -46,9 +46,7 @@ npx prettier --check "src/**/*.ts" "src/**/*.html" "src/**/*.scss"
 ---
 
 ### Backend
-- Python 3.13.12
-- ComfyUI python_embedded can be found at ../../../python_embeded/
-- pip need to be called with python.exe -m pip
+- Python 3.12+ (Windows ships 3.13.12 via python_embeded; Linux venv version depends on system install)
 - Persistence through SQLite files in a subfolder folder
 - Huggingface.co API (consult documentation: https://huggingface.co/.well-known/openapi.md)
 - CivitAI API (consult documentation: https://developer.civitai.com/site/reference/)
@@ -59,9 +57,11 @@ For further information you can Check the official documentation https://docs.co
 
 **MANDATORY — run before every commit. All checks must be clean with zero failures.**
 
-Run from the project root using the embedded interpreter:
+Run from the project root.
 
-```
+##### Windows (python_embeded)
+
+```powershell
 # Unit + integration tests (pytest, 147 tests)
 # PYTHONSAFEPATH prevents Python from prepending CWD to sys.path, which is
 # required so pytest's own `import py` resolves to the installed py library
@@ -76,8 +76,26 @@ $env:PYTHONSAFEPATH = '1'; ..\..\..\python_embeded\python.exe -m pytest
 ```
 
 Dev dependencies are in `requirements-dev.txt`; install once with:
-```
+```powershell
 ..\..\..\python_embeded\python.exe -m pip install -r requirements-dev.txt
+```
+
+##### Linux (comfy-cli venv)
+
+```bash
+# Unit + integration tests
+PYTHONSAFEPATH=1 ../../../comfy-env/bin/python -m pytest
+
+# Ruff lint (E/F/I/UP/B rules — 0 errors required)
+../../../comfy-env/bin/python -m ruff check py tests conftest.py
+
+# Ruff format check
+../../../comfy-env/bin/python -m ruff format --check py tests conftest.py
+```
+
+Dev dependencies are in `requirements-dev.txt`; install once with:
+```bash
+../../../comfy-env/bin/python -m pip install -r requirements-dev.txt
 ```
 
 ---
