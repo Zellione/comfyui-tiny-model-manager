@@ -1,5 +1,4 @@
 <div class="page">
-
   <div class="page-head">
     <div>
       <h1 class="page-title">Installed Models</h1>
@@ -14,14 +13,24 @@
       <!-- Search / tag filter -->
       <div class="search-wrap">
         <div class="search-input">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-            <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
           </svg>
-          <input type="text"
-                 placeholder="Filter by tag…"
-                 [value]="tagInput()"
-                 (input)="tagInput.set($any($event.target).value)"
-                 (keydown.enter)="addTagFromInput()" />
+          <input
+            type="text"
+            placeholder="Filter by tag…"
+            [value]="tagInput()"
+            (input)="tagInput.set($any($event.target).value)"
+            (keydown.enter)="addTagFromInput()"
+          />
         </div>
         @if (tagSuggestions().length > 0) {
           <div class="tag-suggestions">
@@ -43,7 +52,10 @@
       <!-- Filter chips -->
       <div class="filter">
         <span class="filter-label">Base</span>
-        <select [value]="baseModelFilter()" (change)="baseModelFilter.set($any($event.target).value)">
+        <select
+          [value]="baseModelFilter()"
+          (change)="baseModelFilter.set($any($event.target).value)"
+        >
           <option value="">All</option>
           <option value="__unknown__">Unknown</option>
           @for (bm of availableBaseModels(); track bm) {
@@ -83,9 +95,7 @@
         <span class="filter-chev">▾</span>
       </div>
 
-      <button class="btn-clear"
-              [disabled]="!hasActiveFilters()"
-              (click)="clearAllFilters()">
+      <button class="btn-clear" [disabled]="!hasActiveFilters()" (click)="clearAllFilters()">
         Reset
       </button>
     </div>
@@ -105,7 +115,6 @@
   } @else {
     @for (type of filteredTypeKeys(); track type) {
       <section class="type-section">
-
         <div class="section-head">
           <h2>{{ type }}</h2>
           <span class="section-count">{{ filteredModelsByType()[type].length }}</span>
@@ -120,7 +129,6 @@
         <div class="card-grid">
           @for (file of filteredModelsByType()[type]; track file.filename) {
             <div class="model-card" [class.selected]="isSelected(type, file.filename)">
-
               <!-- Media with overlays -->
               <div class="card-media">
                 <a [routerLink]="['/models', type, file.filename]" class="thumb-link">
@@ -129,11 +137,22 @@
                     <img class="thumb" [src]="thumbnailUrl(file.metadata)!" alt="" loading="lazy" />
                   }
                 </a>
-                <div class="card-check"
-                     [attr.data-checked]="isSelected(type, file.filename)"
-                     (click)="toggleSelect(type, file.filename)">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m5 12 4.5 4.5L19 7"/>
+                <div
+                  class="card-check"
+                  [attr.data-checked]="isSelected(type, file.filename)"
+                  (click)="toggleSelect(type, file.filename)"
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="m5 12 4.5 4.5L19 7" />
                   </svg>
                 </div>
                 @if (file.metadata?.source_platform) {
@@ -155,64 +174,123 @@
                 </div>
 
                 <div class="tags">
-                  @for (t of (file.metadata?.tags ?? []); track t; let i = $index) {
+                  @for (t of file.metadata?.tags ?? []; track t; let i = $index) {
                     @if (i < 2) {
                       <span class="tag" [class.accent]="i === 0">{{ t }}</span>
                     }
                   }
-                  @for (w of (file.metadata?.trigger_words ?? []); track w; let i = $index) {
+                  @for (w of file.metadata?.trigger_words ?? []; track w; let i = $index) {
                     @if (i < 2) {
                       <span class="tag trigger">{{ w }}</span>
                     }
                   }
-                  @if ((file.metadata?.tags?.length ?? 0) + (file.metadata?.trigger_words?.length ?? 0) > 4) {
-                    <span class="tag more">+{{ (file.metadata?.tags?.length ?? 0) + (file.metadata?.trigger_words?.length ?? 0) - 4 }}</span>
+                  @if (
+                    (file.metadata?.tags?.length ?? 0) +
+                      (file.metadata?.trigger_words?.length ?? 0) >
+                    4
+                  ) {
+                    <span class="tag more"
+                      >+{{
+                        (file.metadata?.tags?.length ?? 0) +
+                          (file.metadata?.trigger_words?.length ?? 0) -
+                          4
+                      }}</span
+                    >
                   }
                 </div>
 
                 <!-- Action footer -->
                 <div class="card-actions">
-                  <button class="card-action"
-                          [class.workflow-active]="isQueuedForWorkflow(file.filename)"
-                          (click)="addToWorkflow(type, file.filename)"
-                          title="Add to workflow">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M12 5v14"/><path d="M5 12h14"/>
+                  <button
+                    class="card-action"
+                    [class.workflow-active]="isQueuedForWorkflow(file.filename)"
+                    (click)="addToWorkflow(type, file.filename)"
+                    title="Add to workflow"
+                  >
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.75"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M12 5v14" />
+                      <path d="M5 12h14" />
                     </svg>
                   </button>
-                  <a class="card-action" [routerLink]="['/models', type, file.filename]" title="View details">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/>
+                  <a
+                    class="card-action"
+                    [routerLink]="['/models', type, file.filename]"
+                    title="View details"
+                  >
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.75"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M12 8h.01M11 12h1v4h1" />
                     </svg>
                   </a>
-                  <button class="card-action danger" (click)="deleteModel(type, file)" title="Delete">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/>
-                      <path d="M19 6 18 20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/>
+                  <button
+                    class="card-action danger"
+                    (click)="deleteModel(type, file)"
+                    title="Delete"
+                  >
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.75"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M3 6h18" />
+                      <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+                      <path d="M19 6 18 20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6" />
                     </svg>
                   </button>
                 </div>
               </div>
-
             </div>
           }
         </div>
-
       </section>
     }
   }
-
 </div>
 
 <!-- Sticky bulk-action bar -->
 @if (hasAnySelected()) {
   <div class="selection-bar">
-    <span class="sel-count"><strong>{{ totalSelected() }}</strong> selected</span>
+    <span class="sel-count"
+      ><strong>{{ totalSelected() }}</strong> selected</span
+    >
     <button class="btn-secondary btn-small" (click)="clearSelection()">Clear</button>
     <button class="btn-danger btn-small" (click)="deleteAllSelected()">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/>
-        <path d="M19 6 18 20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/>
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M3 6h18" />
+        <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+        <path d="M19 6 18 20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6" />
       </svg>
       Delete selected
     </button>

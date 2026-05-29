@@ -52,8 +52,15 @@ const API = '/tiny-model-manager/api';
 export class CivitaiService {
   constructor(private http: HttpClient) {}
 
-  search(q: string, type = '', page = 1, cursor = '',
-         baseModel = '', sort = '', period = ''): Observable<{ items: CivitaiModel[]; metadata: any }> {
+  search(
+    q: string,
+    type = '',
+    page = 1,
+    cursor = '',
+    baseModel = '',
+    sort = '',
+    period = '',
+  ): Observable<{ items: CivitaiModel[]; metadata: any }> {
     const params: Record<string, string | number> = { q, type };
     if (q && cursor) {
       params['cursor'] = cursor;
@@ -67,18 +74,18 @@ export class CivitaiService {
     }
     return this.http
       .get<{ success: boolean; data: any }>(`${API}/search/civitai`, { params })
-      .pipe(map(r => ({ items: r.data.items ?? [], metadata: r.data.metadata ?? {} })));
+      .pipe(map((r) => ({ items: r.data.items ?? [], metadata: r.data.metadata ?? {} })));
   }
 
   getVersions(modelId: number): Observable<CivitaiVersionsResult> {
     return this.http
       .get<{ success: boolean; data: CivitaiVersionsResult }>(`${API}/civitai/versions/${modelId}`)
-      .pipe(map(r => r.data));
+      .pipe(map((r) => r.data));
   }
 
   resolveDirectLink(versionId: number): Observable<CivitaiDirectLinkInfo> {
     return this.http
       .get<{ success: boolean; data: CivitaiDirectLinkInfo }>(`${API}/civitai/resolve/${versionId}`)
-      .pipe(map(r => r.data));
+      .pipe(map((r) => r.data));
   }
 }

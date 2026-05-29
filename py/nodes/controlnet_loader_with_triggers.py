@@ -1,5 +1,5 @@
-import folder_paths
 import comfy.controlnet
+import folder_paths
 
 
 class TMMControlNetLoader:

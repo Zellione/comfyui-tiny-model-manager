@@ -1,6 +1,16 @@
-.back { color: #4f9eff; text-decoration: none; font-size: 0.85rem; display: block; margin-bottom: 1rem; }
-.type-badge { margin-bottom: 1rem; }
-.error { color: #e74c3c; }
+.back {
+  color: #4f9eff;
+  text-decoration: none;
+  font-size: 0.85rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+.type-badge {
+  margin-bottom: 1rem;
+}
+.error {
+  color: #e74c3c;
+}
 
 .detail-layout {
   display: grid;
@@ -52,9 +62,17 @@
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
-    span { font-size: 0.85rem; color: #aaa; }
-    textarea { resize: vertical; width: 100%; }
-    input[type="text"] { width: 100%; }
+    span {
+      font-size: 0.85rem;
+      color: #aaa;
+    }
+    textarea {
+      resize: vertical;
+      width: 100%;
+    }
+    input[type='text'] {
+      width: 100%;
+    }
   }
 }
 
@@ -77,11 +95,18 @@
 .source-link {
   color: #4f9eff;
   text-decoration: none;
-  &:hover { text-decoration: underline; }
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .trigger-words {
-  .label { font-size: 0.85rem; color: #aaa; display: block; margin-bottom: 0.4rem; }
+  .label {
+    font-size: 0.85rem;
+    color: #aaa;
+    display: block;
+    margin-bottom: 0.4rem;
+  }
 }
 
 .chips {
@@ -99,19 +124,40 @@
   display: flex;
   align-items: center;
   gap: 0.3rem;
-  button { background: none; color: #888; padding: 0; font-size: 0.9rem; &:hover { color: #fff; } }
+  button {
+    background: none;
+    color: #888;
+    padding: 0;
+    font-size: 0.9rem;
+    &:hover {
+      color: #fff;
+    }
+  }
 }
 
 .add-word {
   display: flex;
   gap: 0.5rem;
-  input { flex: 1; }
+  input {
+    flex: 1;
+  }
 }
 
 .tag-list {
-  .label { font-size: 0.85rem; color: #aaa; display: block; margin-bottom: 0.4rem; }
+  .label {
+    font-size: 0.85rem;
+    color: #aaa;
+    display: block;
+    margin-bottom: 0.4rem;
+  }
 }
 
-.chip-tag { background: #2a1a4a; color: #b07df7; }
+.chip-tag {
+  background: #2a1a4a;
+  color: #b07df7;
+}
 
-.msg-ok { color: #2ecc71; margin-left: 0.75rem; }
+.msg-ok {
+  color: #2ecc71;
+  margin-left: 0.75rem;
+}

@@ -5,3 +5,5 @@ web/
 !web/index.html
 __pycache__/
 *.pyc
+.pytest_cache/
+_test_models/

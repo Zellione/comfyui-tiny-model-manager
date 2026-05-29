@@ -84,9 +84,15 @@
         }
       </select>
       @switch (fileStatus(linkFilename())) {
-        @case ('installed') { <button class="btn-library">In library</button> }
-        @case ('downloading') { <button class="btn-primary" disabled>Downloading…</button> }
-        @default { <button class="btn-primary" (click)="submitDirectLink()">Download</button> }
+        @case ('installed') {
+          <button class="btn-library">In library</button>
+        }
+        @case ('downloading') {
+          <button class="btn-primary" disabled>Downloading…</button>
+        }
+        @default {
+          <button class="btn-primary" (click)="submitDirectLink()">Download</button>
+        }
       }
     </div>
   }
@@ -110,15 +116,24 @@
             <div class="version-row-bottom">
               <div class="row-format"></div>
               <small>{{ formatSize(f.size) }}</small>
-              <select [ngModel]="linkHfRowType(f.filename)" (ngModelChange)="setLinkHfRowType(f.filename, $event)">
+              <select
+                [ngModel]="linkHfRowType(f.filename)"
+                (ngModelChange)="setLinkHfRowType(f.filename, $event)"
+              >
                 @for (t of modelTypes; track t) {
                   <option [value]="t">{{ t }}</option>
                 }
               </select>
               @switch (fileStatus(f.filename)) {
-                @case ('installed') { <button class="btn-library">In library</button> }
-                @case ('downloading') { <button class="btn-primary" disabled>Downloading…</button> }
-                @default { <button class="btn-primary" (click)="downloadLinkHfFile(f)">Download</button> }
+                @case ('installed') {
+                  <button class="btn-library">In library</button>
+                }
+                @case ('downloading') {
+                  <button class="btn-primary" disabled>Downloading…</button>
+                }
+                @default {
+                  <button class="btn-primary" (click)="downloadLinkHfFile(f)">Download</button>
+                }
               }
             </div>
           </div>
@@ -161,25 +176,43 @@
           <div class="version-section">
             <div class="version-header">
               <strong>{{ v.name }}</strong>
-              @if (v.baseModel) { <span class="badge">{{ v.baseModel }}</span> }
+              @if (v.baseModel) {
+                <span class="badge">{{ v.baseModel }}</span>
+              }
             </div>
             @for (f of v.files; track f.id) {
               <div class="version-row">
                 <div class="version-row-top">
-                  <input type="checkbox" [checked]="isLinkCivitaiFileSelected(v.id, f)" (change)="toggleLinkCivitaiFile(v.id, f)" (click)="$event.stopPropagation()" />
+                  <input
+                    type="checkbox"
+                    [checked]="isLinkCivitaiFileSelected(v.id, f)"
+                    (change)="toggleLinkCivitaiFile(v.id, f)"
+                    (click)="$event.stopPropagation()"
+                  />
                   <span>{{ f.name }}</span>
                 </div>
                 <div class="version-row-bottom">
                   <div class="row-format">
                     @if (f.metadata.format) {
-                      <span class="badge">{{ f.metadata.format }}{{ f.metadata.fp ? ' · ' + f.metadata.fp : '' }}</span>
+                      <span class="badge"
+                        >{{ f.metadata.format
+                        }}{{ f.metadata.fp ? ' · ' + f.metadata.fp : '' }}</span
+                      >
                     }
                   </div>
                   <small>{{ formatSize(f.sizeKB * 1024) }}</small>
                   @switch (fileStatus(f.name)) {
-                    @case ('installed') { <button class="btn-library">In library</button> }
-                    @case ('downloading') { <button class="btn-primary" disabled>Downloading…</button> }
-                    @default { <button class="btn-primary" (click)="downloadLinkFile(f, v.id)">Download</button> }
+                    @case ('installed') {
+                      <button class="btn-library">In library</button>
+                    }
+                    @case ('downloading') {
+                      <button class="btn-primary" disabled>Downloading…</button>
+                    }
+                    @default {
+                      <button class="btn-primary" (click)="downloadLinkFile(f, v.id)">
+                        Download
+                      </button>
+                    }
                   }
                 </div>
               </div>
@@ -194,11 +227,20 @@
 <!-- Search bar -->
 <div class="search-bar">
   <div class="platform-tabs">
-    <button [class.active]="platform() === 'civitai'" (click)="platform.set('civitai')">CivitAI</button>
-    <button [class.active]="platform() === 'huggingface'" (click)="platform.set('huggingface')">HuggingFace</button>
+    <button [class.active]="platform() === 'civitai'" (click)="platform.set('civitai')">
+      CivitAI
+    </button>
+    <button [class.active]="platform() === 'huggingface'" (click)="platform.set('huggingface')">
+      HuggingFace
+    </button>
   </div>
 
-  <input [ngModel]="query()" (ngModelChange)="query.set($event)" placeholder="Search models…" (keyup.enter)="search()" />
+  <input
+    [ngModel]="query()"
+    (ngModelChange)="query.set($event)"
+    placeholder="Search models…"
+    (keyup.enter)="search()"
+  />
   @if (platform() === 'civitai') {
     <select [ngModel]="modelType()" (ngModelChange)="modelType.set($event)">
       @for (t of modelTypes; track t) {
@@ -270,16 +312,23 @@
   </div>
 } @else {
   <div class="split-view">
-
     <!-- LEFT LIST PANE -->
     <div class="list-pane">
-
       @if (platform() === 'civitai') {
         @for (model of filteredCivitaiResults(); track model.id) {
-          <div class="list-row" [class.selected]="selectedModel()?.id === model.id" (click)="selectCivitai(model)">
+          <div
+            class="list-row"
+            [class.selected]="selectedModel()?.id === model.id"
+            (click)="selectCivitai(model)"
+          >
             <div class="row-thumb">
               @if (civitaiThumb(model)) {
-                <img [src]="civitaiThumb(model)" alt="" loading="lazy" (error)="onImgError($event)" />
+                <img
+                  [src]="civitaiThumb(model)"
+                  alt=""
+                  loading="lazy"
+                  (error)="onImgError($event)"
+                />
               }
             </div>
             <div class="row-info">
@@ -289,15 +338,21 @@
                 @if (civitaiModelBaseModel(model)) {
                   <span class="badge badge-accent">{{ civitaiModelBaseModel(model) }}</span>
                 }
-                @for (tag of (model.tags ?? []); track tag; let i = $index) {
-                  @if (i < 2) { <span class="tag-chip">{{ tag }}</span> }
+                @for (tag of model.tags ?? []; track tag; let i = $index) {
+                  @if (i < 2) {
+                    <span class="tag-chip">{{ tag }}</span>
+                  }
                 }
               </div>
             </div>
           </div>
         }
         @if (civitaiHasMore()) {
-          <button class="btn-secondary load-more-inline" (click)="loadMore()" [disabled]="loadingMore()">
+          <button
+            class="btn-secondary load-more-inline"
+            (click)="loadMore()"
+            [disabled]="loadingMore()"
+          >
             {{ loadingMore() ? 'Loading…' : 'Load more' }}
           </button>
         }
@@ -305,7 +360,11 @@
 
       @if (platform() === 'huggingface') {
         @for (model of filteredHfResults(); track model.id) {
-          <div class="list-row" [class.selected]="selectedHfModel()?.id === model.id" (click)="selectHf(model)">
+          <div
+            class="list-row"
+            [class.selected]="selectedHfModel()?.id === model.id"
+            (click)="selectHf(model)"
+          >
             <div class="row-thumb">
               @if (model.thumbnail) {
                 <img [src]="model.thumbnail" alt="" loading="lazy" (error)="onImgError($event)" />
@@ -314,28 +373,33 @@
             <div class="row-info">
               <span class="row-name">{{ model.modelId || model.id }}</span>
               <div class="row-meta">
-                @for (fmt of (model.formats ?? []); track fmt) {
+                @for (fmt of model.formats ?? []; track fmt) {
                   <span class="badge">{{ fmt }}</span>
                 }
                 @for (tag of model.tags; track tag; let i = $index) {
-                  @if (i < 2) { <span class="tag-chip">{{ tag }}</span> }
+                  @if (i < 2) {
+                    <span class="tag-chip">{{ tag }}</span>
+                  }
                 }
               </div>
             </div>
           </div>
         }
         @if (hfHasMore()) {
-          <button class="btn-secondary load-more-inline" (click)="loadMore()" [disabled]="loadingMore()">
+          <button
+            class="btn-secondary load-more-inline"
+            (click)="loadMore()"
+            [disabled]="loadingMore()"
+          >
             {{ loadingMore() ? 'Loading…' : 'Load more' }}
           </button>
         }
       }
-
-    </div><!-- /list-pane -->
+    </div>
+    <!-- /list-pane -->
 
     <!-- RIGHT DETAIL PANE -->
     <div class="detail-pane">
-
       <!-- CivitAI detail -->
       @if (platform() === 'civitai' && selectedModel(); as model) {
         <!-- Header spans full width -->
@@ -362,16 +426,18 @@
 
         <!-- Inner two-column body -->
         <div class="detail-body">
-
           <!-- Left: gallery only -->
           <div class="detail-media">
-
             @if (civitaiGalleryImages(model).length > 0) {
               <div class="gallery">
                 @if (civitaiGalleryImages(model).length > 1) {
                   <div class="gallery-thumbs">
                     @for (url of civitaiGalleryImages(model); track url; let i = $index) {
-                      <div class="gallery-thumb" [class.active]="galleryIndex() === i" (click)="setGalleryIndex(i)">
+                      <div
+                        class="gallery-thumb"
+                        [class.active]="galleryIndex() === i"
+                        (click)="setGalleryIndex(i)"
+                      >
                         @if (isVideo(url)) {
                           <span class="video-icon">▶</span>
                         } @else {
@@ -390,8 +456,8 @@
                 </div>
               </div>
             }
-
-          </div><!-- /detail-media -->
+          </div>
+          <!-- /detail-media -->
 
           <!-- Right: versions + file picker -->
           <div class="detail-downloads">
@@ -413,25 +479,43 @@
                   <div class="version-section">
                     <div class="version-header">
                       <strong>{{ v.name }}</strong>
-                      @if (v.baseModel) { <span class="badge badge-accent">{{ v.baseModel }}</span> }
+                      @if (v.baseModel) {
+                        <span class="badge badge-accent">{{ v.baseModel }}</span>
+                      }
                     </div>
                     @for (f of v.files; track f.id) {
                       <div class="version-row">
                         <div class="version-row-top">
-                          <input type="checkbox" [checked]="isCivitaiFileSelected(v.id, f)" (change)="toggleCivitaiFile(v.id, f)" (click)="$event.stopPropagation()" />
+                          <input
+                            type="checkbox"
+                            [checked]="isCivitaiFileSelected(v.id, f)"
+                            (change)="toggleCivitaiFile(v.id, f)"
+                            (click)="$event.stopPropagation()"
+                          />
                           <span>{{ f.name }}</span>
                         </div>
                         <div class="version-row-bottom">
                           <div class="row-format">
                             @if (f.metadata.format) {
-                              <span class="badge">{{ f.metadata.format }}{{ f.metadata.fp ? ' · ' + f.metadata.fp : '' }}</span>
+                              <span class="badge"
+                                >{{ f.metadata.format
+                                }}{{ f.metadata.fp ? ' · ' + f.metadata.fp : '' }}</span
+                              >
                             }
                           </div>
                           <small>{{ formatSize(f.sizeKB * 1024) }}</small>
                           @switch (fileStatus(f.name)) {
-                            @case ('installed') { <button class="btn-library">In library</button> }
-                            @case ('downloading') { <button class="btn-primary" disabled>Downloading…</button> }
-                            @default { <button class="btn-primary" (click)="downloadFile(f, v.id)">Download</button> }
+                            @case ('installed') {
+                              <button class="btn-library">In library</button>
+                            }
+                            @case ('downloading') {
+                              <button class="btn-primary" disabled>Downloading…</button>
+                            }
+                            @default {
+                              <button class="btn-primary" (click)="downloadFile(f, v.id)">
+                                Download
+                              </button>
+                            }
                           }
                         </div>
                       </div>
@@ -440,9 +524,10 @@
                 }
               }
             </div>
-          </div><!-- /detail-downloads -->
-
-        </div><!-- /detail-body -->
+          </div>
+          <!-- /detail-downloads -->
+        </div>
+        <!-- /detail-body -->
 
         <!-- Full-width: tags, trigger words, description -->
         @if ((model.tags ?? []).length > 0) {
@@ -470,7 +555,6 @@
         @if (model.description) {
           <div class="detail-desc" [innerHTML]="model.description"></div>
         }
-
       }
 
       <!-- HuggingFace detail -->
@@ -485,7 +569,7 @@
           </div>
           <div class="detail-meta-row">
             <span class="meta-stat">{{ model.downloads | number }} downloads</span>
-            @for (fmt of (model.formats ?? []); track fmt) {
+            @for (fmt of model.formats ?? []; track fmt) {
               <span class="badge">{{ fmt }}</span>
             }
           </div>
@@ -493,7 +577,6 @@
 
         <!-- Inner two-column body -->
         <div class="detail-body">
-
           <!-- Left: gallery -->
           <div class="detail-media">
             @if (hfGalleryImages(model).length > 0) {
@@ -501,7 +584,11 @@
                 @if (hfGalleryImages(model).length > 1) {
                   <div class="gallery-thumbs">
                     @for (url of hfGalleryImages(model); track url; let i = $index) {
-                      <div class="gallery-thumb" [class.active]="galleryIndex() === i" (click)="setGalleryIndex(i)">
+                      <div
+                        class="gallery-thumb"
+                        [class.active]="galleryIndex() === i"
+                        (click)="setGalleryIndex(i)"
+                      >
                         @if (isVideo(url)) {
                           <span class="video-icon">▶</span>
                         } @else {
@@ -520,7 +607,8 @@
                 </div>
               </div>
             }
-          </div><!-- /detail-media -->
+          </div>
+          <!-- /detail-media -->
 
           <!-- Right: files list -->
           <div class="detail-downloads">
@@ -539,24 +627,34 @@
                     <div class="version-row-bottom">
                       <div class="row-format"></div>
                       <small>{{ formatSize(f.size) }}</small>
-                      <select [ngModel]="hfRowType(f.filename)" (ngModelChange)="setHfRowType(f.filename, $event)">
+                      <select
+                        [ngModel]="hfRowType(f.filename)"
+                        (ngModelChange)="setHfRowType(f.filename, $event)"
+                      >
                         @for (t of modelTypes; track t) {
                           <option [value]="t">{{ t }}</option>
                         }
                       </select>
                       @switch (fileStatus(f.filename)) {
-                        @case ('installed') { <button class="btn-library">In library</button> }
-                        @case ('downloading') { <button class="btn-primary" disabled>Downloading…</button> }
-                        @default { <button class="btn-primary" (click)="downloadHf(f)">Download</button> }
+                        @case ('installed') {
+                          <button class="btn-library">In library</button>
+                        }
+                        @case ('downloading') {
+                          <button class="btn-primary" disabled>Downloading…</button>
+                        }
+                        @default {
+                          <button class="btn-primary" (click)="downloadHf(f)">Download</button>
+                        }
                       }
                     </div>
                   </div>
                 }
               }
             </div>
-          </div><!-- /detail-downloads -->
-
-        </div><!-- /detail-body -->
+          </div>
+          <!-- /detail-downloads -->
+        </div>
+        <!-- /detail-body -->
 
         @if (model.tags.length > 0) {
           <div class="chip-section">
@@ -574,10 +672,9 @@
         } @else if (hfDescription()) {
           <div class="detail-desc">{{ hfDescription() }}</div>
         }
-
       }
-
-    </div><!-- /detail-pane -->
-
-  </div><!-- /split-view -->
+    </div>
+    <!-- /detail-pane -->
+  </div>
+  <!-- /split-view -->
 }

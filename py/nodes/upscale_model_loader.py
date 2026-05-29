@@ -1,6 +1,6 @@
-import folder_paths
 import comfy.utils
 import comfy_extras.chainner_models as model_loading
+import folder_paths
 
 
 class TMMUpscaleModelLoader:

@@ -39,20 +39,25 @@ export class ModelDetail implements OnInit {
     this.modelType = this.route.snapshot.paramMap.get('type') ?? '';
     this.modelPath = this.route.snapshot.paramMap.get('path') ?? '';
     this.editType = this.modelType;
-    this.modelService.getModelTypes().subscribe(types => this.modelTypes.set(types));
+    this.modelService.getModelTypes().subscribe((types) => this.modelTypes.set(types));
     this.loadMeta();
   }
 
   loadMeta() {
     this.loading.set(true);
     this.modelService.getMetadata(this.modelType, this.modelPath).subscribe({
-      next: m => {
+      next: (m) => {
         this.meta.set(m);
-        this.editMeta = { description: m.description, trigger_words: [...m.trigger_words], tags: [...m.tags], base_model: m.base_model ?? '' };
+        this.editMeta = {
+          description: m.description,
+          trigger_words: [...m.trigger_words],
+          tags: [...m.tags],
+          base_model: m.base_model ?? '',
+        };
         this.editType = this.modelType;
         this.loading.set(false);
       },
-      error: err => {
+      error: (err) => {
         this.error.set((err as Error).message);
         this.loading.set(false);
       },
@@ -67,7 +72,7 @@ export class ModelDetail implements OnInit {
   }
 
   removeTriggerWord(word: string) {
-    this.editMeta.trigger_words = (this.editMeta.trigger_words ?? []).filter(w => w !== word);
+    this.editMeta.trigger_words = (this.editMeta.trigger_words ?? []).filter((w) => w !== word);
   }
 
   addTag() {
@@ -78,7 +83,7 @@ export class ModelDetail implements OnInit {
   }
 
   removeTag(tag: string) {
-    this.editMeta.tags = (this.editMeta.tags ?? []).filter(t => t !== tag);
+    this.editMeta.tags = (this.editMeta.tags ?? []).filter((t) => t !== tag);
   }
 
   save() {
@@ -89,34 +94,47 @@ export class ModelDetail implements OnInit {
     const move$ = typeChanged
       ? this.modelService.moveModel(this.modelType, this.modelPath, this.editType)
       : of(undefined as void);
-    move$.pipe(
-      switchMap(() => {
-        if (typeChanged) this.modelType = this.editType;
-        return this.modelService.updateMetadata(this.modelType, this.modelPath, this.editMeta);
-      })
-    ).subscribe({
-      next: () => {
-        this.saving.set(false);
-        this.saved.set(true);
-        if (typeChanged) {
-          this.router.navigate(['/models', this.modelType, this.modelPath]);
-        }
-      },
-      error: err => { this.saving.set(false); this.error.set((err as Error).message); },
-    });
+    move$
+      .pipe(
+        switchMap(() => {
+          if (typeChanged) this.modelType = this.editType;
+          return this.modelService.updateMetadata(this.modelType, this.modelPath, this.editMeta);
+        }),
+      )
+      .subscribe({
+        next: () => {
+          this.saving.set(false);
+          this.saved.set(true);
+          if (typeChanged) {
+            this.router.navigate(['/models', this.modelType, this.modelPath]);
+          }
+        },
+        error: (err) => {
+          this.saving.set(false);
+          this.error.set((err as Error).message);
+        },
+      });
   }
 
   refetch() {
     this.refetching.set(true);
     this.error.set('');
     this.modelService.refetchMetadata(this.modelType, this.modelPath).subscribe({
-      next: m => {
+      next: (m) => {
         this.meta.set(m);
-        this.editMeta = { description: m.description, trigger_words: [...m.trigger_words], tags: [...m.tags], base_model: m.base_model ?? '' };
+        this.editMeta = {
+          description: m.description,
+          trigger_words: [...m.trigger_words],
+          tags: [...m.tags],
+          base_model: m.base_model ?? '',
+        };
         this.editType = this.modelType;
         this.refetching.set(false);
       },
-      error: err => { this.error.set((err as Error).message); this.refetching.set(false); },
+      error: (err) => {
+        this.error.set((err as Error).message);
+        this.refetching.set(false);
+      },
     });
   }
 

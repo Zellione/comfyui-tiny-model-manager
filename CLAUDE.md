@@ -26,6 +26,25 @@ the same `ng build` call and must not be deployed separately.
 
 The Python backend (`py/`) needs no build step; changes take effect after restarting ComfyUI.
 
+#### Testing & Linting (frontend)
+
+**MANDATORY — run before every commit. All checks must be clean with zero failures.**
+
+Run from the `frontend/` directory:
+
+```
+# Unit tests (Vitest, no browser needed)
+npx ng test --watch=false
+
+# ESLint (0 errors required; warnings allowed)
+npx ng lint
+
+# Prettier format check
+npx prettier --check "src/**/*.ts" "src/**/*.html" "src/**/*.scss"
+```
+
+---
+
 ### Backend
 - Python 3.13.12
 - ComfyUI python_embedded can be found at ../../../python_embeded/
@@ -35,6 +54,30 @@ The Python backend (`py/`) needs no build step; changes take effect after restar
 - CivitAI API (consult documentation: https://developer.civitai.com/site/reference/)
 
 For further information you can Check the official documentation https://docs.comfy.org/custom-nodes/overview
+
+#### Testing & Linting (backend)
+
+**MANDATORY — run before every commit. All checks must be clean with zero failures.**
+
+Run from the project root using the embedded interpreter:
+
+```
+# Unit + integration tests (pytest, 147 tests)
+..\..\..\python_embeded\python.exe -m pytest
+
+# Ruff lint (E/F/I/UP/B rules — 0 errors required)
+..\..\..\python_embeded\python.exe -m ruff check py tests conftest.py
+
+# Ruff format check
+..\..\..\python_embeded\python.exe -m ruff format --check py tests conftest.py
+```
+
+Dev dependencies are in `requirements-dev.txt`; install once with:
+```
+..\..\..\python_embeded\python.exe -m pip install -r requirements-dev.txt
+```
+
+---
 
 ## Workflow
 - Commits and code comments always in english
@@ -50,8 +93,9 @@ If planning and working on a new feature already specified in @PRD.md the follow
 4. Enter plan mode and plan feature
 5. Wait for approval of plan
 6. If plan was approved implement plan
-7. If there are no bugs reported: commit changes and push them to github (origin)
-8. Open pull request
+7. **Run all tests and lint for both backend and frontend — only proceed when every check passes with zero failures**
+8. If there are no bugs reported: commit changes and push them to github (origin)
+9. Open pull request
 
 ### Bug during feature development.
 
@@ -63,5 +107,6 @@ If working on a bug during feature development and it was alrady pushed and a pu
 4. Make a plan to fix the bug
 5. Wait for approval of plan
 6. If plan was approved implement plan.
-7. If there are no bugs reported: commit changes and push them to github (origin)
-8. Check if pull request updated
+7. **Run all tests and lint for both backend and frontend — only proceed when every check passes with zero failures**
+8. If there are no bugs reported: commit changes and push them to github (origin)
+9. Check if pull request updated

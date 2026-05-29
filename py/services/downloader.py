@@ -1,10 +1,11 @@
 import asyncio
 import os
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Optional, Callable, Awaitable
-import httpx
+
 import folder_paths
+import httpx
 
 from .. import config as cfg
 from .providers import get_provider
@@ -33,9 +34,9 @@ class DownloadTask:
     progress: float = 0.0
     downloaded_bytes: int = 0
     total_bytes: int = 0
-    error: Optional[str] = None
+    error: str | None = None
     dest_path: str = ""
-    on_complete: Optional[Callable[["DownloadTask"], Awaitable[None]]] = field(
+    on_complete: Callable[["DownloadTask"], Awaitable[None]] | None = field(
         default=None, repr=False
     )
 
@@ -59,7 +60,7 @@ def enqueue(
     filename: str,
     platform: str,
     source_id: str = "",
-    on_complete: Optional[Callable[[DownloadTask], Awaitable[None]]] = None,
+    on_complete: Callable[[DownloadTask], Awaitable[None]] | None = None,
 ) -> DownloadTask:
     # Strip subfolder prefixes from HuggingFace filenames (e.g. "split_files/model.safetensors"
     # → "model.safetensors"). The download URL is a separate field and remains untouched.
@@ -140,6 +141,7 @@ async def _run_download(task: DownloadTask):
         if task.on_complete:
             await task.on_complete(task)
         from .metadata_fetcher import fetch_and_store
+
         asyncio.ensure_future(
             fetch_and_store(task.filename, task.model_type, task.platform, task.source_id)
         )

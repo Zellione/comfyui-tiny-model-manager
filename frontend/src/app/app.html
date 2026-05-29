@@ -8,7 +8,11 @@
     <a class="tab" routerLink="/download" routerLinkActive="active">Download</a>
   </nav>
   <div class="topbar-right">
-    <button class="icon-btn" (click)="toggleTheme()" [title]="isDark() ? 'Switch to light mode' : 'Switch to dark mode'">
+    <button
+      class="icon-btn"
+      (click)="toggleTheme()"
+      [title]="isDark() ? 'Switch to light mode' : 'Switch to dark mode'"
+    >
       {{ isDark() ? '☀' : '☾' }}
     </button>
   </div>

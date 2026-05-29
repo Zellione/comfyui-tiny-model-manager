@@ -35,9 +35,9 @@ export class ModelService {
   constructor(private http: HttpClient) {}
 
   listModels(): Observable<Record<string, ModelFile[]>> {
-    return this.http.get<{ success: boolean; data: Record<string, ModelFile[]> }>(`${API}/models`).pipe(
-      map(r => r.data)
-    );
+    return this.http
+      .get<{ success: boolean; data: Record<string, ModelFile[]> }>(`${API}/models`)
+      .pipe(map((r) => r.data));
   }
 
   deleteModel(modelType: string, path: string): Observable<void> {
@@ -47,7 +47,7 @@ export class ModelService {
   getMetadata(modelType: string, path: string): Observable<ModelMeta> {
     return this.http
       .get<{ success: boolean; data: ModelMeta }>(`${API}/models/${modelType}/${path}/metadata`)
-      .pipe(map(r => r.data));
+      .pipe(map((r) => r.data));
   }
 
   updateMetadata(modelType: string, path: string, meta: Partial<ModelMeta>): Observable<void> {
@@ -57,13 +57,13 @@ export class ModelService {
   refetchMetadata(modelType: string, path: string): Observable<ModelMeta> {
     return this.http
       .post<{ success: boolean; data: ModelMeta }>(`${API}/models/${modelType}/${path}/refetch`, {})
-      .pipe(map(r => r.data));
+      .pipe(map((r) => r.data));
   }
 
   getModelTypes(): Observable<string[]> {
     return this.http
       .get<{ success: boolean; data: string[] }>(`${API}/model-types`)
-      .pipe(map(r => r.data));
+      .pipe(map((r) => r.data));
   }
 
   moveModel(modelType: string, path: string, newType: string): Observable<void> {

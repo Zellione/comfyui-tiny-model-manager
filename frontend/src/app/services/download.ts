@@ -29,15 +29,24 @@ export class DownloadService {
       switchMap(() =>
         this.http
           .get<{ success: boolean; data: DownloadTask[] }>(`${API}/download/status`)
-          .pipe(map(r => r.data))
+          .pipe(map((r) => r.data)),
       ),
-      shareReplay(1)
+      shareReplay(1),
     );
   }
 
-  startDownload(url: string, model_type: string, filename: string, platform: string, source_id = ''): Observable<{ task_id: string }> {
+  startDownload(
+    url: string,
+    model_type: string,
+    filename: string,
+    platform: string,
+    source_id = '',
+  ): Observable<{ task_id: string }> {
     return this.http
-      .post<{ success: boolean; data: { task_id: string } }>(`${API}/download`, { url, model_type, filename, platform, source_id })
-      .pipe(map(r => r.data));
+      .post<{
+        success: boolean;
+        data: { task_id: string };
+      }>(`${API}/download`, { url, model_type, filename, platform, source_id })
+      .pipe(map((r) => r.data));
   }
 }
