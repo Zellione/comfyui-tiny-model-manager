@@ -19,7 +19,7 @@ import { detectLink, LinkKind } from '../../utils/link-detector';
 type HfFileItem = { filename: string; size: number; url: string };
 
 type Platform = 'civitai' | 'huggingface';
-type ModelType = 'checkpoints' | 'loras' | 'embeddings' | 'vae' | 'controlnet';
+type ModelType = 'checkpoints' | 'loras' | 'embeddings' | 'vae' | 'controlnet' | 'unet';
 
 @Component({
   selector: 'app-download',
@@ -79,10 +79,12 @@ export class Download {
   platform = signal<Platform>('civitai');
   query = signal('');
   modelType = signal<ModelType>('checkpoints');
-  modelTypes: ModelType[] = ['checkpoints', 'loras', 'embeddings', 'vae', 'controlnet'];
+  modelTypes: ModelType[] = ['checkpoints', 'loras', 'embeddings', 'vae', 'controlnet', 'unet'];
 
   hfRowTypes = signal<Record<string, ModelType>>({});
   linkHfRowTypes = signal<Record<string, ModelType>>({});
+  civitaiFileTypes = signal<Record<string, ModelType>>({});
+  linkCivitaiFileTypes = signal<Record<string, ModelType>>({});
 
   hfRowType(name: string): ModelType {
     return this.hfRowTypes()[name] ?? 'checkpoints';
@@ -96,6 +98,20 @@ export class Download {
   }
   setLinkHfRowType(name: string, t: ModelType) {
     this.linkHfRowTypes.update((m) => ({ ...m, [name]: t }));
+  }
+
+  civitaiFileType(versionId: number, file: CivitaiFile): ModelType {
+    return this.civitaiFileTypes()[`${versionId}_${file.id}`] ?? 'checkpoints';
+  }
+  setCivitaiFileType(versionId: number, file: CivitaiFile, t: ModelType) {
+    this.civitaiFileTypes.update((m) => ({ ...m, [`${versionId}_${file.id}`]: t }));
+  }
+
+  linkCivitaiFileType(versionId: number, file: CivitaiFile): ModelType {
+    return this.linkCivitaiFileTypes()[`${versionId}_${file.id}`] ?? 'checkpoints';
+  }
+  setLinkCivitaiFileType(versionId: number, file: CivitaiFile, t: ModelType) {
+    this.linkCivitaiFileTypes.update((m) => ({ ...m, [`${versionId}_${file.id}`]: t }));
   }
 
   civitaiSort = signal('');
@@ -221,6 +237,7 @@ export class Download {
           this.linkVersions.set([]);
           this.linkVersionsError.set('');
           this.linkCivitaiSelected.set(new Map());
+          this.linkCivitaiFileTypes.set({});
           if (kind.type === 'hf-resolve') {
             this.linkResolving.set(true);
             return this.hfService.resolveDirectLink(kind.repo).pipe(
@@ -282,6 +299,14 @@ export class Download {
           } else if (result.tag === 'civitai-model') {
             this.linkVersions.set(result.versions);
             this.linkModelType.set((result.model_type as ModelType) ?? 'checkpoints');
+            const detected = (result.model_type as ModelType) ?? 'checkpoints';
+            const types: Record<string, ModelType> = {};
+            for (const v of result.versions) {
+              for (const f of v.files) {
+                types[`${v.id}_${f.id}`] = detected;
+              }
+            }
+            this.linkCivitaiFileTypes.set(types);
           }
         }
         this.linkResolving.set(false);
@@ -389,7 +414,7 @@ export class Download {
     this.dlService
       .startDownload(
         file.downloadUrl,
-        this.linkModelType(),
+        this.linkCivitaiFileType(versionId, file),
         file.name,
         'civitai',
         String(versionId),
@@ -402,7 +427,7 @@ export class Download {
       this.dlService
         .startDownload(
           file.downloadUrl,
-          this.linkModelType(),
+          this.linkCivitaiFileType(versionId, file),
           file.name,
           'civitai',
           String(versionId),
@@ -520,10 +545,19 @@ export class Download {
     this.versionsError.set('');
     this.loadingVersions.set(true);
     this.selectedCivitaiFiles.set(new Map());
+    this.civitaiFileTypes.set({});
     this.civitaiService.getVersions(model.id).subscribe({
       next: (v) => {
         if (this.selectedModel()?.id !== targetId) return;
         this.versions.set(v.versions);
+        const detected = (v.model_type as ModelType) ?? 'checkpoints';
+        const types: Record<string, ModelType> = {};
+        for (const ver of v.versions) {
+          for (const f of ver.files) {
+            types[`${ver.id}_${f.id}`] = detected;
+          }
+        }
+        this.civitaiFileTypes.set(types);
         this.loadingVersions.set(false);
       },
       error: (err) => {
@@ -553,14 +587,26 @@ export class Download {
 
   downloadFile(file: CivitaiFile, versionId: number) {
     this.dlService
-      .startDownload(file.downloadUrl, this.modelType(), file.name, 'civitai', String(versionId))
+      .startDownload(
+        file.downloadUrl,
+        this.civitaiFileType(versionId, file),
+        file.name,
+        'civitai',
+        String(versionId),
+      )
       .subscribe();
   }
 
   downloadSelectedCivitai() {
     for (const { file, versionId } of this.selectedCivitaiFiles().values()) {
       this.dlService
-        .startDownload(file.downloadUrl, this.modelType(), file.name, 'civitai', String(versionId))
+        .startDownload(
+          file.downloadUrl,
+          this.civitaiFileType(versionId, file),
+          file.name,
+          'civitai',
+          String(versionId),
+        )
         .subscribe();
     }
     this.selectedCivitaiFiles.set(new Map());

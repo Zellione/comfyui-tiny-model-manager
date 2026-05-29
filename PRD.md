@@ -29,7 +29,7 @@ ComfyUI Tiny Model Manager is a custom node for ComfyUI that provides a web-base
 | Backend | Python, aiohttp (ComfyUI's built-in server) |
 | Database | SQLite via `aiosqlite` |
 | HTTP client | `httpx` (async) |
-| Frontend | Angular 19+ (standalone components, SCSS) |
+| Frontend | Angular 21.2 (zoneless, standalone components, SCSS) |
 | Build output | `web/` directory served at `/tiny-model-manager` |
 
 ---
@@ -108,8 +108,8 @@ comfyui-tiny-model-manager/
 │   ├── nodes/
 │   │   ├── lora_loader_with_triggers.py
 │   │   ├── checkpoint_loader_with_triggers.py
-│   │   ├── vae_loader.py
-│   │   ├── controlnet_loader.py
+│   │   ├── vae_loader_with_triggers.py
+│   │   ├── controlnet_loader_with_triggers.py
 │   │   ├── embedding_helper.py
 │   │   └── upscale_model_loader.py
 │   ├── routes/
@@ -124,17 +124,25 @@ comfyui-tiny-model-manager/
 │       ├── civitai.py
 │       ├── huggingface.py
 │       ├── downloader.py
-│       └── metadata_fetcher.py
+│       ├── metadata_fetcher.py
+│       └── providers/
+│           ├── base.py
+│           ├── civitai_provider.py
+│           └── huggingface_provider.py
 ├── frontend/                 # Angular source
 │   └── src/app/
 │       ├── pages/
 │       │   ├── models/
 │       │   ├── download/
-│       │   ├── model-detail/
-│       │   └── settings/
-│       └── services/
-│           ├── model.ts
-│           └── download.ts
+│       │   └── model-detail/
+│       ├── services/
+│       │   ├── model.ts
+│       │   ├── download.ts
+│       │   ├── civitai.ts
+│       │   ├── huggingface.ts
+│       │   └── workflow.ts
+│       └── utils/
+│           └── link-detector.ts
 ├── js/                       # Hand-written ComfyUI JS extension (settings + workflow insert)
 │   └── extension.js          # app.registerExtension(...)
 ├── specs/                    # Feature specifications (compact YAML + overview)

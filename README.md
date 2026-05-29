@@ -75,7 +75,7 @@ Assumes ComfyUI was installed via [comfy-cli](https://comfyui-wiki.com/en/instal
 - [x] F-30 — Choose model type before HuggingFace download — per-file model-type dropdown in front of each Download button (search results + paste-a-link repo)
 - [x] F-31 — Editable model type — change folder type in detail page, moves file on disk
 - [x] F-32 — First-class metadata fields — base model stored as its own column, never as a tag
-- [ ] F-33 — Model type selectable for every model — override folder type for any download, including CivitAI auto-detected
+- [x] F-33 — Model type selectable for every model — override folder type for any download, including CivitAI auto-detected; `unet` added to the type list for GGUF models
 - [ ] F-34 — Notification system — green/red toast popups for save, download, workflow-insert, and error events
 - [ ] F-35 — Automatic subfolder organization by base model — toggle to store/reorganize models into `<type>/<base_model>/` subfolders (`Unknown` when none)
 - [ ] F-36 — Filter download search results by tags — server-side tag query (HuggingFace AND-multi, CivitAI single tag)
@@ -145,6 +145,7 @@ All metadata is stored in `data/models.db` (SQLite). Foreign keys are enforced (
 │ description      │ TEXT     DEFAULT ''              │
 │ base_model       │ TEXT     NOT NULL DEFAULT ''     │  ← e.g. "SDXL 1.0", "Flux.1 D", "Pony"
 │ civitai_model_id │ TEXT                             │  ← CivitAI model page ID (used to build source_url)
+│ media_hash       │ TEXT     NOT NULL DEFAULT ''     │  ← deterministic hash used as media subfolder name
 │ created_at       │ TEXT     DEFAULT datetime('now') │
 └──────────────────┴──────────────────────────────────┘
           │  1
@@ -165,16 +166,24 @@ All metadata is stored in `data/models.db` (SQLite). Foreign keys are enforced (
           │  │ id         │ INTEGER  PK AUTOINCREMENT │
           │  │ model_id   │ INTEGER  FK → models.id  │
           │  │ media_type │ TEXT  ("image" | "video") │
-          │  │ local_path │ TEXT  (abs path on disk)  │
+          │  │ local_path │ TEXT  (path within media) │
+          │  └───────────────────────────────────────┘
+          │  N:M  (via junction table)
+          │
+          ├──────────────────────────────────────────┐
+          │                 model_tags                │
+          │  ├───────────────────────────────────────┤
+          │  │ model_id  │ INTEGER  FK → models.id   │
+          │  │ tag_id    │ INTEGER  FK → tags.id     │
+          │  │ PK (model_id, tag_id)                 │
           │  └───────────────────────────────────────┘
           │  N
           │
           └──────────────────────────────────────────┐
-                             tags                     │
+                              tags                    │
              ├───────────────────────────────────────┤
              │ id        │ INTEGER  PK AUTOINCREMENT  │
-             │ model_id  │ INTEGER  FK → models.id   │
-             │ tag       │ TEXT NOT NULL              │
+             │ name      │ TEXT UNIQUE NOT NULL       │
              └───────────────────────────────────────┘
 ```
 
@@ -189,7 +198,7 @@ All metadata is stored in `data/models.db` (SQLite). Foreign keys are enforced (
 
 ### Migration
 
-The schema is created on first run. Two columns added after the initial release (`base_model`, `civitai_model_id`) are applied automatically on every startup via `ALTER TABLE … ADD COLUMN` (idempotent — existing columns are silently skipped).
+The schema is created on first run. Three columns added after the initial release (`base_model`, `civitai_model_id`, `media_hash`) are applied automatically on every startup via `ALTER TABLE … ADD COLUMN` (idempotent — existing columns are silently skipped). Tags were also migrated from the original 1-N layout (column on the `tags` table) to the current m-n layout (`tags` + `model_tags` junction); the migration is self-healing and runs automatically.
 
 ---
 
@@ -199,7 +208,7 @@ The schema is created on first run. Two columns added after the initial release 
 py/
   config.py                   paths and settings helpers
   db/
-    database.py               SQLite schema and connection factory
+    database.py               SQLite schema, migrations, and connection factory
     model_repo.py             async CRUD helpers
   nodes/
     _utils.py                 shared DB helper (trigger word lookup)
@@ -210,9 +219,10 @@ py/
     embedding_helper.py
     upscale_model_loader.py
   routes/
+    __init__.py               register_routes() wires all sub-routers
     static.py                 SPA serving
-    models.py                 model list/delete
-    download.py               search and download
+    models.py                 model list/delete/move
+    download.py               search and download endpoints
     metadata.py               metadata CRUD and media serving
     settings.py               settings CRUD
     workflow.py               in-memory queue for 1-click node insert
@@ -221,10 +231,31 @@ py/
     huggingface.py            HuggingFace API client
     downloader.py             async download queue
     metadata_fetcher.py       post-download metadata and image fetch
+    providers/
+      base.py                 abstract provider interface
+      civitai_provider.py     CivitAI metadata fetch implementation
+      huggingface_provider.py HuggingFace metadata fetch implementation
 frontend/
   src/app/
-    pages/                    Models, Download, ModelDetail
-    services/                 ModelService, DownloadService, WorkflowService
-web/                          Angular build output
+    pages/
+      models/                 installed model browser (grid/list, filter, delete)
+      download/               search + paste-a-link download page
+      model-detail/           metadata viewer/editor
+    services/
+      model.ts                ModelService — installed model list & metadata API
+      download.ts             DownloadService — download queue & status polling
+      civitai.ts              CivitaiService — search, versions, resolve
+      huggingface.ts          HuggingFaceService — search, files, readme
+      workflow.ts             WorkflowService — 1-click node insert queue
+    utils/
+      link-detector.ts        parse paste-a-link URLs into typed LinkKind objects
+tools/
+  summarise_spec.py           extract a single feature spec as compact YAML
+specs/
+  00_overview.md              goals, non-goals, architecture reference
+  api/                        endpoint specs (models.yaml, download.yaml)
+  features/                   per-feature YAML specs (f01–f37)
+  data-flow.md                async download pipeline diagram
+web/                          Angular build output (git-ignored)
 data/                         runtime — DB, settings, media (git-ignored)
 ```
