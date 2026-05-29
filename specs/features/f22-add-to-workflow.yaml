@@ -1,0 +1,13 @@
+feature_id: F-22
+title: One-Click Add Model to Open Workflow
+requirements:
+  - Add to workflow button on the model list/detail enqueues an insert request on the backend
+  - "ComfyUI JS extension polls the pending-insert endpoint every 500 ms; on a pending item it calls `LiteGraph.createNode()` for the model-type's loader node, pre-selects the model in the node's dropdown, adds it via `app.graph.add()`, and acknowledges the item"
+  - "Widget value selection uses `findWidgetOption()` to handle ComfyUI's \" (N)\" disambiguation suffixes (appended when the same filename exists across multiple model base directories)"
+  - "Maps model type → loader node from F-21 (e.g. `loras` → LoRA loader, `checkpoints` → Checkpoint loader)"
+api:
+  - "`POST /tiny-model-manager/api/workflow/insert` body `{ model_type, filename }` → enqueues a pending insert"
+  - `GET /tiny-model-manager/api/workflow/pending` → returns queued inserts for the JS extension to apply
+  - "`POST /tiny-model-manager/api/workflow/ack` body `{ id }` → marks an insert consumed"
+depends_on:
+  - F-21

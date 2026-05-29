@@ -1,0 +1,8 @@
+feature_id: F-11
+title: LoRA Loader with Trigger Words (Workflow Node)
+requirements:
+  - "Node name: `TMMLoraLoader`, display name: `LoRA Loader (with Trigger Words)`"
+  - "Category: `tiny-model-manager`"
+  - "Inputs: `model`, `clip`, `lora_name` (dropdown from installed loras), `strength_model`, `strength_clip`"
+  - "Outputs: `model`, `clip`, `trigger_words` (comma-separated string from the DB)"
+  - Falls back to an empty string if the LoRA has no stored metadata

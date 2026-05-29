@@ -43,45 +43,43 @@ Assumes ComfyUI was installed via [comfy-cli](https://comfyui-wiki.com/en/instal
 
 ## Features
 
-| # | Feature | Status |
-|---|---|---|
-| F-01 | Custom node bootstrap — auto-registers routes and creates DB on startup | Done |
-| F-02 | Standalone web dashboard at `/tiny-model-manager` (Angular SPA, dark theme) | Done |
-| F-03 | Installed model browser — list, filter by type, delete | Done |
-| F-04 | CivitAI search — keyword + type filter, version picker, download | Done |
-| F-05 | HuggingFace search — keyword search, file picker, download | Done |
-| F-06 | Async download manager — queue, live progress bars, error handling | Done |
-| F-07 | Automatic metadata fetch — description, trigger words, preview images/videos saved after download | Done |
-| F-08 | SQLite metadata storage — models, trigger words, media paths persisted in `data/models.db` | Done |
-| F-09 | Model detail page — view/edit description, trigger word chips, media gallery | Done |
-| F-10 | Settings page — CivitAI API key, HuggingFace token, custom media directory | Done |
-| F-11 | `TMMLoraLoader` ComfyUI workflow node — loads a LoRA and outputs its trigger words | Done |
-| F-12 | Settings moved into ComfyUI's native settings panel (standalone page removed) | Done |
-| F-13 | Enhanced model view — card/grid + thumbnails, inline tags/triggers, bulk delete | Done |
-| F-14 | Enhanced download view — result pagination, inline previews, batch download | Done |
-| F-15 | Import & store tags from HuggingFace | Done |
-| F-16 | Import & store tags from CivitAI + re-fetch metadata for installed models | Done |
-| F-17 | Paste a direct HuggingFace file download link | Done |
-| F-18 | Paste a direct CivitAI download link | Done |
-| F-19 | Paste a HuggingFace repository link and pick a file | Done |
-| F-20 | Paste a CivitAI model link and pick a version | Done |
-| F-21 | Loader nodes for checkpoints, VAE, ControlNet, embeddings, upscale models | Done |
-| F-22 | One-click insert of a model's loader node into the open workflow | Done |
-| F-23 | Base model & source metadata — store base model (SDXL, Flux, …), source link; show on cards and detail page | Done |
-| F-24 | Search filtering & sorting — filter by base model and file format; sort by downloads, rating, date (per platform); auto-applies on change; GGUF repos discoverable via HF `filter=gguf` | Done |
-| F-25 | Library filtering & sorting — filter by base model, source, format, and tags; sort by name, size, or date | Done |
-| F-26 | Mark already-installed models in download view — live button states: "Downloading…" while in progress, "In library" on success, retry on error | Done |
-| F-27 | Hashed media folder names — store preview images under a deterministic hash to avoid basename collisions | Done |
-| F-28 | Side-by-Side Download View — master–detail layout, vertical gallery with thumbnail strip, batch-download checkboxes, HuggingFace gallery + README description, responsive | Done |
-| F-29 | Hide model-type dropdown on HuggingFace search — no-op there (every type maps to text-to-image); base-model filter already hidden | Done |
-| F-30 | Choose model type before HuggingFace download — per-file model-type dropdown in front of each Download button (search results + paste-a-link repo) | Done |
-| F-31 | Editable model type — change folder type in detail page, moves file on disk | TODO |
-| F-32 | First-class metadata fields — base model stored as its own column, never as a tag | TODO |
-| F-33 | Model type selectable for every model — override folder type for any download, including CivitAI auto-detected | TODO |
-| F-34 | Notification system — green/red toast popups for save, download, workflow-insert, and error events | TODO |
-| F-35 | Automatic subfolder organization by base model — toggle to store/reorganize models into `<type>/<base_model>/` subfolders (`Unknown` when none) | TODO |
-| F-36 | Filter download search results by tags — server-side tag query (HuggingFace AND-multi, CivitAI single tag) | TODO |
-| F-37 | Always-visible "Load more" with empty/error states — button below the list, red + disabled with the failure reason | TODO |
+- [x] F-01 — Custom node bootstrap — auto-registers routes and creates DB on startup
+- [x] F-02 — Standalone web dashboard at `/tiny-model-manager` (Angular SPA, dark theme)
+- [x] F-03 — Installed model browser — list, filter by type, delete
+- [x] F-04 — CivitAI search — keyword + type filter, version picker, download
+- [x] F-05 — HuggingFace search — keyword search, file picker, download
+- [x] F-06 — Async download manager — queue, live progress bars, error handling
+- [x] F-07 — Automatic metadata fetch — description, trigger words, preview images/videos saved after download
+- [x] F-08 — SQLite metadata storage — models, trigger words, media paths persisted in `data/models.db`
+- [x] F-09 — Model detail page — view/edit description, trigger word chips, media gallery
+- [x] F-10 — Settings page — CivitAI API key, HuggingFace token, custom media directory
+- [x] F-11 — `TMMLoraLoader` ComfyUI workflow node — loads a LoRA and outputs its trigger words
+- [x] F-12 — Settings moved into ComfyUI's native settings panel (standalone page removed)
+- [x] F-13 — Enhanced model view — card/grid + thumbnails, inline tags/triggers, bulk delete
+- [x] F-14 — Enhanced download view — result pagination, inline previews, batch download
+- [x] F-15 — Import & store tags from HuggingFace
+- [x] F-16 — Import & store tags from CivitAI + re-fetch metadata for installed models
+- [x] F-17 — Paste a direct HuggingFace file download link
+- [x] F-18 — Paste a direct CivitAI download link
+- [x] F-19 — Paste a HuggingFace repository link and pick a file
+- [x] F-20 — Paste a CivitAI model link and pick a version
+- [x] F-21 — Loader nodes for checkpoints, VAE, ControlNet, embeddings, upscale models
+- [x] F-22 — One-click insert of a model's loader node into the open workflow
+- [x] F-23 — Base model & source metadata — store base model (SDXL, Flux, …), source link; show on cards and detail page
+- [x] F-24 — Search filtering & sorting — filter by base model and file format; sort by downloads, rating, date (per platform); auto-applies on change; GGUF repos discoverable via HF `filter=gguf`
+- [x] F-25 — Library filtering & sorting — filter by base model, source, format, and tags; sort by name, size, or date
+- [x] F-26 — Mark already-installed models in download view — live button states: "Downloading…" while in progress, "In library" on success, retry on error
+- [x] F-27 — Hashed media folder names — store preview images under a deterministic hash to avoid basename collisions
+- [x] F-28 — Side-by-Side Download View — master–detail layout, vertical gallery with thumbnail strip, batch-download checkboxes, HuggingFace gallery + README description, responsive
+- [x] F-29 — Hide model-type dropdown on HuggingFace search — no-op there (every type maps to text-to-image); base-model filter already hidden
+- [x] F-30 — Choose model type before HuggingFace download — per-file model-type dropdown in front of each Download button (search results + paste-a-link repo)
+- [x] F-31 — Editable model type — change folder type in detail page, moves file on disk
+- [ ] F-32 — First-class metadata fields — base model stored as its own column, never as a tag
+- [ ] F-33 — Model type selectable for every model — override folder type for any download, including CivitAI auto-detected
+- [ ] F-34 — Notification system — green/red toast popups for save, download, workflow-insert, and error events
+- [ ] F-35 — Automatic subfolder organization by base model — toggle to store/reorganize models into `<type>/<base_model>/` subfolders (`Unknown` when none)
+- [ ] F-36 — Filter download search results by tags — server-side tag query (HuggingFace AND-multi, CivitAI single tag)
+- [ ] F-37 — Always-visible "Load more" with empty/error states — button below the list, red + disabled with the failure reason
 
 ---
 

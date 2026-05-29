@@ -1,0 +1,8 @@
+feature_id: F-20
+title: Model Link (CivitAI)
+requirements:
+  - "Accepts `https://civitai.com/models/<modelId>...`; parses model id"
+  - "Calls existing `GET /api/civitai/versions/{model_id}` to list versions/files; user selects file + model type, then downloads"
+depends_on:
+  - F-17
+  - F-20

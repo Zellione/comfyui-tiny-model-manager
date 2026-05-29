@@ -1,0 +1,20 @@
+models:
+  - GET /api/models -> list all installed models by type
+  - DELETE /api/models/{type}/{path} -> remove file from disk
+  - GET /api/models/{type}/{path}/metadata -> fetch stored metadata
+  - PUT /api/models/{type}/{path}/metadata -> update description/trigger_words/tags/base_model
+  - POST /api/models/{type}/{path}/refetch -> re-pull metadata from source platform
+  - POST /api/models/{type}/{path}/move -> relocate file to new model type folder
+  - POST /api/models/organize -> move all models into base-model subfolders
+
+media:
+  - GET /api/media/{path} -> serve files from data/media/ (path-traversal guarded)
+
+workflow:
+  - POST /api/workflow/insert -> enqueue pending node insert
+  - GET /api/workflow/pending -> list queued inserts for JS extension
+  - POST /api/workflow/ack -> mark insert consumed
+
+settings:
+  - GET /api/settings -> get settings (credentials masked)
+  - PUT /api/settings -> update settings

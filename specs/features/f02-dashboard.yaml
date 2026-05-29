@@ -1,0 +1,7 @@
+feature_id: F-02
+title: Standalone Web Dashboard
+requirements:
+  - "Navigable via top nav bar: Models | Download | Settings"
+  - Angular router handles client-side navigation; all unknown paths fall back to `index.html`
+  - `base href` set to `/tiny-model-manager/` so Angular assets resolve correctly
+  - Frontend build output goes directly into `web/` (no subdirectory)

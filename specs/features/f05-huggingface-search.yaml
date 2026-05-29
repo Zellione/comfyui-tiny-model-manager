@@ -1,0 +1,11 @@
+feature_id: F-05
+title: Model Search (HuggingFace)
+requirements:
+  - "Search by keyword, filtered to `text-to-image` pipeline by default"
+  - Results show model ID and download count
+  - "Selecting a result lists available model files (`.safetensors`, `.ckpt`, `.pt`, `.bin`, `.gguf`)"
+  - file has a Download button
+  - Optional HuggingFace token sent as a Bearer token for gated model access
+api:
+  - "`GET /tiny-model-manager/api/search/huggingface?q=&type=`"
+  - "`GET /tiny-model-manager/api/search/huggingface/files?repo=`"
