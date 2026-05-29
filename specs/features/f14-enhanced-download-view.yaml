@@ -1,0 +1,11 @@
+feature_id: F-14
+title: Enhanced Download View
+requirements:
+  - "Result pagination: \"Load more\" for CivitAI (cursor-based) and HuggingFace (page-based) instead of a single result page"
+  - Inline preview thumbnails on search result cards before a result is selected
+  - "Batch download: select multiple versions/files and enqueue them in one action; each becomes an independent task in the existing download queue"
+api:
+  - Reuses existing search endpoints (ensure they surface a preview image URL and a pagination cursor/page token)
+  - Reuses `POST /api/download` per selected file (batch issued client-side)
+depends_on:
+  - F-30

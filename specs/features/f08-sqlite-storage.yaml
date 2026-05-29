@@ -1,0 +1,6 @@
+feature_id: F-08
+title: SQLite Metadata Storage
+requirements:
+  - `ON CONFLICT DO UPDATE` upsert so re-downloading a model refreshes its metadata
+  - `ON DELETE CASCADE` so deleting a model record also removes its trigger words and media rows
+  - Foreign keys enforced via `PRAGMA foreign_keys = ON`

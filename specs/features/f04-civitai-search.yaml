@@ -1,0 +1,11 @@
+feature_id: F-04
+title: Model Search (CivitAI)
+requirements:
+  - "Search by keyword, filterable by model type (checkpoints, loras, embeddings, vae, controlnet)"
+  - "Results show model name, type, and creator"
+  - Selecting a result fetches available versions with file size
+  - version has a Download button
+  - Optional CivitAI API key (stored in settings) is sent as a Bearer token for authenticated requests
+api:
+  - "`GET /tiny-model-manager/api/search/civitai?q=&type=&page=`"
+  - "`GET /tiny-model-manager/api/civitai/versions/{model_id}`"

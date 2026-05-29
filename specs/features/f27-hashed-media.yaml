@@ -1,0 +1,10 @@
+feature_id: F-27
+title: Hashed Media Folder Names
+requirements:
+  - "Media is saved to `data/media/<hash>/`, where `<hash>` is derived deterministically (e.g. SHA-1 of the filename, or of `source_platform` + `source_id`)"
+  - "The hash is stored on the model's row (new `media_hash` column — extends the F-08 schema) so the detail page and gallery can locate the media"
+  - "Replaces the current `data/media/<model_basename>/` scheme (F-07), preventing collisions between different models that share the same display name"
+  - "`model_media.local_path` continues to point at the actual stored file (now under the hashed folder); the `GET /api/media/{path}` path-traversal guard is retained"
+depends_on:
+  - F-08
+  - F-07

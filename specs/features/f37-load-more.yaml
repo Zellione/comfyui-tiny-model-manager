@@ -1,0 +1,9 @@
+feature_id: F-37
+title: "Always-Visible \"Load More\" with Failure States"
+requirements:
+  - "The Load more button is rendered **below** the left result list (outside the scroll area) so it stays visible regardless of scroll position; one control serves both CivitAI and HuggingFace"
+  - "Button states: - **more available** → \"Load more\", clickable - **loading** → \"Loading…\", disabled - **end of results** (successful page, nothing more) → neutral, disabled, \"No more results\" - **empty or error response** → **red and unclickable**, with an indication of *why* it failed (the HTTP error message, or \"No results returned\")"
+  - The failure state is cleared when a new search is run
+  - Works for both platforms within the F-28 side-by-side layout │ ▼ │ ▼ │ ▼ _run_download() streams file │ file write complete │ ▼ metadata_fetcher.fetch_and_store() ├── civitai/hf API call ├── image download → data/media/ └── upsert into SQLite ├── models.db ├── settings.json └── media/
+depends_on:
+  - F-28

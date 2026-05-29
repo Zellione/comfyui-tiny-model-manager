@@ -1,0 +1,15 @@
+feature_id: F-23
+title: "Base Model & Source Metadata"
+requirements:
+  - "New `base_model` column on the `models` table (e.g. `SDXL 1.0`, `Illustrious`, `Pony` `Flux.1 D`, `Qwen`) — extends the F-08 schema"
+  - "On download and on re-fetch, `base_model` is auto-populated from CivitAI's version `baseModel` field; HuggingFace downloads leave it blank (no reliable source field)"
+  - `base_model` is manually editable from the model detail page (see F-31) so HuggingFace models and corrections can be set by hand
+  - "For LoRAs, the base model is the architecture the LoRA is trained for (same field)"
+  - "The model detail page and model cards (F-13) show: download source (CivitAI / HuggingFace, from `source_platform`), base model, and a clickable link to the model's page on the source platform"
+  - "The source page URL is derived from `source_platform` + `source_id` (CivitAI: `https://civitai.com/models/<modelId>`, resolved via the version response; HuggingFace: `https://huggingface.co/<repo>`)"
+api:
+  - "Extend `GET /api/models` and `GET/PUT /api/models/{type}/{path}/metadata` to include `base_model` and a derived `source_url`"
+depends_on:
+  - F-08
+  - F-31
+  - F-13

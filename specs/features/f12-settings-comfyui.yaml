@@ -1,0 +1,7 @@
+feature_id: F-12
+title: Settings in ComfyUI Settings Panel
+requirements:
+  - "ComfyUI JS extension (`app.registerExtension`) registers settings entries under a \"Tiny Model Manager\" category: CivitAI API Key, HuggingFace Token, Media Storage Directory"
+  - "Entries read from and write to the existing backend `GET/PUT /api/settings` (single source of truth: `data/settings.json`); masking rules (`***`) are preserved"
+  - The standalone Angular Settings page and its nav link are removed; the `/settings` route is dropped
+  - "The JS extension file lives outside the Angular build output so it is not overwritten on rebuild (see Directory Structure: `js/`)"

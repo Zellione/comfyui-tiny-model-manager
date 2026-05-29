@@ -1,0 +1,8 @@
+feature_id: F-07
+title: Automatic Metadata Fetch
+requirements:
+  - "For CivitAI: fetches description, trigger words, and up to 5 preview images from the first model version"
+  - "For HuggingFace: fetches description, trigger words, and tags from the model card"
+  - Metadata failures are silent and do not affect the downloaded file
+  - "Preview images and videos are saved to `data/media/<model_basename>/`"
+  - "Media type is inferred from file extension (`mp4`, `webm`, `mov` → video; everything else → image)"

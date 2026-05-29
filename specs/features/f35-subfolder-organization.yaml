@@ -1,0 +1,16 @@
+feature_id: F-35
+title: Automatic Subfolder Organization by Base Model
+requirements:
+  - "toggle, **\"Organize models into subfolders\"**, lives in ComfyUI's native settings panel (consistent with F-12) and is stored in `data/settings.json` as `organize_into_subfolders` (default off)"
+  - "When enabled, a downloaded model is placed in `<type_dir>/<base_model>/<filename>` (e.g. `loras/SDXL 1.0/my-lora.safetensors`); the base-model name is sanitised for filesystem use"
+  - "Models with no base model — all HuggingFace downloads and any with an empty `base_model` — go into an **`Unknown`** subfolder"
+  - Because `base_model` is only known after the post-download metadata fetch (F-07 / F-23) organisation happens as a move once metadata resolves; the `models.filename` column is updated to the new relative path so detail/gallery lookups keep working
+  - "**\"Organize into subfolders\"** action on the Models page reorganises the **existing library**: every installed model is moved into its base-model subfolder (or `Unknown`), preserving trigger words, tags, media, description, and source info; the action is idempotent and re-runnable"
+  - Loader nodes are unaffected — `folder_paths.get_filename_list()` already recurses subfolders
+api:
+  - "`POST /tiny-model-manager/api/models/organize` → moves all installed model files into base-model subfolders and updates the DB; returns `{ moved, skipped, errors }`"
+  - Reuses `GET/PUT /api/settings` for the toggle
+depends_on:
+  - F-12
+  - F-07
+  - F-23

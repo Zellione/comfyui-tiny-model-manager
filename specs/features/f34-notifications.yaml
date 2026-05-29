@@ -1,0 +1,11 @@
+feature_id: F-34
+title: Notification System
+requirements:
+  - Toasts appear at the top-center of the dashboard
+  - "toasts for: metadata or settings saved, a model added to the workflow (F-22), a download enqueued from a link, and a download completing"
+  - "toasts for any failed action (failed save, failed download, API error)"
+  - Toasts auto-dismiss after a few seconds and can be manually dismissed
+  - shared Angular notification service is used by all pages; download-completion toasts are raised when the download-status poll (F-06) observes a task transitioning to `done` or `error`
+depends_on:
+  - F-22
+  - F-06
