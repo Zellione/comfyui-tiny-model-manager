@@ -51,7 +51,7 @@ def add_model_routes(routes):
                 for base_dir in dirs:
                     norm = os.path.normpath(base_dir)
                     scanned.add(norm)
-                    models.extend(_scan_dir(base_dir, extensions))
+                    models.extend(_scan_dir(base_dir, set(extensions) | _BROAD_EXTENSIONS))
                 if models:
                     result[folder_type] = models
 
