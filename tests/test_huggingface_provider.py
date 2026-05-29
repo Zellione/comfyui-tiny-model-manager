@@ -136,6 +136,30 @@ class TestFetchMetadata:
         meta = await provider.fetch_metadata("user/repo")
         assert len(meta.image_urls) <= 5
 
+    async def test_trigger_words_not_in_tags(self, provider, monkeypatch):
+        """F-32: trigger_words come from cardData.trigger, never appear in tags."""
+        repo_data = {
+            "tags": ["lora", "anime"],
+            "cardData": {"trigger": ["1girl", "solo"]},
+            "siblings": [],
+        }
+        _patch_client(monkeypatch, _mock(repo_data))
+        meta = await provider.fetch_metadata("user/repo")
+        assert "1girl" in meta.trigger_words
+        assert "1girl" not in meta.tags
+        assert "solo" not in meta.tags
+
+    async def test_base_model_empty_for_hf(self, provider, monkeypatch):
+        """F-32: HuggingFace has no dedicated base_model source; field is left empty."""
+        repo_data = {
+            "tags": ["text-to-image", "stable-diffusion-xl-base-1.0"],
+            "cardData": {},
+            "siblings": [],
+        }
+        _patch_client(monkeypatch, _mock(repo_data))
+        meta = await provider.fetch_metadata("user/repo")
+        assert meta.base_model == ""
+
 
 # ---------------------------------------------------------------------------
 # search — gguf filter param

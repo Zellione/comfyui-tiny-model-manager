@@ -264,6 +264,74 @@ class TestCascadeDelete:
             assert (await cur.fetchone())[0] == 0
 
 
+class TestFieldSeparation:
+    """F-32: base_model, trigger_words, and tags are stored as distinct first-class fields."""
+
+    async def test_base_model_never_stored_in_tags(self, ext_dir):
+        import aiosqlite
+
+        from py import config as cfg
+        from py.db import model_repo
+
+        await model_repo.upsert_model_with_meta(
+            "sep.safetensors",
+            "loras",
+            "civitai",
+            "1",
+            "desc",
+            trigger_words=["word"],
+            tags=["portrait"],
+            base_model="SDXL 1.0",
+        )
+        async with aiosqlite.connect(cfg.db_path()) as db:
+            cur = await db.execute("SELECT COUNT(*) FROM tags WHERE name = 'SDXL 1.0'")
+            assert (await cur.fetchone())[0] == 0
+
+    async def test_trigger_words_never_stored_in_tags(self, ext_dir):
+        import aiosqlite
+
+        from py import config as cfg
+        from py.db import model_repo
+
+        await model_repo.upsert_model_with_meta(
+            "sep2.safetensors",
+            "loras",
+            "civitai",
+            "2",
+            "desc",
+            trigger_words=["masterpiece", "best quality"],
+            tags=["fantasy"],
+            base_model="",
+        )
+        async with aiosqlite.connect(cfg.db_path()) as db:
+            cur = await db.execute(
+                "SELECT COUNT(*) FROM tags WHERE name IN ('masterpiece', 'best quality')"
+            )
+            assert (await cur.fetchone())[0] == 0
+
+    async def test_get_model_returns_three_distinct_fields(self, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_model_with_meta(
+            "dist.safetensors",
+            "loras",
+            "civitai",
+            "3",
+            "desc",
+            trigger_words=["tw1"],
+            tags=["portrait"],
+            base_model="Pony",
+        )
+        row = await model_repo.get_model_by_filename("dist.safetensors")
+        assert row["base_model"] == "Pony"
+        assert row["trigger_words"] == ["tw1"]
+        assert row["tags"] == ["portrait"]
+        assert "Pony" not in row["trigger_words"]
+        assert "Pony" not in row["tags"]
+        assert "tw1" not in row["tags"]
+        assert "portrait" not in row["trigger_words"]
+
+
 class TestUpdateModelType:
     async def test_updates_type(self, ext_dir):
         from py.db import model_repo

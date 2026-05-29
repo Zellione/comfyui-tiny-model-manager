@@ -170,6 +170,59 @@ class TestFetchMetadata:
         assert "fantasy" in meta.tags
         assert meta.civitai_model_id == "111"
 
+    async def test_base_model_not_in_tags(self, provider, monkeypatch):
+        """F-32: base_model comes from baseModel field, never appears in tags."""
+        version_data = {
+            "trainedWords": [],
+            "description": "",
+            "baseModel": "Pony",
+            "images": [],
+            "modelId": 200,
+        }
+        model_data = {"description": "", "tags": ["anime", "portrait"]}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            url = str(request.url)
+            if "model-versions" in url:
+                return httpx.Response(200, json=version_data)
+            if "/models/200" in url:
+                return httpx.Response(200, json=model_data)
+            return httpx.Response(404)
+
+        transport = httpx.MockTransport(handler)
+        _orig = httpx.AsyncClient
+        monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _orig(transport=transport, **kw))
+        meta = await provider.fetch_metadata("9999")
+        assert meta.base_model == "Pony"
+        assert "Pony" not in meta.tags
+
+    async def test_trigger_words_not_in_tags(self, provider, monkeypatch):
+        """F-32: trigger_words come from trainedWords field, never appear in tags."""
+        version_data = {
+            "trainedWords": ["masterpiece", "best quality"],
+            "description": "",
+            "baseModel": "",
+            "images": [],
+            "modelId": 201,
+        }
+        model_data = {"description": "", "tags": ["anime"]}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            url = str(request.url)
+            if "model-versions" in url:
+                return httpx.Response(200, json=version_data)
+            if "/models/201" in url:
+                return httpx.Response(200, json=model_data)
+            return httpx.Response(404)
+
+        transport = httpx.MockTransport(handler)
+        _orig = httpx.AsyncClient
+        monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _orig(transport=transport, **kw))
+        meta = await provider.fetch_metadata("9999")
+        assert "masterpiece" in meta.trigger_words
+        assert "masterpiece" not in meta.tags
+        assert "best quality" not in meta.tags
+
     async def test_http_error_propagates(self, provider, monkeypatch):
         transport = httpx.MockTransport(lambda r: httpx.Response(404))
         _orig = httpx.AsyncClient
