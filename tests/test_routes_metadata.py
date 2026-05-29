@@ -62,6 +62,29 @@ class TestGetMetadata:
         data = (await resp.json())["data"]
         assert data["source_url"] == "https://civitai.com/models/1234"
 
+    async def test_response_exposes_three_fields_distinctly(self, client, ext_dir):
+        """F-32: GET metadata must expose base_model, trigger_words, and tags as distinct fields."""
+        from py.db import model_repo
+
+        await model_repo.upsert_model_with_meta(
+            "f32.safetensors",
+            "loras",
+            "civitai",
+            "99",
+            "desc",
+            trigger_words=["tw1"],
+            tags=["portrait"],
+            base_model="SDXL 1.0",
+        )
+        resp = await client.get("/tiny-model-manager/api/models/loras/f32.safetensors/metadata")
+        data = (await resp.json())["data"]
+        assert data["base_model"] == "SDXL 1.0"
+        assert data["trigger_words"] == ["tw1"]
+        assert data["tags"] == ["portrait"]
+        assert "SDXL 1.0" not in data["trigger_words"]
+        assert "SDXL 1.0" not in data["tags"]
+        assert "tw1" not in data["tags"]
+
 
 class TestPutMetadata:
     async def test_update_description_and_trigger_words(self, client, ext_dir):
