@@ -11,6 +11,12 @@ jobs:
     name: Backend — tests & lint
     runs-on: ubuntu-latest
 
+    env:
+      # Prevent Python from prepending CWD to sys.path so that pytest's own
+      # `import py` resolves to the installed py library (py.path.local) and
+      # not the local py/ backend package, which has no py.path attribute.
+      PYTHONSAFEPATH: '1'
+
     steps:
       - uses: actions/checkout@v4
 

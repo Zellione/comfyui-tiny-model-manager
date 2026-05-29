@@ -1,0 +1,4 @@
+# Angular/TypeScript generator-owned config files — not formatted by Prettier
+angular.json
+eslint.config.js
+tsconfig*.json

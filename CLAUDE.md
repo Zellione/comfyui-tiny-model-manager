@@ -63,7 +63,10 @@ Run from the project root using the embedded interpreter:
 
 ```
 # Unit + integration tests (pytest, 147 tests)
-..\..\..\python_embeded\python.exe -m pytest
+# PYTHONSAFEPATH prevents Python from prepending CWD to sys.path, which is
+# required so pytest's own `import py` resolves to the installed py library
+# (py.path.local) rather than the local py/ backend package.
+$env:PYTHONSAFEPATH = '1'; ..\..\..\python_embeded\python.exe -m pytest
 
 # Ruff lint (E/F/I/UP/B rules — 0 errors required)
 ..\..\..\python_embeded\python.exe -m ruff check py tests conftest.py
