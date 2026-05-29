@@ -105,6 +105,37 @@ class TestSetTags:
         row = await model_repo.get_model_by_filename("t.safetensors")
         assert set(row["tags"]) == {"tag1", "tag2"}
 
+    async def test_shared_tag_deduplicates_in_tags_table(self, ext_dir):
+        """Two models sharing the same tag name produce a single row in the tags table."""
+        import aiosqlite
+
+        from py import config as cfg
+        from py.db import model_repo
+
+        mid1 = await model_repo.upsert_model("a.safetensors", "loras", "", "", "")
+        mid2 = await model_repo.upsert_model("b.safetensors", "loras", "", "", "")
+        await model_repo.set_tags(mid1, ["shared"])
+        await model_repo.set_tags(mid2, ["shared"])
+
+        async with aiosqlite.connect(cfg.db_path()) as db:
+            cur = await db.execute("SELECT COUNT(*) FROM tags WHERE name = 'shared'")
+            assert (await cur.fetchone())[0] == 1
+
+    async def test_orphan_tag_pruned_after_unlink(self, ext_dir):
+        """A tag name with no remaining model links is deleted from the tags table."""
+        import aiosqlite
+
+        from py import config as cfg
+        from py.db import model_repo
+
+        mid = await model_repo.upsert_model("c.safetensors", "loras", "", "", "")
+        await model_repo.set_tags(mid, ["orphan"])
+        await model_repo.set_tags(mid, [])  # remove the tag
+
+        async with aiosqlite.connect(cfg.db_path()) as db:
+            cur = await db.execute("SELECT COUNT(*) FROM tags WHERE name = 'orphan'")
+            assert (await cur.fetchone())[0] == 0
+
 
 class TestAddMedia:
     async def test_add_image_media(self, ext_dir):
@@ -227,7 +258,7 @@ class TestCascadeDelete:
             await db.commit()
             cur = await db.execute("SELECT COUNT(*) FROM trigger_words WHERE model_id = ?", (mid,))
             assert (await cur.fetchone())[0] == 0
-            cur = await db.execute("SELECT COUNT(*) FROM tags WHERE model_id = ?", (mid,))
+            cur = await db.execute("SELECT COUNT(*) FROM model_tags WHERE model_id = ?", (mid,))
             assert (await cur.fetchone())[0] == 0
             cur = await db.execute("SELECT COUNT(*) FROM model_media WHERE model_id = ?", (mid,))
             assert (await cur.fetchone())[0] == 0

@@ -7,6 +7,25 @@ _MAX_PATH = 1_000
 _ALLOWED_MEDIA_TYPES = {"image", "video"}
 
 
+async def _prune_orphan_tags(db) -> None:
+    """Remove tag names that are no longer linked to any model."""
+    await db.execute("DELETE FROM tags WHERE id NOT IN (SELECT DISTINCT tag_id FROM model_tags)")
+
+
+async def _set_model_tags(db, model_id: int, tags: list[str]) -> None:
+    """Replace all tag links for a model, creating new tag rows as needed, then prune orphans."""
+    await db.execute("DELETE FROM model_tags WHERE model_id = ?", (model_id,))
+    for name in tags:
+        name = name[:_MAX_TAG]
+        await db.execute("INSERT OR IGNORE INTO tags(name) VALUES (?)", (name,))
+        await db.execute(
+            "INSERT OR IGNORE INTO model_tags(model_id, tag_id) "
+            "SELECT ?, id FROM tags WHERE name = ?",
+            (model_id, name),
+        )
+    await _prune_orphan_tags(db)
+
+
 async def upsert_model(
     filename: str,
     model_type: str,
@@ -101,11 +120,7 @@ async def upsert_model_with_meta(
             "INSERT INTO trigger_words (model_id, word) VALUES (?, ?)",
             [(model_id, w[:_MAX_WORD]) for w in trigger_words],
         )
-        await db.execute("DELETE FROM tags WHERE model_id = ?", (model_id,))
-        await db.executemany(
-            "INSERT INTO tags (model_id, tag) VALUES (?, ?)",
-            [(model_id, t[:_MAX_TAG]) for t in tags],
-        )
+        await _set_model_tags(db, model_id, tags)
         await db.commit()
         return model_id
 
@@ -122,11 +137,7 @@ async def set_trigger_words(model_id: int, words: list[str]):
 
 async def set_tags(model_id: int, tags: list[str]):
     async with get_db() as db:
-        await db.execute("DELETE FROM tags WHERE model_id = ?", (model_id,))
-        await db.executemany(
-            "INSERT INTO tags (model_id, tag) VALUES (?, ?)",
-            [(model_id, t[:_MAX_TAG]) for t in tags],
-        )
+        await _set_model_tags(db, model_id, tags)
         await db.commit()
 
 
@@ -160,10 +171,13 @@ async def get_model_by_filename(filename: str) -> dict | None:
             )
         ).fetchall()
         tags = await (
-            await db.execute("SELECT tag FROM tags WHERE model_id = ?", (model["id"],))
+            await db.execute(
+                "SELECT t.name FROM tags t JOIN model_tags mt ON mt.tag_id = t.id WHERE mt.model_id = ?",
+                (model["id"],),
+            )
         ).fetchall()
         model["trigger_words"] = [r["word"] for r in words]
-        model["tags"] = [r["tag"] for r in tags]
+        model["tags"] = [r["name"] for r in tags]
         model["media"] = [dict(r) for r in media]
         return model
 
@@ -189,10 +203,13 @@ async def get_metadata_by_filenames(filenames: list[str]) -> dict[str, dict]:
                 )
             ).fetchall()
             tags = await (
-                await db.execute("SELECT tag FROM tags WHERE model_id = ?", (m["id"],))
+                await db.execute(
+                    "SELECT t.name FROM tags t JOIN model_tags mt ON mt.tag_id = t.id WHERE mt.model_id = ?",
+                    (m["id"],),
+                )
             ).fetchall()
             m["trigger_words"] = [r["word"] for r in words]
-            m["tags"] = [r["tag"] for r in tags]
+            m["tags"] = [r["name"] for r in tags]
             m["media"] = [dict(r) for r in media]
             result[m["filename"]] = m
         return result
@@ -228,11 +245,7 @@ async def update_model_meta(
                 "INSERT INTO trigger_words (model_id, word) VALUES (?, ?)",
                 [(model_id, w[:_MAX_WORD]) for w in trigger_words],
             )
-            await db.execute("DELETE FROM tags WHERE model_id = ?", (model_id,))
-            await db.executemany(
-                "INSERT INTO tags (model_id, tag) VALUES (?, ?)",
-                [(model_id, t[:_MAX_TAG]) for t in tags],
-            )
+            await _set_model_tags(db, model_id, tags)
         await db.commit()
 
 
