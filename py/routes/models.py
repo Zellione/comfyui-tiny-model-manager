@@ -4,8 +4,34 @@ import shutil
 import folder_paths
 from aiohttp import web
 
+from .. import config as cfg
 from ..db import model_repo
 from .metadata import _derive_source_url
+
+_BROAD_EXTENSIONS = {".safetensors", ".ckpt", ".pt", ".bin", ".gguf", ".pth"}
+_SKIP_TYPES = {"configs", "custom_nodes"}
+
+
+def _scan_dir(base_dir: str, extensions: set) -> list:
+    """Walk base_dir and return model file entries for matching extensions."""
+    entries = []
+    if not os.path.isdir(base_dir):
+        return entries
+    for root, _, files in os.walk(base_dir):
+        for fname in files:
+            if os.path.splitext(fname)[1].lower() in extensions:
+                full = os.path.join(root, fname)
+                rel = os.path.relpath(full, base_dir).replace("\\", "/")
+                stat = os.stat(full)
+                entries.append(
+                    {
+                        "filename": rel,
+                        "base_dir": base_dir,
+                        "size_bytes": stat.st_size,
+                        "modified_at": stat.st_mtime,
+                    }
+                )
+    return entries
 
 
 def add_model_routes(routes):
@@ -14,30 +40,48 @@ def add_model_routes(routes):
     async def list_models(request):
         try:
             result = {}
+            # Track every physical directory already covered so we don't double-count.
+            scanned: set[str] = set()
+
+            # 1. Registered ComfyUI folder types
             for folder_type, (dirs, extensions) in folder_paths.folder_names_and_paths.items():
-                if folder_type == "configs":
+                if folder_type in _SKIP_TYPES:
                     continue
                 models = []
                 for base_dir in dirs:
-                    if not os.path.isdir(base_dir):
-                        continue
-                    for root, _, files in os.walk(base_dir):
-                        for fname in files:
-                            ext = os.path.splitext(fname)[1].lower()
-                            if ext in extensions:
-                                full = os.path.join(root, fname)
-                                rel = os.path.relpath(full, base_dir).replace("\\", "/")
-                                stat = os.stat(full)
-                                models.append(
-                                    {
-                                        "filename": rel,
-                                        "base_dir": base_dir,
-                                        "size_bytes": stat.st_size,
-                                        "modified_at": stat.st_mtime,
-                                    }
-                                )
+                    norm = os.path.normpath(base_dir)
+                    scanned.add(norm)
+                    models.extend(_scan_dir(base_dir, extensions))
                 if models:
                     result[folder_type] = models
+
+            # 2. Physical subfolders of models_dir not covered by any registered path.
+            #    Handles types like "unet"/"clip" that lost their folder_paths registration
+            #    across ComfyUI versions, and any future custom folder.
+            if os.path.isdir(folder_paths.models_dir):
+                for name in sorted(os.listdir(folder_paths.models_dir)):
+                    if name in _SKIP_TYPES:
+                        continue
+                    physical = os.path.normpath(os.path.join(folder_paths.models_dir, name))
+                    if not os.path.isdir(physical) or physical in scanned:
+                        continue
+                    scanned.add(physical)
+                    models = _scan_dir(physical, _BROAD_EXTENSIONS)
+                    if models:
+                        result.setdefault(name, []).extend(models)
+
+            # 3. Legacy fallback location (data_dir/models/<type>) used by older versions
+            #    of this plugin.  Surfaces already-downloaded files that ended up there.
+            legacy_root = os.path.join(cfg.data_dir(), "models")
+            if os.path.isdir(legacy_root):
+                for name in sorted(os.listdir(legacy_root)):
+                    physical = os.path.normpath(os.path.join(legacy_root, name))
+                    if not os.path.isdir(physical) or physical in scanned:
+                        continue
+                    scanned.add(physical)
+                    models = _scan_dir(physical, _BROAD_EXTENSIONS)
+                    if models:
+                        result.setdefault(name, []).extend(models)
             all_filenames = [f["filename"] for files in result.values() for f in files]
             meta_map = await model_repo.get_metadata_by_filenames(all_filenames)
             for files in result.values():
