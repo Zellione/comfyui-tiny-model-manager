@@ -19,7 +19,23 @@ import { detectLink, LinkKind } from '../../utils/link-detector';
 type HfFileItem = { filename: string; size: number; url: string };
 
 type Platform = 'civitai' | 'huggingface';
-type ModelType = 'checkpoints' | 'loras' | 'embeddings' | 'vae' | 'controlnet' | 'unet';
+type ModelType =
+  | 'checkpoints'
+  | 'loras'
+  | 'embeddings'
+  | 'vae'
+  | 'controlnet'
+  | 'upscale_models'
+  | 'hypernetworks'
+  | 'clip_vision'
+  | 'style_models'
+  | 'gligen'
+  | 'diffusion_models'
+  | 'text_encoders'
+  | 'photomaker'
+  | 'vae_approx'
+  | 'unet'
+  | 'clip';
 
 @Component({
   selector: 'app-download',
@@ -79,7 +95,24 @@ export class Download {
   platform = signal<Platform>('civitai');
   query = signal('');
   modelType = signal<ModelType>('checkpoints');
-  modelTypes: ModelType[] = ['checkpoints', 'loras', 'embeddings', 'vae', 'controlnet', 'unet'];
+  modelTypes: ModelType[] = [
+    'checkpoints',
+    'loras',
+    'embeddings',
+    'vae',
+    'controlnet',
+    'upscale_models',
+    'hypernetworks',
+    'clip_vision',
+    'style_models',
+    'gligen',
+    'diffusion_models',
+    'text_encoders',
+    'photomaker',
+    'vae_approx',
+    'unet',
+    'clip',
+  ];
 
   hfRowTypes = signal<Record<string, ModelType>>({});
   linkHfRowTypes = signal<Record<string, ModelType>>({});

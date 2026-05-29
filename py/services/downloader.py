@@ -17,8 +17,17 @@ SUPPORTED_TYPES = {
     "vae": "vae",
     "controlnet": "controlnet",
     "upscale_models": "upscale_models",
-    "clip": "clip",
+    "hypernetworks": "hypernetworks",
+    "clip_vision": "clip_vision",
+    "style_models": "style_models",
+    "gligen": "gligen",
+    "diffusion_models": "diffusion_models",
+    "text_encoders": "text_encoders",
+    "photomaker": "photomaker",
+    "vae_approx": "vae_approx",
+    # Legacy names kept for backward compatibility (no longer registered ComfyUI folders)
     "unet": "unet",
+    "clip": "clip",
 }
 
 
