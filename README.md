@@ -4,6 +4,8 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
 
 ## Getting Started
 
+### Windows
+
 1. Install Python dependencies:
    ```
    ..\..\..\python_embeded\python.exe -m pip install -r requirements.txt
@@ -15,6 +17,27 @@ A ComfyUI custom node providing a web dashboard to browse, download, and manage 
    npx ng build
    ```
 3. Restart ComfyUI and open `http://localhost:8188/tiny-model-manager`
+
+### Linux
+
+Assumes ComfyUI was installed via [comfy-cli](https://comfyui-wiki.com/en/install/install-comfyui/install-comfyui-on-linux) with a venv at `../../../comfy-env` relative to this folder.
+
+1. Install Python dependencies:
+   ```bash
+   source ../../../comfy-env/bin/activate
+   pip install -r requirements.txt
+   pip install -r requirements-dev.txt
+   ```
+2. Build the frontend (requires Node.js):
+   ```bash
+   cd frontend
+   npm install
+   npx ng build
+   ```
+3. Start ComfyUI and open `http://localhost:8188/tiny-model-manager`:
+   ```bash
+   comfy launch
+   ```
 
 ---
 
