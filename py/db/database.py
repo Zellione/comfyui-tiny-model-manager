@@ -1,5 +1,7 @@
-import aiosqlite
 from contextlib import asynccontextmanager
+
+import aiosqlite
+
 from .. import config as cfg
 
 _SCHEMA = """

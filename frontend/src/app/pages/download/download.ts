@@ -5,7 +5,13 @@ import { toSignal, toObservable, takeUntilDestroyed } from '@angular/core/rxjs-i
 import { Subject, skip } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, of, catchError, map } from 'rxjs';
 import { DownloadService, DownloadTask } from '../../services/download';
-import { CivitaiService, CivitaiModel, CivitaiVersion, CivitaiFile, CivitaiDirectLinkInfo } from '../../services/civitai';
+import {
+  CivitaiService,
+  CivitaiModel,
+  CivitaiVersion,
+  CivitaiFile,
+  CivitaiDirectLinkInfo,
+} from '../../services/civitai';
 import { HuggingFaceService, HfModel } from '../../services/huggingface';
 import { ModelService } from '../../services/model';
 import { detectLink, LinkKind } from '../../utils/link-detector';
@@ -31,34 +37,43 @@ export class Download {
 
   readonly civitaiSortOptions = [
     { label: 'Most Downloaded', value: 'Most Downloaded' },
-    { label: 'Highest Rated',   value: 'Highest Rated' },
-    { label: 'Newest',          value: 'Newest' },
+    { label: 'Highest Rated', value: 'Highest Rated' },
+    { label: 'Newest', value: 'Newest' },
   ];
   readonly civitaiPeriodOptions = [
     { label: 'All Time', value: 'AllTime' },
-    { label: 'Year',     value: 'Year' },
-    { label: 'Month',    value: 'Month' },
-    { label: 'Week',     value: 'Week' },
-    { label: 'Day',      value: 'Day' },
+    { label: 'Year', value: 'Year' },
+    { label: 'Month', value: 'Month' },
+    { label: 'Week', value: 'Week' },
+    { label: 'Day', value: 'Day' },
   ];
   readonly hfSortOptions = [
-    { label: 'Downloads',        value: 'downloads' },
-    { label: 'Likes',            value: 'likes' },
-    { label: 'Trending',         value: 'trending' },
+    { label: 'Downloads', value: 'downloads' },
+    { label: 'Likes', value: 'likes' },
+    { label: 'Trending', value: 'trending' },
     { label: 'Recently Updated', value: 'lastModified' },
     { label: 'Recently Created', value: 'createdAt' },
   ];
   readonly formatOptions = [
-    { label: 'All formats',  value: '' },
+    { label: 'All formats', value: '' },
     { label: '.safetensors', value: '.safetensors' },
-    { label: '.gguf',        value: '.gguf' },
-    { label: '.ckpt',        value: '.ckpt' },
-    { label: '.pt',          value: '.pt' },
-    { label: '.bin',         value: '.bin' },
+    { label: '.gguf', value: '.gguf' },
+    { label: '.ckpt', value: '.ckpt' },
+    { label: '.pt', value: '.pt' },
+    { label: '.bin', value: '.bin' },
   ];
   readonly civitaiBaseModelOptions = [
-    'SD 1.5', 'SD 2.1', 'SDXL 1.0', 'Pony', 'Illustrious',
-    'Flux.1 D', 'Flux.1 S', 'Stable Cascade', 'SDXL Turbo', 'Chroma', 'Qwen',
+    'SD 1.5',
+    'SD 2.1',
+    'SDXL 1.0',
+    'Pony',
+    'Illustrious',
+    'Flux.1 D',
+    'Flux.1 S',
+    'Stable Cascade',
+    'SDXL Turbo',
+    'Chroma',
+    'Qwen',
   ];
 
   platform = signal<Platform>('civitai');
@@ -66,53 +81,73 @@ export class Download {
   modelType = signal<ModelType>('checkpoints');
   modelTypes: ModelType[] = ['checkpoints', 'loras', 'embeddings', 'vae', 'controlnet'];
 
-  hfRowTypes     = signal<Record<string, ModelType>>({});
+  hfRowTypes = signal<Record<string, ModelType>>({});
   linkHfRowTypes = signal<Record<string, ModelType>>({});
 
-  hfRowType(name: string): ModelType { return this.hfRowTypes()[name] ?? 'checkpoints'; }
-  setHfRowType(name: string, t: ModelType) { this.hfRowTypes.update(m => ({ ...m, [name]: t })); }
+  hfRowType(name: string): ModelType {
+    return this.hfRowTypes()[name] ?? 'checkpoints';
+  }
+  setHfRowType(name: string, t: ModelType) {
+    this.hfRowTypes.update((m) => ({ ...m, [name]: t }));
+  }
 
-  linkHfRowType(name: string): ModelType { return this.linkHfRowTypes()[name] ?? 'checkpoints'; }
-  setLinkHfRowType(name: string, t: ModelType) { this.linkHfRowTypes.update(m => ({ ...m, [name]: t })); }
+  linkHfRowType(name: string): ModelType {
+    return this.linkHfRowTypes()[name] ?? 'checkpoints';
+  }
+  setLinkHfRowType(name: string, t: ModelType) {
+    this.linkHfRowTypes.update((m) => ({ ...m, [name]: t }));
+  }
 
-  civitaiSort      = signal('');
-  civitaiPeriod    = signal('AllTime');
+  civitaiSort = signal('');
+  civitaiPeriod = signal('AllTime');
   civitaiBaseModel = signal('');
-  hfSort           = signal('downloads');
-  formatFilter     = signal('');
-  hasSearched      = signal(false);
+  hfSort = signal('downloads');
+  formatFilter = signal('');
+  hasSearched = signal(false);
 
   // Paste-a-link section
-  pasteUrl      = signal('');
-  linkKind      = signal<LinkKind>({ type: 'empty' });
+  pasteUrl = signal('');
+  linkKind = signal<LinkKind>({ type: 'empty' });
   linkModelType = signal<ModelType>('checkpoints');
   linkResolving = signal(false);
-  linkError     = signal('');
-  linkResolved  = signal<CivitaiDirectLinkInfo | null>(null);
-  linkImages    = signal<string[]>([]);
+  linkError = signal('');
+  linkResolved = signal<CivitaiDirectLinkInfo | null>(null);
+  linkImages = signal<string[]>([]);
 
   // F-19: HF repo link state
   linkHfFiles = signal<HfFileItem[]>([]);
 
   // F-20: CivitAI model link state
-  linkVersions             = signal<CivitaiVersion[]>([]);
-  linkVersionsError        = signal('');
-  linkCivitaiSelected      = signal(new Map<string, { file: CivitaiFile; versionId: number }>());
+  linkVersions = signal<CivitaiVersion[]>([]);
+  linkVersionsError = signal('');
+  linkCivitaiSelected = signal(new Map<string, { file: CivitaiFile; versionId: number }>());
   linkCivitaiSelectedCount = computed(() => this.linkCivitaiSelected().size);
 
   installedFilenames = signal(new Set<string>());
 
-  hfResolveKind       = computed(() => { const k = this.linkKind(); return k.type === 'hf-resolve' ? k : null; });
-  civitaiDownloadKind = computed(() => { const k = this.linkKind(); return k.type === 'civitai-download' ? k : null; });
-  hfRepoKind          = computed(() => { const k = this.linkKind(); return k.type === 'hf-repo' ? k : null; });
-  civitaiModelKind    = computed(() => { const k = this.linkKind(); return k.type === 'civitai-model' ? k : null; });
-  linkFilename        = computed(() => {
+  hfResolveKind = computed(() => {
+    const k = this.linkKind();
+    return k.type === 'hf-resolve' ? k : null;
+  });
+  civitaiDownloadKind = computed(() => {
+    const k = this.linkKind();
+    return k.type === 'civitai-download' ? k : null;
+  });
+  hfRepoKind = computed(() => {
+    const k = this.linkKind();
+    return k.type === 'hf-repo' ? k : null;
+  });
+  civitaiModelKind = computed(() => {
+    const k = this.linkKind();
+    return k.type === 'civitai-model' ? k : null;
+  });
+  linkFilename = computed(() => {
     const k = this.linkKind();
     if (k.type === 'hf-resolve') return k.filename;
     if (k.type === 'civitai-download') return this.linkResolved()?.filename ?? '';
     return '';
   });
-  canSubmitLink       = computed(() => {
+  canSubmitLink = computed(() => {
     const k = this.linkKind();
     if (k.type === 'hf-resolve') return true;
     if (k.type === 'civitai-download') return !!this.linkResolved() && !this.linkResolving();
@@ -125,23 +160,23 @@ export class Download {
   filteredCivitaiResults = computed(() => {
     const fmt = this.formatFilter();
     if (!fmt) return this.civitaiResults();
-    return this.civitaiResults().filter(m =>
-      m.modelVersions?.some(v => v.files?.some(f => f.name.toLowerCase().endsWith(fmt)))
+    return this.civitaiResults().filter((m) =>
+      m.modelVersions?.some((v) => v.files?.some((f) => f.name.toLowerCase().endsWith(fmt))),
     );
   });
 
   filteredHfResults = computed(() => {
     const fmt = this.formatFilter();
     if (!fmt) return this.hfResults();
-    return this.hfResults().filter(m => m.formats?.includes(fmt));
+    return this.hfResults().filter((m) => m.formats?.includes(fmt));
   });
 
   private filterParams = computed(() => ({
-    civitaiSort:      this.civitaiSort(),
-    civitaiPeriod:    this.civitaiPeriod(),
+    civitaiSort: this.civitaiSort(),
+    civitaiPeriod: this.civitaiPeriod(),
     civitaiBaseModel: this.civitaiBaseModel(),
-    hfSort:           this.hfSort(),
-    formatFilter:     this.formatFilter(),
+    hfSort: this.hfSort(),
+    formatFilter: this.formatFilter(),
   }));
 
   activeTasks = toSignal(this.dlService.activeTasks$, { initialValue: [] as DownloadTask[] });
@@ -176,7 +211,7 @@ export class Download {
       .pipe(
         debounceTime(300),
         distinctUntilChanged(),
-        switchMap(url => {
+        switchMap((url) => {
           const kind = detectLink(url);
           this.linkKind.set(kind);
           this.linkResolved.set(null);
@@ -189,48 +224,52 @@ export class Download {
           if (kind.type === 'hf-resolve') {
             this.linkResolving.set(true);
             return this.hfService.resolveDirectLink(kind.repo).pipe(
-              map(r => ({ tag: 'hf-resolve' as const, image_urls: r.image_urls })),
-              catchError(() => of({ tag: 'hf-resolve' as const, image_urls: [] as string[] }))
+              map((r) => ({ tag: 'hf-resolve' as const, image_urls: r.image_urls })),
+              catchError(() => of({ tag: 'hf-resolve' as const, image_urls: [] as string[] })),
             );
           }
           if (kind.type === 'civitai-download') {
             this.linkResolving.set(true);
             return this.civitaiService.resolveDirectLink(kind.versionId).pipe(
-              map(r => ({ tag: 'civitai-download' as const, ...r })),
-              catchError(err => {
+              map((r) => ({ tag: 'civitai-download' as const, ...r })),
+              catchError((err) => {
                 this.linkError.set(err?.error?.error ?? 'Failed to resolve link');
                 this.linkResolving.set(false);
                 return of(null);
-              })
+              }),
             );
           }
           if (kind.type === 'hf-repo') {
             this.linkResolving.set(true);
             return this.hfService.getFiles(kind.repo).pipe(
-              map(files => ({ tag: 'hf-repo' as const, files })),
+              map((files) => ({ tag: 'hf-repo' as const, files })),
               catchError(() => {
                 this.linkError.set('Failed to load files from repository');
                 this.linkResolving.set(false);
                 return of(null);
-              })
+              }),
             );
           }
           if (kind.type === 'civitai-model') {
             this.linkResolving.set(true);
             return this.civitaiService.getVersions(kind.modelId).pipe(
-              map(r => ({ tag: 'civitai-model' as const, versions: r.versions, model_type: r.model_type })),
-              catchError(err => {
+              map((r) => ({
+                tag: 'civitai-model' as const,
+                versions: r.versions,
+                model_type: r.model_type,
+              })),
+              catchError((err) => {
                 this.linkVersionsError.set(err?.error?.error ?? 'Failed to load model versions');
                 this.linkResolving.set(false);
                 return of(null);
-              })
+              }),
             );
           }
           return of(null);
         }),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe(result => {
+      .subscribe((result) => {
         if (result) {
           if (result.tag === 'hf-resolve') {
             this.linkImages.set(result.image_urls ?? []);
@@ -248,36 +287,35 @@ export class Download {
         this.linkResolving.set(false);
       });
 
-    this.modelService.listModels().pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe(models => {
-      const names = new Set<string>();
-      for (const files of Object.values(models)) {
-        for (const f of files) names.add(f.filename);
-      }
-      this.installedFilenames.set(names);
-    });
+    this.modelService
+      .listModels()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((models) => {
+        const names = new Set<string>();
+        for (const files of Object.values(models)) {
+          for (const f of files) names.add(f.filename);
+        }
+        this.installedFilenames.set(names);
+      });
 
-    toObservable(this.activeTasks).pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe(tasks => {
-      const done = tasks.filter(t => t.status === 'done').map(t => t.filename);
-      if (done.length > 0) {
-        this.installedFilenames.update(prev => {
-          const next = new Set(prev);
-          done.forEach(f => next.add(f));
-          return next;
-        });
-      }
-    });
+    toObservable(this.activeTasks)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((tasks) => {
+        const done = tasks.filter((t) => t.status === 'done').map((t) => t.filename);
+        if (done.length > 0) {
+          this.installedFilenames.update((prev) => {
+            const next = new Set(prev);
+            done.forEach((f) => next.add(f));
+            return next;
+          });
+        }
+      });
 
-    toObservable(this.filterParams).pipe(
-      skip(1),
-      debounceTime(300),
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe(() => {
-      if (this.hasSearched()) this.search();
-    });
+    toObservable(this.filterParams)
+      .pipe(skip(1), debounceTime(300), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        if (this.hasSearched()) this.search();
+      });
   }
 
   fileStatus(filename: string): 'idle' | 'downloading' | 'installed' | 'error' {
@@ -285,7 +323,7 @@ export class Download {
     // "split_files/model.safetensors"). The downloader strips this to the basename
     // before saving, so we match on the basename here for correct status resolution.
     const base = filename.split('/').pop() ?? filename;
-    const task = this.activeTasks().find(t => t.filename === base);
+    const task = this.activeTasks().find((t) => t.filename === base);
     if (task) {
       if (task.status === 'done') return 'installed';
       if (task.status === 'error') return 'error';
@@ -303,11 +341,15 @@ export class Download {
     const kind = this.linkKind();
     const type = this.linkModelType();
     if (kind.type === 'hf-resolve') {
-      this.dlService.startDownload(this.pasteUrl(), type, kind.filename, 'huggingface', kind.repo).subscribe();
+      this.dlService
+        .startDownload(this.pasteUrl(), type, kind.filename, 'huggingface', kind.repo)
+        .subscribe();
     } else if (kind.type === 'civitai-download') {
       const r = this.linkResolved();
       if (!r) return;
-      this.dlService.startDownload(this.pasteUrl(), type, r.filename, 'civitai', String(kind.versionId)).subscribe();
+      this.dlService
+        .startDownload(this.pasteUrl(), type, r.filename, 'civitai', String(kind.versionId))
+        .subscribe();
     }
     this.pasteUrl.set('');
     this.linkKind.set({ type: 'empty' });
@@ -320,15 +362,21 @@ export class Download {
   downloadLinkHfFile(f: HfFileItem) {
     const kind = this.linkKind();
     const repo = kind.type === 'hf-repo' ? kind.repo : '';
-    this.dlService.startDownload(f.url, this.linkHfRowType(f.filename), f.filename, 'huggingface', repo).subscribe();
+    this.dlService
+      .startDownload(f.url, this.linkHfRowType(f.filename), f.filename, 'huggingface', repo)
+      .subscribe();
   }
 
   // F-20 — CivitAI model link methods
   toggleLinkCivitaiFile(versionId: number, file: CivitaiFile) {
     const key = `${versionId}_${file.id}`;
-    this.linkCivitaiSelected.update(prev => {
+    this.linkCivitaiSelected.update((prev) => {
       const next = new Map(prev);
-      if (next.has(key)) { next.delete(key); } else { next.set(key, { file, versionId }); }
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.set(key, { file, versionId });
+      }
       return next;
     });
   }
@@ -338,12 +386,28 @@ export class Download {
   }
 
   downloadLinkFile(file: CivitaiFile, versionId: number) {
-    this.dlService.startDownload(file.downloadUrl, this.linkModelType(), file.name, 'civitai', String(versionId)).subscribe();
+    this.dlService
+      .startDownload(
+        file.downloadUrl,
+        this.linkModelType(),
+        file.name,
+        'civitai',
+        String(versionId),
+      )
+      .subscribe();
   }
 
   downloadSelectedLinkCivitai() {
     for (const { file, versionId } of this.linkCivitaiSelected().values()) {
-      this.dlService.startDownload(file.downloadUrl, this.linkModelType(), file.name, 'civitai', String(versionId)).subscribe();
+      this.dlService
+        .startDownload(
+          file.downloadUrl,
+          this.linkModelType(),
+          file.name,
+          'civitai',
+          String(versionId),
+        )
+        .subscribe();
     }
     this.linkCivitaiSelected.set(new Map());
   }
@@ -360,58 +424,91 @@ export class Download {
     this.selectedCivitaiFiles.set(new Map());
 
     if (this.platform() === 'civitai') {
-      this.civitaiService.search(
-        this.query(), this.modelType(), 1, '',
-        this.civitaiBaseModel(), this.civitaiSort(), this.civitaiPeriod()
-      ).subscribe({
-        next: r => {
-          this.civitaiResults.set(r.items);
-          this.civitaiCursor.set(r.metadata?.nextCursor ?? '');
-          this.civitaiHasMore.set(!!r.metadata?.nextCursor);
-          this.searching.set(false);
-          if (r.items.length > 0) this.selectCivitai(r.items[0]);
-        },
-        error: () => { this.searching.set(false); },
-      });
+      this.civitaiService
+        .search(
+          this.query(),
+          this.modelType(),
+          1,
+          '',
+          this.civitaiBaseModel(),
+          this.civitaiSort(),
+          this.civitaiPeriod(),
+        )
+        .subscribe({
+          next: (r) => {
+            this.civitaiResults.set(r.items);
+            this.civitaiCursor.set(r.metadata?.nextCursor ?? '');
+            this.civitaiHasMore.set(!!r.metadata?.nextCursor);
+            this.searching.set(false);
+            if (r.items.length > 0) this.selectCivitai(r.items[0]);
+          },
+          error: () => {
+            this.searching.set(false);
+          },
+        });
     } else {
-      this.hfService.search(this.query(), this.modelType(), 0, this.hfSort(), -1, this.formatFilter()).subscribe({
-        next: r => {
-          this.hfResults.set(r.items);
-          this.hfPage.set(r.nextPage);
-          this.hfHasMore.set(r.hasMore);
-          this.searching.set(false);
-          if (r.items.length > 0) this.selectHf(r.items[0]);
-        },
-        error: () => { this.searching.set(false); },
-      });
+      this.hfService
+        .search(this.query(), this.modelType(), 0, this.hfSort(), -1, this.formatFilter())
+        .subscribe({
+          next: (r) => {
+            this.hfResults.set(r.items);
+            this.hfPage.set(r.nextPage);
+            this.hfHasMore.set(r.hasMore);
+            this.searching.set(false);
+            if (r.items.length > 0) this.selectHf(r.items[0]);
+          },
+          error: () => {
+            this.searching.set(false);
+          },
+        });
     }
   }
 
   loadMore() {
     this.loadingMore.set(true);
     if (this.platform() === 'civitai') {
-      this.civitaiService.search(
-        this.query(), this.modelType(), 1, this.civitaiCursor(),
-        this.civitaiBaseModel(), this.civitaiSort(), this.civitaiPeriod()
-      ).subscribe({
-        next: r => {
-          this.civitaiResults.update(prev => [...prev, ...r.items]);
-          this.civitaiCursor.set(r.metadata?.nextCursor ?? '');
-          this.civitaiHasMore.set(!!r.metadata?.nextCursor);
-          this.loadingMore.set(false);
-        },
-        error: () => { this.loadingMore.set(false); },
-      });
+      this.civitaiService
+        .search(
+          this.query(),
+          this.modelType(),
+          1,
+          this.civitaiCursor(),
+          this.civitaiBaseModel(),
+          this.civitaiSort(),
+          this.civitaiPeriod(),
+        )
+        .subscribe({
+          next: (r) => {
+            this.civitaiResults.update((prev) => [...prev, ...r.items]);
+            this.civitaiCursor.set(r.metadata?.nextCursor ?? '');
+            this.civitaiHasMore.set(!!r.metadata?.nextCursor);
+            this.loadingMore.set(false);
+          },
+          error: () => {
+            this.loadingMore.set(false);
+          },
+        });
     } else {
-      this.hfService.search(this.query(), this.modelType(), this.hfPage(), this.hfSort(), -1, this.formatFilter()).subscribe({
-        next: r => {
-          this.hfResults.update(prev => [...prev, ...r.items]);
-          this.hfPage.set(r.nextPage);
-          this.hfHasMore.set(r.hasMore);
-          this.loadingMore.set(false);
-        },
-        error: () => { this.loadingMore.set(false); },
-      });
+      this.hfService
+        .search(
+          this.query(),
+          this.modelType(),
+          this.hfPage(),
+          this.hfSort(),
+          -1,
+          this.formatFilter(),
+        )
+        .subscribe({
+          next: (r) => {
+            this.hfResults.update((prev) => [...prev, ...r.items]);
+            this.hfPage.set(r.nextPage);
+            this.hfHasMore.set(r.hasMore);
+            this.loadingMore.set(false);
+          },
+          error: () => {
+            this.loadingMore.set(false);
+          },
+        });
     }
   }
 
@@ -424,12 +521,12 @@ export class Download {
     this.loadingVersions.set(true);
     this.selectedCivitaiFiles.set(new Map());
     this.civitaiService.getVersions(model.id).subscribe({
-      next: v => {
+      next: (v) => {
         if (this.selectedModel()?.id !== targetId) return;
         this.versions.set(v.versions);
         this.loadingVersions.set(false);
       },
-      error: err => {
+      error: (err) => {
         if (this.selectedModel()?.id !== targetId) return;
         this.versionsError.set(err?.error?.error ?? 'Failed to load versions');
         this.loadingVersions.set(false);
@@ -439,7 +536,7 @@ export class Download {
 
   toggleCivitaiFile(versionId: number, file: CivitaiFile) {
     const key = `${versionId}_${file.id}`;
-    this.selectedCivitaiFiles.update(prev => {
+    this.selectedCivitaiFiles.update((prev) => {
       const next = new Map(prev);
       if (next.has(key)) {
         next.delete(key);
@@ -455,12 +552,16 @@ export class Download {
   }
 
   downloadFile(file: CivitaiFile, versionId: number) {
-    this.dlService.startDownload(file.downloadUrl, this.modelType(), file.name, 'civitai', String(versionId)).subscribe();
+    this.dlService
+      .startDownload(file.downloadUrl, this.modelType(), file.name, 'civitai', String(versionId))
+      .subscribe();
   }
 
   downloadSelectedCivitai() {
     for (const { file, versionId } of this.selectedCivitaiFiles().values()) {
-      this.dlService.startDownload(file.downloadUrl, this.modelType(), file.name, 'civitai', String(versionId)).subscribe();
+      this.dlService
+        .startDownload(file.downloadUrl, this.modelType(), file.name, 'civitai', String(versionId))
+        .subscribe();
     }
     this.selectedCivitaiFiles.set(new Map());
   }
@@ -472,7 +573,7 @@ export class Download {
     this.hfFiles.set([]);
     this.hfDescription.set('');
     this.hfService.getFiles(repoId).subscribe({
-      next: files => {
+      next: (files) => {
         if (this.selectedHfRepoId() !== repoId) return;
         this.hfFiles.set(files);
       },
@@ -482,18 +583,28 @@ export class Download {
     } else {
       this.hfDescriptionLoading.set(true);
       this.hfService.getReadme(repoId).subscribe({
-        next: desc => {
+        next: (desc) => {
           if (this.selectedHfRepoId() !== repoId) return;
           this.hfDescription.set(desc);
           this.hfDescriptionLoading.set(false);
         },
-        error: () => { this.hfDescriptionLoading.set(false); },
+        error: () => {
+          this.hfDescriptionLoading.set(false);
+        },
       });
     }
   }
 
   downloadHf(file: { filename: string; size: number; url: string }) {
-    this.dlService.startDownload(file.url, this.hfRowType(file.filename), file.filename, 'huggingface', this.selectedHfRepoId()).subscribe();
+    this.dlService
+      .startDownload(
+        file.url,
+        this.hfRowType(file.filename),
+        file.filename,
+        'huggingface',
+        this.selectedHfRepoId(),
+      )
+      .subscribe();
   }
 
   formatSize(bytes: number): string {
@@ -511,7 +622,10 @@ export class Download {
   }
 
   civitaiGalleryImages(model: CivitaiModel): string[] {
-    return (model.modelVersions?.[0]?.images ?? []).slice(0, 8).map(i => i.url).filter(Boolean);
+    return (model.modelVersions?.[0]?.images ?? [])
+      .slice(0, 8)
+      .map((i) => i.url)
+      .filter(Boolean);
   }
 
   isVideo(url: string): boolean {
@@ -519,7 +633,9 @@ export class Download {
     return lower.includes('.mp4') || lower.includes('.webm') || lower.includes('.mov');
   }
 
-  setGalleryIndex(i: number) { this.galleryIndex.set(i); }
+  setGalleryIndex(i: number) {
+    this.galleryIndex.set(i);
+  }
 
   currentGalleryUrl(model: CivitaiModel): string {
     const images = this.civitaiGalleryImages(model);

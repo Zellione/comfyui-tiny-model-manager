@@ -8,7 +8,6 @@
   <p class="error">{{ error() }}</p>
 } @else if (meta()) {
   <div class="detail-layout">
-
     <!-- Media gallery -->
     <div class="gallery">
       @if (meta()!.media && meta()!.media.length > 0) {
@@ -39,22 +38,32 @@
       <label>
         <span>Model Type</span>
         <select [(ngModel)]="editType">
-          @for (t of modelTypes(); track t) { <option [value]="t">{{ t }}</option> }
+          @for (t of modelTypes(); track t) {
+            <option [value]="t">{{ t }}</option>
+          }
         </select>
       </label>
 
       <label>
         <span>Base Model</span>
-        <input type="text" [(ngModel)]="editMeta.base_model" placeholder="e.g. SDXL 1.0, Flux.1 D, Pony" />
+        <input
+          type="text"
+          [(ngModel)]="editMeta.base_model"
+          placeholder="e.g. SDXL 1.0, Flux.1 D, Pony"
+        />
       </label>
 
       @if (meta()!.source_platform || meta()!.source_url) {
         <div class="source-info">
           @if (meta()!.source_platform) {
-            <span class="badge source-badge">{{ meta()!.source_platform === 'civitai' ? 'CivitAI' : 'HuggingFace' }}</span>
+            <span class="badge source-badge">{{
+              meta()!.source_platform === 'civitai' ? 'CivitAI' : 'HuggingFace'
+            }}</span>
           }
           @if (meta()!.source_url) {
-            <a [href]="meta()!.source_url" target="_blank" rel="noopener" class="source-link">View on source ↗</a>
+            <a [href]="meta()!.source_url" target="_blank" rel="noopener" class="source-link"
+              >View on source ↗</a
+            >
           }
         </div>
       }
@@ -67,7 +76,11 @@
           }
         </div>
         <div class="add-word">
-          <input [(ngModel)]="newTriggerWord" placeholder="Add trigger word" (keyup.enter)="addTriggerWord()" />
+          <input
+            [(ngModel)]="newTriggerWord"
+            placeholder="Add trigger word"
+            (keyup.enter)="addTriggerWord()"
+          />
           <button class="btn-secondary" (click)="addTriggerWord()">Add</button>
         </div>
       </div>
@@ -93,7 +106,9 @@
           {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
         </button>
         <button class="btn-workflow" (click)="addToWorkflow()">Add to Workflow</button>
-        @if (saved()) { <span class="msg-ok">Saved.</span> }
+        @if (saved()) {
+          <span class="msg-ok">Saved.</span>
+        }
       </div>
     </div>
   </div>

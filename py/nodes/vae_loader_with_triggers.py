@@ -1,5 +1,5 @@
-import folder_paths
 import comfy.sd
+import folder_paths
 
 
 class TMMVaeLoader:

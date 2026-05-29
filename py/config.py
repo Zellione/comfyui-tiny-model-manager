@@ -32,15 +32,17 @@ def settings_path() -> str:
 
 def load_settings() -> dict:
     import json
+
     path = os.path.join(_ext_dir, "data", "settings.json")
     if os.path.isfile(path):
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
     return {}
 
 
 def save_settings(data: dict):
     import json
+
     path = settings_path()
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:

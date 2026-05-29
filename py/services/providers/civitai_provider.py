@@ -25,8 +25,18 @@ class CivitaiProvider(ModelProvider):
             return {"Authorization": f"Bearer {key}"}
         return {}
 
-    async def search(self, query: str, model_type: str = "", page: int = 1, limit: int = 20,
-                     cursor: str = "", base_model: str = "", sort: str = "", period: str = "", **kwargs) -> dict:
+    async def search(
+        self,
+        query: str,
+        model_type: str = "",
+        page: int = 1,
+        limit: int = 20,
+        cursor: str = "",
+        base_model: str = "",
+        sort: str = "",
+        period: str = "",
+        **kwargs,
+    ) -> dict:
         params: dict = {"limit": limit}
         if query:
             params["query"] = query
@@ -72,7 +82,9 @@ class CivitaiProvider(ModelProvider):
     async def resolve_direct_link(self, version_id: int) -> dict:
         """Resolves a CivitAI version ID to primary file info for direct download."""
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(f"{_BASE}/model-versions/{version_id}", headers=self.auth_headers())
+            resp = await client.get(
+                f"{_BASE}/model-versions/{version_id}", headers=self.auth_headers()
+            )
             resp.raise_for_status()
             data = resp.json()
         files = data.get("files", [])
@@ -96,7 +108,9 @@ class CivitaiProvider(ModelProvider):
         """Returns description, trigger words, image URLs, tags, base model, and model ID for a version."""
         version_id = int(source_id)
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(f"{_BASE}/model-versions/{version_id}", headers=self.auth_headers())
+            resp = await client.get(
+                f"{_BASE}/model-versions/{version_id}", headers=self.auth_headers()
+            )
             resp.raise_for_status()
             data = resp.json()
         image_urls = [img["url"] for img in data.get("images", [])[:5] if img.get("url")]
@@ -107,7 +121,9 @@ class CivitaiProvider(ModelProvider):
         civitai_model_id = str(model_id) if model_id else ""
         if model_id:
             async with httpx.AsyncClient(timeout=15) as client:
-                model_resp = await client.get(f"{_BASE}/models/{model_id}", headers=self.auth_headers())
+                model_resp = await client.get(
+                    f"{_BASE}/models/{model_id}", headers=self.auth_headers()
+                )
                 if model_resp.is_success:
                     model_data = model_resp.json()
                     description = description or model_data.get("description") or ""

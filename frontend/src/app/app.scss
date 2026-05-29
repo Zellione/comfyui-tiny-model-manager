@@ -1,4 +1,8 @@
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 .topbar {
   position: sticky;
@@ -57,10 +61,17 @@
   font-size: 13px;
   color: var(--text-2);
   text-decoration: none;
-  transition: color var(--dur), background var(--dur);
+  transition:
+    color var(--dur),
+    background var(--dur);
 
-  &:hover { color: var(--text); }
-  &.active { background: var(--surface-hi); color: var(--text); }
+  &:hover {
+    color: var(--text);
+  }
+  &.active {
+    background: var(--surface-hi);
+    color: var(--text);
+  }
 }
 
 .topbar-right {

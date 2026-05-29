@@ -8,8 +8,14 @@ _ALLOWED_MEDIA_TYPES = {"image", "video"}
 
 
 async def upsert_model(
-    filename: str, model_type: str, source_platform: str, source_id: str, description: str,
-    base_model: str = "", civitai_model_id: str = "", media_hash: str = "",
+    filename: str,
+    model_type: str,
+    source_platform: str,
+    source_id: str,
+    description: str,
+    base_model: str = "",
+    civitai_model_id: str = "",
+    media_hash: str = "",
 ) -> int:
     async with get_db() as db:
         cursor = await db.execute(
@@ -25,19 +31,37 @@ async def upsert_model(
                 civitai_model_id = excluded.civitai_model_id,
                 media_hash = excluded.media_hash
             """,
-            (filename, model_type, source_platform, source_id, description[:_MAX_DESCRIPTION], base_model, civitai_model_id, media_hash),
+            (
+                filename,
+                model_type,
+                source_platform,
+                source_id,
+                description[:_MAX_DESCRIPTION],
+                base_model,
+                civitai_model_id,
+                media_hash,
+            ),
         )
         await db.commit()
         if cursor.lastrowid:
             return cursor.lastrowid
-        row = await (await db.execute("SELECT id FROM models WHERE filename = ?", (filename,))).fetchone()
+        row = await (
+            await db.execute("SELECT id FROM models WHERE filename = ?", (filename,))
+        ).fetchone()
         return row["id"]
 
 
 async def upsert_model_with_meta(
-    filename: str, model_type: str, source_platform: str, source_id: str,
-    description: str, trigger_words: list[str], tags: list[str],
-    base_model: str = "", civitai_model_id: str = "", media_hash: str = "",
+    filename: str,
+    model_type: str,
+    source_platform: str,
+    source_id: str,
+    description: str,
+    trigger_words: list[str],
+    tags: list[str],
+    base_model: str = "",
+    civitai_model_id: str = "",
+    media_hash: str = "",
 ) -> int:
     async with get_db() as db:
         cursor = await db.execute(
@@ -53,12 +77,23 @@ async def upsert_model_with_meta(
                 civitai_model_id = excluded.civitai_model_id,
                 media_hash = excluded.media_hash
             """,
-            (filename, model_type, source_platform, source_id, description[:_MAX_DESCRIPTION], base_model, civitai_model_id, media_hash),
+            (
+                filename,
+                model_type,
+                source_platform,
+                source_id,
+                description[:_MAX_DESCRIPTION],
+                base_model,
+                civitai_model_id,
+                media_hash,
+            ),
         )
         if cursor.lastrowid:
             model_id = cursor.lastrowid
         else:
-            row = await (await db.execute("SELECT id FROM models WHERE filename = ?", (filename,))).fetchone()
+            row = await (
+                await db.execute("SELECT id FROM models WHERE filename = ?", (filename,))
+            ).fetchone()
             model_id = row["id"]
 
         await db.execute("DELETE FROM trigger_words WHERE model_id = ?", (model_id,))
@@ -109,19 +144,24 @@ async def add_media(model_id: int, media_type: str, local_path: str) -> int:
 
 async def get_model_by_filename(filename: str) -> dict | None:
     async with get_db() as db:
-        row = await (await db.execute("SELECT * FROM models WHERE filename = ?", (filename,))).fetchone()
+        row = await (
+            await db.execute("SELECT * FROM models WHERE filename = ?", (filename,))
+        ).fetchone()
         if not row:
             return None
         model = dict(row)
-        words = await (await db.execute(
-            "SELECT word FROM trigger_words WHERE model_id = ?", (model["id"],)
-        )).fetchall()
-        media = await (await db.execute(
-            "SELECT id, media_type, local_path FROM model_media WHERE model_id = ?", (model["id"],)
-        )).fetchall()
-        tags = await (await db.execute(
-            "SELECT tag FROM tags WHERE model_id = ?", (model["id"],)
-        )).fetchall()
+        words = await (
+            await db.execute("SELECT word FROM trigger_words WHERE model_id = ?", (model["id"],))
+        ).fetchall()
+        media = await (
+            await db.execute(
+                "SELECT id, media_type, local_path FROM model_media WHERE model_id = ?",
+                (model["id"],),
+            )
+        ).fetchall()
+        tags = await (
+            await db.execute("SELECT tag FROM tags WHERE model_id = ?", (model["id"],))
+        ).fetchall()
         model["trigger_words"] = [r["word"] for r in words]
         model["tags"] = [r["tag"] for r in tags]
         model["media"] = [dict(r) for r in media]
@@ -133,21 +173,24 @@ async def get_metadata_by_filenames(filenames: list[str]) -> dict[str, dict]:
         return {}
     async with get_db() as db:
         placeholders = ",".join("?" * len(filenames))
-        rows = await (await db.execute(
-            f"SELECT * FROM models WHERE filename IN ({placeholders})", filenames
-        )).fetchall()
+        rows = await (
+            await db.execute(f"SELECT * FROM models WHERE filename IN ({placeholders})", filenames)
+        ).fetchall()
         result = {}
         for row in rows:
             m = dict(row)
-            words = await (await db.execute(
-                "SELECT word FROM trigger_words WHERE model_id = ?", (m["id"],)
-            )).fetchall()
-            media = await (await db.execute(
-                "SELECT id, media_type, local_path FROM model_media WHERE model_id = ?", (m["id"],)
-            )).fetchall()
-            tags = await (await db.execute(
-                "SELECT tag FROM tags WHERE model_id = ?", (m["id"],)
-            )).fetchall()
+            words = await (
+                await db.execute("SELECT word FROM trigger_words WHERE model_id = ?", (m["id"],))
+            ).fetchall()
+            media = await (
+                await db.execute(
+                    "SELECT id, media_type, local_path FROM model_media WHERE model_id = ?",
+                    (m["id"],),
+                )
+            ).fetchall()
+            tags = await (
+                await db.execute("SELECT tag FROM tags WHERE model_id = ?", (m["id"],))
+            ).fetchall()
             m["trigger_words"] = [r["word"] for r in words]
             m["tags"] = [r["tag"] for r in tags]
             m["media"] = [dict(r) for r in media]
@@ -156,8 +199,11 @@ async def get_metadata_by_filenames(filenames: list[str]) -> dict[str, dict]:
 
 
 async def update_model_meta(
-    filename: str, description: str, trigger_words: list[str],
-    tags: list[str] | None = None, base_model: str | None = None,
+    filename: str,
+    description: str,
+    trigger_words: list[str],
+    tags: list[str] | None = None,
+    base_model: str | None = None,
 ):
     if tags is None:
         tags = []
@@ -169,9 +215,12 @@ async def update_model_meta(
             )
         else:
             await db.execute(
-                "UPDATE models SET description = ? WHERE filename = ?", (description[:_MAX_DESCRIPTION], filename)
+                "UPDATE models SET description = ? WHERE filename = ?",
+                (description[:_MAX_DESCRIPTION], filename),
             )
-        row = await (await db.execute("SELECT id FROM models WHERE filename = ?", (filename,))).fetchone()
+        row = await (
+            await db.execute("SELECT id FROM models WHERE filename = ?", (filename,))
+        ).fetchone()
         if row:
             model_id = row["id"]
             await db.execute("DELETE FROM trigger_words WHERE model_id = ?", (model_id,))
@@ -197,7 +246,10 @@ async def update_model_type(filename: str, new_type: str):
 
 async def get_model_source_info(filename: str) -> dict | None:
     async with get_db() as db:
-        row = await (await db.execute(
-            "SELECT source_platform, source_id, model_type FROM models WHERE filename = ?", (filename,)
-        )).fetchone()
+        row = await (
+            await db.execute(
+                "SELECT source_platform, source_id, model_type FROM models WHERE filename = ?",
+                (filename,),
+            )
+        ).fetchone()
         return dict(row) if row else None

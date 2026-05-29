@@ -1,7 +1,9 @@
 import os
 import shutil
+
 import folder_paths
 from aiohttp import web
+
 from ..db import model_repo
 from .metadata import _derive_source_url
 
@@ -26,12 +28,14 @@ def add_model_routes(routes):
                                 full = os.path.join(root, fname)
                                 rel = os.path.relpath(full, base_dir).replace("\\", "/")
                                 stat = os.stat(full)
-                                models.append({
-                                    "filename": rel,
-                                    "base_dir": base_dir,
-                                    "size_bytes": stat.st_size,
-                                    "modified_at": stat.st_mtime,
-                                })
+                                models.append(
+                                    {
+                                        "filename": rel,
+                                        "base_dir": base_dir,
+                                        "size_bytes": stat.st_size,
+                                        "modified_at": stat.st_mtime,
+                                    }
+                                )
                 if models:
                     result[folder_type] = models
             all_filenames = [f["filename"] for files in result.values() for f in files]
@@ -41,7 +45,9 @@ def add_model_routes(routes):
                     m = meta_map.get(f["filename"])
                     if m:
                         source_url = _derive_source_url(
-                            m.get("source_platform", ""), m.get("source_id", ""), m.get("civitai_model_id", "")
+                            m.get("source_platform", ""),
+                            m.get("source_id", ""),
+                            m.get("civitai_model_id", ""),
                         )
                         f["metadata"] = {
                             "description": m.get("description", ""),
@@ -101,9 +107,14 @@ def add_model_routes(routes):
             # Validate new_type as a safe physical folder name under models_dir
             models_dir = folder_paths.models_dir
             dest_dir = os.path.normpath(os.path.join(models_dir, new_type))
-            if (not new_type or new_type in ("configs", "custom_nodes")
-                    or not dest_dir.startswith(os.path.normpath(models_dir) + os.sep)):
-                return web.json_response({"success": False, "error": "Unknown model type"}, status=400)
+            if (
+                not new_type
+                or new_type in ("configs", "custom_nodes")
+                or not dest_dir.startswith(os.path.normpath(models_dir) + os.sep)
+            ):
+                return web.json_response(
+                    {"success": False, "error": "Unknown model type"}, status=400
+                )
 
             # Locate source file. The type dropdown and the move destination both use
             # physical folder names under models_dir, but some physical folders (e.g.
@@ -128,11 +139,15 @@ def add_model_routes(routes):
             # Destination is the literal models/<new_type> folder
             dest = os.path.normpath(os.path.join(dest_dir, rel_path))
             if not dest.startswith(dest_dir + os.sep):
-                return web.json_response({"success": False, "error": "Invalid destination path"}, status=400)
+                return web.json_response(
+                    {"success": False, "error": "Invalid destination path"}, status=400
+                )
             if os.path.normpath(src) == dest:
                 return web.json_response({"success": True})  # already in target folder
             if os.path.exists(dest):
-                return web.json_response({"success": False, "error": "Target file already exists"}, status=409)
+                return web.json_response(
+                    {"success": False, "error": "Target file already exists"}, status=409
+                )
 
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             shutil.move(src, dest)

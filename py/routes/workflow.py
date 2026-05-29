@@ -1,4 +1,5 @@
 import uuid
+
 from aiohttp import web
 
 _pending: list[dict] = []

@@ -25,9 +25,25 @@ class HuggingFaceProvider(ModelProvider):
             return {"Authorization": f"Bearer {token}"}
         return {}
 
-    async def search(self, query: str, model_type: str = "", limit: int = 20, p: int = 0,
-                     sort: str = "downloads", direction: int = -1, format: str = "", **kwargs) -> dict:
-        params: dict = {"search": query, "limit": limit, "sort": sort, "direction": direction, "p": p, "full": "true"}
+    async def search(
+        self,
+        query: str,
+        model_type: str = "",
+        limit: int = 20,
+        p: int = 0,
+        sort: str = "downloads",
+        direction: int = -1,
+        format: str = "",
+        **kwargs,
+    ) -> dict:
+        params: dict = {
+            "search": query,
+            "limit": limit,
+            "sort": sort,
+            "direction": direction,
+            "p": p,
+            "full": "true",
+        }
         if format == ".gguf":
             params["filter"] = "gguf"
         else:
@@ -53,16 +69,18 @@ class HuggingFaceProvider(ModelProvider):
                 if ext in MODEL_EXTENSIONS:
                     exts.add(ext)
             card_data = model.get("cardData") or {}
-            model["thumbnail"]   = thumbnail
-            model["images"]      = images
-            model["formats"]     = list(exts)
+            model["thumbnail"] = thumbnail
+            model["images"] = images
+            model["formats"] = list(exts)
             model["description"] = card_data.get("description", "") or ""
         return {"items": data, "hasMore": len(data) == limit, "nextPage": p + 1}
 
     async def get_model_files(self, repo_id: str) -> list[dict]:
         """Returns model files (.safetensors etc.) from a HuggingFace repo."""
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(f"{_API}/models/{repo_id}", params={"blobs": "true"}, headers=self.auth_headers())
+            resp = await client.get(
+                f"{_API}/models/{repo_id}", params={"blobs": "true"}, headers=self.auth_headers()
+            )
             resp.raise_for_status()
             data = resp.json()
         result = []
@@ -70,11 +88,13 @@ class HuggingFaceProvider(ModelProvider):
             name = f.get("rfilename", "")
             ext = "." + name.rsplit(".", 1)[-1] if "." in name else ""
             if ext in MODEL_EXTENSIONS:
-                result.append({
-                    "filename": name,
-                    "size": f.get("size", 0),
-                    "url": f"{_BASE}/{repo_id}/resolve/main/{name}",
-                })
+                result.append(
+                    {
+                        "filename": name,
+                        "size": f.get("size", 0),
+                        "url": f"{_BASE}/{repo_id}/resolve/main/{name}",
+                    }
+                )
         return result
 
     async def get_readme(self, repo_id: str) -> str:
@@ -88,7 +108,7 @@ class HuggingFaceProvider(ModelProvider):
         if text.startswith("---"):
             end = text.find("\n---", 3)
             if end != -1:
-                text = text[end + 4:].lstrip("\n")
+                text = text[end + 4 :].lstrip("\n")
         return text.strip()
 
     async def resolve_direct_link(self, repo_id: str) -> dict:

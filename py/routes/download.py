@@ -1,4 +1,5 @@
 from aiohttp import web
+
 from ..services import downloader as dl
 from ..services.providers import civitai, huggingface
 
@@ -15,8 +16,15 @@ def add_download_routes(routes):
         sort = request.rel_url.query.get("sort", "")
         period = request.rel_url.query.get("period", "")
         try:
-            data = await civitai.search(q, model_type, page=page, cursor=cursor,
-                                        base_model=base_model, sort=sort, period=period)
+            data = await civitai.search(
+                q,
+                model_type,
+                page=page,
+                cursor=cursor,
+                base_model=base_model,
+                sort=sort,
+                period=period,
+            )
             return web.json_response({"success": True, "data": data})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
@@ -30,7 +38,9 @@ def add_download_routes(routes):
         direction = int(request.rel_url.query.get("direction", -1))
         format = request.rel_url.query.get("format", "")
         try:
-            data = await huggingface.search(q, model_type, p=p, sort=sort, direction=direction, format=format)
+            data = await huggingface.search(
+                q, model_type, p=p, sort=sort, direction=direction, format=format
+            )
             return web.json_response({"success": True, "data": data})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
@@ -95,7 +105,9 @@ def add_download_routes(routes):
         platform = body.get("platform", "")
         source_id = body.get("source_id", "")
         if not url or not filename:
-            return web.json_response({"success": False, "error": "url and filename required"}, status=400)
+            return web.json_response(
+                {"success": False, "error": "url and filename required"}, status=400
+            )
         task = dl.enqueue(url, model_type, filename, platform, source_id)
         return web.json_response({"success": True, "data": {"task_id": task.id}})
 

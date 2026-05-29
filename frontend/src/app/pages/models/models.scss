@@ -52,7 +52,11 @@
   transition: border-color var(--dur);
   color: var(--text-3);
 
-  &:focus-within { border-color: var(--accent); background: var(--bg); color: var(--text-2); }
+  &:focus-within {
+    border-color: var(--accent);
+    background: var(--bg);
+    color: var(--text-2);
+  }
 
   input {
     flex: 1;
@@ -61,7 +65,9 @@
     outline: none;
     font-size: 13px;
     color: var(--text);
-    &::placeholder { color: var(--text-3); }
+    &::placeholder {
+      color: var(--text-3);
+    }
   }
 }
 
@@ -88,7 +94,10 @@
   padding: 8px 12px;
   font-size: 13px;
   cursor: pointer;
-  &:hover { background: var(--surface-hi); color: var(--text); }
+  &:hover {
+    background: var(--surface-hi);
+    color: var(--text);
+  }
 }
 
 .active-tag {
@@ -112,7 +121,9 @@
   font-size: 0.9em;
   line-height: 1;
   opacity: 0.7;
-  &:hover { opacity: 1; }
+  &:hover {
+    opacity: 1;
+  }
 }
 
 .filter {
@@ -126,7 +137,9 @@
   font-size: 13px;
   cursor: pointer;
   transition: background var(--dur);
-  &:hover { background: var(--surface-hi); }
+  &:hover {
+    background: var(--surface-hi);
+  }
 
   select {
     appearance: none;
@@ -164,8 +177,14 @@
   white-space: nowrap;
   transition: all var(--dur);
 
-  &:hover { border-color: var(--border-strong); color: var(--text); }
-  &:disabled { opacity: 0.35; cursor: default; }
+  &:hover {
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
 }
 
 .btn-link {
@@ -232,7 +251,10 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: transform var(--dur) var(--ease), border-color var(--dur), box-shadow var(--dur);
+  transition:
+    transform var(--dur) var(--ease),
+    border-color var(--dur),
+    box-shadow var(--dur);
 
   &:hover {
     border-color: var(--border-strong);
@@ -288,14 +310,22 @@
   place-items: center;
   cursor: pointer;
   z-index: 1;
-  transition: background var(--dur), border-color var(--dur);
+  transition:
+    background var(--dur),
+    border-color var(--dur);
 
-  svg { opacity: 0; color: #fff; transition: opacity var(--dur); }
+  svg {
+    opacity: 0;
+    color: #fff;
+    transition: opacity var(--dur);
+  }
 
-  &[data-checked="true"] {
+  &[data-checked='true'] {
     background: var(--accent);
     border-color: var(--accent);
-    svg { opacity: 1; }
+    svg {
+      opacity: 1;
+    }
   }
 }
 
@@ -369,9 +399,20 @@
   font-weight: 500;
   white-space: nowrap;
 
-  &.accent  { background: var(--accent-soft); color: var(--accent); }
-  &.trigger { background: #0f2a1a; color: #5ecf8a; border: 1px solid #1a4a2a; }
-  &.more    { background: transparent; color: var(--text-3); padding: 2px 4px; }
+  &.accent {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  &.trigger {
+    background: #0f2a1a;
+    color: #5ecf8a;
+    border: 1px solid #1a4a2a;
+  }
+  &.more {
+    background: transparent;
+    color: var(--text-3);
+    padding: 2px 4px;
+  }
 }
 
 // ── Card actions ──────────────────────────────────────────────────────────────
@@ -399,11 +440,21 @@
   gap: 4px;
   font-size: 11px;
   text-decoration: none;
-  transition: background var(--dur), color var(--dur);
+  transition:
+    background var(--dur),
+    color var(--dur);
 
-  &:hover { background: var(--surface-2); color: var(--text); }
-  &.danger:hover { background: var(--danger-soft); color: var(--danger); }
-  &.workflow-active { color: var(--success); }
+  &:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+  &.danger:hover {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+  &.workflow-active {
+    color: var(--success);
+  }
 }
 
 // ── Selection bar (sticky bottom) ─────────────────────────────────────────────
@@ -427,15 +478,23 @@
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translate(-50%, 16px); }
-  to   { opacity: 1; transform: translate(-50%, 0); }
+  from {
+    opacity: 0;
+    transform: translate(-50%, 16px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 .sel-count {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-2);
-  strong { color: var(--text); }
+  strong {
+    color: var(--text);
+  }
 }
 
 .sel-close {
@@ -449,7 +508,11 @@
 .state-msg {
   color: var(--text-2);
   padding: 2rem 0;
-  &.error { color: var(--danger); }
+  &.error {
+    color: var(--danger);
+  }
 }
 
-.error { color: var(--danger); }
+.error {
+  color: var(--danger);
+}
