@@ -74,7 +74,7 @@ Assumes ComfyUI was installed via [comfy-cli](https://comfyui-wiki.com/en/instal
 - [x] F-29 — Hide model-type dropdown on HuggingFace search — no-op there (every type maps to text-to-image); base-model filter already hidden
 - [x] F-30 — Choose model type before HuggingFace download — per-file model-type dropdown in front of each Download button (search results + paste-a-link repo)
 - [x] F-31 — Editable model type — change folder type in detail page, moves file on disk
-- [ ] F-32 — First-class metadata fields — base model stored as its own column, never as a tag
+- [x] F-32 — First-class metadata fields — base model stored as its own column, never as a tag
 - [ ] F-33 — Model type selectable for every model — override folder type for any download, including CivitAI auto-detected
 - [ ] F-34 — Notification system — green/red toast popups for save, download, workflow-insert, and error events
 - [ ] F-35 — Automatic subfolder organization by base model — toggle to store/reorganize models into `<type>/<base_model>/` subfolders (`Unknown` when none)
