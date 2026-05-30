@@ -31,14 +31,14 @@ class TestNodeExports:
         assert "TMMCheckpointLoader" in NODE_DISPLAY_NAME_MAPPINGS
 
     def test_vae_loader_exports(self):
-        from py.nodes.vae_loader_with_triggers import (
+        from py.nodes.vae_loader import (
             NODE_CLASS_MAPPINGS,
         )
 
         assert "TMMVaeLoader" in NODE_CLASS_MAPPINGS
 
     def test_controlnet_loader_exports(self):
-        from py.nodes.controlnet_loader_with_triggers import (
+        from py.nodes.controlnet_loader import (
             NODE_CLASS_MAPPINGS,
         )
 
@@ -138,8 +138,8 @@ class TestNodeCategory:
             ("py.nodes.lora_loader_with_triggers", "TMMLoraLoader"),
             ("py.nodes.checkpoint_loader_with_triggers", "TMMCheckpointLoader"),
             ("py.nodes.embedding_helper", "TMMEmbeddingHelper"),
-            ("py.nodes.vae_loader_with_triggers", "TMMVaeLoader"),
-            ("py.nodes.controlnet_loader_with_triggers", "TMMControlNetLoader"),
+            ("py.nodes.vae_loader", "TMMVaeLoader"),
+            ("py.nodes.controlnet_loader", "TMMControlNetLoader"),
             ("py.nodes.upscale_model_loader", "TMMUpscaleModelLoader"),
         ],
     )

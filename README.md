@@ -214,8 +214,8 @@ py/
     _utils.py                 shared DB helper (trigger word lookup)
     lora_loader_with_triggers.py
     checkpoint_loader_with_triggers.py
-    vae_loader_with_triggers.py
-    controlnet_loader_with_triggers.py
+    vae_loader.py
+    controlnet_loader.py
     embedding_helper.py
     upscale_model_loader.py
   routes/

@@ -9,11 +9,11 @@ from .py.nodes.checkpoint_loader_with_triggers import (
     NODE_CLASS_MAPPINGS as _CKPT_NODES,
     NODE_DISPLAY_NAME_MAPPINGS as _CKPT_NAMES,
 )
-from .py.nodes.vae_loader_with_triggers import (
+from .py.nodes.vae_loader import (
     NODE_CLASS_MAPPINGS as _VAE_NODES,
     NODE_DISPLAY_NAME_MAPPINGS as _VAE_NAMES,
 )
-from .py.nodes.controlnet_loader_with_triggers import (
+from .py.nodes.controlnet_loader import (
     NODE_CLASS_MAPPINGS as _CN_NODES,
     NODE_DISPLAY_NAME_MAPPINGS as _CN_NAMES,
 )
