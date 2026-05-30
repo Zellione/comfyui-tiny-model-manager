@@ -1,18 +1,67 @@
 """Fetches and stores model metadata after a download completes."""
 
+import asyncio
 import hashlib
 import os
+import re
+import shutil
 
+import folder_paths
 import httpx
 
 from .. import config as cfg
 from ..db import model_repo
 from .providers import get_provider
 
+_MAX_SUBFOLDER_LEN = 100
+_INVALID_PATH_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+
 
 def _compute_media_hash(platform: str, source_id: str, filename: str) -> str:
     key = f"{platform}:{source_id}" if (platform and source_id) else filename
     return hashlib.sha1(key.encode()).hexdigest()
+
+
+def _sanitize_subfolder_name(name: str) -> str:
+    if not name:
+        return "Unknown"
+    sanitized = _INVALID_PATH_CHARS.sub("_", name).strip(". ")
+    return sanitized[:_MAX_SUBFOLDER_LEN] if sanitized else "Unknown"
+
+
+async def _move_to_subfolder(filename: str, model_type: str, base_model: str) -> str:
+    """Move the model file into a base-model subfolder; return the new relative filename."""
+    try:
+        base_dirs = folder_paths.get_folder_paths(model_type)
+    except Exception:
+        base_dirs = [os.path.join(folder_paths.models_dir, model_type)]
+
+    src = None
+    src_base_dir = None
+    for base_dir in base_dirs:
+        candidate = os.path.normpath(os.path.join(base_dir, filename))
+        if os.path.isfile(candidate):
+            src = candidate
+            src_base_dir = base_dir
+            break
+
+    if not src or not src_base_dir:
+        return filename
+
+    basename = os.path.basename(filename)
+    subfolder = _sanitize_subfolder_name(base_model)
+    new_rel = subfolder + "/" + basename
+
+    if new_rel == filename:
+        return filename
+
+    dest = os.path.join(src_base_dir, new_rel)
+    if os.path.exists(dest):
+        return filename
+
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    shutil.move(src, dest)
+    return new_rel
 
 
 async def fetch_and_store(
@@ -22,21 +71,42 @@ async def fetch_and_store(
     trigger_words: list[str] = []
     image_urls: list[str] = []
     tags: list[str] = []
-
     base_model = ""
     civitai_model_id = ""
-    try:
-        provider = get_provider(platform)
-        if provider and source_id:
-            meta = await provider.fetch_metadata(source_id)
-            description = meta.description
-            trigger_words = meta.trigger_words
-            image_urls = meta.image_urls
-            tags = meta.tags
-            base_model = meta.base_model
-            civitai_model_id = meta.civitai_model_id
-    except Exception:
-        pass  # metadata fetch failure should not break the download
+
+    provider = get_provider(platform)
+    if provider and source_id:
+        fetch_ok = False
+        for attempt in range(3):
+            try:
+                meta = await provider.fetch_metadata(source_id)
+                description = meta.description
+                trigger_words = meta.trigger_words
+                image_urls = meta.image_urls
+                tags = meta.tags
+                base_model = meta.base_model
+                civitai_model_id = meta.civitai_model_id
+                fetch_ok = True
+                break
+            except Exception:
+                if attempt < 2:
+                    await asyncio.sleep(1)
+
+        if not fetch_ok:
+            from .backend_notifier import push as notify
+
+            notify(
+                "error",
+                f"Metadata fetch failed for '{filename}'. "
+                "Open the model detail page and use 'Re-fetch metadata' to try again.",
+            )
+
+    settings = cfg.load_settings()
+    if settings.get("organize_into_subfolders"):
+        try:
+            filename = await _move_to_subfolder(filename, model_type, base_model)
+        except Exception:
+            pass
 
     media_hash = _compute_media_hash(platform, source_id, filename)
     model_id = await model_repo.upsert_model_with_meta(
@@ -57,8 +127,6 @@ async def fetch_and_store(
 
 async def migrate_existing_media():
     """One-time startup migration: moves media from data/media/<basename>/ to data/media/<hash>/."""
-    import shutil
-
     from ..db.database import get_db
 
     async with get_db() as db:

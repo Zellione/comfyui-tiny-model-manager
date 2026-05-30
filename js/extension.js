@@ -21,9 +21,10 @@ app.registerExtension({
   name: "TinyModelManager.Settings",
   async setup() {
     const data = await fetchSettings();
-    app.ui.settings.setSettingValue("TinyModelManager.civitai_api_key", data.civitai_api_key ?? "");
-    app.ui.settings.setSettingValue("TinyModelManager.hf_token",        data.hf_token        ?? "");
-    app.ui.settings.setSettingValue("TinyModelManager.media_dir",       data.media_dir        ?? "");
+    app.ui.settings.setSettingValue("TinyModelManager.civitai_api_key",        data.civitai_api_key        ?? "");
+    app.ui.settings.setSettingValue("TinyModelManager.hf_token",               data.hf_token               ?? "");
+    app.ui.settings.setSettingValue("TinyModelManager.media_dir",              data.media_dir              ?? "");
+    app.ui.settings.setSettingValue("TinyModelManager.organize_into_subfolders", data.organize_into_subfolders ?? false);
     _initialized = true;
   },
   settings: [
@@ -61,6 +62,18 @@ app.registerExtension({
       async onChange(value) {
         if (!_initialized) return;
         await putSetting("media_dir", value ?? "");
+      },
+    },
+    {
+      id: "TinyModelManager.organize_into_subfolders",
+      name: "Organize models into subfolders",
+      category: ["Tiny Model Manager", "Storage", "Organize into subfolders"],
+      type: "toggle",
+      defaultVal: false,
+      tooltip: "When enabled, newly downloaded models are placed in <type>/<base-model>/<filename> automatically.",
+      async onChange(value) {
+        if (!_initialized) return;
+        await putSetting("organize_into_subfolders", value);
       },
     },
   ],

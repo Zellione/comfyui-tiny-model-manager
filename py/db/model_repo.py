@@ -257,6 +257,23 @@ async def update_model_type(filename: str, new_type: str):
         await db.commit()
 
 
+async def update_model_filename(old_filename: str, new_filename: str) -> None:
+    async with get_db() as db:
+        await db.execute(
+            "UPDATE models SET filename = ? WHERE filename = ?",
+            (new_filename[:_MAX_PATH], old_filename),
+        )
+        await db.commit()
+
+
+async def get_all_models_slim() -> list[dict]:
+    async with get_db() as db:
+        rows = await (
+            await db.execute("SELECT filename, model_type, base_model FROM models")
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+
 async def get_model_source_info(filename: str) -> dict | None:
     async with get_db() as db:
         row = await (

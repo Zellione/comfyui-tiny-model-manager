@@ -14,6 +14,7 @@ def add_settings_routes(routes):
                 "civitai_api_key": "***" if data.get("civitai_api_key") else "",
                 "hf_token": "***" if data.get("hf_token") else "",
                 "media_dir": data.get("media_dir", ""),
+                "organize_into_subfolders": data.get("organize_into_subfolders", False),
             }
             return web.json_response({"success": True, "data": safe})
         except Exception as exc:
@@ -31,6 +32,8 @@ def add_settings_routes(routes):
                 existing["hf_token"] = body["hf_token"]
             if "media_dir" in body:
                 existing["media_dir"] = body["media_dir"]
+            if "organize_into_subfolders" in body:
+                existing["organize_into_subfolders"] = bool(body["organize_into_subfolders"])
             cfg.save_settings(existing)
             return web.json_response({"success": True})
         except Exception as exc:

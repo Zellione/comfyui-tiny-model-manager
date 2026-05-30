@@ -306,6 +306,21 @@ export class Models implements OnInit {
     this.selected.set(new Set());
   }
 
+  organizeIntoSubfolders() {
+    if (!confirm('Reorganize all installed models into base-model subfolders?')) return;
+    this.modelService.organizeIntoSubfolders().subscribe({
+      next: (r) => {
+        this.notifService.show(
+          'success',
+          `Organized ${r.moved} model(s). Skipped: ${r.skipped}. Errors: ${r.errors}.`,
+        );
+        this.load();
+      },
+      error: (err) =>
+        this.notifService.show('error', 'Organization failed: ' + (err as Error).message),
+    });
+  }
+
   deleteAllSelected() {
     const byType: Record<string, string[]> = {};
     for (const key of this.selected()) {

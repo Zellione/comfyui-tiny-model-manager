@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ToastComponent } from './components/toast/toast';
 import { NotificationService } from './services/notification';
 import { DownloadService } from './services/download';
+import { BackendNotificationService } from './services/backend-notification';
 
 @Component({
   selector: 'app-root',
@@ -16,9 +17,11 @@ export class App implements OnInit {
 
   private notifService = inject(NotificationService);
   private dlService = inject(DownloadService);
+  private backendNotif = inject(BackendNotificationService);
   private destroyRef = inject(DestroyRef);
 
   ngOnInit() {
+    this.backendNotif.start();
     const stored = localStorage.getItem('theme');
     const dark = stored !== 'light';
     this.isDark.set(dark);
