@@ -6,6 +6,7 @@ import { of } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { ModelService, ModelMeta } from '../../services/model';
 import { WorkflowService } from '../../services/workflow';
+import { NotificationService } from '../../services/notification';
 
 @Component({
   selector: 'app-model-detail',
@@ -26,13 +27,13 @@ export class ModelDetail implements OnInit {
   saving = signal(false);
   refetching = signal(false);
   error = signal('');
-  saved = signal(false);
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private modelService: ModelService,
     private workflowService: WorkflowService,
+    private notifService: NotificationService,
   ) {}
 
   ngOnInit() {
@@ -88,7 +89,6 @@ export class ModelDetail implements OnInit {
 
   save() {
     this.saving.set(true);
-    this.saved.set(false);
     this.error.set('');
     const typeChanged = !!this.editType && this.editType !== this.modelType;
     const move$ = typeChanged
@@ -104,7 +104,7 @@ export class ModelDetail implements OnInit {
       .subscribe({
         next: () => {
           this.saving.set(false);
-          this.saved.set(true);
+          this.notifService.show('success', 'Metadata saved.');
           if (typeChanged) {
             this.router.navigate(['/models', this.modelType, this.modelPath]);
           }
@@ -112,6 +112,7 @@ export class ModelDetail implements OnInit {
         error: (err) => {
           this.saving.set(false);
           this.error.set((err as Error).message);
+          this.notifService.show('error', (err as Error).message);
         },
       });
   }
@@ -130,17 +131,21 @@ export class ModelDetail implements OnInit {
         };
         this.editType = this.modelType;
         this.refetching.set(false);
+        this.notifService.show('success', 'Metadata re-fetched.');
       },
       error: (err) => {
         this.error.set((err as Error).message);
         this.refetching.set(false);
+        this.notifService.show('error', (err as Error).message);
       },
     });
   }
 
   addToWorkflow() {
     this.workflowService.addToWorkflow(this.modelType, this.modelPath).subscribe({
-      error: () => alert('Failed to enqueue model for workflow insertion.'),
+      next: () => this.notifService.show('success', 'Model queued for workflow insertion.'),
+      error: () =>
+        this.notifService.show('error', 'Failed to enqueue model for workflow insertion.'),
     });
   }
 
