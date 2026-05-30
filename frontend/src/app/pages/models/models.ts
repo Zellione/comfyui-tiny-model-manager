@@ -259,7 +259,10 @@ export class Models implements OnInit {
   deleteModel(type: string, file: ModelFile) {
     if (!confirm(`Delete ${file.filename}?`)) return;
     this.modelService.deleteModel(type, file.filename).subscribe({
-      next: () => this.load(),
+      next: () => {
+        this.notifService.show('success', `Deleted: ${file.filename}`);
+        this.load();
+      },
       error: (err) => this.notifService.show('error', 'Delete failed: ' + (err as Error).message),
     });
   }
@@ -291,7 +294,10 @@ export class Models implements OnInit {
     if (!files.length) return;
     if (!confirm(`Delete ${files.length} model(s)?`)) return;
     forkJoin(files.map((f) => this.modelService.deleteModel(type, f))).subscribe({
-      next: () => this.load(),
+      next: () => {
+        this.notifService.show('success', `Deleted ${files.length} model(s).`);
+        this.load();
+      },
       error: (err) => this.notifService.show('error', 'Delete failed: ' + (err as Error).message),
     });
   }
@@ -315,7 +321,10 @@ export class Models implements OnInit {
       files.map((f) => this.modelService.deleteModel(type, f)),
     );
     forkJoin(deletes).subscribe({
-      next: () => this.load(),
+      next: () => {
+        this.notifService.show('success', `Deleted ${total} model(s).`);
+        this.load();
+      },
       error: (err) => this.notifService.show('error', 'Delete failed: ' + (err as Error).message),
     });
   }
