@@ -31,6 +31,7 @@ const mockModelService = {
   organizeIntoSubfolders: vi.fn(),
   getModelTypes: vi.fn(),
   moveModel: vi.fn(),
+  getPendingQueue: vi.fn(),
 };
 
 const mockWorkflowService = {
@@ -52,6 +53,7 @@ describe('Models component', () => {
     capturedChannel = null;
     vi.clearAllMocks();
     mockModelService.listModels.mockReturnValue(of(emptyModels));
+    mockModelService.getPendingQueue.mockReturnValue(of([]));
     mockSettingsService.getOrganizeEnabled.mockReturnValue(of(false));
 
     await TestBed.configureTestingModule({
@@ -134,13 +136,23 @@ describe('Models component', () => {
       capturedChannel?.onmessage?.(new MessageEvent('message'));
     }
 
-    it('calls listModels again when message arrives', async () => {
+    it('checks pending queue immediately when message arrives', async () => {
+      await createFixture();
+      const prevCalls = mockModelService.getPendingQueue.mock.calls.length;
+
+      triggerMessage();
+
+      expect(mockModelService.getPendingQueue).toHaveBeenCalledTimes(prevCalls + 1);
+    });
+
+    it('does not call listModels directly when message arrives with empty queue', async () => {
       await createFixture();
       expect(mockModelService.listModels).toHaveBeenCalledTimes(1);
 
       triggerMessage();
 
-      expect(mockModelService.listModels).toHaveBeenCalledTimes(2);
+      // BroadcastChannel triggers a pending-queue check, not a direct model reload
+      expect(mockModelService.listModels).toHaveBeenCalledTimes(1);
     });
 
     it('re-fetches organize setting when message arrives', async () => {
