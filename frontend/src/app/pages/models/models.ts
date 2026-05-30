@@ -180,14 +180,12 @@ export class Models implements OnInit {
     this.load();
     this.settingsService.getOrganizeEnabled().subscribe((v) => this.organizeEnabled.set(v));
 
-    const onSettingsChanged = () => {
+    const channel = new BroadcastChannel('tmm');
+    channel.onmessage = () => {
       this.settingsService.getOrganizeEnabled().subscribe((v) => this.organizeEnabled.set(v));
       this.load();
     };
-    window.addEventListener('tmm:settings-changed', onSettingsChanged);
-    this.destroyRef.onDestroy(() =>
-      window.removeEventListener('tmm:settings-changed', onSettingsChanged),
-    );
+    this.destroyRef.onDestroy(() => channel.close());
   }
 
   load() {

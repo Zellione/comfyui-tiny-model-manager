@@ -7,6 +7,19 @@ import { ModelService } from '../../services/model';
 import { WorkflowService } from '../../services/workflow';
 import { SettingsService } from '../../services/settings';
 
+// BroadcastChannel is not available in jsdom — stub it so `new` works correctly.
+// Returning a plain object from the implementation becomes the result of `new`.
+type MockChannel = { onmessage: ((ev: MessageEvent) => void) | null; close: ReturnType<typeof vi.fn> };
+let capturedChannel: MockChannel | null = null;
+
+vi.stubGlobal(
+  'BroadcastChannel',
+  vi.fn().mockImplementation(function MockBroadcastChannel() {
+    capturedChannel = { onmessage: null, close: vi.fn() };
+    return capturedChannel;
+  }),
+);
+
 const emptyModels = {};
 
 const mockModelService = {
@@ -33,6 +46,7 @@ function findOrganizeButton(el: HTMLElement): HTMLButtonElement | undefined {
 
 describe('Models component', () => {
   beforeEach(async () => {
+    capturedChannel = null;
     vi.clearAllMocks();
     mockModelService.listModels.mockReturnValue(of(emptyModels));
     mockSettingsService.getOrganizeEnabled.mockReturnValue(of(false));
@@ -112,44 +126,47 @@ describe('Models component', () => {
     expect(fixture.componentInstance.loading()).toBe(false);
   });
 
-  describe('tmm:settings-changed event', () => {
-    it('calls listModels again when event fires', async () => {
+  describe('BroadcastChannel tmm message', () => {
+    function triggerMessage() {
+      capturedChannel?.onmessage?.(new MessageEvent('message'));
+    }
+
+    it('calls listModels again when message arrives', async () => {
       await createFixture();
       expect(mockModelService.listModels).toHaveBeenCalledTimes(1);
 
-      window.dispatchEvent(new CustomEvent('tmm:settings-changed'));
+      triggerMessage();
 
       expect(mockModelService.listModels).toHaveBeenCalledTimes(2);
     });
 
-    it('re-fetches organize setting when event fires', async () => {
+    it('re-fetches organize setting when message arrives', async () => {
       await createFixture();
       expect(mockSettingsService.getOrganizeEnabled).toHaveBeenCalledTimes(1);
 
-      window.dispatchEvent(new CustomEvent('tmm:settings-changed'));
+      triggerMessage();
 
       expect(mockSettingsService.getOrganizeEnabled).toHaveBeenCalledTimes(2);
     });
 
-    it('updates organizeEnabled when event fires with changed setting', async () => {
+    it('updates organizeEnabled when message arrives with changed setting', async () => {
       const fixture = await createFixture();
       expect(fixture.componentInstance.organizeEnabled()).toBe(false);
 
       mockSettingsService.getOrganizeEnabled.mockReturnValue(of(true));
-      window.dispatchEvent(new CustomEvent('tmm:settings-changed'));
+      triggerMessage();
       fixture.detectChanges();
 
       expect(fixture.componentInstance.organizeEnabled()).toBe(true);
     });
 
-    it('does not fire listModels after component is destroyed', async () => {
+    it('closes the channel on component destroy', async () => {
       await createFixture();
-      expect(mockModelService.listModels).toHaveBeenCalledTimes(1);
+      const channel = capturedChannel!;
 
       TestBed.resetTestingModule();
-      window.dispatchEvent(new CustomEvent('tmm:settings-changed'));
 
-      expect(mockModelService.listModels).toHaveBeenCalledTimes(1);
+      expect(channel.close).toHaveBeenCalled();
     });
   });
 });

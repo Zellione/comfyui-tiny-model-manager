@@ -154,11 +154,9 @@ app.registerExtension({
             data.organize_into_subfolders ?? false,
           );
         } else {
-          window.dispatchEvent(
-            new CustomEvent("tmm:settings-changed", {
-              detail: { key: "organize_into_subfolders", value },
-            }),
-          );
+          const ch = new BroadcastChannel("tmm");
+          ch.postMessage({ key: "organize_into_subfolders", value });
+          ch.close();
         }
       },
     },
