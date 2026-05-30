@@ -1,7 +1,9 @@
 import { Component, OnInit, DestroyRef, signal, computed, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, interval, EMPTY } from 'rxjs';
+import { switchMap, catchError } from 'rxjs/operators';
 import { ModelService, ModelFile, ModelMeta } from '../../services/model';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
@@ -166,6 +168,7 @@ export class Models implements OnInit {
   hasAnySelected = computed(() => this.selected().size > 0);
   totalSelected = computed(() => this.selected().size);
   organizeEnabled = signal(false);
+  pendingFilenames = signal<Set<string>>(new Set());
 
   private destroyRef = inject(DestroyRef);
 
@@ -178,6 +181,7 @@ export class Models implements OnInit {
 
   ngOnInit() {
     this.load();
+    this.startQueuePoll();
     this.settingsService.getOrganizeEnabled().subscribe((v) => this.organizeEnabled.set(v));
 
     const channel = new BroadcastChannel('tmm');
@@ -201,6 +205,26 @@ export class Models implements OnInit {
         this.loading.set(false);
       },
     });
+  }
+
+  private startQueuePoll() {
+    interval(2000)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        switchMap(() => this.modelService.getPendingQueue().pipe(catchError(() => EMPTY))),
+      )
+      .subscribe((filenames) => {
+        const prev = this.pendingFilenames();
+        const next = new Set(filenames);
+        if (prev.size > 0 && next.size < prev.size) {
+          this.load();
+        }
+        this.pendingFilenames.set(next);
+      });
+  }
+
+  isPending(filename: string): boolean {
+    return this.pendingFilenames().has(filename);
   }
 
   addTag(tag: string) {

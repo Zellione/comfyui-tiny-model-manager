@@ -193,3 +193,24 @@ class TestOrganizeModels:
         assert "moved" in body["data"]
         assert "skipped" in body["data"]
         assert "errors" in body["data"]
+
+
+class TestPendingReorganize:
+    async def test_returns_empty_when_no_jobs(self, client):
+        resp = await client.get("/tiny-model-manager/api/reorganize/pending")
+        assert resp.status == 200
+        body = await resp.json()
+        assert body["success"] is True
+        assert body["data"] == []
+
+    async def test_returns_pending_filenames(self, client):
+        from py.db import model_repo
+
+        await model_repo.enqueue_reorganize("SDXL 1.0/a.safetensors", "loras", "deorganize")
+        await model_repo.enqueue_reorganize("flat.safetensors", "loras", "organize")
+
+        resp = await client.get("/tiny-model-manager/api/reorganize/pending")
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert "SDXL 1.0/a.safetensors" in data
+        assert "flat.safetensors" in data

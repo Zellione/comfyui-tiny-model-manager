@@ -262,3 +262,11 @@ def add_model_routes(routes):
             )
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
+
+    @routes.get("/tiny-model-manager/api/reorganize/pending")
+    async def get_pending_reorganize(request):
+        try:
+            jobs = await model_repo.get_pending_jobs()
+            return web.json_response({"success": True, "data": [j["filename"] for j in jobs]})
+        except Exception as exc:
+            return web.json_response({"success": False, "error": str(exc)}, status=500)

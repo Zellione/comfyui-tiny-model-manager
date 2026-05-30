@@ -133,9 +133,18 @@
 
         <div class="card-grid">
           @for (file of filteredModelsByType()[type]; track file.filename) {
-            <div class="model-card" [class.selected]="isSelected(type, file.filename)">
+            <div
+              class="model-card"
+              [class.selected]="isSelected(type, file.filename)"
+              [class.queued]="isPending(file.filename)"
+            >
               <!-- Media with overlays -->
               <div class="card-media">
+                @if (isPending(file.filename)) {
+                  <div class="queue-overlay" aria-label="Processing…">
+                    <span class="queue-spinner"></span>
+                  </div>
+                }
                 <a [routerLink]="['/models', type, file.filename]" class="thumb-link">
                   <div class="thumb-placeholder"></div>
                   @if (thumbnailUrl(file.metadata)) {
