@@ -21,5 +21,5 @@ ComfyUI Tiny Model Manager is a custom node for ComfyUI that provides a web-base
 | Backend | Python, aiohttp (ComfyUI's built-in server) |
 | Database | SQLite via `aiosqlite` |
 | HTTP client | `httpx` (async) |
-| Frontend | Angular 19+ (standalone components, SCSS) |
+| Frontend | Angular 21.2 (zoneless, standalone components, SCSS) |
 | Build output | `web/` directory served at `/tiny-model-manager` |

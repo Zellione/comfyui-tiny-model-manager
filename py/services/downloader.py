@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 import folder_paths
 import httpx
 
-from .. import config as cfg
 from .providers import get_provider
 
 SUPPORTED_TYPES = {
@@ -17,8 +16,17 @@ SUPPORTED_TYPES = {
     "vae": "vae",
     "controlnet": "controlnet",
     "upscale_models": "upscale_models",
-    "clip": "clip",
+    "hypernetworks": "hypernetworks",
+    "clip_vision": "clip_vision",
+    "style_models": "style_models",
+    "gligen": "gligen",
+    "diffusion_models": "diffusion_models",
+    "text_encoders": "text_encoders",
+    "photomaker": "photomaker",
+    "vae_approx": "vae_approx",
+    # Legacy names kept for backward compatibility (no longer registered ComfyUI folders)
     "unet": "unet",
+    "clip": "clip",
 }
 
 
@@ -51,7 +59,10 @@ def _get_dest_dir(model_type: str) -> str:
         folders = folder_paths.get_folder_paths(model_type)
         return folders[0]
     except Exception:
-        return os.path.join(cfg.data_dir(), "models", model_type)
+        # Fall back to ComfyUI's models directory so the file is visible to ComfyUI
+        # and to our own list_models endpoint (which scans folder_paths).  The old
+        # fallback used cfg.data_dir() which placed files outside ComfyUI's reach.
+        return os.path.join(folder_paths.models_dir, model_type)
 
 
 def enqueue(

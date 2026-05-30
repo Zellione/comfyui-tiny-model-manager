@@ -73,12 +73,7 @@
   <!-- F-17/F-18: single-file download action -->
   @if (canSubmitLink()) {
     <div class="paste-actions">
-      <select
-        [ngModel]="linkModelType()"
-        (ngModelChange)="linkModelType.set($event)"
-        [disabled]="!!civitaiDownloadKind()"
-        [title]="civitaiDownloadKind() ? 'Model type detected automatically from CivitAI' : ''"
-      >
+      <select [ngModel]="linkModelType()" (ngModelChange)="linkModelType.set($event)">
         @for (t of modelTypes; track t) {
           <option [value]="t">{{ t }}</option>
         }
@@ -154,23 +149,11 @@
       <div class="versions-panel">
         <div class="versions-header">
           <h3>Versions</h3>
-          <div class="paste-actions-inline">
-            <select
-              [ngModel]="linkModelType()"
-              (ngModelChange)="linkModelType.set($event)"
-              [disabled]="true"
-              title="Model type detected automatically from CivitAI"
-            >
-              @for (t of modelTypes; track t) {
-                <option [value]="t">{{ t }}</option>
-              }
-            </select>
-            @if (linkCivitaiSelectedCount() > 0) {
-              <button class="btn-primary" (click)="downloadSelectedLinkCivitai()">
-                Download selected ({{ linkCivitaiSelectedCount() }})
-              </button>
-            }
-          </div>
+          @if (linkCivitaiSelectedCount() > 0) {
+            <button class="btn-primary" (click)="downloadSelectedLinkCivitai()">
+              Download selected ({{ linkCivitaiSelectedCount() }})
+            </button>
+          }
         </div>
         @for (v of linkVersions(); track v.id) {
           <div class="version-section">
@@ -201,6 +184,14 @@
                     }
                   </div>
                   <small>{{ formatSize(f.sizeKB * 1024) }}</small>
+                  <select
+                    [ngModel]="linkCivitaiFileType(v.id, f)"
+                    (ngModelChange)="setLinkCivitaiFileType(v.id, f, $event)"
+                  >
+                    @for (t of modelTypes; track t) {
+                      <option [value]="t">{{ t }}</option>
+                    }
+                  </select>
                   @switch (fileStatus(f.name)) {
                     @case ('installed') {
                       <button class="btn-library">In library</button>
@@ -504,6 +495,14 @@
                             }
                           </div>
                           <small>{{ formatSize(f.sizeKB * 1024) }}</small>
+                          <select
+                            [ngModel]="civitaiFileType(v.id, f)"
+                            (ngModelChange)="setCivitaiFileType(v.id, f, $event)"
+                          >
+                            @for (t of modelTypes; track t) {
+                              <option [value]="t">{{ t }}</option>
+                            }
+                          </select>
                           @switch (fileStatus(f.name)) {
                             @case ('installed') {
                               <button class="btn-library">In library</button>

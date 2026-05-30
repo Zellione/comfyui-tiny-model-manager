@@ -1,3 +1,5 @@
+import re
+
 import httpx
 
 from ... import config as cfg
@@ -60,7 +62,7 @@ class HuggingFaceProvider(ModelProvider):
             for sibling in model.get("siblings", []):
                 name = sibling.get("rfilename", "")
                 ext = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
-                if ext in IMAGE_EXTENSIONS and "/" not in name:
+                if ext in IMAGE_EXTENSIONS:
                     url = f"{_BASE}/{repo_id}/resolve/main/{name}"
                     if not thumbnail:
                         thumbnail = url
@@ -109,6 +111,8 @@ class HuggingFaceProvider(ModelProvider):
             end = text.find("\n---", 3)
             if end != -1:
                 text = text[end + 4 :].lstrip("\n")
+        # Strip all HTML/MDX/JSX tags — description is shown as plain text in the UI
+        text = re.sub(r"<[^>]+>", "", text)
         return text.strip()
 
     async def resolve_direct_link(self, repo_id: str) -> dict:
@@ -141,10 +145,13 @@ class HuggingFaceProvider(ModelProvider):
                 image_urls.append(f"{_BASE}/{source_id}/resolve/main/{name}")
             if len(image_urls) >= 5:
                 break
-        card_data = data.get("cardData", {})
+        card_data = data.get("cardData") or {}
+        description = card_data.get("description", "") or ""
+        if not description:
+            description = await self.get_readme(source_id)
         return ProviderMetadata(
-            description=card_data.get("description", "") or "",
-            trigger_words=card_data.get("trigger", []),
+            description=description,
+            trigger_words=card_data.get("trigger") or [],
             image_urls=image_urls,
             tags=data.get("tags", []),
         )

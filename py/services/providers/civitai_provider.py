@@ -11,9 +11,19 @@ CIVITAI_TYPE_MAP = {
     "embeddings": "TextualInversion",
     "vae": "VAE",
     "controlnet": "Controlnet",
+    "upscale_models": "Upscaler",
+    "hypernetworks": "Hypernetwork",
 }
 
-CIVITAI_REVERSE_TYPE_MAP = {v: k for k, v in CIVITAI_TYPE_MAP.items()}
+CIVITAI_REVERSE_TYPE_MAP = {
+    **{v: k for k, v in CIVITAI_TYPE_MAP.items()},
+    # Extra CivitAI model types that map to an internal type but are not valid
+    # search-filter values (not in CIVITAI_TYPE_MAP to keep that map 1-to-1).
+    "LoCon": "loras",
+    "DoRA": "loras",
+    "MotionModule": "loras",
+    "AestheticGradient": "embeddings",
+}
 
 
 class CivitaiProvider(ModelProvider):
