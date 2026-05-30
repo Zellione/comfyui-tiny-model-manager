@@ -403,13 +403,17 @@ export class Download {
     if (kind.type === 'hf-resolve') {
       this.dlService
         .startDownload(this.pasteUrl(), type, kind.filename, 'huggingface', kind.repo)
-        .subscribe();
+        .subscribe({
+          next: () => this.notifService.show('success', `Download enqueued: ${kind.filename}`),
+        });
     } else if (kind.type === 'civitai-download') {
       const r = this.linkResolved();
       if (!r) return;
       this.dlService
         .startDownload(this.pasteUrl(), type, r.filename, 'civitai', String(kind.versionId))
-        .subscribe();
+        .subscribe({
+          next: () => this.notifService.show('success', `Download enqueued: ${r.filename}`),
+        });
     }
     this.pasteUrl.set('');
     this.linkKind.set({ type: 'empty' });
