@@ -1,3 +1,5 @@
+import os
+
 from aiohttp import web
 
 from .. import config as cfg
@@ -15,6 +17,7 @@ def add_settings_routes(routes):
                 "hf_token": "***" if data.get("hf_token") else "",
                 "media_dir": data.get("media_dir", ""),
                 "organize_into_subfolders": data.get("organize_into_subfolders", False),
+                "media_dir_default": os.path.join(cfg.data_dir(), "media"),
             }
             return web.json_response({"success": True, "data": safe})
         except Exception as exc:

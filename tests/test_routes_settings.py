@@ -42,6 +42,19 @@ class TestGetSettings:
         data = (await (await client.get("/tiny-model-manager/api/settings")).json())["data"]
         assert data["hf_token"] == "***"
 
+    async def test_get_returns_media_dir_default(self, client, ext_dir):
+        import os
+
+        from py import config as cfg
+
+        data = (await (await client.get("/tiny-model-manager/api/settings")).json())["data"]
+        expected = os.path.join(cfg.data_dir(), "media")
+        assert data["media_dir_default"] == expected
+
+    async def test_get_returns_organize_into_subfolders_default_false(self, client):
+        data = (await (await client.get("/tiny-model-manager/api/settings")).json())["data"]
+        assert data["organize_into_subfolders"] is False
+
 
 class TestPutSettings:
     async def test_put_saves_civitai_key(self, client, ext_dir):
