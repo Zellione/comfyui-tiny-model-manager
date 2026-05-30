@@ -70,7 +70,7 @@ def add_metadata_routes(routes):
 
             if new_base_model is not None:
                 from .. import config as cfg
-                from ..services.metadata_fetcher import _move_to_subfolder
+                from ..services.reorganizer import _move_to_subfolder
 
                 settings = cfg.load_settings()
                 if settings.get("organize_into_subfolders"):

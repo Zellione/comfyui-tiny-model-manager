@@ -29,32 +29,32 @@ def _make_meta(base_model: str = "SDXL 1.0") -> MagicMock:
 
 class TestSanitizeSubfolderName:
     def test_clean_name_unchanged(self):
-        from py.services.metadata_fetcher import _sanitize_subfolder_name
+        from py.services.reorganizer import _sanitize_subfolder_name
 
         assert _sanitize_subfolder_name("SDXL 1.0") == "SDXL 1.0"
 
     def test_empty_returns_unknown(self):
-        from py.services.metadata_fetcher import _sanitize_subfolder_name
+        from py.services.reorganizer import _sanitize_subfolder_name
 
         assert _sanitize_subfolder_name("") == "Unknown"
 
     def test_invalid_chars_replaced(self):
-        from py.services.metadata_fetcher import _sanitize_subfolder_name
+        from py.services.reorganizer import _sanitize_subfolder_name
 
         assert _sanitize_subfolder_name('SD:XL "1.0"') == "SD_XL _1.0_"
 
     def test_all_whitespace_returns_unknown(self):
-        from py.services.metadata_fetcher import _sanitize_subfolder_name
+        from py.services.reorganizer import _sanitize_subfolder_name
 
         assert _sanitize_subfolder_name("   ") == "Unknown"
 
     def test_only_dots_returns_unknown(self):
-        from py.services.metadata_fetcher import _sanitize_subfolder_name
+        from py.services.reorganizer import _sanitize_subfolder_name
 
         assert _sanitize_subfolder_name("...") == "Unknown"
 
     def test_truncates_long_name(self):
-        from py.services.metadata_fetcher import _sanitize_subfolder_name
+        from py.services.reorganizer import _sanitize_subfolder_name
 
         long = "x" * 200
         result = _sanitize_subfolder_name(long)

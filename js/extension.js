@@ -3,6 +3,7 @@ import { app } from "../../scripts/app.js";
 const API = "/tiny-model-manager/api";
 let _initialized = false;
 let _defaultMediaDir = "";
+let _revertingOrganize = false;
 
 async function fetchSettings() {
   const r = await fetch(`${API}/settings`);
@@ -144,15 +145,29 @@ app.registerExtension({
       tooltip: "When enabled, newly downloaded models are placed in <type>/<base-model>/<filename> automatically.",
       async onChange(value) {
         if (!_initialized) return;
+        if (_revertingOrganize) return;
+
+        const msg = value
+          ? "Enabling this will move all existing flat models into base-model subfolders.\nContinue?"
+          : "Disabling this will move all models from subfolders back to flat type directories.\nContinue?";
+
+        if (!confirm(msg)) {
+          _revertingOrganize = true;
+          app.ui.settings.setSettingValue("TinyModelManager.organize_into_subfolders", !value);
+          _revertingOrganize = false;
+          return;
+        }
+
         const result = await putSetting("organize_into_subfolders", value);
         if (!result.ok) {
           alert(`Could not change setting:\n${result.error}`);
-          // Revert by re-applying the saved value from the backend
+          _revertingOrganize = true;
           const data = await fetchSettings();
           app.ui.settings.setSettingValue(
             "TinyModelManager.organize_into_subfolders",
             data.organize_into_subfolders ?? false,
           );
+          _revertingOrganize = false;
         } else {
           const ch = new BroadcastChannel("tmm");
           ch.postMessage({ key: "organize_into_subfolders", value });

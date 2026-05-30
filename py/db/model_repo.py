@@ -274,34 +274,46 @@ async def get_all_models_slim() -> list[dict]:
         return [dict(row) for row in rows]
 
 
-async def enqueue_deorganize(filename: str, model_type: str) -> None:
+async def enqueue_reorganize(filename: str, model_type: str, direction: str) -> None:
     async with get_db() as db:
         await db.execute(
-            "INSERT INTO deorganize_queue (filename, model_type) VALUES (?, ?)",
-            (filename[:_MAX_PATH], model_type),
+            "INSERT INTO reorganize_queue (filename, model_type, direction) VALUES (?, ?, ?)",
+            (filename[:_MAX_PATH], model_type, direction),
         )
         await db.commit()
 
 
-async def clear_pending_deorganize_queue() -> None:
+async def clear_pending_jobs(direction: str) -> None:
     async with get_db() as db:
-        await db.execute("DELETE FROM deorganize_queue WHERE status = 'pending'")
+        await db.execute(
+            "DELETE FROM reorganize_queue WHERE status = 'pending' AND direction = ?", (direction,)
+        )
         await db.commit()
 
 
-async def get_pending_deorganize_jobs() -> list[dict]:
+async def get_pending_jobs(direction: str | None = None) -> list[dict]:
     async with get_db() as db:
-        rows = await (
-            await db.execute(
-                "SELECT id, filename, model_type FROM deorganize_queue WHERE status = 'pending'"
-            )
-        ).fetchall()
+        if direction is None:
+            rows = await (
+                await db.execute(
+                    "SELECT id, filename, model_type, direction"
+                    " FROM reorganize_queue WHERE status = 'pending'"
+                )
+            ).fetchall()
+        else:
+            rows = await (
+                await db.execute(
+                    "SELECT id, filename, model_type, direction"
+                    " FROM reorganize_queue WHERE status = 'pending' AND direction = ?",
+                    (direction,),
+                )
+            ).fetchall()
         return [dict(row) for row in rows]
 
 
-async def complete_deorganize_job(job_id: int) -> None:
+async def complete_job(job_id: int) -> None:
     async with get_db() as db:
-        await db.execute("UPDATE deorganize_queue SET status = 'done' WHERE id = ?", (job_id,))
+        await db.execute("UPDATE reorganize_queue SET status = 'done' WHERE id = ?", (job_id,))
         await db.commit()
 
 

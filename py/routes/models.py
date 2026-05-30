@@ -6,7 +6,7 @@ from aiohttp import web
 
 from .. import config as cfg
 from ..db import model_repo
-from ..services.metadata_fetcher import _sanitize_subfolder_name
+from ..services.reorganizer import _sanitize_subfolder_name
 from .metadata import _derive_source_url
 
 _BROAD_EXTENSIONS = {".safetensors", ".ckpt", ".pt", ".bin", ".gguf", ".pth"}

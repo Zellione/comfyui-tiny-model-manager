@@ -42,15 +42,15 @@ def add_settings_routes(routes):
                 if new_val and not old_organize:
                     from ..db import model_repo as _repo
 
-                    pending = await _repo.get_pending_deorganize_jobs()
+                    pending = await _repo.get_pending_jobs()
                     if pending:
                         return web.json_response(
                             {
                                 "success": False,
                                 "error": (
                                     f"Cannot enable organizing while {len(pending)} model(s) "
-                                    "are still being moved back to flat folders. "
-                                    "Please wait for the deorganize to complete."
+                                    "are still being reorganized. "
+                                    "Please wait for the current operation to complete."
                                 ),
                             },
                             status=409,
@@ -58,17 +58,32 @@ def add_settings_routes(routes):
                 existing["organize_into_subfolders"] = new_val
             new_organize = existing.get("organize_into_subfolders", False)
             cfg.save_settings(existing)
-            if old_organize and not new_organize:
+            if not old_organize and new_organize:
                 from ..db import model_repo
-                from ..services import deorganizer
+                from ..services import reorganizer
 
                 models = await model_repo.get_all_models_slim()
-                await model_repo.clear_pending_deorganize_queue()
+                await model_repo.clear_pending_jobs("organize")
+                for m in models:
+                    fname = m["filename"]
+                    if "/" not in fname and "\\" not in fname:
+                        await model_repo.enqueue_reorganize(
+                            fname, m.get("model_type") or "", "organize"
+                        )
+                asyncio.ensure_future(reorganizer.process_pending_jobs())
+            elif old_organize and not new_organize:
+                from ..db import model_repo
+                from ..services import reorganizer
+
+                models = await model_repo.get_all_models_slim()
+                await model_repo.clear_pending_jobs("deorganize")
                 for m in models:
                     fname = m["filename"]
                     if "/" in fname or "\\" in fname:
-                        await model_repo.enqueue_deorganize(fname, m.get("model_type") or "")
-                asyncio.ensure_future(deorganizer.process_pending_jobs())
+                        await model_repo.enqueue_reorganize(
+                            fname, m.get("model_type") or "", "deorganize"
+                        )
+                asyncio.ensure_future(reorganizer.process_pending_jobs())
             return web.json_response({"success": True})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)

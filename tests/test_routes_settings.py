@@ -113,23 +113,46 @@ class TestPutSettings:
         await model_repo.upsert_model("SDXL 1.0/a.safetensors", "loras", "", "", "")
         await model_repo.upsert_model("b.safetensors", "loras", "", "", "")
 
-        with patch("py.services.deorganizer.process_pending_jobs", return_value=None):
+        with patch("py.services.reorganizer.process_pending_jobs", return_value=None):
             await client.put(
                 "/tiny-model-manager/api/settings",
                 json={"organize_into_subfolders": False},
             )
 
-        jobs = await model_repo.get_pending_deorganize_jobs()
+        jobs = await model_repo.get_pending_jobs("deorganize")
         filenames = [j["filename"] for j in jobs]
         assert "SDXL 1.0/a.safetensors" in filenames
         assert "b.safetensors" not in filenames
 
-    async def test_toggling_organize_on_blocked_when_queue_has_pending(self, client, ext_dir):
+    async def test_toggling_organize_on_enqueues_organize_jobs(self, client, ext_dir):
+        from unittest.mock import patch
+
         from py import config as cfg
         from py.db import model_repo
 
         cfg.save_settings({"organize_into_subfolders": False})
-        await model_repo.enqueue_deorganize("SDXL 1.0/x.safetensors", "loras")
+        await model_repo.upsert_model("flat.safetensors", "loras", "", "", "")
+        await model_repo.upsert_model("SDXL 1.0/sub.safetensors", "loras", "", "", "")
+
+        with patch("py.services.reorganizer.process_pending_jobs", return_value=None):
+            await client.put(
+                "/tiny-model-manager/api/settings",
+                json={"organize_into_subfolders": True},
+            )
+
+        jobs = await model_repo.get_pending_jobs("organize")
+        filenames = [j["filename"] for j in jobs]
+        assert "flat.safetensors" in filenames
+        assert "SDXL 1.0/sub.safetensors" not in filenames
+
+    async def test_toggling_organize_on_blocked_when_deorganize_queue_pending(
+        self, client, ext_dir
+    ):
+        from py import config as cfg
+        from py.db import model_repo
+
+        cfg.save_settings({"organize_into_subfolders": False})
+        await model_repo.enqueue_reorganize("SDXL 1.0/x.safetensors", "loras", "deorganize")
 
         resp = await client.put(
             "/tiny-model-manager/api/settings",
@@ -138,16 +161,33 @@ class TestPutSettings:
         assert resp.status == 409
         body = await resp.json()
         assert body["success"] is False
-        assert "deorganize" in body["error"].lower()
 
-    async def test_toggling_organize_on_allowed_when_queue_empty(self, client, ext_dir):
+    async def test_toggling_organize_on_blocked_when_organize_queue_pending(self, client, ext_dir):
         from py import config as cfg
+        from py.db import model_repo
 
         cfg.save_settings({"organize_into_subfolders": False})
+        await model_repo.enqueue_reorganize("flat.safetensors", "loras", "organize")
 
         resp = await client.put(
             "/tiny-model-manager/api/settings",
             json={"organize_into_subfolders": True},
         )
+        assert resp.status == 409
+        body = await resp.json()
+        assert body["success"] is False
+
+    async def test_toggling_organize_on_allowed_when_queue_empty(self, client, ext_dir):
+        from unittest.mock import patch
+
+        from py import config as cfg
+
+        cfg.save_settings({"organize_into_subfolders": False})
+
+        with patch("py.services.reorganizer.process_pending_jobs", return_value=None):
+            resp = await client.put(
+                "/tiny-model-manager/api/settings",
+                json={"organize_into_subfolders": True},
+            )
         assert resp.status == 200
         assert (await resp.json())["success"] is True
