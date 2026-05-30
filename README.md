@@ -76,7 +76,7 @@ Assumes ComfyUI was installed via [comfy-cli](https://comfyui-wiki.com/en/instal
 - [x] F-31 — Editable model type — change folder type in detail page, moves file on disk
 - [x] F-32 — First-class metadata fields — base model stored as its own column, never as a tag
 - [x] F-33 — Model type selectable for every model — override folder type for any download, including CivitAI auto-detected; `unet` added to the type list for GGUF models
-- [ ] F-34 — Notification system — green/red toast popups for save, download, workflow-insert, and error events
+- [x] F-34 — Notification system — green/red toast popups for save, download, workflow-insert, and error events
 - [ ] F-35 — Automatic subfolder organization by base model — toggle to store/reorganize models into `<type>/<base_model>/` subfolders (`Unknown` when none)
 - [ ] F-36 — Filter download search results by tags — server-side tag query (HuggingFace AND-multi, CivitAI single tag)
 - [ ] F-37 — Always-visible "Load more" with empty/error states — button below the list, red + disabled with the failure reason
@@ -247,6 +247,7 @@ frontend/
       civitai.ts              CivitaiService — search, versions, resolve
       huggingface.ts          HuggingFaceService — search, files, readme
       workflow.ts             WorkflowService — 1-click node insert queue
+      notification.ts         NotificationService — signal-based toast queue
     utils/
       link-detector.ts        parse paste-a-link URLs into typed LinkKind objects
 tools/
