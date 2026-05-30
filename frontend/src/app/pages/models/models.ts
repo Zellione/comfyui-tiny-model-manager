@@ -216,10 +216,10 @@ export class Models implements OnInit {
       .subscribe((filenames) => {
         const prev = this.pendingFilenames();
         const next = new Set(filenames);
-        if (prev.size > 0 && next.size < prev.size) {
+        this.pendingFilenames.set(next);
+        if (prev.size > 0 && next.size === 0) {
           this.load();
         }
-        this.pendingFilenames.set(next);
       });
   }
 
