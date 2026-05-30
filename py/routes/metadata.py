@@ -60,14 +60,33 @@ def add_metadata_routes(routes):
     @routes.put("/tiny-model-manager/api/models/{model_type}/{path:.*}/metadata")
     async def update_metadata(request):
         path = request.match_info["path"]
+        model_type = request.match_info["model_type"]
         try:
             body = await request.json()
             description = body.get("description", "")
             trigger_words = body.get("trigger_words", [])
             tags = body.get("tags", [])
-            base_model = body.get("base_model")  # None means "not provided, don't update"
+            new_base_model = body.get("base_model")  # None means "not provided, don't update"
+
+            if new_base_model is not None:
+                from .. import config as cfg
+                from ..services.metadata_fetcher import _move_to_subfolder
+
+                settings = cfg.load_settings()
+                if settings.get("organize_into_subfolders"):
+                    existing = await model_repo.get_model_by_filename(path)
+                    old_base_model = (existing or {}).get("base_model", "")
+                    if old_base_model != new_base_model:
+                        try:
+                            new_path = await _move_to_subfolder(path, model_type, new_base_model)
+                            if new_path != path:
+                                await model_repo.update_model_filename(path, new_path)
+                                path = new_path
+                        except Exception:
+                            pass
+
             await model_repo.update_model_meta(
-                path, description, trigger_words, tags, base_model=base_model
+                path, description, trigger_words, tags, base_model=new_base_model
             )
             return web.json_response({"success": True})
         except Exception as exc:

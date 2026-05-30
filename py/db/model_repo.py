@@ -274,6 +274,37 @@ async def get_all_models_slim() -> list[dict]:
         return [dict(row) for row in rows]
 
 
+async def enqueue_deorganize(filename: str, model_type: str) -> None:
+    async with get_db() as db:
+        await db.execute(
+            "INSERT INTO deorganize_queue (filename, model_type) VALUES (?, ?)",
+            (filename[:_MAX_PATH], model_type),
+        )
+        await db.commit()
+
+
+async def clear_pending_deorganize_queue() -> None:
+    async with get_db() as db:
+        await db.execute("DELETE FROM deorganize_queue WHERE status = 'pending'")
+        await db.commit()
+
+
+async def get_pending_deorganize_jobs() -> list[dict]:
+    async with get_db() as db:
+        rows = await (
+            await db.execute(
+                "SELECT id, filename, model_type FROM deorganize_queue WHERE status = 'pending'"
+            )
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+
+async def complete_deorganize_job(job_id: int) -> None:
+    async with get_db() as db:
+        await db.execute("UPDATE deorganize_queue SET status = 'done' WHERE id = ?", (job_id,))
+        await db.commit()
+
+
 async def get_model_source_info(filename: str) -> dict | None:
     async with get_db() as db:
         row = await (

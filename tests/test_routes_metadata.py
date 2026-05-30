@@ -121,6 +121,77 @@ class TestPutMetadata:
         assert (await resp.json())["success"] is True
 
 
+class TestPutMetadataOrganize:
+    @pytest.fixture()
+    async def organize_client(self, aiohttp_client, ext_dir):
+        import folder_paths
+
+        from py.routes.metadata import add_metadata_routes
+
+        models_dir = os.path.join(ext_dir, "models")
+        loras_dir = os.path.join(models_dir, "loras")
+        os.makedirs(loras_dir, exist_ok=True)
+        folder_paths.models_dir = models_dir
+        folder_paths.folder_names_and_paths["loras"] = ([loras_dir], {".safetensors"})
+
+        app = web.Application()
+        routes = web.RouteTableDef()
+        add_metadata_routes(routes)
+        app.router.add_routes(routes)
+        return await aiohttp_client(app), loras_dir
+
+    async def test_moves_file_on_base_model_change_when_organize_enabled(
+        self, organize_client, ext_dir
+    ):
+        from py import config as cfg
+        from py.db import model_repo
+
+        client, loras_dir = organize_client
+        cfg.save_settings({"organize_into_subfolders": True})
+
+        old_subfolder = os.path.join(loras_dir, "SDXL 1.0")
+        os.makedirs(old_subfolder)
+        src = os.path.join(old_subfolder, "move-me.safetensors")
+        open(src, "wb").close()
+
+        await model_repo.upsert_model(
+            "SDXL 1.0/move-me.safetensors", "loras", "", "", "", base_model="SDXL 1.0"
+        )
+
+        resp = await client.put(
+            "/tiny-model-manager/api/models/loras/SDXL 1.0/move-me.safetensors/metadata",
+            json={"description": "", "trigger_words": [], "base_model": "Pony"},
+        )
+        assert resp.status == 200
+
+        assert os.path.exists(os.path.join(loras_dir, "Pony", "move-me.safetensors"))
+        assert not os.path.exists(src)
+        # Old empty dir removed
+        assert not os.path.isdir(old_subfolder)
+
+    async def test_does_not_move_when_organize_disabled(self, organize_client, ext_dir):
+        from py import config as cfg
+        from py.db import model_repo
+
+        client, loras_dir = organize_client
+        cfg.save_settings({"organize_into_subfolders": False})
+
+        src = os.path.join(loras_dir, "flat.safetensors")
+        open(src, "wb").close()
+
+        await model_repo.upsert_model(
+            "flat.safetensors", "loras", "", "", "", base_model="SDXL 1.0"
+        )
+
+        await client.put(
+            "/tiny-model-manager/api/models/loras/flat.safetensors/metadata",
+            json={"description": "", "trigger_words": [], "base_model": "Pony"},
+        )
+
+        assert os.path.exists(src)
+        assert not os.path.exists(os.path.join(loras_dir, "Pony", "flat.safetensors"))
+
+
 class TestServeMedia:
     async def test_serve_existing_file(self, client, ext_dir):
         from py import config as cfg

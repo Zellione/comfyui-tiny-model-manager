@@ -11,11 +11,16 @@ async function fetchSettings() {
 }
 
 async function putSetting(key, value) {
-  await fetch(`${API}/settings`, {
+  const r = await fetch(`${API}/settings`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ [key]: value }),
   });
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    return { ok: false, error: j.error ?? "Unknown error" };
+  }
+  return { ok: true };
 }
 
 function makeToggle(checked, setter) {
@@ -130,14 +135,25 @@ app.registerExtension({
       id: "TinyModelManager.organize_into_subfolders",
       name: "Organize models into subfolders",
       category: ["Tiny Model Manager", "Storage", "Organize into subfolders"],
-      type(name, setter, value) {
-        return makeToggle(value, setter);
+      type(_name, setter, value) {
+        return makeToggle(value, (checked) => {
+          setter(checked);
+        });
       },
       defaultVal: false,
       tooltip: "When enabled, newly downloaded models are placed in <type>/<base-model>/<filename> automatically.",
       async onChange(value) {
         if (!_initialized) return;
-        await putSetting("organize_into_subfolders", value);
+        const result = await putSetting("organize_into_subfolders", value);
+        if (!result.ok) {
+          alert(`Could not change setting:\n${result.error}`);
+          // Revert by re-applying the saved value from the backend
+          const data = await fetchSettings();
+          app.ui.settings.setSettingValue(
+            "TinyModelManager.organize_into_subfolders",
+            data.organize_into_subfolders ?? false,
+          );
+        }
       },
     },
   ],

@@ -5,6 +5,7 @@ import { forkJoin } from 'rxjs';
 import { ModelService, ModelFile, ModelMeta } from '../../services/model';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
+import { SettingsService } from '../../services/settings';
 
 const MEDIA_API = '/tiny-model-manager/api/media';
 const UNKNOWN_BASE_MODEL = '__unknown__';
@@ -164,15 +165,18 @@ export class Models implements OnInit {
   hasAnyModels = computed(() => Object.keys(this.modelsByType()).length > 0);
   hasAnySelected = computed(() => this.selected().size > 0);
   totalSelected = computed(() => this.selected().size);
+  organizeEnabled = signal(false);
 
   constructor(
     private modelService: ModelService,
     private workflowService: WorkflowService,
     private notifService: NotificationService,
+    private settingsService: SettingsService,
   ) {}
 
   ngOnInit() {
     this.load();
+    this.settingsService.getOrganizeEnabled().subscribe((v) => this.organizeEnabled.set(v));
   }
 
   load() {

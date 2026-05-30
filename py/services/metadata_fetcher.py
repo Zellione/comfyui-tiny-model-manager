@@ -22,6 +22,15 @@ def _compute_media_hash(platform: str, source_id: str, filename: str) -> str:
     return hashlib.sha1(key.encode()).hexdigest()
 
 
+def _remove_empty_dir(path: str) -> None:
+    """Remove a directory if it is empty; silently no-ops if it has contents or doesn't exist."""
+    try:
+        if os.path.isdir(path) and not os.listdir(path):
+            os.rmdir(path)
+    except Exception:
+        pass
+
+
 def _sanitize_subfolder_name(name: str) -> str:
     if not name:
         return "Unknown"
@@ -61,6 +70,7 @@ async def _move_to_subfolder(filename: str, model_type: str, base_model: str) ->
 
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     shutil.move(src, dest)
+    _remove_empty_dir(os.path.dirname(src))
     return new_rel
 
 

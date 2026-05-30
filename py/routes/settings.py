@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 from aiohttp import web
@@ -28,6 +29,7 @@ def add_settings_routes(routes):
         try:
             body = await request.json()
             existing = cfg.load_settings()
+            old_organize = existing.get("organize_into_subfolders", False)
             # Only update keys that aren't the mask placeholder
             if body.get("civitai_api_key", "") not in ("", "***"):
                 existing["civitai_api_key"] = body["civitai_api_key"]
@@ -36,8 +38,37 @@ def add_settings_routes(routes):
             if "media_dir" in body:
                 existing["media_dir"] = body["media_dir"]
             if "organize_into_subfolders" in body:
-                existing["organize_into_subfolders"] = bool(body["organize_into_subfolders"])
+                new_val = bool(body["organize_into_subfolders"])
+                if new_val and not old_organize:
+                    from ..db import model_repo as _repo
+
+                    pending = await _repo.get_pending_deorganize_jobs()
+                    if pending:
+                        return web.json_response(
+                            {
+                                "success": False,
+                                "error": (
+                                    f"Cannot enable organizing while {len(pending)} model(s) "
+                                    "are still being moved back to flat folders. "
+                                    "Please wait for the deorganize to complete."
+                                ),
+                            },
+                            status=409,
+                        )
+                existing["organize_into_subfolders"] = new_val
+            new_organize = existing.get("organize_into_subfolders", False)
             cfg.save_settings(existing)
+            if old_organize and not new_organize:
+                from ..db import model_repo
+                from ..services import deorganizer
+
+                models = await model_repo.get_all_models_slim()
+                await model_repo.clear_pending_deorganize_queue()
+                for m in models:
+                    fname = m["filename"]
+                    if "/" in fname or "\\" in fname:
+                        await model_repo.enqueue_deorganize(fname, m.get("model_type") or "")
+                asyncio.ensure_future(deorganizer.process_pending_jobs())
             return web.json_response({"success": True})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)

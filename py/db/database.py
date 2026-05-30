@@ -41,6 +41,14 @@ CREATE TABLE IF NOT EXISTS model_tags (
     tag_id   INTEGER NOT NULL REFERENCES tags(id)   ON DELETE CASCADE,
     PRIMARY KEY (model_id, tag_id)
 );
+
+CREATE TABLE IF NOT EXISTS deorganize_queue (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename   TEXT    NOT NULL,
+    model_type TEXT    NOT NULL,
+    status     TEXT    NOT NULL DEFAULT 'pending',
+    created_at INTEGER          DEFAULT (strftime('%s','now'))
+);
 """
 
 
