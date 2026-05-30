@@ -9,7 +9,10 @@ import { SettingsService } from '../../services/settings';
 
 // BroadcastChannel is not available in jsdom — stub it so `new` works correctly.
 // Returning a plain object from the implementation becomes the result of `new`.
-type MockChannel = { onmessage: ((ev: MessageEvent) => void) | null; close: ReturnType<typeof vi.fn> };
+type MockChannel = {
+  onmessage: ((ev: MessageEvent) => void) | null;
+  close: ReturnType<typeof vi.fn>;
+};
 let capturedChannel: MockChannel | null = null;
 
 vi.stubGlobal(
