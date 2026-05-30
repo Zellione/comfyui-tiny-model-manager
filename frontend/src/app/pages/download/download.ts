@@ -14,6 +14,7 @@ import {
 } from '../../services/civitai';
 import { HuggingFaceService, HfModel } from '../../services/huggingface';
 import { ModelService } from '../../services/model';
+import { NotificationService } from '../../services/notification';
 import { detectLink, LinkKind } from '../../utils/link-detector';
 
 type HfFileItem = { filename: string; size: number; url: string };
@@ -48,6 +49,7 @@ export class Download {
   private civitaiService = inject(CivitaiService);
   private hfService = inject(HuggingFaceService);
   private modelService = inject(ModelService);
+  private notifService = inject(NotificationService);
   private destroyRef = inject(DestroyRef);
   private pasteUrl$ = new Subject<string>();
 
@@ -401,13 +403,17 @@ export class Download {
     if (kind.type === 'hf-resolve') {
       this.dlService
         .startDownload(this.pasteUrl(), type, kind.filename, 'huggingface', kind.repo)
-        .subscribe();
+        .subscribe({
+          next: () => this.notifService.show('success', `Download enqueued: ${kind.filename}`),
+        });
     } else if (kind.type === 'civitai-download') {
       const r = this.linkResolved();
       if (!r) return;
       this.dlService
         .startDownload(this.pasteUrl(), type, r.filename, 'civitai', String(kind.versionId))
-        .subscribe();
+        .subscribe({
+          next: () => this.notifService.show('success', `Download enqueued: ${r.filename}`),
+        });
     }
     this.pasteUrl.set('');
     this.linkKind.set({ type: 'empty' });
@@ -422,7 +428,9 @@ export class Download {
     const repo = kind.type === 'hf-repo' ? kind.repo : '';
     this.dlService
       .startDownload(f.url, this.linkHfRowType(f.filename), f.filename, 'huggingface', repo)
-      .subscribe();
+      .subscribe({
+        next: () => this.notifService.show('success', `Download enqueued: ${f.filename}`),
+      });
   }
 
   // F-20 — CivitAI model link methods
@@ -452,7 +460,9 @@ export class Download {
         'civitai',
         String(versionId),
       )
-      .subscribe();
+      .subscribe({
+        next: () => this.notifService.show('success', `Download enqueued: ${file.name}`),
+      });
   }
 
   downloadSelectedLinkCivitai() {
@@ -465,7 +475,9 @@ export class Download {
           'civitai',
           String(versionId),
         )
-        .subscribe();
+        .subscribe({
+          next: () => this.notifService.show('success', `Download enqueued: ${file.name}`),
+        });
     }
     this.linkCivitaiSelected.set(new Map());
   }
@@ -627,7 +639,9 @@ export class Download {
         'civitai',
         String(versionId),
       )
-      .subscribe();
+      .subscribe({
+        next: () => this.notifService.show('success', `Download enqueued: ${file.name}`),
+      });
   }
 
   downloadSelectedCivitai() {
@@ -640,7 +654,9 @@ export class Download {
           'civitai',
           String(versionId),
         )
-        .subscribe();
+        .subscribe({
+          next: () => this.notifService.show('success', `Download enqueued: ${file.name}`),
+        });
     }
     this.selectedCivitaiFiles.set(new Map());
   }
@@ -683,7 +699,9 @@ export class Download {
         'huggingface',
         this.selectedHfRepoId(),
       )
-      .subscribe();
+      .subscribe({
+        next: () => this.notifService.show('success', `Download enqueued: ${file.filename}`),
+      });
   }
 
   formatSize(bytes: number): string {

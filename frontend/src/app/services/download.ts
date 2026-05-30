@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, interval, switchMap, startWith, shareReplay } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Observable, interval, switchMap, startWith, shareReplay, from } from 'rxjs';
+import { map, pairwise, mergeMap } from 'rxjs/operators';
 
 export interface DownloadTask {
   id: string;
@@ -22,6 +22,7 @@ const API = '/tiny-model-manager/api';
 @Injectable({ providedIn: 'root' })
 export class DownloadService {
   readonly activeTasks$: Observable<DownloadTask[]>;
+  readonly completedTasks$: Observable<DownloadTask>;
 
   constructor(private http: HttpClient) {
     this.activeTasks$ = interval(2000).pipe(
@@ -32,6 +33,19 @@ export class DownloadService {
           .pipe(map((r) => r.data)),
       ),
       shareReplay(1),
+    );
+
+    this.completedTasks$ = this.activeTasks$.pipe(
+      pairwise(),
+      mergeMap(([prev, curr]) =>
+        from(
+          curr.filter(
+            (task) =>
+              (task.status === 'done' || task.status === 'error') &&
+              prev.find((p) => p.id === task.id)?.status !== task.status,
+          ),
+        ),
+      ),
     );
   }
 

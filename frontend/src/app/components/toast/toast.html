@@ -1,0 +1,14 @@
+<div class="toast-container">
+  @for (toast of notifService.toasts(); track toast.id) {
+    <div
+      class="toast"
+      [class.toast-success]="toast.type === 'success'"
+      [class.toast-error]="toast.type === 'error'"
+      (mouseenter)="pauseTimer(toast.id)"
+      (mouseleave)="resumeTimer(toast.id)"
+    >
+      <span class="toast-msg">{{ toast.message }}</span>
+      <button class="toast-dismiss" (click)="notifService.dismiss(toast.id)">×</button>
+    </div>
+  }
+</div>

@@ -1,12 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { EMPTY } from 'rxjs';
 import { App } from './app';
+import { DownloadService } from './services/download';
+
+const mockDownloadService = { completedTasks$: EMPTY, activeTasks$: EMPTY };
 
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), { provide: DownloadService, useValue: mockDownloadService }],
     }).compileComponents();
   });
 

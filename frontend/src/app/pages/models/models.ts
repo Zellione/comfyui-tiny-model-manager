@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { ModelService, ModelFile, ModelMeta } from '../../services/model';
 import { WorkflowService } from '../../services/workflow';
+import { NotificationService } from '../../services/notification';
 
 const MEDIA_API = '/tiny-model-manager/api/media';
 const UNKNOWN_BASE_MODEL = '__unknown__';
@@ -167,6 +168,7 @@ export class Models implements OnInit {
   constructor(
     private modelService: ModelService,
     private workflowService: WorkflowService,
+    private notifService: NotificationService,
   ) {}
 
   ngOnInit() {
@@ -257,8 +259,11 @@ export class Models implements OnInit {
   deleteModel(type: string, file: ModelFile) {
     if (!confirm(`Delete ${file.filename}?`)) return;
     this.modelService.deleteModel(type, file.filename).subscribe({
-      next: () => this.load(),
-      error: (err) => alert('Delete failed: ' + (err as Error).message),
+      next: () => {
+        this.notifService.show('success', `Deleted: ${file.filename}`);
+        this.load();
+      },
+      error: (err) => this.notifService.show('error', 'Delete failed: ' + (err as Error).message),
     });
   }
 
@@ -277,8 +282,10 @@ export class Models implements OnInit {
           s2.delete(filename);
           this.queuedForWorkflow.set(s2);
         }, 2000);
+        this.notifService.show('success', 'Model queued for workflow insertion.');
       },
-      error: () => alert('Failed to enqueue model for workflow insertion.'),
+      error: () =>
+        this.notifService.show('error', 'Failed to enqueue model for workflow insertion.'),
     });
   }
 
@@ -287,8 +294,11 @@ export class Models implements OnInit {
     if (!files.length) return;
     if (!confirm(`Delete ${files.length} model(s)?`)) return;
     forkJoin(files.map((f) => this.modelService.deleteModel(type, f))).subscribe({
-      next: () => this.load(),
-      error: (err) => alert('Delete failed: ' + (err as Error).message),
+      next: () => {
+        this.notifService.show('success', `Deleted ${files.length} model(s).`);
+        this.load();
+      },
+      error: (err) => this.notifService.show('error', 'Delete failed: ' + (err as Error).message),
     });
   }
 
@@ -311,8 +321,11 @@ export class Models implements OnInit {
       files.map((f) => this.modelService.deleteModel(type, f)),
     );
     forkJoin(deletes).subscribe({
-      next: () => this.load(),
-      error: (err) => alert('Delete failed: ' + (err as Error).message),
+      next: () => {
+        this.notifService.show('success', `Deleted ${total} model(s).`);
+        this.load();
+      },
+      error: (err) => this.notifService.show('error', 'Delete failed: ' + (err as Error).message),
     });
   }
 }
