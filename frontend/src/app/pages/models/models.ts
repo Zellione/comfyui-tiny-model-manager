@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, DestroyRef, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
@@ -167,6 +167,8 @@ export class Models implements OnInit {
   totalSelected = computed(() => this.selected().size);
   organizeEnabled = signal(false);
 
+  private destroyRef = inject(DestroyRef);
+
   constructor(
     private modelService: ModelService,
     private workflowService: WorkflowService,
@@ -177,6 +179,15 @@ export class Models implements OnInit {
   ngOnInit() {
     this.load();
     this.settingsService.getOrganizeEnabled().subscribe((v) => this.organizeEnabled.set(v));
+
+    const onSettingsChanged = () => {
+      this.settingsService.getOrganizeEnabled().subscribe((v) => this.organizeEnabled.set(v));
+      this.load();
+    };
+    window.addEventListener('tmm:settings-changed', onSettingsChanged);
+    this.destroyRef.onDestroy(() =>
+      window.removeEventListener('tmm:settings-changed', onSettingsChanged),
+    );
   }
 
   load() {

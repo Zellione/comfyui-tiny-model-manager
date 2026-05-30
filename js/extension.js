@@ -153,6 +153,12 @@ app.registerExtension({
             "TinyModelManager.organize_into_subfolders",
             data.organize_into_subfolders ?? false,
           );
+        } else {
+          window.dispatchEvent(
+            new CustomEvent("tmm:settings-changed", {
+              detail: { key: "organize_into_subfolders", value },
+            }),
+          );
         }
       },
     },
