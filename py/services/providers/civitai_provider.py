@@ -51,10 +51,9 @@ class CivitaiProvider(ModelProvider):
         params: dict = {"limit": limit}
         if query:
             params["query"] = query
-            # CivitAI does not allow page with query; use cursor-based pagination instead
-            if cursor:
-                params["cursor"] = cursor
-        else:
+        if cursor:
+            params["cursor"] = cursor
+        elif not query:
             params["page"] = page
         if model_type and model_type in CIVITAI_TYPE_MAP:
             params["types"] = CIVITAI_TYPE_MAP[model_type]
