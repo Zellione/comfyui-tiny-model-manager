@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, interval, switchMap, startWith, shareReplay, from } from 'rxjs';
-import { map, pairwise, mergeMap } from 'rxjs/operators';
+import { Observable, interval, switchMap, startWith, shareReplay, from, of } from 'rxjs';
+import { map, pairwise, mergeMap, catchError } from 'rxjs/operators';
 
 export interface DownloadTask {
   id: string;
@@ -28,9 +28,10 @@ export class DownloadService {
     this.activeTasks$ = interval(2000).pipe(
       startWith(0),
       switchMap(() =>
-        this.http
-          .get<{ success: boolean; data: DownloadTask[] }>(`${API}/download/status`)
-          .pipe(map((r) => r.data)),
+        this.http.get<{ success: boolean; data: DownloadTask[] }>(`${API}/download/status`).pipe(
+          map((r) => r.data),
+          catchError(() => of([] as DownloadTask[])),
+        ),
       ),
       shareReplay(1),
     );

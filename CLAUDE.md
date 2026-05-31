@@ -113,6 +113,37 @@ Dev dependencies are in `requirements-dev.txt`; install once with:
 - Claude never mentions it self as Coauthor or uses EOF in commit message
 - **Claude MUST NOT push to remote or create/update a pull request without explicit user approval. Always commit locally, present the commit, and wait for the user to say "push" or "open PR" before doing so.**
 
+### Testing discipline (MANDATORY)
+
+**Write tests for all new behaviour. Update existing tests when behaviour changes.**
+
+#### Frontend (Angular / Vitest)
+- New signals, computed values, and method logic → add unit tests in a `*.spec.ts` file next to the component/service (e.g. `download.spec.ts` beside `download.ts`)
+- Use `TestBed.configureTestingModule` + `vi.fn()` mocks for all injected services; assert signal state via `fixture.componentInstance.signal()`
+- When injecting `DownloadService`, mock `activeTasks$` as `of([])` and `completedTasks$` as `EMPTY`
+- Run `npx ng test --watch=false` to confirm all tests pass before committing
+
+#### Backend (Python / pytest)
+- New routes → add integration tests in `tests/test_routes_<module>.py` using the `aiohttp_client` + `ext_dir` fixtures from `conftest.py`
+- New service/provider logic → add unit tests in `tests/test_<module>.py` using `pytest-asyncio` and `httpx` mocking
+- Run `PYTHONSAFEPATH=1 ../../../comfy-env/bin/python -m pytest` to confirm all tests pass before committing
+
+### Angular / RxJS gotchas
+
+- **Polling observables must handle errors**: Any `interval() + switchMap(HTTP)` stream
+  terminates permanently on first error unless `catchError` is used inside the switchMap.
+  Pattern: `.pipe(map(...), catchError(() => of(fallback)))` — stream keeps ticking.
+
+- **Template branching hides UI**: When `search()` clears results and the request also
+  fails, the `@else if (results.length === 0)` branch shows "No results found" — hiding
+  the entire split view and any buttons inside it. Track search failures with a separate
+  `searchError` signal and add an `@else if (searchError())` branch above the empty state.
+
+- **`flex: 1; min-height: 0` collapses in auto-height containers**: A flex child with
+  `flex: 1; min-height: 0` inside a column that has no definite height (no `height`,
+  only `max-height`) collapses to 0 and hides overflow content. Fix: give the scrollable
+  child its own `max-height` directly instead of relying on flex grow.
+
 ### Feature branch rule (MANDATORY)
 
 **Any time the user asks to implement a feature — whether by saying "implement F-36", "add F-12", or any request whose subject matches the pattern `F-\d+` — Claude MUST, before touching any file:**

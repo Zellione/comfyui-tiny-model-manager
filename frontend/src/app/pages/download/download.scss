@@ -296,10 +296,15 @@
 .list-pane {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+}
+
+.list-scroll {
   max-height: 70vh;
   overflow-y: auto;
   padding-right: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
@@ -403,12 +408,36 @@
   color: var(--success);
 }
 
-.load-more-inline {
+.load-more-btn {
+  flex-shrink: 0;
   margin-top: 0.5rem;
   width: 100%;
   padding: 0.5rem;
   font-size: 0.8rem;
   text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition:
+    color var(--dur),
+    background var(--dur),
+    border-color var(--dur);
+
+  &--done {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  &--error {
+    color: var(--danger);
+    border-color: var(--danger);
+    background: var(--danger-soft);
+    cursor: pointer;
+
+    &:hover {
+      background: color-mix(in srgb, var(--danger) 20%, transparent);
+    }
+  }
 }
 
 // ── Right detail pane ─────────────────────────────────────────────────────────
