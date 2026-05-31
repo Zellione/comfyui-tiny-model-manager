@@ -1,6 +1,7 @@
 import { Component, signal, inject, computed, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 import { toSignal, toObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject, skip } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, of, catchError, map } from 'rxjs';
@@ -267,6 +268,11 @@ export class Download {
   civitaiHasMore = signal(false);
   hfPage = signal(0);
   hfHasMore = signal(false);
+  loadMoreError = signal('');
+
+  activeHasMore = computed(() =>
+    this.platform() === 'civitai' ? this.civitaiHasMore() : this.hfHasMore(),
+  );
 
   // Batch selection: key = `${versionId}_${fileId}` → {file, versionId}
   selectedCivitaiFiles = signal(new Map<string, { file: CivitaiFile; versionId: number }>());
@@ -507,6 +513,7 @@ export class Download {
     this.civitaiHasMore.set(false);
     this.hfPage.set(0);
     this.hfHasMore.set(false);
+    this.loadMoreError.set('');
     this.selectedCivitaiFiles.set(new Map());
 
     if (this.platform() === 'civitai') {
@@ -561,6 +568,7 @@ export class Download {
 
   loadMore() {
     this.loadingMore.set(true);
+    this.loadMoreError.set('');
     if (this.platform() === 'civitai') {
       this.civitaiService
         .search(
@@ -575,12 +583,21 @@ export class Download {
         )
         .subscribe({
           next: (r) => {
-            this.civitaiResults.update((prev) => [...prev, ...r.items]);
-            this.civitaiCursor.set(r.metadata?.nextCursor ?? '');
-            this.civitaiHasMore.set(!!r.metadata?.nextCursor);
+            if (r.items.length === 0) {
+              const msg = 'No results returned';
+              this.loadMoreError.set(msg);
+              this.notifService.show('error', msg);
+            } else {
+              this.civitaiResults.update((prev) => [...prev, ...r.items]);
+              this.civitaiCursor.set(r.metadata?.nextCursor ?? '');
+              this.civitaiHasMore.set(!!r.metadata?.nextCursor);
+            }
             this.loadingMore.set(false);
           },
-          error: () => {
+          error: (err: HttpErrorResponse) => {
+            const msg = err.error?.error ?? err.message ?? 'Request failed';
+            this.loadMoreError.set(msg);
+            this.notifService.show('error', msg);
             this.loadingMore.set(false);
           },
         });
@@ -597,12 +614,21 @@ export class Download {
         )
         .subscribe({
           next: (r) => {
-            this.hfResults.update((prev) => [...prev, ...r.items]);
-            this.hfPage.set(r.nextPage);
-            this.hfHasMore.set(r.hasMore);
+            if (r.items.length === 0) {
+              const msg = 'No results returned';
+              this.loadMoreError.set(msg);
+              this.notifService.show('error', msg);
+            } else {
+              this.hfResults.update((prev) => [...prev, ...r.items]);
+              this.hfPage.set(r.nextPage);
+              this.hfHasMore.set(r.hasMore);
+            }
             this.loadingMore.set(false);
           },
-          error: () => {
+          error: (err: HttpErrorResponse) => {
+            const msg = err.error?.error ?? err.message ?? 'Request failed';
+            this.loadMoreError.set(msg);
+            this.notifService.show('error', msg);
             this.loadingMore.set(false);
           },
         });

@@ -79,7 +79,7 @@ Assumes ComfyUI was installed via [comfy-cli](https://comfyui-wiki.com/en/instal
 - [x] F-34 — Notification system — green/red toast popups for save, download, workflow-insert, and error events
 - [x] F-35 — Automatic subfolder organization by base model — toggle to store/reorganize models into `<type>/<base_model>/` subfolders (`Unknown` when none)
 - [x] F-36 — Filter download search results by tags — server-side tag query (HuggingFace AND-multi, CivitAI single tag)
-- [ ] F-37 — Always-visible "Load more" with empty/error states — button below the list, red + disabled with the failure reason
+- [x] F-37 — Always-visible "Load more" with empty/error states — button below the list, red + disabled with the failure reason
 
 ---
 

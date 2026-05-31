@@ -331,91 +331,94 @@
   <div class="split-view">
     <!-- LEFT LIST PANE -->
     <div class="list-pane">
-      @if (platform() === 'civitai') {
-        @for (model of filteredCivitaiResults(); track model.id) {
-          <div
-            class="list-row"
-            [class.selected]="selectedModel()?.id === model.id"
-            (click)="selectCivitai(model)"
-          >
-            <div class="row-thumb">
-              @if (civitaiThumb(model)) {
-                <img
-                  [src]="civitaiThumb(model)"
-                  alt=""
-                  loading="lazy"
-                  (error)="onImgError($event)"
-                />
-              }
-            </div>
-            <div class="row-info">
-              <span class="row-name">{{ model.name }}</span>
-              <div class="row-meta">
-                <span class="badge">{{ model.type }}</span>
-                @if (civitaiModelBaseModel(model)) {
-                  <span class="badge badge-accent">{{ civitaiModelBaseModel(model) }}</span>
-                }
-                @for (tag of model.tags ?? []; track tag; let i = $index) {
-                  @if (i < 2) {
-                    <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
-                      tag
-                    }}</span>
-                  }
+      <div class="list-scroll">
+        @if (platform() === 'civitai') {
+          @for (model of filteredCivitaiResults(); track model.id) {
+            <div
+              class="list-row"
+              [class.selected]="selectedModel()?.id === model.id"
+              (click)="selectCivitai(model)"
+            >
+              <div class="row-thumb">
+                @if (civitaiThumb(model)) {
+                  <img
+                    [src]="civitaiThumb(model)"
+                    alt=""
+                    loading="lazy"
+                    (error)="onImgError($event)"
+                  />
                 }
               </div>
+              <div class="row-info">
+                <span class="row-name">{{ model.name }}</span>
+                <div class="row-meta">
+                  <span class="badge">{{ model.type }}</span>
+                  @if (civitaiModelBaseModel(model)) {
+                    <span class="badge badge-accent">{{ civitaiModelBaseModel(model) }}</span>
+                  }
+                  @for (tag of model.tags ?? []; track tag; let i = $index) {
+                    @if (i < 2) {
+                      <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
+                        tag
+                      }}</span>
+                    }
+                  }
+                </div>
+              </div>
             </div>
-          </div>
+          }
         }
-        @if (civitaiHasMore()) {
-          <button
-            class="btn-secondary load-more-inline"
-            (click)="loadMore()"
-            [disabled]="loadingMore()"
-          >
-            {{ loadingMore() ? 'Loading…' : 'Load more' }}
-          </button>
-        }
-      }
 
-      @if (platform() === 'huggingface') {
-        @for (model of filteredHfResults(); track model.id) {
-          <div
-            class="list-row"
-            [class.selected]="selectedHfModel()?.id === model.id"
-            (click)="selectHf(model)"
-          >
-            <div class="row-thumb">
-              @if (model.thumbnail) {
-                <img [src]="model.thumbnail" alt="" loading="lazy" (error)="onImgError($event)" />
-              }
-            </div>
-            <div class="row-info">
-              <span class="row-name">{{ model.modelId || model.id }}</span>
-              <div class="row-meta">
-                @for (fmt of model.formats ?? []; track fmt) {
-                  <span class="badge">{{ fmt }}</span>
-                }
-                @for (tag of model.tags; track tag; let i = $index) {
-                  @if (i < 2) {
-                    <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
-                      tag
-                    }}</span>
-                  }
+        @if (platform() === 'huggingface') {
+          @for (model of filteredHfResults(); track model.id) {
+            <div
+              class="list-row"
+              [class.selected]="selectedHfModel()?.id === model.id"
+              (click)="selectHf(model)"
+            >
+              <div class="row-thumb">
+                @if (model.thumbnail) {
+                  <img [src]="model.thumbnail" alt="" loading="lazy" (error)="onImgError($event)" />
                 }
               </div>
+              <div class="row-info">
+                <span class="row-name">{{ model.modelId || model.id }}</span>
+                <div class="row-meta">
+                  @for (fmt of model.formats ?? []; track fmt) {
+                    <span class="badge">{{ fmt }}</span>
+                  }
+                  @for (tag of model.tags; track tag; let i = $index) {
+                    @if (i < 2) {
+                      <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
+                        tag
+                      }}</span>
+                    }
+                  }
+                </div>
+              </div>
             </div>
-          </div>
+          }
         }
-        @if (hfHasMore()) {
-          <button
-            class="btn-secondary load-more-inline"
-            (click)="loadMore()"
-            [disabled]="loadingMore()"
-          >
-            {{ loadingMore() ? 'Loading…' : 'Load more' }}
-          </button>
+      </div>
+
+      <!-- Load More — always visible below scroll area -->
+      <button
+        class="load-more-btn"
+        [class.load-more-btn--error]="loadMoreError()"
+        [class.load-more-btn--done]="!loadMoreError() && !activeHasMore() && !loadingMore()"
+        [disabled]="loadingMore() || (!loadMoreError() && !activeHasMore())"
+        (click)="loadMore()"
+      >
+        @if (loadingMore()) {
+          Loading…
+        } @else if (loadMoreError()) {
+          {{ loadMoreError() }}
+        } @else if (activeHasMore()) {
+          Load more
+        } @else {
+          No more results
         }
-      }
+      </button>
     </div>
     <!-- /list-pane -->
 
