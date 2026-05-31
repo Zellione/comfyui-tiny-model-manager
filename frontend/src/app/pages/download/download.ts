@@ -233,15 +233,17 @@ export class Download {
     return this.hfResults().filter((m) => m.formats?.includes(fmt));
   });
 
+  // Intermediary so Angular stops propagating when the first tag value is unchanged (adding a 2nd+ tag).
+  private civitaiServerTag = computed(() => this.tagFilter()[0] ?? '');
+
   private filterParams = computed(() => ({
     civitaiSort: this.civitaiSort(),
     civitaiPeriod: this.civitaiPeriod(),
     civitaiBaseModel: this.civitaiBaseModel(),
     hfSort: this.hfSort(),
     formatFilter: this.formatFilter(),
-    // CivitAI: only first tag is server-side; extra tags are client-side — don't retrigger a fetch for them.
-    serverTag:
-      this.platform() === 'civitai' ? (this.tagFilter()[0] ?? '') : this.tagFilter().join(','),
+    // civitaiServerTag() not tagFilter() — avoids re-fetch when only client-side extra tags change.
+    serverTag: this.platform() === 'civitai' ? this.civitaiServerTag() : this.tagFilter().join(','),
   }));
 
   activeTasks = toSignal(this.dlService.activeTasks$, { initialValue: [] as DownloadTask[] });

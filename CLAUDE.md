@@ -111,6 +111,7 @@ Dev dependencies are in `requirements-dev.txt`; install once with:
 ## Workflow
 - Commits and code comments always in english
 - Claude never mentions it self as Coauthor or uses EOF in commit message
+- **Claude MUST NOT push to remote or create/update a pull request without explicit user approval. Always commit locally, present the commit, and wait for the user to say "push" or "open PR" before doing so.**
 
 ### Feature branch rule (MANDATORY)
 
@@ -135,8 +136,9 @@ If planning and working on a new feature already specified in @PRD.md the follow
 4. If plan was approved implement plan
 5. **Run all tests and lint for both backend and frontend — only proceed when every check passes with zero failures**
 6. **If any file under `frontend/` or `js/` was changed: run `npx ng build` from `frontend/` and confirm it succeeds**
-7. If there are no bugs reported: commit changes and push them to github (origin)
-8. Open pull request
+7. If there are no bugs reported: commit changes locally and present the commit to the user
+8. **Wait for explicit user approval before pushing to github (origin)**
+9. **Wait for explicit user approval before opening a pull request**
 
 ### Bug during feature development.
 
@@ -150,5 +152,6 @@ If working on a bug during feature development and it was alrady pushed and a pu
 6. If plan was approved implement plan.
 7. **Run all tests and lint for both backend and frontend — only proceed when every check passes with zero failures**
 8. **If any file under `frontend/` or `js/` was changed: run `npx ng build` from `frontend/` and confirm it succeeds**
-9. If there are no bugs reported: commit changes and push them to github (origin)
-10. Check if pull request updated
+9. If there are no bugs reported: commit changes locally and present the commit to the user
+10. **Wait for explicit user approval before pushing to github (origin)**
+11. **Wait for explicit user approval before updating the pull request**
