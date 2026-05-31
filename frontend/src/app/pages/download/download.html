@@ -403,7 +403,7 @@
 
       <!-- Load More — always visible below scroll area -->
       <button
-        class="load-more-btn"
+        class="btn-secondary load-more-btn"
         [class.load-more-btn--error]="loadMoreError()"
         [class.load-more-btn--done]="!loadMoreError() && !activeHasMore() && !loadingMore()"
         [disabled]="loadingMore() || (!loadMoreError() && !activeHasMore())"

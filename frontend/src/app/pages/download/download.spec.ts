@@ -162,7 +162,7 @@ describe('Download component — F-37 Load More', () => {
       expect(mockNotifService.show).toHaveBeenCalledWith('error', expect.any(String));
     });
 
-    it('sets loadMoreError to "No results returned" when items array is empty', async () => {
+    it('treats empty items response as end of results (no error, hasMore=false)', async () => {
       const fixture = await createFixture();
       const c = fixture.componentInstance;
       c.platform.set('civitai');
@@ -171,11 +171,12 @@ describe('Download component — F-37 Load More', () => {
       c.loadMore();
       await fixture.whenStable();
 
-      expect(c.loadMoreError()).toBe('No results returned');
-      expect(mockNotifService.show).toHaveBeenCalledWith('error', 'No results returned');
+      expect(c.loadMoreError()).toBe('');
+      expect(c.civitaiHasMore()).toBe(false);
+      expect(mockNotifService.show).not.toHaveBeenCalled();
     });
 
-    it('does not append items when response is empty', async () => {
+    it('does not grow results when response is empty', async () => {
       const fixture = await createFixture();
       const c = fixture.componentInstance;
       c.platform.set('civitai');
@@ -249,7 +250,7 @@ describe('Download component — F-37 Load More', () => {
       expect(mockNotifService.show).toHaveBeenCalledWith('error', 'Model not found');
     });
 
-    it('sets loadMoreError to "No results returned" when items array is empty', async () => {
+    it('treats empty items response as end of results (no error, hasMore=false)', async () => {
       const fixture = await createFixture();
       const c = fixture.componentInstance;
       c.platform.set('huggingface');
@@ -258,8 +259,9 @@ describe('Download component — F-37 Load More', () => {
       c.loadMore();
       await fixture.whenStable();
 
-      expect(c.loadMoreError()).toBe('No results returned');
-      expect(mockNotifService.show).toHaveBeenCalledWith('error', 'No results returned');
+      expect(c.loadMoreError()).toBe('');
+      expect(c.hfHasMore()).toBe(false);
+      expect(mockNotifService.show).not.toHaveBeenCalled();
     });
 
     it('sets loadingMore to false after error', async () => {
