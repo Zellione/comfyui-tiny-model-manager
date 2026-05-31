@@ -1,13 +1,14 @@
 feature_id: F-36
 title: Filter Download Search Results by Tags
 requirements:
-  - "multi-tag chip input on the Download page (consistent with the library tag filter, F-25); adding or removing a tag re-runs the search immediately"
-  - "Tag filtering is applied **server-side** via each platform's API: - **HuggingFace** — tags map to repeated `filter` params (AND matching), combined with the existing `pipeline_tag` / `gguf` filter - **CivitAI** — the `/models` API supports a single `tag` param, so the first selected tag is applied server-side (multi-tag server filtering is HuggingFace-only)"
+  - "Multi-tag chip input on the Download page (consistent with the library tag filter, F-25); adding or removing a tag that changes the server-visible tag set re-runs the search immediately. Adding a 2nd+ tag on CivitAI does NOT retrigger a server fetch because those tags are applied client-side only."
+  - "Tag filtering is applied **server-side** via each platform's API: **HuggingFace** — tags map to repeated `filter` params (AND matching), combined with the existing `pipeline_tag` / `gguf` filter; **CivitAI** — the `/models` API supports a single `tag` param, so the first selected tag is applied server-side (multi-tag server filtering is HuggingFace-only)."
   - "CivitAI multi-tag limitation: when more than one tag is selected on CivitAI, only the first tag narrows the server-side result set; all additional tags are AND-filtered client-side against the `tags` array returned per model in the API response. A UI hint is shown whenever two or more tags are active on the CivitAI platform."
-  - "Tags are passed through to the \"Load more\" pagination calls so paged results stay filtered"
-  - Defaults preserve current behaviour when no tag is set
+  - "Tags are preserved through 'Load more' pagination calls so paged results stay filtered. Cursor-based pagination (CivitAI) uses the cursor whenever one is present, regardless of whether a text query was entered."
+  - "Any tag that matches an active filter chip is visually highlighted (accent colour) on model cards in the list pane (up to 2 visible tags) and on all tags in the detail-pane tag section, for both platforms."
+  - Defaults preserve current behaviour when no tag is set.
 api:
-  - Extend `GET /api/search/civitai` with a `tags` param (comma-separated; first tag applied)
-  - Extend `GET /api/search/huggingface` with a `tags` param (comma-separated; all applied as `filter` AND-matched)
+  - Extend `GET /api/search/civitai` with a `tags` param (comma-separated; first tag applied server-side via `tag=`; cursor used when present regardless of query)
+  - Extend `GET /api/search/huggingface` with a `tags` param (comma-separated; all applied as repeated `filter` AND-matched params)
 depends_on:
   - F-25
