@@ -137,8 +137,9 @@ If planning and working on a new feature already specified in @PRD.md the follow
 5. **Run all tests and lint for both backend and frontend — only proceed when every check passes with zero failures**
 6. **If any file under `frontend/` or `js/` was changed: run `npx ng build` from `frontend/` and confirm it succeeds**
 7. If there are no bugs reported: commit changes locally and present the commit to the user
-8. **Wait for explicit user approval before pushing to github (origin)**
-9. **Wait for explicit user approval before opening a pull request**
+8. **Mark the feature as done (`[x]`) in `README.md` features checklist**
+9. **Wait for explicit user approval before pushing to github (origin)**
+10. **Wait for explicit user approval before opening a pull request**
 
 ### Bug during feature development.
 
@@ -153,5 +154,6 @@ If working on a bug during feature development and it was alrady pushed and a pu
 7. **Run all tests and lint for both backend and frontend — only proceed when every check passes with zero failures**
 8. **If any file under `frontend/` or `js/` was changed: run `npx ng build` from `frontend/` and confirm it succeeds**
 9. If there are no bugs reported: commit changes locally and present the commit to the user
-10. **Wait for explicit user approval before pushing to github (origin)**
-11. **Wait for explicit user approval before updating the pull request**
+10. **Mark the feature as done (`[x]`) in `README.md` features checklist**
+11. **Wait for explicit user approval before pushing to github (origin)**
+12. **Wait for explicit user approval before updating the pull request**
