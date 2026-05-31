@@ -112,20 +112,31 @@ Dev dependencies are in `requirements-dev.txt`; install once with:
 - Commits and code comments always in english
 - Claude never mentions it self as Coauthor or uses EOF in commit message
 
+### Feature branch rule (MANDATORY)
+
+**Any time the user asks to implement a feature — whether by saying "implement F-36", "add F-12", or any request whose subject matches the pattern `F-\d+` — Claude MUST, before touching any file:**
+
+1. Check the current branch with `git branch`
+2. If not already on a correctly named feature branch (`F-<number>-<short-name>`):
+   a. `git checkout main`
+   b. `git fetch origin && git pull origin main`
+   c. `git checkout -b F-<number>-<short-name>`
+3. Only then proceed with exploration and implementation.
+
+If there are already uncommitted changes on the wrong branch, stash them (`git stash`), perform steps 2a–2c, then restore (`git stash pop`).
+
 ### Feature
 
 If planning and working on a new feature already specified in @PRD.md the following steps have to be executed, if not already happened:
 
-1. Change Branch to main
-2. Fetch from origin and pull changes
-3. Create git branch containing feature name in the format `F-12-very-short-name`
-4. Enter plan mode and plan feature
-5. Wait for approval of plan
-6. If plan was approved implement plan
-7. **Run all tests and lint for both backend and frontend — only proceed when every check passes with zero failures**
-8. **If any file under `frontend/` or `js/` was changed: run `npx ng build` from `frontend/` and confirm it succeeds**
-9. If there are no bugs reported: commit changes and push them to github (origin)
-10. Open pull request
+1. **Ensure you are on a correctly named feature branch (see Feature branch rule above)**
+2. Enter plan mode and plan feature
+3. Wait for approval of plan
+4. If plan was approved implement plan
+5. **Run all tests and lint for both backend and frontend — only proceed when every check passes with zero failures**
+6. **If any file under `frontend/` or `js/` was changed: run `npx ng build` from `frontend/` and confirm it succeeds**
+7. If there are no bugs reported: commit changes and push them to github (origin)
+8. Open pull request
 
 ### Bug during feature development.
 

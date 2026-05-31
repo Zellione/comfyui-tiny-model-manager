@@ -36,6 +36,7 @@ class HuggingFaceProvider(ModelProvider):
         sort: str = "downloads",
         direction: int = -1,
         format: str = "",
+        tags: list[str] | None = None,
         **kwargs,
     ) -> dict:
         params: dict = {
@@ -46,10 +47,14 @@ class HuggingFaceProvider(ModelProvider):
             "p": p,
             "full": "true",
         }
+        extra_tags = list(tags) if tags else []
         if format == ".gguf":
-            params["filter"] = "gguf"
+            filter_values = ["gguf"] + extra_tags
+            params["filter"] = filter_values if len(filter_values) > 1 else filter_values[0]
         else:
             params["pipeline_tag"] = HF_TYPE_MAP.get(model_type, "text-to-image")
+            if extra_tags:
+                params["filter"] = extra_tags
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(f"{_API}/models", params=params, headers=self.auth_headers())
             resp.raise_for_status()

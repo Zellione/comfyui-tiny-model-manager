@@ -278,6 +278,26 @@
       }
     </select>
   </div>
+
+  <div class="tag-filter-row">
+    <div class="search-wrap">
+      <div class="search-input">
+        <input
+          type="text"
+          placeholder="Filter by tag…"
+          [value]="tagInput()"
+          (input)="tagInput.set($any($event.target).value)"
+          (keydown.enter)="addTagFromInput()"
+        />
+      </div>
+    </div>
+    @for (tag of tagFilter(); track tag) {
+      <span class="active-tag">
+        {{ tag }}
+        <button class="chip-remove" (click)="removeTag(tag)">×</button>
+      </span>
+    }
+  </div>
 </div>
 
 <!-- Results: split view / empty states -->

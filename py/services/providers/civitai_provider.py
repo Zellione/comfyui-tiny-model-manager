@@ -45,6 +45,7 @@ class CivitaiProvider(ModelProvider):
         base_model: str = "",
         sort: str = "",
         period: str = "",
+        tags: list[str] | None = None,
         **kwargs,
     ) -> dict:
         params: dict = {"limit": limit}
@@ -63,6 +64,8 @@ class CivitaiProvider(ModelProvider):
             params["sort"] = sort
             if period:
                 params["period"] = period
+        if tags:
+            params["tag"] = tags[0]
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(f"{_BASE}/models", params=params, headers=self.auth_headers())
             if not resp.is_success:

@@ -154,6 +154,8 @@ export class Download {
   civitaiBaseModel = signal('');
   hfSort = signal('downloads');
   formatFilter = signal('');
+  tagFilter = signal<string[]>([]);
+  tagInput = signal('');
   hasSearched = signal(false);
 
   // Paste-a-link section
@@ -228,6 +230,7 @@ export class Download {
     civitaiBaseModel: this.civitaiBaseModel(),
     hfSort: this.hfSort(),
     formatFilter: this.formatFilter(),
+    tagFilter: this.tagFilter(),
   }));
 
   activeTasks = toSignal(this.dlService.activeTasks$, { initialValue: [] as DownloadTask[] });
@@ -503,6 +506,7 @@ export class Download {
           this.civitaiBaseModel(),
           this.civitaiSort(),
           this.civitaiPeriod(),
+          this.tagFilter(),
         )
         .subscribe({
           next: (r) => {
@@ -518,7 +522,15 @@ export class Download {
         });
     } else {
       this.hfService
-        .search(this.query(), this.modelType(), 0, this.hfSort(), -1, this.formatFilter())
+        .search(
+          this.query(),
+          this.modelType(),
+          0,
+          this.hfSort(),
+          -1,
+          this.formatFilter(),
+          this.tagFilter(),
+        )
         .subscribe({
           next: (r) => {
             this.hfResults.set(r.items);
@@ -546,6 +558,7 @@ export class Download {
           this.civitaiBaseModel(),
           this.civitaiSort(),
           this.civitaiPeriod(),
+          this.tagFilter(),
         )
         .subscribe({
           next: (r) => {
@@ -567,6 +580,7 @@ export class Download {
           this.hfSort(),
           -1,
           this.formatFilter(),
+          this.tagFilter(),
         )
         .subscribe({
           next: (r) => {
@@ -580,6 +594,22 @@ export class Download {
           },
         });
     }
+  }
+
+  addTag(tag: string) {
+    const t = tag.trim();
+    if (!t || this.tagFilter().includes(t)) return;
+    this.tagFilter.update((tags) => [...tags, t]);
+    this.tagInput.set('');
+  }
+
+  addTagFromInput() {
+    const raw = this.tagInput().trim();
+    if (raw) this.addTag(raw);
+  }
+
+  removeTag(tag: string) {
+    this.tagFilter.update((tags) => tags.filter((t) => t !== tag));
   }
 
   selectCivitai(model: CivitaiModel) {

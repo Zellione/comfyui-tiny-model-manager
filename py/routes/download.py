@@ -15,6 +15,8 @@ def add_download_routes(routes):
         base_model = request.rel_url.query.get("base_model", "")
         sort = request.rel_url.query.get("sort", "")
         period = request.rel_url.query.get("period", "")
+        tags_raw = request.rel_url.query.get("tags", "")
+        tags = [t.strip() for t in tags_raw.split(",") if t.strip()]
         try:
             data = await civitai.search(
                 q,
@@ -24,6 +26,7 @@ def add_download_routes(routes):
                 base_model=base_model,
                 sort=sort,
                 period=period,
+                tags=tags,
             )
             return web.json_response({"success": True, "data": data})
         except Exception as exc:
@@ -37,9 +40,11 @@ def add_download_routes(routes):
         sort = request.rel_url.query.get("sort", "downloads")
         direction = int(request.rel_url.query.get("direction", -1))
         format = request.rel_url.query.get("format", "")
+        tags_raw = request.rel_url.query.get("tags", "")
+        tags = [t.strip() for t in tags_raw.split(",") if t.strip()]
         try:
             data = await huggingface.search(
-                q, model_type, p=p, sort=sort, direction=direction, format=format
+                q, model_type, p=p, sort=sort, direction=direction, format=format, tags=tags
             )
             return web.json_response({"success": True, "data": data})
         except Exception as exc:

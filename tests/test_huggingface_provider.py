@@ -203,3 +203,41 @@ class TestSearch:
         _patch_client(monkeypatch, _mock(items))
         result = await provider.search("test")
         assert result["hasMore"] is False
+
+    async def test_tags_added_as_repeated_filter_params(self, provider, monkeypatch):
+        captured_filters: list[str] = []
+        captured_has_pipeline_tag: list[bool] = []
+
+        def handler(r: httpx.Request) -> httpx.Response:
+            captured_filters.extend(r.url.params.get_list("filter"))
+            captured_has_pipeline_tag.append("pipeline_tag" in dict(r.url.params))
+            return httpx.Response(200, json=[])
+
+        _patch_client(monkeypatch, httpx.MockTransport(handler))
+        await provider.search("test", tags=["lora", "anime"])
+        assert "lora" in captured_filters
+        assert "anime" in captured_filters
+        assert captured_has_pipeline_tag[0]
+
+    async def test_tags_combined_with_gguf_filter(self, provider, monkeypatch):
+        captured_filters: list[str] = []
+
+        def handler(r: httpx.Request) -> httpx.Response:
+            captured_filters.extend(r.url.params.get_list("filter"))
+            return httpx.Response(200, json=[])
+
+        _patch_client(monkeypatch, httpx.MockTransport(handler))
+        await provider.search("test", format=".gguf", tags=["lora"])
+        assert "gguf" in captured_filters
+        assert "lora" in captured_filters
+
+    async def test_no_filter_param_when_no_tags_and_no_gguf(self, provider, monkeypatch):
+        captured_filters: list[str] = []
+
+        def handler(r: httpx.Request) -> httpx.Response:
+            captured_filters.extend(r.url.params.get_list("filter"))
+            return httpx.Response(200, json=[])
+
+        _patch_client(monkeypatch, httpx.MockTransport(handler))
+        await provider.search("test")
+        assert captured_filters == []

@@ -60,6 +60,7 @@ export class CivitaiService {
     baseModel = '',
     sort = '',
     period = '',
+    tags: string[] = [],
   ): Observable<{ items: CivitaiModel[]; metadata: any }> {
     const params: Record<string, string | number> = { q, type };
     if (q && cursor) {
@@ -72,6 +73,7 @@ export class CivitaiService {
       params['sort'] = sort;
       if (period) params['period'] = period;
     }
+    if (tags.length) params['tags'] = tags.join(',');
     return this.http
       .get<{ success: boolean; data: any }>(`${API}/search/civitai`, { params })
       .pipe(map((r) => ({ items: r.data.items ?? [], metadata: r.data.metadata ?? {} })));
