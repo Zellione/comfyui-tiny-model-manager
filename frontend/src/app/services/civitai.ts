@@ -41,6 +41,13 @@ export interface CivitaiDirectLinkInfo {
   image_urls: string[];
 }
 
+export interface CivitaiSearchMetadata {
+  nextCursor?: string;
+  nextPage?: number;
+  totalItems?: number;
+  totalPages?: number;
+}
+
 export interface CivitaiVersionsResult {
   versions: CivitaiVersion[];
   model_type: string;
@@ -61,7 +68,7 @@ export class CivitaiService {
     sort = '',
     period = '',
     tags: string[] = [],
-  ): Observable<{ items: CivitaiModel[]; metadata: any }> {
+  ): Observable<{ items: CivitaiModel[]; metadata: CivitaiSearchMetadata }> {
     const params: Record<string, string | number> = { q, type };
     if (cursor) {
       params['cursor'] = cursor;
@@ -75,7 +82,10 @@ export class CivitaiService {
     }
     if (tags.length) params['tags'] = tags.join(',');
     return this.http
-      .get<{ success: boolean; data: any }>(`${API}/search/civitai`, { params })
+      .get<{
+        success: boolean;
+        data: { items: CivitaiModel[]; metadata: CivitaiSearchMetadata };
+      }>(`${API}/search/civitai`, { params })
       .pipe(map((r) => ({ items: r.data.items ?? [], metadata: r.data.metadata ?? {} })));
   }
 

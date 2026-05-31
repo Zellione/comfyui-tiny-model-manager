@@ -49,7 +49,7 @@ export class HuggingFaceService {
     return this.http
       .get<{
         success: boolean;
-        data: any[];
+        data: { filename: string; size: number; url: string }[];
       }>(`${API}/search/huggingface/files`, { params: { repo } })
       .pipe(map((r) => r.data));
   }
