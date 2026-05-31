@@ -63,7 +63,7 @@ export class CivitaiService {
     tags: string[] = [],
   ): Observable<{ items: CivitaiModel[]; metadata: any }> {
     const params: Record<string, string | number> = { q, type };
-    if (q && cursor) {
+    if (cursor) {
       params['cursor'] = cursor;
     } else {
       params['page'] = page;

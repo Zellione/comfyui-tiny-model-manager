@@ -239,7 +239,9 @@ export class Download {
     civitaiBaseModel: this.civitaiBaseModel(),
     hfSort: this.hfSort(),
     formatFilter: this.formatFilter(),
-    tagFilter: this.tagFilter(),
+    // CivitAI: only first tag is server-side; extra tags are client-side — don't retrigger a fetch for them.
+    serverTag:
+      this.platform() === 'civitai' ? (this.tagFilter()[0] ?? '') : this.tagFilter().join(','),
   }));
 
   activeTasks = toSignal(this.dlService.activeTasks$, { initialValue: [] as DownloadTask[] });
