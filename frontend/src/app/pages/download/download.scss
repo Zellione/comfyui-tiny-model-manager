@@ -390,6 +390,12 @@
   max-width: 90px;
   overflow: hidden;
   text-overflow: ellipsis;
+
+  &.tag-chip--active {
+    background: var(--accent-soft, color-mix(in srgb, var(--accent) 15%, transparent));
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  }
 }
 
 .badge-accent {

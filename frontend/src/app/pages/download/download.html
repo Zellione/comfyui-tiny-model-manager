@@ -357,7 +357,9 @@
                 }
                 @for (tag of model.tags ?? []; track tag; let i = $index) {
                   @if (i < 2) {
-                    <span class="tag-chip">{{ tag }}</span>
+                    <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
+                      tag
+                    }}</span>
                   }
                 }
               </div>
@@ -395,7 +397,9 @@
                 }
                 @for (tag of model.tags; track tag; let i = $index) {
                   @if (i < 2) {
-                    <span class="tag-chip">{{ tag }}</span>
+                    <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
+                      tag
+                    }}</span>
                   }
                 }
               </div>
@@ -560,7 +564,9 @@
             <span class="chip-label">Tags</span>
             <div class="chip-list">
               @for (tag of model.tags ?? []; track tag) {
-                <span class="tag-chip">{{ tag }}</span>
+                <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
+                  tag
+                }}</span>
               }
             </div>
           </div>
@@ -686,7 +692,9 @@
             <span class="chip-label">Tags</span>
             <div class="chip-list">
               @for (tag of model.tags; track tag) {
-                <span class="tag-chip">{{ tag }}</span>
+                <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
+                  tag
+                }}</span>
               }
             </div>
           </div>
