@@ -278,6 +278,32 @@
       }
     </select>
   </div>
+
+  <div class="tag-filter-row">
+    <div class="search-wrap">
+      <div class="search-input">
+        <input
+          type="text"
+          placeholder="Filter by tag…"
+          [value]="tagInput()"
+          (input)="tagInput.set($any($event.target).value)"
+          (keydown.enter)="addTagFromInput()"
+        />
+      </div>
+    </div>
+    @for (tag of tagFilter(); track tag) {
+      <span class="active-tag">
+        {{ tag }}
+        <button class="chip-remove" (click)="removeTag(tag)">×</button>
+      </span>
+    }
+  </div>
+  @if (platform() === 'civitai' && tagFilter().length > 1) {
+    <p class="tag-limit-hint">
+      CivitAI only supports one server-side tag filter. The first tag narrows the API results;
+      additional tags are applied locally.
+    </p>
+  }
 </div>
 
 <!-- Results: split view / empty states -->
@@ -331,7 +357,9 @@
                 }
                 @for (tag of model.tags ?? []; track tag; let i = $index) {
                   @if (i < 2) {
-                    <span class="tag-chip">{{ tag }}</span>
+                    <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
+                      tag
+                    }}</span>
                   }
                 }
               </div>
@@ -369,7 +397,9 @@
                 }
                 @for (tag of model.tags; track tag; let i = $index) {
                   @if (i < 2) {
-                    <span class="tag-chip">{{ tag }}</span>
+                    <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
+                      tag
+                    }}</span>
                   }
                 }
               </div>
@@ -534,7 +564,9 @@
             <span class="chip-label">Tags</span>
             <div class="chip-list">
               @for (tag of model.tags ?? []; track tag) {
-                <span class="tag-chip">{{ tag }}</span>
+                <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
+                  tag
+                }}</span>
               }
             </div>
           </div>
@@ -660,7 +692,9 @@
             <span class="chip-label">Tags</span>
             <div class="chip-list">
               @for (tag of model.tags; track tag) {
-                <span class="tag-chip">{{ tag }}</span>
+                <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
+                  tag
+                }}</span>
               }
             </div>
           </div>

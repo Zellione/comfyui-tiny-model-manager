@@ -229,3 +229,64 @@ class TestFetchMetadata:
         monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _orig(transport=transport, **kw))
         with pytest.raises(httpx.HTTPStatusError):
             await provider.fetch_metadata("0")
+
+
+# ---------------------------------------------------------------------------
+# search — tag param
+# ---------------------------------------------------------------------------
+
+
+class TestSearch:
+    async def test_first_tag_sent_as_tag_param(self, provider, monkeypatch):
+        captured: dict = {}
+
+        def handler(r: httpx.Request) -> httpx.Response:
+            captured.update(dict(r.url.params))
+            return httpx.Response(200, json={"items": [], "metadata": {}})
+
+        transport = httpx.MockTransport(handler)
+        _orig = httpx.AsyncClient
+        monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _orig(transport=transport, **kw))
+        await provider.search("test", tags=["lora", "anime"])
+        assert captured.get("tag") == "lora"
+
+    async def test_no_tag_param_when_tags_empty(self, provider, monkeypatch):
+        captured: dict = {}
+
+        def handler(r: httpx.Request) -> httpx.Response:
+            captured.update(dict(r.url.params))
+            return httpx.Response(200, json={"items": [], "metadata": {}})
+
+        transport = httpx.MockTransport(handler)
+        _orig = httpx.AsyncClient
+        monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _orig(transport=transport, **kw))
+        await provider.search("test")
+        assert "tag" not in captured
+
+    async def test_cursor_used_without_query(self, provider, monkeypatch):
+        captured: dict = {}
+
+        def handler(r: httpx.Request) -> httpx.Response:
+            captured.update(dict(r.url.params))
+            return httpx.Response(200, json={"items": [], "metadata": {}})
+
+        transport = httpx.MockTransport(handler)
+        _orig = httpx.AsyncClient
+        monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _orig(transport=transport, **kw))
+        await provider.search("", cursor="abc123")
+        assert captured.get("cursor") == "abc123"
+        assert "page" not in captured
+
+    async def test_page_used_when_no_query_and_no_cursor(self, provider, monkeypatch):
+        captured: dict = {}
+
+        def handler(r: httpx.Request) -> httpx.Response:
+            captured.update(dict(r.url.params))
+            return httpx.Response(200, json={"items": [], "metadata": {}})
+
+        transport = httpx.MockTransport(handler)
+        _orig = httpx.AsyncClient
+        monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _orig(transport=transport, **kw))
+        await provider.search("", page=2)
+        assert captured.get("page") == "2"
+        assert "cursor" not in captured

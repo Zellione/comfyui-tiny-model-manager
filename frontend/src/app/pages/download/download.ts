@@ -154,6 +154,8 @@ export class Download {
   civitaiBaseModel = signal('');
   hfSort = signal('downloads');
   formatFilter = signal('');
+  tagFilter = signal<string[]>([]);
+  tagInput = signal('');
   hasSearched = signal(false);
 
   // Paste-a-link section
@@ -210,10 +212,19 @@ export class Download {
 
   filteredCivitaiResults = computed(() => {
     const fmt = this.formatFilter();
-    if (!fmt) return this.civitaiResults();
-    return this.civitaiResults().filter((m) =>
-      m.modelVersions?.some((v) => v.files?.some((f) => f.name.toLowerCase().endsWith(fmt))),
-    );
+    const tags = this.tagFilter();
+    let results = this.civitaiResults();
+    if (fmt) {
+      results = results.filter((m) =>
+        m.modelVersions?.some((v) => v.files?.some((f) => f.name.toLowerCase().endsWith(fmt))),
+      );
+    }
+    // Server applies only the first tag; filter the rest client-side using the tags returned per model
+    if (tags.length > 1) {
+      const extraTags = tags.slice(1);
+      results = results.filter((m) => extraTags.every((t) => m.tags?.includes(t)));
+    }
+    return results;
   });
 
   filteredHfResults = computed(() => {
@@ -222,12 +233,17 @@ export class Download {
     return this.hfResults().filter((m) => m.formats?.includes(fmt));
   });
 
+  // Intermediary so Angular stops propagating when the first tag value is unchanged (adding a 2nd+ tag).
+  private civitaiServerTag = computed(() => this.tagFilter()[0] ?? '');
+
   private filterParams = computed(() => ({
     civitaiSort: this.civitaiSort(),
     civitaiPeriod: this.civitaiPeriod(),
     civitaiBaseModel: this.civitaiBaseModel(),
     hfSort: this.hfSort(),
     formatFilter: this.formatFilter(),
+    // civitaiServerTag() not tagFilter() — avoids re-fetch when only client-side extra tags change.
+    serverTag: this.platform() === 'civitai' ? this.civitaiServerTag() : this.tagFilter().join(','),
   }));
 
   activeTasks = toSignal(this.dlService.activeTasks$, { initialValue: [] as DownloadTask[] });
@@ -503,6 +519,7 @@ export class Download {
           this.civitaiBaseModel(),
           this.civitaiSort(),
           this.civitaiPeriod(),
+          this.tagFilter(),
         )
         .subscribe({
           next: (r) => {
@@ -518,7 +535,15 @@ export class Download {
         });
     } else {
       this.hfService
-        .search(this.query(), this.modelType(), 0, this.hfSort(), -1, this.formatFilter())
+        .search(
+          this.query(),
+          this.modelType(),
+          0,
+          this.hfSort(),
+          -1,
+          this.formatFilter(),
+          this.tagFilter(),
+        )
         .subscribe({
           next: (r) => {
             this.hfResults.set(r.items);
@@ -546,6 +571,7 @@ export class Download {
           this.civitaiBaseModel(),
           this.civitaiSort(),
           this.civitaiPeriod(),
+          this.tagFilter(),
         )
         .subscribe({
           next: (r) => {
@@ -567,6 +593,7 @@ export class Download {
           this.hfSort(),
           -1,
           this.formatFilter(),
+          this.tagFilter(),
         )
         .subscribe({
           next: (r) => {
@@ -580,6 +607,22 @@ export class Download {
           },
         });
     }
+  }
+
+  addTag(tag: string) {
+    const t = tag.trim();
+    if (!t || this.tagFilter().includes(t)) return;
+    this.tagFilter.update((tags) => [...tags, t]);
+    this.tagInput.set('');
+  }
+
+  addTagFromInput() {
+    const raw = this.tagInput().trim();
+    if (raw) this.addTag(raw);
+  }
+
+  removeTag(tag: string) {
+    this.tagFilter.update((tags) => tags.filter((t) => t !== tag));
   }
 
   selectCivitai(model: CivitaiModel) {

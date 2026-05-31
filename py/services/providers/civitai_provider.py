@@ -45,15 +45,15 @@ class CivitaiProvider(ModelProvider):
         base_model: str = "",
         sort: str = "",
         period: str = "",
+        tags: list[str] | None = None,
         **kwargs,
     ) -> dict:
         params: dict = {"limit": limit}
         if query:
             params["query"] = query
-            # CivitAI does not allow page with query; use cursor-based pagination instead
-            if cursor:
-                params["cursor"] = cursor
-        else:
+        if cursor:
+            params["cursor"] = cursor
+        elif not query:
             params["page"] = page
         if model_type and model_type in CIVITAI_TYPE_MAP:
             params["types"] = CIVITAI_TYPE_MAP[model_type]
@@ -63,6 +63,8 @@ class CivitaiProvider(ModelProvider):
             params["sort"] = sort
             if period:
                 params["period"] = period
+        if tags:
+            params["tag"] = tags[0]
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(f"{_BASE}/models", params=params, headers=self.auth_headers())
             if not resp.is_success:

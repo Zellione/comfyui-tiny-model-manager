@@ -33,12 +33,15 @@ export class HuggingFaceService {
     sort = 'downloads',
     direction = -1,
     format = '',
+    tags: string[] = [],
   ): Observable<HfSearchResult> {
+    const params: Record<string, string | number> = { q, type, p, sort, direction, format };
+    if (tags.length) params['tags'] = tags.join(',');
     return this.http
       .get<{
         success: boolean;
         data: HfSearchResult;
-      }>(`${API}/search/huggingface`, { params: { q, type, p, sort, direction, format } })
+      }>(`${API}/search/huggingface`, { params })
       .pipe(map((r) => r.data));
   }
 
@@ -46,7 +49,7 @@ export class HuggingFaceService {
     return this.http
       .get<{
         success: boolean;
-        data: any[];
+        data: { filename: string; size: number; url: string }[];
       }>(`${API}/search/huggingface/files`, { params: { repo } })
       .pipe(map((r) => r.data));
   }
