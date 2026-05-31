@@ -317,6 +317,11 @@
     <div class="empty-icon">🔍</div>
     <p>Search for models above to get started.</p>
   </div>
+} @else if (searchError()) {
+  <div class="detail-empty">
+    <div class="empty-icon">⚠</div>
+    <p>Search failed: {{ searchError() }}</p>
+  </div>
 } @else if (platform() === 'civitai' && filteredCivitaiResults().length === 0) {
   <div class="detail-empty">
     <div class="empty-icon">∅</div>

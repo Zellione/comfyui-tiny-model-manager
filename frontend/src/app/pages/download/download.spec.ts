@@ -113,6 +113,61 @@ describe('Download component — F-37 Load More', () => {
 
       expect(c.loadMoreError()).toBe('');
     });
+
+    it('clears searchError when a new search is triggered', async () => {
+      const fixture = await createFixture();
+      const c = fixture.componentInstance;
+      c.searchError.set('previous search error');
+
+      c.search();
+      await fixture.whenStable();
+
+      expect(c.searchError()).toBe('');
+    });
+  });
+
+  describe('search() error handling', () => {
+    it('sets searchError on CivitAI HTTP error', async () => {
+      const fixture = await createFixture();
+      const c = fixture.componentInstance;
+      c.platform.set('civitai');
+      const err = new HttpErrorResponse({ error: { error: 'Rate limited' }, status: 429 });
+      mockCivitaiService.search.mockReturnValue(throwError(() => err));
+
+      c.search();
+      await fixture.whenStable();
+
+      expect(c.searchError()).toBe('Rate limited');
+      expect(c.searching()).toBe(false);
+    });
+
+    it('sets searchError on HuggingFace HTTP error', async () => {
+      const fixture = await createFixture();
+      const c = fixture.componentInstance;
+      c.platform.set('huggingface');
+      const err = new HttpErrorResponse({ error: { error: 'Service unavailable' }, status: 503 });
+      mockHfService.search.mockReturnValue(throwError(() => err));
+
+      c.search();
+      await fixture.whenStable();
+
+      expect(c.searchError()).toBe('Service unavailable');
+      expect(c.searching()).toBe(false);
+    });
+
+    it('falls back to err.message when error body has no error field', async () => {
+      const fixture = await createFixture();
+      const c = fixture.componentInstance;
+      c.platform.set('civitai');
+      const err = new HttpErrorResponse({ error: null, status: 0, statusText: 'Unknown Error' });
+      mockCivitaiService.search.mockReturnValue(throwError(() => err));
+
+      c.search();
+      await fixture.whenStable();
+
+      expect(c.searchError()).toBeTruthy();
+      expect(c.searching()).toBe(false);
+    });
   });
 
   describe('loadMore() — CivitAI', () => {

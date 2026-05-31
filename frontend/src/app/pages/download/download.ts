@@ -259,6 +259,7 @@ export class Download {
   hfDescriptionLoading = signal(false);
 
   searching = signal(false);
+  searchError = signal('');
   loadingVersions = signal(false);
   loadingMore = signal(false);
   versionsError = signal('');
@@ -514,6 +515,7 @@ export class Download {
     this.hfPage.set(0);
     this.hfHasMore.set(false);
     this.loadMoreError.set('');
+    this.searchError.set('');
     this.selectedCivitaiFiles.set(new Map());
 
     if (this.platform() === 'civitai') {
@@ -536,7 +538,8 @@ export class Download {
             this.searching.set(false);
             if (r.items.length > 0) this.selectCivitai(r.items[0]);
           },
-          error: () => {
+          error: (err: HttpErrorResponse) => {
+            this.searchError.set(err.error?.error ?? err.message ?? 'Search failed');
             this.searching.set(false);
           },
         });
@@ -559,7 +562,8 @@ export class Download {
             this.searching.set(false);
             if (r.items.length > 0) this.selectHf(r.items[0]);
           },
-          error: () => {
+          error: (err: HttpErrorResponse) => {
+            this.searchError.set(err.error?.error ?? err.message ?? 'Search failed');
             this.searching.set(false);
           },
         });
