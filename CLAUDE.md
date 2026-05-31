@@ -128,6 +128,22 @@ Dev dependencies are in `requirements-dev.txt`; install once with:
 - New service/provider logic → add unit tests in `tests/test_<module>.py` using `pytest-asyncio` and `httpx` mocking
 - Run `PYTHONSAFEPATH=1 ../../../comfy-env/bin/python -m pytest` to confirm all tests pass before committing
 
+### Angular / RxJS gotchas
+
+- **Polling observables must handle errors**: Any `interval() + switchMap(HTTP)` stream
+  terminates permanently on first error unless `catchError` is used inside the switchMap.
+  Pattern: `.pipe(map(...), catchError(() => of(fallback)))` — stream keeps ticking.
+
+- **Template branching hides UI**: When `search()` clears results and the request also
+  fails, the `@else if (results.length === 0)` branch shows "No results found" — hiding
+  the entire split view and any buttons inside it. Track search failures with a separate
+  `searchError` signal and add an `@else if (searchError())` branch above the empty state.
+
+- **`flex: 1; min-height: 0` collapses in auto-height containers**: A flex child with
+  `flex: 1; min-height: 0` inside a column that has no definite height (no `height`,
+  only `max-height`) collapses to 0 and hides overflow content. Fix: give the scrollable
+  child its own `max-height` directly instead of relying on flex grow.
+
 ### Feature branch rule (MANDATORY)
 
 **Any time the user asks to implement a feature — whether by saying "implement F-36", "add F-12", or any request whose subject matches the pattern `F-\d+` — Claude MUST, before touching any file:**
