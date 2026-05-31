@@ -567,8 +567,9 @@ export class Download {
   }
 
   loadMore() {
-    this.loadingMore.set(true);
+    const wasError = !!this.loadMoreError();
     this.loadMoreError.set('');
+    this.loadingMore.set(true);
     if (this.platform() === 'civitai') {
       this.civitaiService
         .search(
@@ -583,9 +584,15 @@ export class Download {
         )
         .subscribe({
           next: (r) => {
-            this.civitaiResults.update((prev) => [...prev, ...r.items]);
-            this.civitaiCursor.set(r.metadata?.nextCursor ?? '');
-            this.civitaiHasMore.set(!!r.metadata?.nextCursor);
+            if (r.items.length === 0 && !wasError) {
+              const msg = 'No results returned';
+              this.loadMoreError.set(msg);
+              this.notifService.show('error', msg);
+            } else {
+              this.civitaiResults.update((prev) => [...prev, ...r.items]);
+              this.civitaiCursor.set(r.metadata?.nextCursor ?? '');
+              this.civitaiHasMore.set(!!r.metadata?.nextCursor);
+            }
             this.loadingMore.set(false);
           },
           error: (err: HttpErrorResponse) => {
@@ -608,9 +615,15 @@ export class Download {
         )
         .subscribe({
           next: (r) => {
-            this.hfResults.update((prev) => [...prev, ...r.items]);
-            this.hfPage.set(r.nextPage);
-            this.hfHasMore.set(r.hasMore);
+            if (r.items.length === 0 && !wasError) {
+              const msg = 'No results returned';
+              this.loadMoreError.set(msg);
+              this.notifService.show('error', msg);
+            } else {
+              this.hfResults.update((prev) => [...prev, ...r.items]);
+              this.hfPage.set(r.nextPage);
+              this.hfHasMore.set(r.hasMore);
+            }
             this.loadingMore.set(false);
           },
           error: (err: HttpErrorResponse) => {

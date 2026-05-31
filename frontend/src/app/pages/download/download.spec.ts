@@ -162,10 +162,25 @@ describe('Download component — F-37 Load More', () => {
       expect(mockNotifService.show).toHaveBeenCalledWith('error', expect.any(String));
     });
 
-    it('treats empty items response as end of results (no error, hasMore=false)', async () => {
+    it('sets loadMoreError to "No results returned" when items are empty (first attempt)', async () => {
       const fixture = await createFixture();
       const c = fixture.componentInstance;
       c.platform.set('civitai');
+      mockCivitaiService.search.mockReturnValue(of({ items: [], metadata: { nextCursor: '' } }));
+
+      c.loadMore();
+      await fixture.whenStable();
+
+      expect(c.loadMoreError()).toBe('No results returned');
+      expect(mockNotifService.show).toHaveBeenCalledWith('error', 'No results returned');
+    });
+
+    it('treats empty items as end of results on retry (wasError=true)', async () => {
+      const fixture = await createFixture();
+      const c = fixture.componentInstance;
+      c.platform.set('civitai');
+      c.loadMoreError.set('previous error');
+      c.civitaiResults.set([civitaiModel(1)]);
       mockCivitaiService.search.mockReturnValue(of({ items: [], metadata: { nextCursor: '' } }));
 
       c.loadMore();
@@ -174,18 +189,6 @@ describe('Download component — F-37 Load More', () => {
       expect(c.loadMoreError()).toBe('');
       expect(c.civitaiHasMore()).toBe(false);
       expect(mockNotifService.show).not.toHaveBeenCalled();
-    });
-
-    it('does not grow results when response is empty', async () => {
-      const fixture = await createFixture();
-      const c = fixture.componentInstance;
-      c.platform.set('civitai');
-      c.civitaiResults.set([civitaiModel(1)]);
-      mockCivitaiService.search.mockReturnValue(of({ items: [], metadata: { nextCursor: '' } }));
-
-      c.loadMore();
-      await fixture.whenStable();
-
       expect(c.civitaiResults()).toHaveLength(1);
     });
 
@@ -250,10 +253,24 @@ describe('Download component — F-37 Load More', () => {
       expect(mockNotifService.show).toHaveBeenCalledWith('error', 'Model not found');
     });
 
-    it('treats empty items response as end of results (no error, hasMore=false)', async () => {
+    it('sets loadMoreError to "No results returned" when items are empty (first attempt)', async () => {
       const fixture = await createFixture();
       const c = fixture.componentInstance;
       c.platform.set('huggingface');
+      mockHfService.search.mockReturnValue(of({ items: [], hasMore: false, nextPage: 1 }));
+
+      c.loadMore();
+      await fixture.whenStable();
+
+      expect(c.loadMoreError()).toBe('No results returned');
+      expect(mockNotifService.show).toHaveBeenCalledWith('error', 'No results returned');
+    });
+
+    it('treats empty items as end of results on retry (wasError=true)', async () => {
+      const fixture = await createFixture();
+      const c = fixture.componentInstance;
+      c.platform.set('huggingface');
+      c.loadMoreError.set('previous error');
       mockHfService.search.mockReturnValue(of({ items: [], hasMore: false, nextPage: 1 }));
 
       c.loadMore();
