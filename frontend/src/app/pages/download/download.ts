@@ -212,10 +212,19 @@ export class Download {
 
   filteredCivitaiResults = computed(() => {
     const fmt = this.formatFilter();
-    if (!fmt) return this.civitaiResults();
-    return this.civitaiResults().filter((m) =>
-      m.modelVersions?.some((v) => v.files?.some((f) => f.name.toLowerCase().endsWith(fmt))),
-    );
+    const tags = this.tagFilter();
+    let results = this.civitaiResults();
+    if (fmt) {
+      results = results.filter((m) =>
+        m.modelVersions?.some((v) => v.files?.some((f) => f.name.toLowerCase().endsWith(fmt))),
+      );
+    }
+    // Server applies only the first tag; filter the rest client-side using the tags returned per model
+    if (tags.length > 1) {
+      const extraTags = tags.slice(1);
+      results = results.filter((m) => extraTags.every((t) => m.tags?.includes(t)));
+    }
+    return results;
   });
 
   filteredHfResults = computed(() => {
