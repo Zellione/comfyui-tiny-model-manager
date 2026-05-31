@@ -41,6 +41,15 @@ CREATE TABLE IF NOT EXISTS model_tags (
     tag_id   INTEGER NOT NULL REFERENCES tags(id)   ON DELETE CASCADE,
     PRIMARY KEY (model_id, tag_id)
 );
+
+CREATE TABLE IF NOT EXISTS reorganize_queue (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename   TEXT    NOT NULL,
+    model_type TEXT    NOT NULL,
+    direction  TEXT    NOT NULL DEFAULT 'deorganize',
+    status     TEXT    NOT NULL DEFAULT 'pending',
+    created_at INTEGER          DEFAULT (strftime('%s','now'))
+);
 """
 
 
@@ -114,6 +123,41 @@ async def _migrate_db():
             # Surface the error rather than silently swallowing it — a silent pass was
             # the original cause of this bug.
             print(f"[tiny-model-manager] tag schema migration failed: {exc}")
+
+        # Migrate deorganize_queue → reorganize_queue (adds direction column)
+        try:
+            has_deorg = bool(
+                await (
+                    await db.execute(
+                        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='deorganize_queue'"
+                    )
+                ).fetchone()
+            )
+            has_reorg = bool(
+                await (
+                    await db.execute(
+                        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='reorganize_queue'"
+                    )
+                ).fetchone()
+            )
+            if has_deorg and not has_reorg:
+                await db.execute(
+                    "CREATE TABLE reorganize_queue ("
+                    "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    "  filename TEXT NOT NULL,"
+                    "  model_type TEXT NOT NULL,"
+                    "  direction TEXT NOT NULL DEFAULT 'deorganize',"
+                    "  status TEXT NOT NULL DEFAULT 'pending',"
+                    "  created_at INTEGER DEFAULT (strftime('%s','now'))"
+                    ")"
+                )
+                await db.execute(
+                    "INSERT INTO reorganize_queue (filename, model_type, direction, status, created_at)"
+                    " SELECT filename, model_type, 'deorganize', status, created_at FROM deorganize_queue"
+                )
+                await db.execute("DROP TABLE deorganize_queue")
+        except Exception as exc:
+            print(f"[tiny-model-manager] reorganize_queue migration failed: {exc}")
 
         await db.commit()
 

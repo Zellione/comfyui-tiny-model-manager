@@ -17,6 +17,9 @@ import { NotificationService } from '../../services/notification';
 export class ModelDetail implements OnInit {
   modelType = '';
   modelPath = '';
+  get modelBasename(): string {
+    return this.modelPath.split('/').pop() ?? this.modelPath;
+  }
   editType = '';
   modelTypes = signal<string[]>([]);
   meta = signal<ModelMeta | null>(null);

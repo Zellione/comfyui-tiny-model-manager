@@ -1,6 +1,6 @@
 <a routerLink="/models" class="back">← Back to Models</a>
 
-<h2>{{ modelPath }}</h2>
+<h2 [title]="modelPath">{{ modelBasename }}</h2>
 
 @if (loading()) {
   <p>Loading metadata…</p>

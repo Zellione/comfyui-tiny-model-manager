@@ -139,3 +139,78 @@ class TestMoveModel:
             json={"new_type": "configs"},
         )
         assert resp.status == 400
+
+
+class TestOrganizeModels:
+    async def test_organize_moves_to_base_model_subfolder(self, client, loras_dir):
+        from py.db import model_repo
+
+        src = os.path.join(loras_dir, "my-lora.safetensors")
+        open(src, "wb").close()
+        await model_repo.upsert_model(
+            "my-lora.safetensors", "loras", "civitai", "123", "", base_model="SDXL 1.0"
+        )
+
+        resp = await client.post("/tiny-model-manager/api/models/organize")
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert data["moved"] >= 1
+        assert os.path.exists(os.path.join(loras_dir, "SDXL 1.0", "my-lora.safetensors"))
+        assert not os.path.exists(src)
+
+    async def test_organize_moves_to_unknown_when_no_base_model(self, client, loras_dir):
+        from py.db import model_repo
+
+        src = os.path.join(loras_dir, "no-meta.safetensors")
+        open(src, "wb").close()
+        await model_repo.upsert_model("no-meta.safetensors", "loras", "", "", "")
+
+        resp = await client.post("/tiny-model-manager/api/models/organize")
+        assert resp.status == 200
+        assert os.path.exists(os.path.join(loras_dir, "Unknown", "no-meta.safetensors"))
+
+    async def test_organize_is_idempotent(self, client, loras_dir):
+        from py.db import model_repo
+
+        subfolder = os.path.join(loras_dir, "SDXL 1.0")
+        os.makedirs(subfolder, exist_ok=True)
+        src = os.path.join(subfolder, "already-organized.safetensors")
+        open(src, "wb").close()
+        await model_repo.upsert_model(
+            "SDXL 1.0/already-organized.safetensors", "loras", "", "", "", base_model="SDXL 1.0"
+        )
+
+        resp = await client.post("/tiny-model-manager/api/models/organize")
+        data = (await resp.json())["data"]
+        assert data["skipped"] >= 1
+        assert os.path.exists(src)
+
+    async def test_organize_returns_stats(self, client):
+        resp = await client.post("/tiny-model-manager/api/models/organize")
+        assert resp.status == 200
+        body = await resp.json()
+        assert body["success"] is True
+        assert "moved" in body["data"]
+        assert "skipped" in body["data"]
+        assert "errors" in body["data"]
+
+
+class TestPendingReorganize:
+    async def test_returns_empty_when_no_jobs(self, client):
+        resp = await client.get("/tiny-model-manager/api/reorganize/pending")
+        assert resp.status == 200
+        body = await resp.json()
+        assert body["success"] is True
+        assert body["data"] == []
+
+    async def test_returns_pending_filenames(self, client):
+        from py.db import model_repo
+
+        await model_repo.enqueue_reorganize("SDXL 1.0/a.safetensors", "loras", "deorganize")
+        await model_repo.enqueue_reorganize("flat.safetensors", "loras", "organize")
+
+        resp = await client.get("/tiny-model-manager/api/reorganize/pending")
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert "SDXL 1.0/a.safetensors" in data
+        assert "flat.safetensors" in data

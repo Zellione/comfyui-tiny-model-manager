@@ -1,7 +1,9 @@
 """Fetches and stores model metadata after a download completes."""
 
+import asyncio
 import hashlib
 import os
+import shutil
 
 import httpx
 
@@ -22,21 +24,44 @@ async def fetch_and_store(
     trigger_words: list[str] = []
     image_urls: list[str] = []
     tags: list[str] = []
-
     base_model = ""
     civitai_model_id = ""
-    try:
-        provider = get_provider(platform)
-        if provider and source_id:
-            meta = await provider.fetch_metadata(source_id)
-            description = meta.description
-            trigger_words = meta.trigger_words
-            image_urls = meta.image_urls
-            tags = meta.tags
-            base_model = meta.base_model
-            civitai_model_id = meta.civitai_model_id
-    except Exception:
-        pass  # metadata fetch failure should not break the download
+
+    provider = get_provider(platform)
+    if provider and source_id:
+        fetch_ok = False
+        for attempt in range(3):
+            try:
+                meta = await provider.fetch_metadata(source_id)
+                description = meta.description
+                trigger_words = meta.trigger_words
+                image_urls = meta.image_urls
+                tags = meta.tags
+                base_model = meta.base_model
+                civitai_model_id = meta.civitai_model_id
+                fetch_ok = True
+                break
+            except Exception:
+                if attempt < 2:
+                    await asyncio.sleep(1)
+
+        if not fetch_ok:
+            from .backend_notifier import push as notify
+
+            notify(
+                "error",
+                f"Metadata fetch failed for '{filename}'. "
+                "Open the model detail page and use 'Re-fetch metadata' to try again.",
+            )
+
+    settings = cfg.load_settings()
+    if settings.get("organize_into_subfolders"):
+        try:
+            from .reorganizer import _move_to_subfolder
+
+            filename = await _move_to_subfolder(filename, model_type, base_model)
+        except Exception:
+            pass
 
     media_hash = _compute_media_hash(platform, source_id, filename)
     model_id = await model_repo.upsert_model_with_meta(
@@ -57,8 +82,6 @@ async def fetch_and_store(
 
 async def migrate_existing_media():
     """One-time startup migration: moves media from data/media/<basename>/ to data/media/<hash>/."""
-    import shutil
-
     from ..db.database import get_db
 
     async with get_db() as db:

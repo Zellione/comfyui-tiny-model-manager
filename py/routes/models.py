@@ -6,6 +6,7 @@ from aiohttp import web
 
 from .. import config as cfg
 from ..db import model_repo
+from ..services.reorganizer import _sanitize_subfolder_name
 from .metadata import _derive_source_url
 
 _BROAD_EXTENSIONS = {".safetensors", ".ckpt", ".pt", ".bin", ".gguf", ".pth"}
@@ -199,5 +200,73 @@ def add_model_routes(routes):
             # filename column unchanged; only model_type is updated
             await model_repo.update_model_type(rel_path, new_type)
             return web.json_response({"success": True})
+        except Exception as exc:
+            return web.json_response({"success": False, "error": str(exc)}, status=500)
+
+    @routes.post("/tiny-model-manager/api/models/organize")
+    async def organize_models(request):
+        try:
+            models = await model_repo.get_all_models_slim()
+            moved = skipped = errors = 0
+
+            for model in models:
+                filename: str = model["filename"]
+                model_type: str = model.get("model_type") or ""
+                base_model: str = model.get("base_model") or ""
+
+                # Resolve source file on disk
+                try:
+                    base_dirs = folder_paths.get_folder_paths(model_type)
+                except Exception:
+                    base_dirs = [os.path.join(folder_paths.models_dir, model_type)]
+
+                src = None
+                src_base_dir = None
+                for base_dir in base_dirs:
+                    norm_base = os.path.normpath(base_dir)
+                    candidate = os.path.normpath(os.path.join(base_dir, filename))
+                    if not candidate.startswith(norm_base):
+                        continue
+                    if os.path.isfile(candidate):
+                        src = candidate
+                        src_base_dir = base_dir
+                        break
+
+                if not src or not src_base_dir:
+                    skipped += 1
+                    continue
+
+                basename = os.path.basename(filename)
+                subfolder = _sanitize_subfolder_name(base_model)
+                target_rel = subfolder + "/" + basename
+
+                if filename == target_rel:
+                    skipped += 1
+                    continue
+
+                target_abs = os.path.join(src_base_dir, target_rel)
+                if os.path.exists(target_abs):
+                    skipped += 1
+                    continue
+
+                try:
+                    os.makedirs(os.path.dirname(target_abs), exist_ok=True)
+                    shutil.move(src, target_abs)
+                    await model_repo.update_model_filename(filename, target_rel)
+                    moved += 1
+                except Exception:
+                    errors += 1
+
+            return web.json_response(
+                {"success": True, "data": {"moved": moved, "skipped": skipped, "errors": errors}}
+            )
+        except Exception as exc:
+            return web.json_response({"success": False, "error": str(exc)}, status=500)
+
+    @routes.get("/tiny-model-manager/api/reorganize/pending")
+    async def get_pending_reorganize(request):
+        try:
+            jobs = await model_repo.get_pending_jobs()
+            return web.json_response({"success": True, "data": [j["filename"] for j in jobs]})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)

@@ -69,4 +69,19 @@ export class ModelService {
   moveModel(modelType: string, path: string, newType: string): Observable<void> {
     return this.http.post<void>(`${API}/models/${modelType}/${path}/move`, { new_type: newType });
   }
+
+  getPendingQueue(): Observable<string[]> {
+    return this.http
+      .get<{ success: boolean; data: string[] }>(`${API}/reorganize/pending`)
+      .pipe(map((r) => r.data));
+  }
+
+  organizeIntoSubfolders(): Observable<{ moved: number; skipped: number; errors: number }> {
+    return this.http
+      .post<{
+        success: boolean;
+        data: { moved: number; skipped: number; errors: number };
+      }>(`${API}/models/organize`, {})
+      .pipe(map((r) => r.data));
+  }
 }

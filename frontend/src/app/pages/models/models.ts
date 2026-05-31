@@ -1,10 +1,13 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, DestroyRef, signal, computed, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, merge, timer, Subject, EMPTY } from 'rxjs';
+import { switchMap, catchError } from 'rxjs/operators';
 import { ModelService, ModelFile, ModelMeta } from '../../services/model';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
+import { SettingsService } from '../../services/settings';
 
 const MEDIA_API = '/tiny-model-manager/api/media';
 const UNKNOWN_BASE_MODEL = '__unknown__';
@@ -164,15 +167,30 @@ export class Models implements OnInit {
   hasAnyModels = computed(() => Object.keys(this.modelsByType()).length > 0);
   hasAnySelected = computed(() => this.selected().size > 0);
   totalSelected = computed(() => this.selected().size);
+  organizeEnabled = signal(false);
+  pendingFilenames = signal<Set<string>>(new Set());
+
+  private destroyRef = inject(DestroyRef);
+  private pollTrigger = new Subject<void>();
 
   constructor(
     private modelService: ModelService,
     private workflowService: WorkflowService,
     private notifService: NotificationService,
+    private settingsService: SettingsService,
   ) {}
 
   ngOnInit() {
     this.load();
+    this.startQueuePoll();
+    this.settingsService.getOrganizeEnabled().subscribe((v) => this.organizeEnabled.set(v));
+
+    const channel = new BroadcastChannel('tmm');
+    channel.onmessage = () => {
+      this.settingsService.getOrganizeEnabled().subscribe((v) => this.organizeEnabled.set(v));
+      this.pollTrigger.next();
+    };
+    this.destroyRef.onDestroy(() => channel.close());
   }
 
   load() {
@@ -188,6 +206,26 @@ export class Models implements OnInit {
         this.loading.set(false);
       },
     });
+  }
+
+  private startQueuePoll() {
+    merge(timer(0, 2000), this.pollTrigger)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        switchMap(() => this.modelService.getPendingQueue().pipe(catchError(() => EMPTY))),
+      )
+      .subscribe((filenames: string[]) => {
+        const prev = this.pendingFilenames();
+        const next = new Set(filenames);
+        this.pendingFilenames.set(next);
+        if (prev.size > 0 && next.size < prev.size) {
+          this.load();
+        }
+      });
+  }
+
+  isPending(filename: string): boolean {
+    return this.pendingFilenames().has(filename);
   }
 
   addTag(tag: string) {
@@ -217,6 +255,10 @@ export class Models implements OnInit {
     this.sourceFilter.set('');
     this.tagFilter.set([]);
     this.tagInput.set('');
+  }
+
+  basename(path: string): string {
+    return path.split('/').pop() ?? path;
   }
 
   formatSize(bytes: number): string {
@@ -304,6 +346,21 @@ export class Models implements OnInit {
 
   clearSelection() {
     this.selected.set(new Set());
+  }
+
+  organizeIntoSubfolders() {
+    if (!confirm('Reorganize all installed models into base-model subfolders?')) return;
+    this.modelService.organizeIntoSubfolders().subscribe({
+      next: (r) => {
+        this.notifService.show(
+          'success',
+          `Organized ${r.moved} model(s). Skipped: ${r.skipped}. Errors: ${r.errors}.`,
+        );
+        this.load();
+      },
+      error: (err) =>
+        this.notifService.show('error', 'Organization failed: ' + (err as Error).message),
+    });
   }
 
   deleteAllSelected() {

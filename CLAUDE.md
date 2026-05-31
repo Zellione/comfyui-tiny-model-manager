@@ -33,14 +33,15 @@ The Python backend (`py/`) needs no build step; changes take effect after restar
 Run from the `frontend/` directory:
 
 ```
-# Unit tests (Vitest, no browser needed)
+# Unit tests (Vitest, no browser needed) — matches CI: npm run test:ci
 npx ng test --watch=false
 
-# ESLint (0 errors required; warnings allowed)
+# ESLint (0 errors required; warnings allowed) — matches CI: npm run lint
 npx ng lint
 
-# Prettier format check
-npx prettier --check "src/**/*.ts" "src/**/*.html" "src/**/*.scss"
+# Prettier format check — matches CI: npm run format:check
+# IMPORTANT: check ALL files (.), not just src/**. The CI runs `prettier --check .`
+npx prettier --check .
 
 # Production build — REQUIRED after any change to frontend/ or js/
 npx ng build
