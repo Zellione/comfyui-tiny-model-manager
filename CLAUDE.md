@@ -39,15 +39,16 @@ npx ng test --watch=false
 # ESLint (0 errors required; warnings allowed) — matches CI: npm run lint
 npx ng lint
 
-# Prettier format check — matches CI: npm run format:check
-# IMPORTANT: check ALL files (.), not just src/**. The CI runs `prettier --check .`
-npx prettier --check .
+# Prettier format check — use npm run to match CI exactly (npx prettier may resolve a different binary)
+npm run format:check
 
 # Production build — REQUIRED after any change to frontend/ or js/
 npx ng build
 ```
 
 **If you changed any file under `frontend/` or `js/`, you MUST run `npx ng build` and confirm it succeeds before committing. A passing test suite does not substitute for a successful build.**
+
+**After creating any new file under `frontend/` with the Write tool, immediately run `npx prettier --write <file>` on it before the final `npm run format:check`. The Write tool does not auto-format, so new files will fail the CI Prettier check unless explicitly formatted.**
 
 **Build location matters:** `web/` is git-ignored, so each git worktree has its own isolated `web/` that ComfyUI never reads. Always run `npx ng build` from the **main checkout's** `frontend/` directory (`comfyui-tiny-model-manager/frontend/`), not from inside a worktree. If you develop in a worktree, copy the finished build to the main checkout after merging, or run the build from the main checkout directly.
 
