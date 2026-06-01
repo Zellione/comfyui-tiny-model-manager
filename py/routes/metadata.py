@@ -5,6 +5,29 @@ from aiohttp import web
 from ..db import model_repo
 
 
+def _resolve_file_size(model_type: str, path: str) -> int:
+    """Return os.path.getsize for the model file, or 0 if the file cannot be found."""
+    import folder_paths
+
+    from .. import config as cfg
+
+    candidates: list[str] = []
+    dirs, _ = folder_paths.folder_names_and_paths.get(model_type, ([], {}))
+    for base_dir in dirs:
+        candidates.append(os.path.join(base_dir, path))
+    models_dir = getattr(folder_paths, "models_dir", None)
+    if models_dir:
+        candidates.append(os.path.join(models_dir, model_type, path))
+    candidates.append(os.path.join(cfg.data_dir(), "models", model_type, path))
+
+    for full in candidates:
+        try:
+            return os.path.getsize(full)
+        except OSError:
+            pass
+    return 0
+
+
 def _derive_source_url(source_platform: str, source_id: str, civitai_model_id: str) -> str:
     if source_platform == "civitai" and civitai_model_id:
         return f"https://civitai.com/models/{civitai_model_id}"
@@ -18,8 +41,10 @@ def add_metadata_routes(routes):
     @routes.get("/tiny-model-manager/api/models/{model_type}/{path:.*}/metadata")
     async def get_metadata(request):
         path = request.match_info["path"]
+        model_type = request.match_info["model_type"]
         try:
             meta = await model_repo.get_model_by_filename(path)
+            size_bytes = _resolve_file_size(model_type, path)
             if not meta:
                 return web.json_response(
                     {
@@ -32,6 +57,7 @@ def add_metadata_routes(routes):
                             "base_model": "",
                             "source_platform": "",
                             "source_url": "",
+                            "size_bytes": size_bytes,
                         },
                     }
                 )
@@ -51,6 +77,7 @@ def add_metadata_routes(routes):
                         "base_model": meta.get("base_model", ""),
                         "source_platform": meta.get("source_platform", ""),
                         "source_url": source_url,
+                        "size_bytes": size_bytes,
                     },
                 }
             )
