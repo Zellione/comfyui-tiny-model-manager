@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, HostListener, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -35,6 +35,12 @@ export class ModelDetail implements OnInit {
   showUninstallConfirm = signal(false);
   galleryIdx = signal(0);
   copied = signal(false);
+  lightboxOpen = signal(false);
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey() {
+    if (this.lightboxOpen()) this.lightboxOpen.set(false);
+  }
 
   readonly activeMedia = computed(() => {
     const m = this.meta();
