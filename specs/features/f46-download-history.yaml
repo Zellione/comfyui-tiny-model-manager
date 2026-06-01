@@ -1,4 +1,4 @@
-feature_id: F-45
+feature_id: F-46
 title: "Download Activity & History Log"
 requirements:
   - "The Download page gains a tab bar with two tabs: 'Active' and 'History'"
@@ -13,7 +13,7 @@ requirements:
   - "The History tab provides a status filter (chip group or dropdown) allowing the user to show only entries with a specific status"
   - "The History tab provides a text search field that filters entries by model name (case-insensitive, partial match)"
   - "History entries whose status is canceled, deleted, or failed show a 'Redownload' button"
-  - "Clicking 'Redownload' opens a confirmation flyout (F-44 pattern) before queuing the download"
+  - "Clicking 'Redownload' opens a confirmation flyout (F-45 pattern) before queuing the download"
   - "Confirming the flyout queues a new download for the same model/version; a new History entry is created and the old one is unchanged"
   - "History data is persisted in SQLite and survives ComfyUI restarts"
   - "The History list is paginated or uses infinite scroll; at minimum 50 entries are loaded per page"
@@ -27,4 +27,4 @@ db:
   - "The model-delete route updates any download_history rows whose dest_path matches the deleted file, setting status=deleted"
 depends_on:
   - F-06
-  - F-44
+  - F-45

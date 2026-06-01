@@ -355,3 +355,65 @@ class TestGetModelSourceInfo:
         from py.db import model_repo
 
         assert await model_repo.get_model_source_info("nope.safetensors") is None
+
+
+class TestRepoFiles:
+    _FILES = [
+        {
+            "filename": "model-fp16.safetensors",
+            "size_bytes": 2097152,
+            "download_url": "https://example.com/fp16",
+            "source_page_url": "https://civitai.com/models/1",
+        },
+        {
+            "filename": "vae.safetensors",
+            "size_bytes": 335544320,
+            "download_url": "https://example.com/vae",
+            "source_page_url": "https://civitai.com/models/1",
+        },
+    ]
+
+    async def test_upsert_and_get(self, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_repo_files("loras", "my-lora.safetensors", self._FILES)
+        rows = await model_repo.get_repo_files("loras", "my-lora.safetensors")
+        assert len(rows) == 2
+        filenames = {r["filename"] for r in rows}
+        assert filenames == {"model-fp16.safetensors", "vae.safetensors"}
+
+    async def test_upsert_is_idempotent(self, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_repo_files("loras", "my-lora.safetensors", self._FILES)
+        await model_repo.upsert_repo_files("loras", "my-lora.safetensors", self._FILES)
+        rows = await model_repo.get_repo_files("loras", "my-lora.safetensors")
+        assert len(rows) == 2
+
+    async def test_upsert_updates_size_on_conflict(self, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_repo_files("loras", "my-lora.safetensors", self._FILES)
+        updated = [{**self._FILES[0], "size_bytes": 999}]
+        await model_repo.upsert_repo_files("loras", "my-lora.safetensors", updated)
+        rows = await model_repo.get_repo_files("loras", "my-lora.safetensors")
+        fp16 = next(r for r in rows if r["filename"] == "model-fp16.safetensors")
+        assert fp16["size_bytes"] == 999
+
+    async def test_get_returns_empty_for_unknown_path(self, ext_dir):
+        from py.db import model_repo
+
+        rows = await model_repo.get_repo_files("loras", "nonexistent.safetensors")
+        assert rows == []
+
+    async def test_scoped_by_model_type_and_path(self, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_repo_files("loras", "a.safetensors", [self._FILES[0]])
+        await model_repo.upsert_repo_files("checkpoints", "a.safetensors", [self._FILES[1]])
+        lora_rows = await model_repo.get_repo_files("loras", "a.safetensors")
+        ckpt_rows = await model_repo.get_repo_files("checkpoints", "a.safetensors")
+        assert len(lora_rows) == 1
+        assert lora_rows[0]["filename"] == "model-fp16.safetensors"
+        assert len(ckpt_rows) == 1
+        assert ckpt_rows[0]["filename"] == "vae.safetensors"

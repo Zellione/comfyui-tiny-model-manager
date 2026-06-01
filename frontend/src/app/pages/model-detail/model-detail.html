@@ -151,23 +151,69 @@
         <!-- Files in this model -->
         <div class="versions">
           <div class="versions-title">Files in this model</div>
-          <div class="iv-row">
-            <div class="iv-status ok">✓</div>
-            <div class="iv-row-main">
-              <div class="iv-row-title">
-                <span class="version-name">{{ modelBasename }}</span>
-                <span class="pill ok">Downloaded</span>
-              </div>
-              @if (modelPath.includes('/')) {
-                <div class="iv-row-file">{{ modelPath }}</div>
-              }
-              @if (meta()!.size_bytes) {
-                <div class="iv-row-meta">
-                  <span>{{ formatBytes(meta()!.size_bytes) }}</span>
+          @if (repoFiles().length > 0) {
+            @for (f of repoFiles(); track f.filename) {
+              @if (f.is_downloaded) {
+                <div class="iv-row">
+                  <div class="iv-status ok">✓</div>
+                  <div class="iv-row-main">
+                    <div class="iv-row-title">
+                      <span class="version-name">{{ f.filename }}</span>
+                      <span class="pill ok">Downloaded</span>
+                    </div>
+                    <div class="iv-row-meta">
+                      @if (f.size_bytes) {
+                        <span>{{ formatBytes(f.size_bytes) }}</span>
+                      }
+                      @if (f.added_at) {
+                        <span>{{ f.added_at * 1000 | date: 'mediumDate' }}</span>
+                      }
+                    </div>
+                  </div>
+                </div>
+              } @else {
+                <div class="iv-row iv-row-missing">
+                  <div class="iv-status missing">↓</div>
+                  <div class="iv-row-main">
+                    <div class="iv-row-title">
+                      <span class="version-name">{{ f.filename }}</span>
+                      <span class="pill missing">Not downloaded</span>
+                    </div>
+                    @if (f.size_bytes) {
+                      <div class="iv-row-meta">
+                        <span>{{ formatBytes(f.size_bytes) }}</span>
+                      </div>
+                    }
+                  </div>
+                  <button
+                    class="btn small ghost iv-download-btn"
+                    [disabled]="downloadingFiles().has(f.filename)"
+                    (click)="downloadFile(f)"
+                  >
+                    {{ downloadingFiles().has(f.filename) ? 'Queued…' : 'Download' }}
+                  </button>
                 </div>
               }
+            }
+          } @else {
+            <div class="iv-row">
+              <div class="iv-status ok">✓</div>
+              <div class="iv-row-main">
+                <div class="iv-row-title">
+                  <span class="version-name">{{ modelBasename }}</span>
+                  <span class="pill ok">Downloaded</span>
+                </div>
+                @if (modelPath.includes('/')) {
+                  <div class="iv-row-file">{{ modelPath }}</div>
+                }
+                @if (meta()!.size_bytes) {
+                  <div class="iv-row-meta">
+                    <span>{{ formatBytes(meta()!.size_bytes) }}</span>
+                  </div>
+                }
+              </div>
             </div>
-          </div>
+          }
         </div>
 
         <!-- About this model -->

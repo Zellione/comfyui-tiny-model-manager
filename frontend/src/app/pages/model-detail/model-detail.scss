@@ -149,6 +149,11 @@
     background: color-mix(in oklch, var(--success) 14%, transparent);
     color: var(--success);
   }
+
+  &.missing {
+    background: color-mix(in oklch, var(--accent) 12%, transparent);
+    color: var(--accent);
+  }
 }
 
 // ── Uninstall confirmation banner ─────────────────────────────────────────────
@@ -470,6 +475,11 @@
   background: var(--surface-2);
 }
 
+.iv-row-missing {
+  border-style: dashed;
+  background: transparent;
+}
+
 .iv-status {
   width: 26px;
   height: 26px;
@@ -485,6 +495,16 @@
     background: color-mix(in oklch, var(--success) 16%, transparent);
     color: var(--success);
   }
+
+  &.missing {
+    background: color-mix(in oklch, var(--accent) 14%, transparent);
+    color: var(--accent);
+  }
+}
+
+.iv-download-btn {
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .iv-row-main {

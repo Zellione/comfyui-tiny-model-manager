@@ -1,4 +1,4 @@
-feature_id: F-42
+feature_id: F-43
 title: "Copy Trigger Words"
 requirements:
   - "The Model Detail page shows a copy icon button inline with the 'Trigger Words' section header; the button is hidden when the model has no trigger words"

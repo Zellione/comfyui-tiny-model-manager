@@ -78,6 +78,60 @@ async def fetch_and_store(
     )
     if not skip_media:
         await _download_images(model_id, media_hash, image_urls)
+    await _fetch_and_store_repo_files(
+        filename, model_type, platform, source_id, civitai_model_id=civitai_model_id
+    )
+
+
+async def _fetch_and_store_repo_files(
+    filename: str,
+    model_type: str,
+    platform: str,
+    source_id: str,
+    civitai_model_id: str = "",
+):
+    """Fetches sibling files from the upstream API and stores them in repo_files. Silent on failure."""
+    provider = get_provider(platform)
+    if not provider or not source_id:
+        return
+    try:
+        if platform == "civitai":
+            from .providers.civitai_provider import CivitaiProvider
+
+            civitai = CivitaiProvider()
+            if civitai_model_id:
+                model_data = await civitai.get_model_versions(int(civitai_model_id))
+                source_base = f"https://civitai.com/models/{civitai_model_id}"
+                files = []
+                # Iterate newest-first so that when filenames collide across versions
+                # the UPSERT leaves the newest version's download_url in place.
+                for version in model_data.get("versions", []):
+                    vid = version.get("id")
+                    page_url = f"{source_base}?modelVersionId={vid}" if vid else source_base
+                    for f in version.get("files", []):
+                        if f.get("type") != "Model":
+                            continue
+                        files.append(
+                            {
+                                "filename": f.get("name", ""),
+                                "size_bytes": int(f.get("sizeKB", 0) * 1024),
+                                "download_url": f.get("downloadUrl", ""),
+                                "source_page_url": page_url,
+                            }
+                        )
+            else:
+                files = await civitai.get_version_files(int(source_id))
+        elif platform == "huggingface":
+            from .providers.huggingface_provider import HuggingFaceProvider
+
+            hf = HuggingFaceProvider()
+            raw = await hf.get_model_files(source_id)
+            files = hf._model_files_for_storage(source_id, raw)
+        else:
+            return
+        await model_repo.upsert_repo_files(model_type, filename, files)
+    except Exception:
+        pass
 
 
 async def migrate_existing_media():
@@ -147,11 +201,14 @@ async def _download_images(model_id: int, media_hash: str, urls: list[str]):
             try:
                 ext = url.rsplit(".", 1)[-1].split("?")[0] or "jpg"
                 dest = os.path.join(dest_dir, f"{i}.{ext}")
+                media_type = "video" if ext in ("mp4", "webm", "mov") else "image"
+                if os.path.isfile(dest):
+                    await model_repo.add_media(model_id, media_type, dest)
+                    continue
                 resp = await client.get(url)
                 resp.raise_for_status()
                 with open(dest, "wb") as f:
                     f.write(resp.content)
-                media_type = "video" if ext in ("mp4", "webm", "mov") else "image"
                 await model_repo.add_media(model_id, media_type, dest)
             except Exception:
                 continue

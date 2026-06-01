@@ -144,10 +144,19 @@ async def set_tags(model_id: int, tags: list[str]):
 async def add_media(model_id: int, media_type: str, local_path: str) -> int:
     if media_type not in _ALLOWED_MEDIA_TYPES:
         raise ValueError(f"Invalid media_type: {media_type!r}")
+    capped = local_path[:_MAX_PATH]
     async with get_db() as db:
+        existing = await (
+            await db.execute(
+                "SELECT id FROM model_media WHERE model_id = ? AND local_path = ?",
+                (model_id, capped),
+            )
+        ).fetchone()
+        if existing:
+            return existing["id"]
         cursor = await db.execute(
             "INSERT INTO model_media (model_id, media_type, local_path) VALUES (?, ?, ?)",
-            (model_id, media_type, local_path[:_MAX_PATH]),
+            (model_id, media_type, capped),
         )
         await db.commit()
         return cursor.lastrowid
@@ -315,6 +324,42 @@ async def complete_job(job_id: int) -> None:
     async with get_db() as db:
         await db.execute("UPDATE reorganize_queue SET status = 'done' WHERE id = ?", (job_id,))
         await db.commit()
+
+
+async def upsert_repo_files(model_type: str, model_path: str, files: list[dict]) -> None:
+    async with get_db() as db:
+        for f in files:
+            await db.execute(
+                """
+                INSERT INTO repo_files (model_type, model_path, filename, size_bytes, download_url, source_page_url)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(model_type, model_path, filename) DO UPDATE SET
+                    size_bytes = excluded.size_bytes,
+                    download_url = excluded.download_url,
+                    source_page_url = excluded.source_page_url
+                """,
+                (
+                    model_type,
+                    model_path[:_MAX_PATH],
+                    f.get("filename", "")[:_MAX_PATH],
+                    f.get("size_bytes"),
+                    f.get("download_url", ""),
+                    f.get("source_page_url", ""),
+                ),
+            )
+        await db.commit()
+
+
+async def get_repo_files(model_type: str, model_path: str) -> list[dict]:
+    async with get_db() as db:
+        rows = await (
+            await db.execute(
+                "SELECT filename, size_bytes, download_url, source_page_url"
+                " FROM repo_files WHERE model_type = ? AND model_path = ?",
+                (model_type, model_path),
+            )
+        ).fetchall()
+        return [dict(r) for r in rows]
 
 
 async def get_model_source_info(filename: str) -> dict | None:

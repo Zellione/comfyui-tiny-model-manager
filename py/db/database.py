@@ -50,6 +50,17 @@ CREATE TABLE IF NOT EXISTS reorganize_queue (
     status     TEXT    NOT NULL DEFAULT 'pending',
     created_at INTEGER          DEFAULT (strftime('%s','now'))
 );
+
+CREATE TABLE IF NOT EXISTS repo_files (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    model_type     TEXT    NOT NULL,
+    model_path     TEXT    NOT NULL,
+    filename       TEXT    NOT NULL,
+    size_bytes     INTEGER,
+    download_url   TEXT,
+    source_page_url TEXT,
+    UNIQUE (model_type, model_path, filename)
+);
 """
 
 
@@ -158,6 +169,23 @@ async def _migrate_db():
                 await db.execute("DROP TABLE deorganize_queue")
         except Exception as exc:
             print(f"[tiny-model-manager] reorganize_queue migration failed: {exc}")
+
+        # Create repo_files table for installations predating F-39
+        try:
+            await db.execute(
+                "CREATE TABLE IF NOT EXISTS repo_files ("
+                "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "  model_type TEXT NOT NULL,"
+                "  model_path TEXT NOT NULL,"
+                "  filename TEXT NOT NULL,"
+                "  size_bytes INTEGER,"
+                "  download_url TEXT,"
+                "  source_page_url TEXT,"
+                "  UNIQUE (model_type, model_path, filename)"
+                ")"
+            )
+        except Exception as exc:
+            print(f"[tiny-model-manager] repo_files migration failed: {exc}")
 
         await db.commit()
 
