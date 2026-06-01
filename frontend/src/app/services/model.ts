@@ -19,6 +19,7 @@ export interface ModelMeta {
   base_model: string;
   source_platform: string;
   source_url: string;
+  size_bytes: number;
   created_at?: string;
 }
 

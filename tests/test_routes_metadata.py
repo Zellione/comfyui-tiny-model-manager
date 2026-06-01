@@ -26,6 +26,14 @@ class TestGetMetadata:
         assert data["trigger_words"] == []
         assert data["tags"] == []
 
+    async def test_returns_size_bytes_field(self, client):
+        resp = await client.get("/tiny-model-manager/api/models/loras/unknown.safetensors/metadata")
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert "size_bytes" in data
+        assert isinstance(data["size_bytes"], int)
+        assert data["size_bytes"] == 0  # file not present on disk in test context
+
     async def test_returns_stored_metadata(self, client, ext_dir):
         from py.db import model_repo
 
