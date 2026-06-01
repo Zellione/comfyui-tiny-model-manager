@@ -195,3 +195,117 @@ class TestDownloadImagesIdempotency:
             import shutil
 
             shutil.rmtree(dest_dir)
+
+
+class TestFetchRepoFilesAllVersions:
+    _MODEL_DATA = {
+        "type": "LORA",
+        "modelVersions": [
+            {
+                "id": 200,
+                "files": [
+                    {
+                        "name": "model-v2-fp16.safetensors",
+                        "type": "Model",
+                        "sizeKB": 512,
+                        "downloadUrl": "https://civitai.com/dl/v2-fp16",
+                    },
+                    {
+                        "name": "dataset.zip",
+                        "type": "Training Data",
+                        "sizeKB": 100,
+                        "downloadUrl": "https://civitai.com/dl/v2-data",
+                    },
+                ],
+            },
+            {
+                "id": 100,
+                "files": [
+                    {
+                        "name": "model-v1.safetensors",
+                        "type": "Model",
+                        "sizeKB": 1024,
+                        "downloadUrl": "https://civitai.com/dl/v1",
+                    },
+                ],
+            },
+        ],
+    }
+
+    def _make_civitai_mock(self, versions):
+        mock_cls = MagicMock()
+        instance = AsyncMock()
+        instance.get_model_versions = AsyncMock(
+            return_value={"versions": versions, "model_type": "loras"}
+        )
+        mock_cls.return_value = instance
+        return mock_cls, instance
+
+    async def test_stores_files_from_all_versions(self, ext_dir):
+        from py.db import model_repo
+        from py.services.metadata_fetcher import _fetch_and_store_repo_files
+
+        mock_cls, _ = self._make_civitai_mock(self._MODEL_DATA["modelVersions"])
+        with patch("py.services.providers.civitai_provider.CivitaiProvider", mock_cls):
+            await _fetch_and_store_repo_files(
+                "all-versions.safetensors",
+                "loras",
+                "civitai",
+                "100",
+                civitai_model_id="42",
+            )
+
+        files = await model_repo.get_repo_files("loras", "all-versions.safetensors")
+        filenames = {f["filename"] for f in files}
+        assert "model-v2-fp16.safetensors" in filenames
+        assert "model-v1.safetensors" in filenames
+        assert "dataset.zip" not in filenames
+
+    async def test_source_page_url_includes_version_id(self, ext_dir):
+        from py.db import model_repo
+        from py.services.metadata_fetcher import _fetch_and_store_repo_files
+
+        mock_cls, _ = self._make_civitai_mock(self._MODEL_DATA["modelVersions"])
+        with patch("py.services.providers.civitai_provider.CivitaiProvider", mock_cls):
+            await _fetch_and_store_repo_files(
+                "version-url.safetensors",
+                "loras",
+                "civitai",
+                "100",
+                civitai_model_id="42",
+            )
+
+        files = await model_repo.get_repo_files("loras", "version-url.safetensors")
+        v2_file = next(f for f in files if f["filename"] == "model-v2-fp16.safetensors")
+        assert "modelVersionId=200" in v2_file["source_page_url"]
+        v1_file = next(f for f in files if f["filename"] == "model-v1.safetensors")
+        assert "modelVersionId=100" in v1_file["source_page_url"]
+
+    async def test_falls_back_to_version_files_without_model_id(self, ext_dir):
+        from py.db import model_repo
+        from py.services.metadata_fetcher import _fetch_and_store_repo_files
+
+        mock_cls = MagicMock()
+        instance = AsyncMock()
+        instance.get_version_files = AsyncMock(
+            return_value=[
+                {
+                    "filename": "fallback.safetensors",
+                    "size_bytes": 1024,
+                    "download_url": "https://civitai.com/dl/fallback",
+                    "source_page_url": "https://civitai.com/models/42",
+                }
+            ]
+        )
+        mock_cls.return_value = instance
+        with patch("py.services.providers.civitai_provider.CivitaiProvider", mock_cls):
+            await _fetch_and_store_repo_files(
+                "fallback.safetensors",
+                "loras",
+                "civitai",
+                "100",
+                civitai_model_id="",
+            )
+
+        files = await model_repo.get_repo_files("loras", "fallback.safetensors")
+        assert any(f["filename"] == "fallback.safetensors" for f in files)
