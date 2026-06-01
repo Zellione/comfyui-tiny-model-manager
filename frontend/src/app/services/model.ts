@@ -29,6 +29,15 @@ export interface MediaItem {
   local_path: string;
 }
 
+export interface RepoFile {
+  filename: string;
+  size_bytes: number | null;
+  download_url: string;
+  source_page_url: string;
+  is_downloaded: boolean;
+  added_at: number | null;
+}
+
 const API = '/tiny-model-manager/api';
 
 @Injectable({ providedIn: 'root' })
@@ -74,6 +83,12 @@ export class ModelService {
   getPendingQueue(): Observable<string[]> {
     return this.http
       .get<{ success: boolean; data: string[] }>(`${API}/reorganize/pending`)
+      .pipe(map((r) => r.data));
+  }
+
+  getRepoFiles(modelType: string, path: string): Observable<RepoFile[]> {
+    return this.http
+      .get<{ success: boolean; data: RepoFile[] }>(`${API}/models/${modelType}/${path}/repo-files`)
       .pipe(map((r) => r.data));
   }
 

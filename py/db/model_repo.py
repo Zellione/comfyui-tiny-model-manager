@@ -317,6 +317,42 @@ async def complete_job(job_id: int) -> None:
         await db.commit()
 
 
+async def upsert_repo_files(model_type: str, model_path: str, files: list[dict]) -> None:
+    async with get_db() as db:
+        for f in files:
+            await db.execute(
+                """
+                INSERT INTO repo_files (model_type, model_path, filename, size_bytes, download_url, source_page_url)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(model_type, model_path, filename) DO UPDATE SET
+                    size_bytes = excluded.size_bytes,
+                    download_url = excluded.download_url,
+                    source_page_url = excluded.source_page_url
+                """,
+                (
+                    model_type,
+                    model_path[:_MAX_PATH],
+                    f.get("filename", "")[:_MAX_PATH],
+                    f.get("size_bytes"),
+                    f.get("download_url", ""),
+                    f.get("source_page_url", ""),
+                ),
+            )
+        await db.commit()
+
+
+async def get_repo_files(model_type: str, model_path: str) -> list[dict]:
+    async with get_db() as db:
+        rows = await (
+            await db.execute(
+                "SELECT filename, size_bytes, download_url, source_page_url"
+                " FROM repo_files WHERE model_type = ? AND model_path = ?",
+                (model_type, model_path),
+            )
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
 async def get_model_source_info(filename: str) -> dict | None:
     async with get_db() as db:
         row = await (

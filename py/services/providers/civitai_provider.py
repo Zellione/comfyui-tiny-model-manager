@@ -116,6 +116,28 @@ class CivitaiProvider(ModelProvider):
             "image_urls": image_urls,
         }
 
+    async def get_version_files(self, version_id: int) -> list[dict]:
+        """Returns all files in a CivitAI model version for repo-files storage."""
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                f"{_BASE}/model-versions/{version_id}", headers=self.auth_headers()
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        model_id = data.get("modelId")
+        source_page_url = f"https://civitai.com/models/{model_id}" if model_id else ""
+        result = []
+        for f in data.get("files", []):
+            result.append(
+                {
+                    "filename": f.get("name", ""),
+                    "size_bytes": int(f.get("sizeKB", 0) * 1024),
+                    "download_url": f.get("downloadUrl", ""),
+                    "source_page_url": source_page_url,
+                }
+            )
+        return result
+
     async def fetch_metadata(self, source_id: str) -> ProviderMetadata:
         """Returns description, trigger words, image URLs, tags, base model, and model ID for a version."""
         version_id = int(source_id)

@@ -3,8 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { of } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
-import { ModelService, ModelMeta } from '../../services/model';
+import { catchError, switchMap } from 'rxjs/operators';
+import { ModelService, ModelMeta, RepoFile } from '../../services/model';
+import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
 import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
@@ -37,6 +38,8 @@ export class ModelDetail implements OnInit {
   galleryIdx = signal(0);
   copied = signal(false);
   lightboxOpen = signal(false);
+  repoFiles = signal<RepoFile[]>([]);
+  downloadingFiles = signal<Set<string>>(new Set());
 
   @HostListener('document:keydown.escape')
   onEscapeKey() {
@@ -71,6 +74,7 @@ export class ModelDetail implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private modelService: ModelService,
+    private downloadService: DownloadService,
     private workflowService: WorkflowService,
     private notifService: NotificationService,
   ) {}
@@ -90,12 +94,20 @@ export class ModelDetail implements OnInit {
         this.meta.set(m);
         this.syncEditMeta(m);
         this.loading.set(false);
+        this.loadRepoFiles();
       },
       error: (err) => {
         this.error.set((err as Error).message);
         this.loading.set(false);
       },
     });
+  }
+
+  loadRepoFiles() {
+    this.modelService
+      .getRepoFiles(this.modelType, this.modelPath)
+      .pipe(catchError(() => of([] as RepoFile[])))
+      .subscribe((files) => this.repoFiles.set(files));
   }
 
   private syncEditMeta(m: ModelMeta) {
@@ -189,6 +201,7 @@ export class ModelDetail implements OnInit {
         this.syncEditMeta(m);
         this.refetching.set(false);
         this.notifService.show('success', 'Metadata re-fetched.');
+        this.loadRepoFiles();
       },
       error: (err) => {
         this.error.set((err as Error).message);
@@ -219,6 +232,31 @@ export class ModelDetail implements OnInit {
         this.notifService.show('error', (err as Error).message);
       },
     });
+  }
+
+  downloadFile(file: RepoFile) {
+    if (!file.download_url || this.downloadingFiles().has(file.filename)) return;
+    const dir = this.modelPath.includes('/')
+      ? this.modelPath.split('/').slice(0, -1).join('/') + '/'
+      : '';
+    const destFilename = dir + file.filename;
+    const platform = this.meta()?.source_platform ?? '';
+    this.downloadingFiles.update((s) => new Set(s).add(file.filename));
+    this.downloadService
+      .startDownload(file.download_url, this.modelType, destFilename, platform)
+      .subscribe({
+        next: () => {
+          this.notifService.show('success', `Downloading ${file.filename}…`);
+        },
+        error: () => {
+          this.downloadingFiles.update((s) => {
+            const next = new Set(s);
+            next.delete(file.filename);
+            return next;
+          });
+          this.notifService.show('error', `Failed to start download for ${file.filename}`);
+        },
+      });
   }
 
   copyTriggerWords() {

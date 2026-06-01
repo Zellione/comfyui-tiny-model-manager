@@ -28,6 +28,40 @@ def _resolve_file_size(model_type: str, path: str) -> int:
     return 0
 
 
+def _find_file_on_disk(model_type: str, model_dir: str, filename: str) -> str:
+    """Return the absolute path of a file if it exists, or empty string if not found."""
+    import folder_paths
+
+    from .. import config as cfg
+
+    candidates: list[str] = []
+    dirs, _ = folder_paths.folder_names_and_paths.get(model_type, ([], {}))
+    for base_dir in dirs:
+        candidates.append(os.path.join(base_dir, model_dir, filename))
+    models_dir = getattr(folder_paths, "models_dir", None)
+    if models_dir:
+        candidates.append(os.path.join(models_dir, model_type, model_dir, filename))
+    candidates.append(os.path.join(cfg.data_dir(), "models", model_type, model_dir, filename))
+    for full in candidates:
+        if os.path.isfile(full):
+            return full
+    return ""
+
+
+def _file_exists_on_disk(model_type: str, model_dir: str, filename: str) -> bool:
+    return bool(_find_file_on_disk(model_type, model_dir, filename))
+
+
+def _get_file_mtime(model_type: str, model_dir: str, filename: str) -> float | None:
+    full = _find_file_on_disk(model_type, model_dir, filename)
+    if full:
+        try:
+            return os.path.getmtime(full)
+        except OSError:
+            pass
+    return None
+
+
 def _derive_source_url(source_platform: str, source_id: str, civitai_model_id: str) -> str:
     if source_platform == "civitai" and civitai_model_id:
         return f"https://civitai.com/models/{civitai_model_id}"
@@ -157,6 +191,20 @@ def add_metadata_routes(routes):
                     },
                 }
             )
+        except Exception as exc:
+            return web.json_response({"success": False, "error": str(exc)}, status=500)
+
+    @routes.get("/tiny-model-manager/api/models/{model_type}/{path:.*}/repo-files")
+    async def get_repo_files(request):
+        path = request.match_info["path"]
+        model_type = request.match_info["model_type"]
+        try:
+            files = await model_repo.get_repo_files(model_type, path)
+            model_dir = os.path.dirname(path)
+            for f in files:
+                f["is_downloaded"] = _file_exists_on_disk(model_type, model_dir, f["filename"])
+                f["added_at"] = _get_file_mtime(model_type, model_dir, f["filename"])
+            return web.json_response({"success": True, "data": files})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
 

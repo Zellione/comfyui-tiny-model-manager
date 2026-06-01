@@ -90,6 +90,7 @@ class HuggingFaceProvider(ModelProvider):
             )
             resp.raise_for_status()
             data = resp.json()
+        source_page_url = f"{_BASE}/{repo_id}"
         result = []
         for f in data.get("siblings", []):
             name = f.get("rfilename", "")
@@ -100,9 +101,22 @@ class HuggingFaceProvider(ModelProvider):
                         "filename": name,
                         "size": f.get("size", 0),
                         "url": f"{_BASE}/{repo_id}/resolve/main/{name}",
+                        "source_page_url": source_page_url,
                     }
                 )
         return result
+
+    def _model_files_for_storage(self, repo_id: str, files: list[dict]) -> list[dict]:
+        """Converts get_model_files() output to the shape expected by upsert_repo_files()."""
+        return [
+            {
+                "filename": f["filename"],
+                "size_bytes": f.get("size", 0),
+                "download_url": f["url"],
+                "source_page_url": f.get("source_page_url", f"{_BASE}/{repo_id}"),
+            }
+            for f in files
+        ]
 
     async def get_readme(self, repo_id: str) -> str:
         """Fetches README.md and returns its body with YAML front matter stripped."""

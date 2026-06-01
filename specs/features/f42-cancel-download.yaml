@@ -1,4 +1,4 @@
-feature_id: F-41
+feature_id: F-42
 title: "Cancel Download"
 requirements:
   - Each active download entry in the download queue shows a Cancel button in its row

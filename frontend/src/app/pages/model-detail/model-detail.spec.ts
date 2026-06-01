@@ -1,9 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { EMPTY, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { ModelDetail } from './model-detail';
-import { ModelService } from '../../services/model';
+import { ModelService, RepoFile } from '../../services/model';
+import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
 
@@ -19,6 +20,16 @@ const makeMeta = (overrides = {}) => ({
   ...overrides,
 });
 
+const makeRepoFile = (overrides: Partial<RepoFile> = {}): RepoFile => ({
+  filename: 'companion.safetensors',
+  size_bytes: 1048576,
+  download_url: 'https://example.com/companion',
+  source_page_url: 'https://civitai.com/models/1',
+  is_downloaded: false,
+  added_at: null,
+  ...overrides,
+});
+
 const mockModelService = {
   getMetadata: vi.fn(() => of(makeMeta())),
   updateMetadata: vi.fn(() => of(undefined)),
@@ -26,6 +37,13 @@ const mockModelService = {
   deleteModel: vi.fn(() => of(undefined)),
   getModelTypes: vi.fn(() => of(['checkpoints', 'loras'])),
   moveModel: vi.fn(() => of(undefined)),
+  getRepoFiles: vi.fn(() => of([] as RepoFile[])),
+};
+
+const mockDownloadService = {
+  startDownload: vi.fn(() => of({ task_id: 'abc' })),
+  activeTasks$: EMPTY,
+  completedTasks$: EMPTY,
 };
 
 const mockWorkflowService = { addToWorkflow: vi.fn(() => of(undefined)) };
@@ -41,6 +59,7 @@ describe('ModelDetail', () => {
       providers: [
         provideRouter([{ path: 'models', children: [] }]),
         { provide: ModelService, useValue: mockModelService },
+        { provide: DownloadService, useValue: mockDownloadService },
         { provide: WorkflowService, useValue: mockWorkflowService },
         { provide: NotificationService, useValue: mockNotifService },
       ],
@@ -152,6 +171,70 @@ describe('ModelDetail', () => {
       component.enterEdit();
       component.save();
       expect(component.editMode()).toBe(false);
+    });
+  });
+
+  describe('loadRepoFiles', () => {
+    it('populates repoFiles signal on success', () => {
+      const files = [makeRepoFile()];
+      mockModelService.getRepoFiles.mockReturnValueOnce(of(files));
+      component.loadRepoFiles();
+      expect(component.repoFiles()).toEqual(files);
+    });
+
+    it('falls back to empty array on error', () => {
+      mockModelService.getRepoFiles.mockReturnValueOnce(
+        throwError(() => new Error('network error')),
+      );
+      component.loadRepoFiles();
+      expect(component.repoFiles()).toEqual([]);
+    });
+  });
+
+  describe('downloadFile', () => {
+    it('calls startDownload with correct arguments for root-level model', () => {
+      component.modelPath = 'my-lora.safetensors';
+      const file = makeRepoFile();
+      component.downloadFile(file);
+      expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
+        'https://example.com/companion',
+        'loras',
+        'companion.safetensors',
+        'civitai',
+      );
+    });
+
+    it('prepends subfolder when model is in a subdirectory', () => {
+      component.modelPath = 'sdxl/my-lora.safetensors';
+      const file = makeRepoFile();
+      component.downloadFile(file);
+      expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
+        'https://example.com/companion',
+        'loras',
+        'sdxl/companion.safetensors',
+        'civitai',
+      );
+    });
+
+    it('shows success notification on successful enqueue', () => {
+      component.downloadFile(makeRepoFile());
+      expect(mockNotifService.show).toHaveBeenCalledWith(
+        'success',
+        expect.stringContaining('companion.safetensors'),
+      );
+    });
+
+    it('does nothing when download_url is empty', () => {
+      component.downloadFile(makeRepoFile({ download_url: '' }));
+      expect(mockDownloadService.startDownload).not.toHaveBeenCalled();
+    });
+
+    it('removes filename from downloadingFiles set on error', () => {
+      mockDownloadService.startDownload.mockReturnValueOnce(throwError(() => new Error('fail')));
+      const file = makeRepoFile();
+      component.downloadFile(file);
+      expect(component.downloadingFiles().has(file.filename)).toBe(false);
+      expect(mockNotifService.show).toHaveBeenCalledWith('error', expect.any(String));
     });
   });
 });

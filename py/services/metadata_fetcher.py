@@ -78,6 +78,32 @@ async def fetch_and_store(
     )
     if not skip_media:
         await _download_images(model_id, media_hash, image_urls)
+    await _fetch_and_store_repo_files(filename, model_type, platform, source_id)
+
+
+async def _fetch_and_store_repo_files(
+    filename: str, model_type: str, platform: str, source_id: str
+):
+    """Fetches sibling files from the upstream API and stores them in repo_files. Silent on failure."""
+    provider = get_provider(platform)
+    if not provider or not source_id:
+        return
+    try:
+        if platform == "civitai":
+            from .providers.civitai_provider import CivitaiProvider
+
+            files = await CivitaiProvider().get_version_files(int(source_id))
+        elif platform == "huggingface":
+            from .providers.huggingface_provider import HuggingFaceProvider
+
+            hf = HuggingFaceProvider()
+            raw = await hf.get_model_files(source_id)
+            files = hf._model_files_for_storage(source_id, raw)
+        else:
+            return
+        await model_repo.upsert_repo_files(model_type, filename, files)
+    except Exception:
+        pass
 
 
 async def migrate_existing_media():
