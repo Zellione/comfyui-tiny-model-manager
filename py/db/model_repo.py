@@ -144,10 +144,19 @@ async def set_tags(model_id: int, tags: list[str]):
 async def add_media(model_id: int, media_type: str, local_path: str) -> int:
     if media_type not in _ALLOWED_MEDIA_TYPES:
         raise ValueError(f"Invalid media_type: {media_type!r}")
+    capped = local_path[:_MAX_PATH]
     async with get_db() as db:
+        existing = await (
+            await db.execute(
+                "SELECT id FROM model_media WHERE model_id = ? AND local_path = ?",
+                (model_id, capped),
+            )
+        ).fetchone()
+        if existing:
+            return existing["id"]
         cursor = await db.execute(
             "INSERT INTO model_media (model_id, media_type, local_path) VALUES (?, ?, ?)",
-            (model_id, media_type, local_path[:_MAX_PATH]),
+            (model_id, media_type, capped),
         )
         await db.commit()
         return cursor.lastrowid
