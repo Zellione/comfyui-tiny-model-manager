@@ -1,0 +1,187 @@
+feature_id: F-40
+title: "Refetch Metadata — Field-Level Before/After Review Modal"
+
+overview: >
+  Instead of immediately overwriting stored metadata, clicking "Re-fetch Metadata"
+  opens a modal that presents a field-level before/after comparison. The user
+  can accept, reject, or partially merge each field before any data is written.
+  The operation is split into two backend phases: preview (fetch + cache, no write)
+  and apply (write only the user-selected values).
+
+requirements:
+  # --- Trigger ---
+  - Clicking "Re-fetch Metadata" inside the Edit panel (F-38) initiates a POST
+    /refetch-preview request instead of the current /refetch endpoint
+  - A loading spinner replaces the button during the preview fetch; errors surface
+    as a toast notification and leave the edit panel unchanged
+
+  # --- No-change fast path ---
+  - If the fetched data is identical to what is already stored across all compared
+    fields (description, trigger_words, tags, base_model), the modal is NOT opened;
+    instead a toast displays "Metadata already up to date" with a "Review anyway"
+    action link that opens the modal if clicked
+
+  # --- Modal layout ---
+  - The modal overlays the model detail page; it does not navigate away
+  - Each of the four editable fields is shown as its own section: Description,
+    Trigger Words, Tags, Base Model
+  - A "Also replace images?" toggle at the bottom of the modal controls whether
+    the media gallery is included in the apply step
+  - Confirm ("Apply selected") and Cancel buttons appear in the modal footer
+
+  # --- Per-field diff presentation ---
+  - "Description (text): rendered side-by-side as Old | New panels with
+    character- or line-level diff highlighting (additions green, removals red);
+    a radio-style selector (keep Old / keep New) defaults per the smart-default
+    rule; the selected panel is visually highlighted"
+  - "Trigger words & Tags (arrays): the union of old and new items is shown as a
+    checkbox list; items present only in old are labelled 'Current only'; items
+    present only in new are labelled 'Incoming'; items in both are labelled
+    'Unchanged'; all items are checked by default (union default); user may
+    uncheck any item from either source"
+  - "Base model (single value): shown as Old value / New value chips with a
+    radio selector; same smart-default rule applies"
+
+  # --- Smart default rule ---
+  - For scalar fields (description, base_model): if the current stored value is
+    empty or blank, the incoming new value is pre-selected; otherwise the current
+    value is pre-selected by default
+  - For array fields (trigger_words, tags): the smart-default rule applies
+    item-by-item — items already stored are pre-checked; net-new items from the
+    incoming response are also pre-checked only if the stored array was empty;
+    otherwise net-new items start unchecked and must be explicitly accepted
+
+  # --- Manual-edit conflict signal ---
+  - The DB tracks a last_edited_at timestamp per editable field (description,
+    trigger_words, tags, base_model); these columns are set to the current UTC
+    datetime whenever the user saves that field via the Edit form (PUT /metadata)
+  - In the modal, any field whose last_edited_at is set shows a pencil icon (✏)
+    next to the "Old (current)" label to signal that the stored value was
+    manually edited by the user
+  - The inline diff highlighting also makes the extent of human edits vs source
+    text visually apparent even without the icon
+
+  # --- Image comparison ---
+  - When "Also replace images?" is toggled on, a gallery comparison section
+    expands inside the modal below the text fields
+  - The section shows two horizontal strips: "Current images" (left) and
+    "Incoming images" (right); each image has a checkbox to include it in the
+    final media set
+  - Confirming the modal with the toggle on replaces the stored media with
+    exactly the checked incoming images (existing images not in the incoming set
+    that were checked are retained; the default is all incoming images checked,
+    all current images unchecked)
+  - When the toggle is off, media is not changed regardless of what is checked
+
+  # --- TTL / expiry warning ---
+  - The in-memory preview cache entry expires after 5 minutes of inactivity
+  - A countdown is displayed inside the modal ("Preview expires in X:XX") when
+    less than 2 minutes remain; the Confirm button is disabled once the entry
+    has expired with a message "Preview expired — re-fetch to review again"
+
+  # --- Apply ---
+  - Clicking "Apply selected" POSTs to /refetch-apply with the user's selections
+    as the request body (the server reads from in-memory cache to validate, then
+    writes only the selected values)
+  - On success the modal closes, the edit panel re-reads the updated metadata,
+    and a toast confirms "Metadata updated"
+  - If the cache entry has expired, the server returns 410 Gone and the modal
+    shows the expired state described above
+
+backend:
+  new_endpoints:
+    - "POST /tiny-model-manager/api/models/{model_type}/{path:.*}/refetch-preview
+       — fetches from the upstream API (CivitAI or HuggingFace) using stored
+       source_platform + source_id; stores the result in an in-memory dict keyed
+       by model_path with a 5-minute TTL; returns JSON with old (current DB
+       values) and new (fetched values) for all four fields plus media URLs;
+       does NOT write to the database"
+    - "POST /tiny-model-manager/api/models/{model_type}/{path:.*}/refetch-apply
+       — accepts a JSON body specifying the selected values for each field and
+       whether to replace media; validates that a cache entry exists (400 if
+       missing, 410 if expired); writes the selected values via the existing
+       update_model_meta helper; clears the cache entry; returns the same
+       success/data shape as the original /refetch endpoint"
+
+  changed_endpoints:
+    - "POST /tiny-model-manager/api/models/{model_type}/{path:.*}/refetch
+       — existing endpoint is retained unchanged for backwards compatibility but
+       the frontend no longer calls it for the interactive review flow; it may
+       be removed in a future cleanup"
+    - "PUT /tiny-model-manager/api/models/{model_type}/{path:.*}/metadata
+       — sets last_edited_at columns for any field included in the request body
+       at the current UTC time; unchanged fields are left as-is"
+
+  in_memory_cache:
+    - "Module-level dict in routes/metadata.py: _refetch_cache: dict[str, RefetchEntry]"
+    - "RefetchEntry holds: fetched_at (datetime), ttl_seconds=300, old values snapshot, new values snapshot"
+    - "Entries are evicted lazily on access (if expired, remove + return 410) and also
+       purged by a background asyncio.Task that runs every 60 seconds"
+
+db_schema_changes:
+  models_table_new_columns:
+    - "description_edited_at TEXT DEFAULT NULL — set to UTC datetime when user saves description"
+    - "trigger_words_edited_at TEXT DEFAULT NULL — set when user saves trigger words"
+    - "tags_edited_at TEXT DEFAULT NULL — set when user saves tags"
+    - "base_model_edited_at TEXT DEFAULT NULL — set when user saves base model"
+  migration:
+    - "ALTER TABLE models ADD COLUMN description_edited_at TEXT DEFAULT NULL"
+    - "ALTER TABLE models ADD COLUMN trigger_words_edited_at TEXT DEFAULT NULL"
+    - "ALTER TABLE models ADD COLUMN tags_edited_at TEXT DEFAULT NULL"
+    - "ALTER TABLE models ADD COLUMN base_model_edited_at TEXT DEFAULT NULL"
+    - "Added to the existing _MIGRATIONS list in database.py with guarded ALTER TABLE pattern"
+
+frontend:
+  new_components:
+    - "RefetchReviewModalComponent (modal/dialog): orchestrates all sub-sections,
+       owns the selection state as Angular signals, handles TTL countdown via interval"
+    - "TextDiffFieldComponent: renders old/new text panels with diff highlighting
+       and a radio selector; accepts oldValue, newValue, lastEditedAt, selected inputs"
+    - "ArrayFieldMergeComponent: renders the union checkbox list for trigger_words
+       and tags; accepts oldItems, newItems, checkedItems signals"
+    - "ImageGalleryCompareComponent: renders old/new image strips with per-image
+       checkboxes; shown only when 'Also replace images?' is toggled on"
+
+  changed_components:
+    - "ModelDetailComponent / Edit panel: the 'Re-fetch Metadata' button now calls
+       refetchPreview() on MetadataService instead of refetch(); on success it opens
+       RefetchReviewModalComponent with the returned diff data"
+
+  services:
+    - "MetadataService gains refetchPreview(modelType, path) → Observable<RefetchPreviewResponse>
+       and refetchApply(modelType, path, selections) → Observable<RefetchApplyResponse>"
+
+response_shapes:
+  refetch_preview_response:
+    old:
+      description: string
+      trigger_words: "string[]"
+      tags: "string[]"
+      base_model: string
+      media: "{ media_type: string; local_path: string }[]"
+      last_edited_at:
+        description: "string | null"
+        trigger_words: "string | null"
+        tags: "string | null"
+        base_model: "string | null"
+    new:
+      description: string
+      trigger_words: "string[]"
+      tags: "string[]"
+      base_model: string
+      media_urls: "string[]"
+    expires_at: "ISO datetime string"
+
+  refetch_apply_request:
+    description: string
+    trigger_words: "string[]"
+    tags: "string[]"
+    base_model: string
+    replace_media: boolean
+    media_urls: "string[] — subset of new.media_urls to download (only when replace_media=true)"
+
+depends_on:
+  - F-07
+  - F-08
+  - F-09
+  - F-38
