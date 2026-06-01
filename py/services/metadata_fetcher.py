@@ -173,6 +173,8 @@ async def _download_images(model_id: int, media_hash: str, urls: list[str]):
             try:
                 ext = url.rsplit(".", 1)[-1].split("?")[0] or "jpg"
                 dest = os.path.join(dest_dir, f"{i}.{ext}")
+                if os.path.isfile(dest):
+                    continue
                 resp = await client.get(url)
                 resp.raise_for_status()
                 with open(dest, "wb") as f:

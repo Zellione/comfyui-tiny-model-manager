@@ -3,6 +3,7 @@
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
 
@@ -146,3 +147,51 @@ class TestFetchAndStoreOrganize:
         # Cleanup
         if os.path.exists(expected):
             os.remove(expected)
+
+
+class TestDownloadImagesIdempotency:
+    async def test_second_call_skips_existing_files(self, ext_dir):
+        """_download_images must not re-download or add duplicate DB rows for files already on disk."""
+        from py import config as cfg
+        from py.db import model_repo
+        from py.services.metadata_fetcher import _download_images
+
+        model_id = await model_repo.upsert_model_with_meta(
+            "idem.safetensors",
+            "loras",
+            "civitai",
+            "1",
+            "desc",
+            trigger_words=[],
+            tags=[],
+        )
+        media_hash = "testhash_idem"
+        urls = ["https://example.com/image.jpg"]
+
+        request_count = 0
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal request_count
+            request_count += 1
+            return httpx.Response(200, content=b"\xff\xd8\xff")
+
+        transport = httpx.MockTransport(handler)
+        orig = httpx.AsyncClient
+        with patch.object(httpx, "AsyncClient", lambda **kw: orig(transport=transport, **kw)):
+            await _download_images(model_id, media_hash, urls)
+            first_count = request_count
+            await _download_images(model_id, media_hash, urls)
+
+        assert first_count == 1, "First call should make exactly 1 HTTP request"
+        assert request_count == 1, "Second call must not make any HTTP requests"
+
+        row = await model_repo.get_model_by_filename("idem.safetensors")
+        assert row is not None
+        assert len(row.get("media", [])) == 1, "Only one media row should exist after two calls"
+
+        # Cleanup
+        dest_dir = os.path.join(cfg.media_dir(), media_hash)
+        if os.path.isdir(dest_dir):
+            import shutil
+
+            shutil.rmtree(dest_dir)
