@@ -290,3 +290,51 @@ class TestSearch:
         await provider.search("", page=2)
         assert captured.get("page") == "2"
         assert "cursor" not in captured
+
+
+# ---------------------------------------------------------------------------
+# get_version_files
+# ---------------------------------------------------------------------------
+
+
+class TestGetVersionFiles:
+    _VERSION_DATA = {
+        "modelId": 42,
+        "files": [
+            {
+                "name": "model.safetensors",
+                "type": "Model",
+                "sizeKB": 1024,
+                "downloadUrl": "https://civitai.com/dl/model",
+            },
+            {
+                "name": "training_data.zip",
+                "type": "Training Data",
+                "sizeKB": 512,
+                "downloadUrl": "https://civitai.com/dl/training",
+            },
+            {
+                "name": "dataset_captions.zip",
+                "type": "Training Data",
+                "sizeKB": 256,
+                "downloadUrl": "https://civitai.com/dl/captions",
+            },
+        ],
+    }
+
+    async def test_returns_only_model_type_files(self, provider, monkeypatch):
+        transport = httpx.MockTransport(lambda r: httpx.Response(200, json=self._VERSION_DATA))
+        _orig = httpx.AsyncClient
+        monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _orig(transport=transport, **kw))
+        files = await provider.get_version_files(1)
+        assert len(files) == 1
+        assert files[0]["filename"] == "model.safetensors"
+
+    async def test_excludes_zip_training_data(self, provider, monkeypatch):
+        transport = httpx.MockTransport(lambda r: httpx.Response(200, json=self._VERSION_DATA))
+        _orig = httpx.AsyncClient
+        monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _orig(transport=transport, **kw))
+        files = await provider.get_version_files(1)
+        filenames = [f["filename"] for f in files]
+        assert "training_data.zip" not in filenames
+        assert "dataset_captions.zip" not in filenames

@@ -128,6 +128,8 @@ class CivitaiProvider(ModelProvider):
         source_page_url = f"https://civitai.com/models/{model_id}" if model_id else ""
         result = []
         for f in data.get("files", []):
+            if f.get("type") != "Model":
+                continue
             result.append(
                 {
                     "filename": f.get("name", ""),
