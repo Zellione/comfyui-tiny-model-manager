@@ -196,6 +196,8 @@ def add_metadata_routes(routes):
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
 
+    _MODEL_EXTENSIONS = {".safetensors", ".ckpt", ".pt", ".bin", ".gguf"}
+
     @routes.get("/tiny-model-manager/api/models/{model_type}/{path:.*}/repo-files")
     async def get_repo_files(request):
         path = request.match_info["path"]
@@ -203,10 +205,15 @@ def add_metadata_routes(routes):
         try:
             files = await model_repo.get_repo_files(model_type, path)
             model_dir = os.path.dirname(path)
+            result = []
             for f in files:
+                ext = os.path.splitext(f["filename"].lower())[1]
+                if ext not in _MODEL_EXTENSIONS:
+                    continue
                 f["is_downloaded"] = _file_exists_on_disk(model_type, model_dir, f["filename"])
                 f["added_at"] = _get_file_mtime(model_type, model_dir, f["filename"])
-            return web.json_response({"success": True, "data": files})
+                result.append(f)
+            return web.json_response({"success": True, "data": result})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
 
