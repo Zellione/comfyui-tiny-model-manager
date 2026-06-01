@@ -80,6 +80,14 @@ describe('ModelDetail', () => {
       expect(mockModelService.deleteModel).toHaveBeenCalledWith('loras', 'my-lora.safetensors');
     });
 
+    it('shows success notification on successful delete', () => {
+      component.uninstall();
+      expect(mockNotifService.show).toHaveBeenCalledWith(
+        'success',
+        expect.stringContaining('uninstalled'),
+      );
+    });
+
     it('shows notification and dismisses banner on error', () => {
       mockModelService.deleteModel.mockReturnValueOnce(throwError(() => new Error('disk full')));
       component.showUninstallConfirm.set(true);

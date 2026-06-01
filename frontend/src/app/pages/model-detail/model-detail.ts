@@ -209,7 +209,10 @@ export class ModelDetail implements OnInit {
   uninstall() {
     this.deleting.set(true);
     this.modelService.deleteModel(this.modelType, this.modelPath).subscribe({
-      next: () => this.router.navigate(['/models']),
+      next: () => {
+        this.notifService.show('success', `${this.modelBasename} uninstalled.`);
+        this.router.navigate(['/models']);
+      },
       error: (err) => {
         this.deleting.set(false);
         this.showUninstallConfirm.set(false);
