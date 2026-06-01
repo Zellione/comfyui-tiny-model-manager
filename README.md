@@ -84,6 +84,8 @@ Assumes ComfyUI was installed via [comfy-cli](https://comfyui-wiki.com/en/instal
 - [ ] F-39 — Repo files listing in model detail — sibling files stored at download/refetch time, full list with downloaded/available rows and per-file Download buttons
 - [ ] F-40 — Refetch Metadata — field-level before/after review modal with smart defaults, per-field diff, image comparison, and TTL-guarded apply
 - [ ] F-41 — Cancel Download — cancel an individual or all active downloads; stops transfer and deletes partial file
+- [ ] F-42 — Copy Trigger Words — one-click copy of all trigger words (comma-separated) from the Model Detail header and the library card action menu
+- [ ] F-43 — Quick-access Dashboard Button — toolbar button (icon + "TMM") in ComfyUI's top-right that opens the dashboard in a new tab
 
 ---
 
