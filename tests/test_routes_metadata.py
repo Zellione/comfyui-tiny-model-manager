@@ -200,6 +200,67 @@ class TestPutMetadataOrganize:
         assert not os.path.exists(os.path.join(loras_dir, "Pony", "flat.safetensors"))
 
 
+class TestRefetchMetadata:
+    async def test_skip_media_false_when_no_existing_media(self, client, ext_dir, monkeypatch):
+        """Refetch downloads images when the model has no stored media rows."""
+        from py.db import model_repo
+
+        captured: dict = {}
+
+        async def fake_fetch(filename, model_type, platform, source_id, skip_media=False):
+            captured["skip_media"] = skip_media
+
+        monkeypatch.setattr("py.services.metadata_fetcher.fetch_and_store", fake_fetch)
+
+        await model_repo.upsert_model_with_meta(
+            "no-media.safetensors",
+            "loras",
+            "huggingface",
+            "user/repo",
+            "desc",
+            trigger_words=[],
+            tags=[],
+        )
+        resp = await client.post(
+            "/tiny-model-manager/api/models/loras/no-media.safetensors/refetch"
+        )
+        assert resp.status == 200
+        assert captured.get("skip_media") is False
+
+    async def test_skip_media_true_when_media_exists(self, client, ext_dir, monkeypatch):
+        """Refetch preserves existing images when media rows are already stored."""
+        from py.db import model_repo
+
+        captured: dict = {}
+
+        async def fake_fetch(filename, model_type, platform, source_id, skip_media=False):
+            captured["skip_media"] = skip_media
+
+        monkeypatch.setattr("py.services.metadata_fetcher.fetch_and_store", fake_fetch)
+
+        model_id = await model_repo.upsert_model_with_meta(
+            "has-media.safetensors",
+            "loras",
+            "huggingface",
+            "user/repo",
+            "desc",
+            trigger_words=[],
+            tags=[],
+        )
+        await model_repo.add_media(model_id, "image", "/some/path/0.jpg")
+
+        resp = await client.post(
+            "/tiny-model-manager/api/models/loras/has-media.safetensors/refetch"
+        )
+        assert resp.status == 200
+        assert captured.get("skip_media") is True
+
+    async def test_returns_400_when_no_source_info(self, client, ext_dir):
+        """Refetch returns 400 when the model has no source platform/id stored."""
+        resp = await client.post("/tiny-model-manager/api/models/loras/unknown.safetensors/refetch")
+        assert resp.status == 400
+
+
 class TestGetRepoFiles:
     _SAMPLE_FILES = [
         {

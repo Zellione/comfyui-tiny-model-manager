@@ -164,12 +164,14 @@ def add_metadata_routes(routes):
                 )
             from ..services import metadata_fetcher
 
+            existing = await model_repo.get_model_by_filename(path)
+            has_media = bool(existing and existing.get("media"))
             await metadata_fetcher.fetch_and_store(
                 path,
                 info["model_type"],
                 info["source_platform"],
                 info["source_id"],
-                skip_media=True,
+                skip_media=has_media,
             )
             meta = await model_repo.get_model_by_filename(path) or {}
             source_url = _derive_source_url(
