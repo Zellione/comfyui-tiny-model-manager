@@ -11,6 +11,9 @@
   </span>
   <span class="spacer"></span>
   @if (!editMode() && !showUninstallConfirm()) {
+    <button class="btn ghost" (click)="refetch()" [disabled]="refetching()">
+      {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
+    </button>
     <button class="btn ghost" (click)="enterEdit()">Edit</button>
   }
   @if (!showUninstallConfirm()) {
@@ -166,7 +169,7 @@
       @if (meta()!.description) {
         <div class="description">
           <h3>About this model</h3>
-          <p>{{ meta()!.description }}</p>
+          <div class="description-body" [innerHTML]="meta()!.description | safeHtml"></div>
         </div>
       }
     } @else {

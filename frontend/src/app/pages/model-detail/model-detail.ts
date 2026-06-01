@@ -7,10 +7,11 @@ import { switchMap } from 'rxjs/operators';
 import { ModelService, ModelMeta } from '../../services/model';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
+import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
 
 @Component({
   selector: 'app-model-detail',
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, SafeHtmlPipe],
   templateUrl: './model-detail.html',
   styleUrl: './model-detail.scss',
 })

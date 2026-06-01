@@ -21,7 +21,7 @@
   align-items: center;
   gap: 8px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-3);
 }
 
@@ -46,7 +46,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 7px 14px;
-  font-size: 13px;
+  font-size: 14px;
   font: inherit;
   cursor: pointer;
   display: inline-flex;
@@ -115,15 +115,15 @@
 
   &.small {
     padding: 4px 10px;
-    font-size: 12px;
+    font-size: 13px;
   }
 }
 
 // ── Tags & pills ──────────────────────────────────────────────────────────────
 
 .tag {
-  font-size: 10.5px;
-  padding: 2px 7px;
+  font-size: 13px;
+  padding: 3px 8px;
   border-radius: 4px;
   background: var(--surface-hi);
   color: var(--text-2);
@@ -137,8 +137,8 @@
 }
 
 .pill {
-  font-size: 10.5px;
-  padding: 3px 8px;
+  font-size: 13px;
+  padding: 3px 9px;
   border-radius: 5px;
   background: var(--surface-hi);
   color: var(--text-2);
@@ -164,7 +164,7 @@
   background: var(--danger-soft);
   border: 1px solid var(--danger);
   border-radius: var(--radius);
-  font-size: 13.5px;
+  font-size: 15px;
 }
 
 .uninstall-actions {
@@ -204,7 +204,7 @@
   align-items: center;
   gap: 8px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.05em;
   color: var(--text-3);
   text-transform: uppercase;
@@ -220,7 +220,7 @@
 }
 
 .detail-title {
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 600;
   margin: 0;
   letter-spacing: -0.02em;
@@ -236,7 +236,7 @@
   align-items: center;
   gap: 4px;
   color: var(--text-3);
-  font-size: 12px;
+  font-size: 13px;
   padding: 5px 10px;
   border-radius: 6px;
   border: 1px solid var(--border);
@@ -287,7 +287,7 @@
     background: var(--surface-2);
     color: var(--text-3);
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.12em;
   }
 }
@@ -369,7 +369,7 @@
 }
 
 .dl-tags-label {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-3);
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -395,7 +395,7 @@
 }
 
 .keywords-label {
-  font-size: 10.5px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--text-3);
@@ -405,7 +405,7 @@
 
 .keywords-empty {
   color: var(--text-3);
-  font-size: 12.5px;
+  font-size: 14px;
 }
 
 .keywords-line {
@@ -426,7 +426,7 @@
   code {
     flex: 1;
     font-family: var(--font-mono);
-    font-size: 12.5px;
+    font-size: 15px;
     color: var(--text);
     white-space: nowrap;
     overflow: hidden;
@@ -452,10 +452,10 @@
 }
 
 .versions-title {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-3);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   margin: 0 0 12px;
   font-weight: 600;
 }
@@ -478,7 +478,7 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 
   &.ok {
@@ -502,13 +502,13 @@
 }
 
 .version-name {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
 }
 
 .iv-row-file {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
@@ -519,7 +519,7 @@
   display: flex;
   gap: 6px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-3);
 }
 
@@ -530,19 +530,72 @@
   border-top: 1px solid var(--border);
   color: var(--text-2);
   line-height: 1.65;
-  font-size: 13px;
+  font-size: 15px;
 
   h3 {
-    font-size: 11px;
+    font-size: 14px;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.06em;
     color: var(--text-3);
     margin: 0 0 10px;
     font-weight: 600;
   }
 
-  p {
-    margin: 0;
+  .description-body {
+    p {
+      margin: 0 0 0.75em;
+      &:last-child { margin-bottom: 0; }
+    }
+
+    h1, h2, h3, h4 {
+      color: var(--text);
+      font-weight: 600;
+      margin: 1em 0 0.4em;
+      &:first-child { margin-top: 0; }
+    }
+    h1 { font-size: 18px; }
+    h2 { font-size: 16px; }
+    h3, h4 { font-size: 15px; }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+      &:hover { text-decoration: underline; }
+    }
+
+    ul, ol {
+      margin: 0 0 0.75em 1.4em;
+      padding: 0;
+      li { margin-bottom: 0.2em; }
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      background: var(--surface-hi);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+
+    pre {
+      background: var(--surface-hi);
+      border-radius: 6px;
+      padding: 10px 12px;
+      overflow-x: auto;
+      margin: 0 0 0.75em;
+      code { background: none; padding: 0; }
+    }
+
+    img {
+      max-width: 100%;
+      border-radius: 4px;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 1em 0;
+    }
   }
 }
 
@@ -556,7 +609,7 @@
 }
 
 .field-label {
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-3);
@@ -587,7 +640,7 @@ label {
   background: var(--surface-hi);
   border-radius: 5px;
   padding: 3px 8px;
-  font-size: 12px;
+  font-size: 13px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
