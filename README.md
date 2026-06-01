@@ -80,6 +80,8 @@ Assumes ComfyUI was installed via [comfy-cli](https://comfyui-wiki.com/en/instal
 - [x] F-35 — Automatic subfolder organization by base model — toggle to store/reorganize models into `<type>/<base_model>/` subfolders (`Unknown` when none)
 - [x] F-36 — Filter download search results by tags — server-side tag query (HuggingFace AND-multi, CivitAI single tag)
 - [x] F-37 — Always-visible "Load more" with empty/error states — button below the list, red + disabled with the failure reason
+- [ ] F-38 — Visual upgrade of model detail page — modern card layout, separate read/edit modes, delete with confirmation, 16:9 gallery + thumbnail strip, click-to-copy trigger keywords
+- [ ] F-39 — Repo files listing in model detail — sibling files stored at download/refetch time, full list with downloaded/available rows and per-file Download buttons
 
 ---
 

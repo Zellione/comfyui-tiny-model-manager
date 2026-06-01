@@ -1,0 +1,29 @@
+feature_id: F-39
+title: "Repo Files Listing in Model Detail"
+requirements:
+  - When a model is downloaded from CivitAI or HuggingFace, all sibling files available in that version/repo are stored in a new repo_files DB table keyed on (model_type, model_path, filename)
+  - "CivitAI: sibling files are the other files in the same model version (e.g. companion VAE, pruned variant). HuggingFace: sibling files are all model-format files in the same repo (.safetensors, .ckpt, .pt, .bin, .gguf)"
+  - Re-fetching metadata also refreshes the repo_files list for that model
+  - is_downloaded is computed at read time by checking whether the file exists on disk in the same folder as the primary model; it is not persisted
+  - "The 'Files in this model' section in the detail view (F-38) is upgraded to show the full repo listing: downloaded files show a green check + Downloaded pill + formatted size + date added; not-yet-downloaded files show a dashed row + accent download icon + Not downloaded pill + a per-file Download button"
+  - Clicking a per-file Download button enqueues the file via the existing download endpoint with the correct model_type, filename, and source download_url
+  - Metadata failures (API unavailable, no files returned) are silent and fall back to showing only the locally downloaded file
+  - The repo_files table uses UNIQUE (model_type, model_path, filename) so a re-download or refetch upserts cleanly without duplicates
+db_schema:
+  repo_files:
+    - "id INTEGER PRIMARY KEY"
+    - "model_type TEXT NOT NULL"
+    - "model_path TEXT NOT NULL — path of the primary downloaded file (e.g. loras/my-lora.safetensors)"
+    - "filename TEXT NOT NULL — sibling file name (basename only)"
+    - "size_bytes INTEGER"
+    - "download_url TEXT — direct URL used to enqueue a download"
+    - "source_page_url TEXT — human-readable model card / version page URL"
+    - "UNIQUE (model_type, model_path, filename)"
+api:
+  - "GET /tiny-model-manager/api/models/{type}/{path}/repo-files — returns list of repo files with is_downloaded computed from disk"
+  - "POST /tiny-model-manager/api/download — existing endpoint, used for per-file download buttons"
+depends_on:
+  - F-38
+  - F-06
+  - F-07
+  - F-08
