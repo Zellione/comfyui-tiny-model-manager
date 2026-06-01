@@ -11,24 +11,32 @@ describe('SafeHtmlPipe', () => {
   });
 
   it('passes safe HTML through', () => {
-    const result = pipe.transform('<p>Hello <strong>world</strong></p>') as { changingThisBreaksApplicationSecurity: string };
+    const result = pipe.transform('<p>Hello <strong>world</strong></p>') as {
+      changingThisBreaksApplicationSecurity: string;
+    };
     expect(result.changingThisBreaksApplicationSecurity).toContain('Hello');
     expect(result.changingThisBreaksApplicationSecurity).toContain('<strong>');
   });
 
   it('strips script tags', () => {
-    const result = pipe.transform('<p>Hi</p><script>alert(1)</script>') as { changingThisBreaksApplicationSecurity: string };
+    const result = pipe.transform('<p>Hi</p><script>alert(1)</script>') as {
+      changingThisBreaksApplicationSecurity: string;
+    };
     expect(result.changingThisBreaksApplicationSecurity).not.toContain('<script>');
     expect(result.changingThisBreaksApplicationSecurity).not.toContain('alert');
   });
 
   it('strips on* event handlers', () => {
-    const result = pipe.transform('<img src="x" onerror="alert(1)">') as { changingThisBreaksApplicationSecurity: string };
+    const result = pipe.transform('<img src="x" onerror="alert(1)">') as {
+      changingThisBreaksApplicationSecurity: string;
+    };
     expect(result.changingThisBreaksApplicationSecurity).not.toContain('onerror');
   });
 
   it('strips javascript: hrefs', () => {
-    const result = pipe.transform('<a href="javascript:alert(1)">click</a>') as { changingThisBreaksApplicationSecurity: string };
+    const result = pipe.transform('<a href="javascript:alert(1)">click</a>') as {
+      changingThisBreaksApplicationSecurity: string;
+    };
     expect(result.changingThisBreaksApplicationSecurity).not.toContain('javascript:');
   });
 

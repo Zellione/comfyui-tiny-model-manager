@@ -544,29 +544,48 @@
   .description-body {
     p {
       margin: 0 0 0.75em;
-      &:last-child { margin-bottom: 0; }
+      &:last-child {
+        margin-bottom: 0;
+      }
     }
 
-    h1, h2, h3, h4 {
+    h1,
+    h2,
+    h3,
+    h4 {
       color: var(--text);
       font-weight: 600;
       margin: 1em 0 0.4em;
-      &:first-child { margin-top: 0; }
+      &:first-child {
+        margin-top: 0;
+      }
     }
-    h1 { font-size: 18px; }
-    h2 { font-size: 16px; }
-    h3, h4 { font-size: 15px; }
+    h1 {
+      font-size: 18px;
+    }
+    h2 {
+      font-size: 16px;
+    }
+    h3,
+    h4 {
+      font-size: 15px;
+    }
 
     a {
       color: var(--accent);
       text-decoration: none;
-      &:hover { text-decoration: underline; }
+      &:hover {
+        text-decoration: underline;
+      }
     }
 
-    ul, ol {
+    ul,
+    ol {
       margin: 0 0 0.75em 1.4em;
       padding: 0;
-      li { margin-bottom: 0.2em; }
+      li {
+        margin-bottom: 0.2em;
+      }
     }
 
     code {
@@ -583,7 +602,10 @@
       padding: 10px 12px;
       overflow-x: auto;
       margin: 0 0 0.75em;
-      code { background: none; padding: 0; }
+      code {
+        background: none;
+        padding: 0;
+      }
     }
 
     img {

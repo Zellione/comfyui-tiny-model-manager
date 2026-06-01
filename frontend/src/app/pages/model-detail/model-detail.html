@@ -1,252 +1,257 @@
 <div class="page">
-<!-- Header bar -->
-<div class="detail-back">
-  <a routerLink="/models" class="btn ghost">← Back to Models</a>
-  <span class="crumbs">
-    <span>Installed</span>
-    <span class="crumb-sep">/</span>
-    <span>{{ modelType }}</span>
-    <span class="crumb-sep">/</span>
-    <span class="crumb-active">{{ modelBasename }}</span>
-  </span>
-  <span class="spacer"></span>
-  @if (!editMode() && !showUninstallConfirm()) {
-    <button class="btn ghost" (click)="refetch()" [disabled]="refetching()">
-      {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
-    </button>
-    <button class="btn ghost" (click)="enterEdit()">Edit</button>
-  }
-  @if (!showUninstallConfirm()) {
-    <button class="btn danger-ghost" (click)="showUninstallConfirm.set(true)">Uninstall</button>
-  }
-</div>
+  <!-- Header bar -->
+  <div class="detail-back">
+    <a routerLink="/models" class="btn ghost">← Back to Models</a>
+    <span class="crumbs">
+      <span>Installed</span>
+      <span class="crumb-sep">/</span>
+      <span>{{ modelType }}</span>
+      <span class="crumb-sep">/</span>
+      <span class="crumb-active">{{ modelBasename }}</span>
+    </span>
+    <span class="spacer"></span>
+    @if (!editMode() && !showUninstallConfirm()) {
+      <button class="btn ghost" (click)="refetch()" [disabled]="refetching()">
+        {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
+      </button>
+      <button class="btn ghost" (click)="enterEdit()">Edit</button>
+    }
+    @if (!showUninstallConfirm()) {
+      <button class="btn danger-ghost" (click)="showUninstallConfirm.set(true)">Uninstall</button>
+    }
+  </div>
 
-<!-- Loading / error states -->
-@if (loading()) {
-  <div class="detail-card state-card"><p>Loading metadata…</p></div>
-} @else if (error()) {
-  <div class="detail-card state-card"><p class="error-msg">{{ error() }}</p></div>
-} @else if (meta()) {
-
-  <!-- Uninstall confirmation banner -->
-  @if (showUninstallConfirm()) {
-    <div class="uninstall-banner">
-      <span>Remove <strong>{{ modelBasename }}</strong> from disk? This cannot be undone.</span>
-      <div class="uninstall-actions">
-        <button class="btn small ghost" (click)="showUninstallConfirm.set(false)">Cancel</button>
-        <button class="btn small danger" (click)="uninstall()" [disabled]="deleting()">
-          {{ deleting() ? 'Removing…' : 'Yes, uninstall' }}
-        </button>
-      </div>
+  <!-- Loading / error states -->
+  @if (loading()) {
+    <div class="detail-card state-card"><p>Loading metadata…</p></div>
+  } @else if (error()) {
+    <div class="detail-card state-card">
+      <p class="error-msg">{{ error() }}</p>
     </div>
-  }
-
-  <div class="detail-card">
-    <!-- Card header -->
-    <div class="dl-detail-head">
-      <div>
-        @if (eyebrowParts().length > 0) {
-          <div class="detail-eyebrow">
-            @for (part of eyebrowParts(); track part; let last = $last) {
-              <span>{{ part }}</span>
-              @if (!last) { <span class="dot"></span> }
-            }
-          </div>
-        }
-        <h2 class="detail-title" [title]="modelPath">{{ modelBasename }}</h2>
-      </div>
-      <span class="dl-detail-spacer"></span>
-      @if (meta()!.source_url) {
-        <a [href]="meta()!.source_url" target="_blank" rel="noopener" class="dl-detail-source">
-          View on {{ sourceName() }} ↗
-        </a>
-      }
-    </div>
-
-    @if (!editMode()) {
-      <!-- ── Read view ── -->
-
-      <!-- Gallery -->
-      <div class="gallery">
-        @if (meta()!.media && meta()!.media.length > 0) {
-          <div class="gallery-main">
-            @if (activeMedia(); as m) {
-              @if (m.media_type === 'image') {
-                <img
-                  [src]="mediaUrl(m.local_path)"
-                  alt="preview"
-                  class="gallery-main-img"
-                  (click)="lightboxOpen.set(true)"
-                />
-              } @else {
-                <video [src]="mediaUrl(m.local_path)" controls></video>
-              }
-            }
-          </div>
-          @if (meta()!.media.length > 1) {
-            <div class="gallery-thumbs">
-              @for (thumb of meta()!.media; track thumb.id; let i = $index) {
-                <div
-                  class="gallery-thumb"
-                  [class.active]="i === galleryIdx()"
-                  (click)="galleryIdx.set(i)"
-                >
-                  @if (thumb.media_type === 'image') {
-                    <img [src]="mediaUrl(thumb.local_path)" alt="" />
-                  } @else {
-                    <div class="gallery-thumb-video">▶</div>
-                  }
-                </div>
-              }
-            </div>
-          }
-        } @else {
-          <div class="gallery-main gallery-placeholder">NO PREVIEW</div>
-        }
-      </div>
-
-      <!-- Tags -->
-      @if (meta()!.tags && meta()!.tags.length > 0) {
-        <div class="dl-tags">
-          <span class="dl-tags-label">Tags</span>
-          @for (t of meta()!.tags; track t) {
-            <span class="tag">{{ t }}</span>
-          }
-        </div>
-      }
-
-      <!-- Trigger keywords -->
-      <div class="detail-section">
-        @if (meta()!.trigger_words && meta()!.trigger_words.length > 0) {
-          <div class="keywords-row">
-            <div class="keywords-label">Trigger keywords</div>
-            <div class="keywords-line" (click)="copyTriggerWords()">
-              <code>{{ meta()!.trigger_words.join(', ') }}</code>
-              <button
-                class="btn small ghost keywords-copy"
-                (click)="$event.stopPropagation(); copyTriggerWords()"
-              >
-                {{ copied() ? '✓ Copied' : 'Copy' }}
-              </button>
-            </div>
-            <div class="keywords-chips">
-              @for (w of meta()!.trigger_words; track w) {
-                <span class="tag accent">{{ w }}</span>
-              }
-            </div>
-          </div>
-        } @else {
-          <div class="keywords-row empty">
-            <div class="keywords-label">Trigger keywords</div>
-            <div class="keywords-empty">No trigger words for this model</div>
-          </div>
-        }
-      </div>
-
-      <!-- Files in this model -->
-      <div class="versions">
-        <div class="versions-title">Files in this model</div>
-        <div class="iv-row">
-          <div class="iv-status ok">✓</div>
-          <div class="iv-row-main">
-            <div class="iv-row-title">
-              <span class="version-name">{{ modelBasename }}</span>
-              <span class="pill ok">Downloaded</span>
-            </div>
-            @if (modelPath.includes('/')) {
-              <div class="iv-row-file">{{ modelPath }}</div>
-            }
-            @if (meta()!.size_bytes) {
-              <div class="iv-row-meta">
-                <span>{{ formatBytes(meta()!.size_bytes) }}</span>
-              </div>
-            }
-          </div>
-        </div>
-      </div>
-
-      <!-- About this model -->
-      @if (meta()!.description) {
-        <div class="description">
-          <h3>About this model</h3>
-          <div class="description-body" [innerHTML]="meta()!.description | safeHtml"></div>
-        </div>
-      }
-    } @else {
-      <!-- ── Edit view ── -->
-      <div class="edit-panel">
-        <label>
-          <span class="field-label">Description</span>
-          <textarea [(ngModel)]="editMeta.description" rows="6"></textarea>
-        </label>
-
-        <label>
-          <span class="field-label">Model Type</span>
-          <select [(ngModel)]="editType">
-            @for (t of modelTypes(); track t) {
-              <option [value]="t">{{ t }}</option>
-            }
-          </select>
-        </label>
-
-        <label>
-          <span class="field-label">Base Model</span>
-          <input
-            type="text"
-            [(ngModel)]="editMeta.base_model"
-            placeholder="e.g. SDXL 1.0, Flux.1 D, Pony"
-          />
-        </label>
-
-        <div class="field-group">
-          <span class="field-label">Trigger Words</span>
-          <div class="chips">
-            @for (w of editMeta.trigger_words; track w) {
-              <span class="chip">{{ w }}<button (click)="removeTriggerWord(w)">×</button></span>
-            }
-          </div>
-          <div class="add-row">
-            <input
-              [(ngModel)]="newTriggerWord"
-              placeholder="Add trigger word"
-              (keyup.enter)="addTriggerWord()"
-            />
-            <button class="btn small" (click)="addTriggerWord()">Add</button>
-          </div>
-        </div>
-
-        <div class="field-group">
-          <span class="field-label">Tags</span>
-          <div class="chips">
-            @for (t of editMeta.tags; track t) {
-              <span class="chip chip-tag">{{ t }}<button (click)="removeTag(t)">×</button></span>
-            }
-          </div>
-          <div class="add-row">
-            <input [(ngModel)]="newTag" placeholder="Add tag" (keyup.enter)="addTag()" />
-            <button class="btn small" (click)="addTag()">Add</button>
-          </div>
-        </div>
-
-        <div class="edit-actions">
-          <button class="btn primary" (click)="save()" [disabled]="saving()">
-            {{ saving() ? 'Saving…' : 'Save' }}
+  } @else if (meta()) {
+    <!-- Uninstall confirmation banner -->
+    @if (showUninstallConfirm()) {
+      <div class="uninstall-banner">
+        <span
+          >Remove <strong>{{ modelBasename }}</strong> from disk? This cannot be undone.</span
+        >
+        <div class="uninstall-actions">
+          <button class="btn small ghost" (click)="showUninstallConfirm.set(false)">Cancel</button>
+          <button class="btn small danger" (click)="uninstall()" [disabled]="deleting()">
+            {{ deleting() ? 'Removing…' : 'Yes, uninstall' }}
           </button>
-          <button class="btn ghost" (click)="cancelEdit()">Cancel</button>
-          <button class="btn ghost" (click)="refetch()" [disabled]="refetching()">
-            {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
-          </button>
-          <button class="btn-workflow" (click)="addToWorkflow()">Add to Workflow</button>
         </div>
       </div>
     }
-  </div>
-}
 
-<!-- Lightbox -->
-@if (lightboxOpen() && activeMedia()?.media_type === 'image') {
-  <div class="lightbox" (click)="lightboxOpen.set(false)">
-    <img [src]="mediaUrl(activeMedia()!.local_path)" alt="full size preview" />
-  </div>
-}
+    <div class="detail-card">
+      <!-- Card header -->
+      <div class="dl-detail-head">
+        <div>
+          @if (eyebrowParts().length > 0) {
+            <div class="detail-eyebrow">
+              @for (part of eyebrowParts(); track part; let last = $last) {
+                <span>{{ part }}</span>
+                @if (!last) {
+                  <span class="dot"></span>
+                }
+              }
+            </div>
+          }
+          <h2 class="detail-title" [title]="modelPath">{{ modelBasename }}</h2>
+        </div>
+        <span class="dl-detail-spacer"></span>
+        @if (meta()!.source_url) {
+          <a [href]="meta()!.source_url" target="_blank" rel="noopener" class="dl-detail-source">
+            View on {{ sourceName() }} ↗
+          </a>
+        }
+      </div>
+
+      @if (!editMode()) {
+        <!-- ── Read view ── -->
+
+        <!-- Gallery -->
+        <div class="gallery">
+          @if (meta()!.media && meta()!.media.length > 0) {
+            <div class="gallery-main">
+              @if (activeMedia(); as m) {
+                @if (m.media_type === 'image') {
+                  <img
+                    [src]="mediaUrl(m.local_path)"
+                    alt="preview"
+                    class="gallery-main-img"
+                    (click)="lightboxOpen.set(true)"
+                  />
+                } @else {
+                  <video [src]="mediaUrl(m.local_path)" controls></video>
+                }
+              }
+            </div>
+            @if (meta()!.media.length > 1) {
+              <div class="gallery-thumbs">
+                @for (thumb of meta()!.media; track thumb.id; let i = $index) {
+                  <div
+                    class="gallery-thumb"
+                    [class.active]="i === galleryIdx()"
+                    (click)="galleryIdx.set(i)"
+                  >
+                    @if (thumb.media_type === 'image') {
+                      <img [src]="mediaUrl(thumb.local_path)" alt="" />
+                    } @else {
+                      <div class="gallery-thumb-video">▶</div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          } @else {
+            <div class="gallery-main gallery-placeholder">NO PREVIEW</div>
+          }
+        </div>
+
+        <!-- Tags -->
+        @if (meta()!.tags && meta()!.tags.length > 0) {
+          <div class="dl-tags">
+            <span class="dl-tags-label">Tags</span>
+            @for (t of meta()!.tags; track t) {
+              <span class="tag">{{ t }}</span>
+            }
+          </div>
+        }
+
+        <!-- Trigger keywords -->
+        <div class="detail-section">
+          @if (meta()!.trigger_words && meta()!.trigger_words.length > 0) {
+            <div class="keywords-row">
+              <div class="keywords-label">Trigger keywords</div>
+              <div class="keywords-line" (click)="copyTriggerWords()">
+                <code>{{ meta()!.trigger_words.join(', ') }}</code>
+                <button
+                  class="btn small ghost keywords-copy"
+                  (click)="$event.stopPropagation(); copyTriggerWords()"
+                >
+                  {{ copied() ? '✓ Copied' : 'Copy' }}
+                </button>
+              </div>
+              <div class="keywords-chips">
+                @for (w of meta()!.trigger_words; track w) {
+                  <span class="tag accent">{{ w }}</span>
+                }
+              </div>
+            </div>
+          } @else {
+            <div class="keywords-row empty">
+              <div class="keywords-label">Trigger keywords</div>
+              <div class="keywords-empty">No trigger words for this model</div>
+            </div>
+          }
+        </div>
+
+        <!-- Files in this model -->
+        <div class="versions">
+          <div class="versions-title">Files in this model</div>
+          <div class="iv-row">
+            <div class="iv-status ok">✓</div>
+            <div class="iv-row-main">
+              <div class="iv-row-title">
+                <span class="version-name">{{ modelBasename }}</span>
+                <span class="pill ok">Downloaded</span>
+              </div>
+              @if (modelPath.includes('/')) {
+                <div class="iv-row-file">{{ modelPath }}</div>
+              }
+              @if (meta()!.size_bytes) {
+                <div class="iv-row-meta">
+                  <span>{{ formatBytes(meta()!.size_bytes) }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- About this model -->
+        @if (meta()!.description) {
+          <div class="description">
+            <h3>About this model</h3>
+            <div class="description-body" [innerHTML]="meta()!.description | safeHtml"></div>
+          </div>
+        }
+      } @else {
+        <!-- ── Edit view ── -->
+        <div class="edit-panel">
+          <label>
+            <span class="field-label">Description</span>
+            <textarea [(ngModel)]="editMeta.description" rows="6"></textarea>
+          </label>
+
+          <label>
+            <span class="field-label">Model Type</span>
+            <select [(ngModel)]="editType">
+              @for (t of modelTypes(); track t) {
+                <option [value]="t">{{ t }}</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            <span class="field-label">Base Model</span>
+            <input
+              type="text"
+              [(ngModel)]="editMeta.base_model"
+              placeholder="e.g. SDXL 1.0, Flux.1 D, Pony"
+            />
+          </label>
+
+          <div class="field-group">
+            <span class="field-label">Trigger Words</span>
+            <div class="chips">
+              @for (w of editMeta.trigger_words; track w) {
+                <span class="chip">{{ w }}<button (click)="removeTriggerWord(w)">×</button></span>
+              }
+            </div>
+            <div class="add-row">
+              <input
+                [(ngModel)]="newTriggerWord"
+                placeholder="Add trigger word"
+                (keyup.enter)="addTriggerWord()"
+              />
+              <button class="btn small" (click)="addTriggerWord()">Add</button>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <span class="field-label">Tags</span>
+            <div class="chips">
+              @for (t of editMeta.tags; track t) {
+                <span class="chip chip-tag">{{ t }}<button (click)="removeTag(t)">×</button></span>
+              }
+            </div>
+            <div class="add-row">
+              <input [(ngModel)]="newTag" placeholder="Add tag" (keyup.enter)="addTag()" />
+              <button class="btn small" (click)="addTag()">Add</button>
+            </div>
+          </div>
+
+          <div class="edit-actions">
+            <button class="btn primary" (click)="save()" [disabled]="saving()">
+              {{ saving() ? 'Saving…' : 'Save' }}
+            </button>
+            <button class="btn ghost" (click)="cancelEdit()">Cancel</button>
+            <button class="btn ghost" (click)="refetch()" [disabled]="refetching()">
+              {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
+            </button>
+            <button class="btn-workflow" (click)="addToWorkflow()">Add to Workflow</button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Lightbox -->
+  @if (lightboxOpen() && activeMedia()?.media_type === 'image') {
+    <div class="lightbox" (click)="lightboxOpen.set(false)">
+      <img [src]="mediaUrl(activeMedia()!.local_path)" alt="full size preview" />
+    </div>
+  }
 </div>
