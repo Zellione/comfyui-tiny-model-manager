@@ -49,6 +49,7 @@ export class ModelDetail implements OnInit {
   lightboxOpen = signal(false);
   repoFiles = signal<RepoFile[]>([]);
   fileBaseModels = signal<Record<string, string>>({});
+  pendingDeleteFile = signal<RepoFile | null>(null);
   downloadingFiles = signal<Set<string>>(new Set());
   catalogEntry = signal<CatalogEntryDetail | null>(null);
   linkSourceUrl = signal('');
@@ -332,6 +333,7 @@ export class ModelDetail implements OnInit {
     const path = file.installed_path || file.filename;
     this.modelService.deleteModel(this.modelType, path).subscribe({
       next: () => {
+        this.pendingDeleteFile.set(null);
         this.notifService.show('success', `${file.filename} deleted.`);
         this.loadRepoFiles();
       },

@@ -309,7 +309,7 @@ describe('ModelDetail', () => {
   });
 
   describe('deleteFile', () => {
-    it('deletes sibling file and reloads repo files', () => {
+    it('deletes file and reloads repo files on confirm', () => {
       const file = makeRepoFile({ is_downloaded: true, installed_path: 'companion.safetensors' });
       component.deleteFile(file);
       expect(mockModelService.deleteModel).toHaveBeenCalledWith('loras', 'companion.safetensors');
@@ -317,11 +317,17 @@ describe('ModelDetail', () => {
       expect(mockModelService.getRepoFiles).toHaveBeenCalled();
     });
 
-    it('reloads repo files when deleting the currently viewed file', () => {
+    it('clears pendingDeleteFile after successful delete', () => {
+      const file = makeRepoFile({ is_downloaded: true, installed_path: 'companion.safetensors' });
+      component.pendingDeleteFile.set(file);
+      component.deleteFile(file);
+      expect(component.pendingDeleteFile()).toBeNull();
+    });
+
+    it('does not navigate away even when deleting the currently viewed file', () => {
       component.modelPath = 'companion.safetensors';
       const file = makeRepoFile({ is_downloaded: true, installed_path: 'companion.safetensors' });
       component.deleteFile(file);
-      expect(mockModelService.getRepoFiles).toHaveBeenCalled();
       expect(router.navigate).not.toHaveBeenCalled();
     });
   });

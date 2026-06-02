@@ -204,10 +204,20 @@
                     </div>
                   </div>
                   <div class="iv-row-actions">
-                    <button class="btn small ghost" (click)="addFileToWorkflow(f)">
-                      Add to Workflow
-                    </button>
-                    <button class="btn small danger-ghost" (click)="deleteFile(f)">Delete</button>
+                    @if (pendingDeleteFile()?.filename === f.filename) {
+                      <span class="iv-delete-confirm-label">Delete {{ f.filename }}?</span>
+                      <button class="btn small ghost" (click)="pendingDeleteFile.set(null)">
+                        Cancel
+                      </button>
+                      <button class="btn small danger" (click)="deleteFile(f)">Yes, delete</button>
+                    } @else {
+                      <button class="btn small ghost" (click)="addFileToWorkflow(f)">
+                        Add to Workflow
+                      </button>
+                      <button class="btn small danger-ghost" (click)="pendingDeleteFile.set(f)">
+                        Delete
+                      </button>
+                    }
                   </div>
                 </div>
               } @else {
