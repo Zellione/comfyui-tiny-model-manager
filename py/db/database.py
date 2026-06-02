@@ -231,18 +231,18 @@ async def _migrate_db():
         try:
             await db.execute(
                 "INSERT OR IGNORE INTO catalog_entries"
-                " (source_platform, source_page_id, source_page_url, base_model)"
+                " (source_platform, source_page_id, source_page_url, display_name, thumbnail_url, base_model)"
                 " SELECT 'civitai', civitai_model_id,"
-                "        'https://civitai.com/models/' || civitai_model_id, base_model"
+                "        'https://civitai.com/models/' || civitai_model_id, '', '', base_model"
                 " FROM models"
                 " WHERE source_platform = 'civitai'"
                 "   AND civitai_model_id IS NOT NULL AND civitai_model_id != ''"
             )
             await db.execute(
                 "INSERT OR IGNORE INTO catalog_entries"
-                " (source_platform, source_page_id, source_page_url, base_model)"
+                " (source_platform, source_page_id, source_page_url, display_name, thumbnail_url, base_model)"
                 " SELECT 'huggingface', source_id,"
-                "        'https://huggingface.co/' || source_id, base_model"
+                "        'https://huggingface.co/' || source_id, '', '', base_model"
                 " FROM models"
                 " WHERE source_platform = 'huggingface'"
                 "   AND source_id IS NOT NULL AND source_id != ''"
