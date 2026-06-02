@@ -557,8 +557,8 @@ async def get_repo_files(_model_type: str, model_path: str) -> list[dict]:
         return [dict(r) for r in rows]
 
 
-async def get_installed_basenames_for_model(model_path: str) -> dict[str, str]:
-    """Return {basename: installed_filename} for all models sharing the same catalog entry."""
+async def get_installed_basenames_for_model(model_path: str) -> dict[str, dict]:
+    """Return {basename: {installed_path, base_model}} for all models sharing the same catalog entry."""
     async with get_db() as db:
         row = await (
             await db.execute(
@@ -570,11 +570,44 @@ async def get_installed_basenames_for_model(model_path: str) -> dict[str, str]:
             return {}
         installed = await (
             await db.execute(
-                "SELECT filename FROM models WHERE catalog_entry_id = ?",
+                "SELECT filename, base_model FROM models WHERE catalog_entry_id = ?",
                 (row["catalog_entry_id"],),
             )
         ).fetchall()
-        return {os.path.basename(r["filename"]): r["filename"] for r in installed}
+        return {
+            os.path.basename(r["filename"]): {
+                "installed_path": r["filename"],
+                "base_model": r["base_model"] or "",
+            }
+            for r in installed
+        }
+
+
+async def get_effective_base_model(filename: str) -> str:
+    """Return base_model from models row, falling back to catalog_entries.base_model."""
+    async with get_db() as db:
+        row = await (
+            await db.execute(
+                """
+                SELECT COALESCE(NULLIF(m.base_model, ''), NULLIF(ce.base_model, ''), '') AS base_model
+                FROM models m
+                LEFT JOIN catalog_entries ce ON m.catalog_entry_id = ce.id
+                WHERE m.filename = ?
+                """,
+                (filename,),
+            )
+        ).fetchone()
+        return row["base_model"] if row else ""
+
+
+async def update_model_base_model(filename: str, base_model: str) -> None:
+    """Set base_model on a models row only when it is currently empty."""
+    async with get_db() as db:
+        await db.execute(
+            "UPDATE models SET base_model = ? WHERE filename = ? AND (base_model IS NULL OR base_model = '')",
+            (base_model, filename),
+        )
+        await db.commit()
 
 
 async def delete_model_record(filename: str) -> None:

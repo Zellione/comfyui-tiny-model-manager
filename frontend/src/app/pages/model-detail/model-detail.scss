@@ -781,3 +781,37 @@ label {
   padding-top: 6px;
   border-top: 1px solid var(--border);
 }
+
+// ── Edit-view file rows ───────────────────────────────────────────────────────
+
+.edit-file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.edit-file-name {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &.missing {
+    opacity: 0.5;
+  }
+}
+
+.edit-file-base-model {
+  flex: 0 0 200px;
+  font-size: 13px;
+}

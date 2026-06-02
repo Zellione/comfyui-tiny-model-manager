@@ -38,6 +38,7 @@ export interface RepoFile {
   is_downloaded: boolean;
   added_at: number | null;
   installed_path: string;
+  base_model: string;
 }
 
 export interface InstalledFile {

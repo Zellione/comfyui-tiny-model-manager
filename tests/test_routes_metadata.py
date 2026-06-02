@@ -389,8 +389,52 @@ class TestGetRepoFiles:
         q4 = next(d for d in data if d["filename"] == "model-q4.safetensors")
         assert fp16["is_downloaded"] is True  # in models table → DB check succeeds
         assert fp16["installed_path"] == "model-fp16.safetensors"
+        assert fp16["base_model"] == ""
         assert q4["is_downloaded"] is False  # not in models table, not on disk
         assert q4["installed_path"] == ""
+        assert q4["base_model"] == ""
+
+    async def test_base_model_returned_for_downloaded_sibling(self, client, ext_dir):
+        from py.db import model_repo
+
+        entry_id = await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id="my-lora.safetensors",
+            source_page_url="https://civitai.com/models/1",
+            display_name="Test",
+            thumbnail_url="",
+            base_model="",
+        )
+        await model_repo.upsert_model_with_meta(
+            "model-fp16.safetensors",
+            "loras",
+            "civitai",
+            "100",
+            "",
+            [],
+            [],
+            base_model="Flux.1 D",
+        )
+        await model_repo.set_model_catalog_entry("model-fp16.safetensors", entry_id)
+        await model_repo.upsert_model("my-lora.safetensors", "loras", "civitai", "100", "")
+        await model_repo.set_model_catalog_entry("my-lora.safetensors", entry_id)
+        files = [
+            {
+                "filename": "model-fp16.safetensors",
+                "size_bytes": 4096,
+                "download_url": "https://example.com/fp16",
+                "source_page_url": "https://civitai.com/models/1",
+            },
+        ]
+        await model_repo.upsert_repo_files(entry_id, "loras", files)
+
+        resp = await client.get(
+            "/tiny-model-manager/api/models/loras/my-lora.safetensors/repo-files"
+        )
+        data = (await resp.json())["data"]
+        fp16 = next(d for d in data if d["filename"] == "model-fp16.safetensors")
+        assert fp16["is_downloaded"] is True
+        assert fp16["base_model"] == "Flux.1 D"
 
 
 class TestLinkSource:

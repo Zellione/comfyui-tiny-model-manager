@@ -29,6 +29,7 @@ const makeRepoFile = (overrides: Partial<RepoFile> = {}): RepoFile => ({
   is_downloaded: false,
   added_at: null,
   installed_path: '',
+  base_model: '',
   ...overrides,
 });
 

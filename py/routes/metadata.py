@@ -224,19 +224,23 @@ def add_metadata_routes(routes):
                 if ext not in _MODEL_EXTENSIONS:
                     continue
                 basename = os.path.basename(f["filename"])
-                db_path = installed_map.get(basename, "")
+                db_info = installed_map.get(basename, {})
+                db_path = db_info.get("installed_path", "")
                 fs_check = _file_exists_on_disk(
                     model_type, model_dir, f["filename"]
                 ) or _file_exists_on_disk(model_type, "", basename)
                 f["is_downloaded"] = bool(db_path) or fs_check
                 if db_path:
                     f["installed_path"] = db_path
+                    f["base_model"] = db_info.get("base_model", "")
                 elif fs_check:
                     f["installed_path"] = (
                         os.path.join(model_dir, basename) if model_dir else basename
                     )
+                    f["base_model"] = ""
                 else:
                     f["installed_path"] = ""
+                    f["base_model"] = ""
                 f["added_at"] = _get_file_mtime(
                     model_type, model_dir, f["filename"]
                 ) or _get_file_mtime(model_type, "", basename)

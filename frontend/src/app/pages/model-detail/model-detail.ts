@@ -48,6 +48,7 @@ export class ModelDetail implements OnInit {
   copied = signal(false);
   lightboxOpen = signal(false);
   repoFiles = signal<RepoFile[]>([]);
+  fileBaseModels = signal<Record<string, string>>({});
   downloadingFiles = signal<Set<string>>(new Set());
   catalogEntry = signal<CatalogEntryDetail | null>(null);
   linkSourceUrl = signal('');
@@ -132,7 +133,18 @@ export class ModelDetail implements OnInit {
     this.modelService
       .getRepoFiles(this.modelType, this.modelPath)
       .pipe(catchError(() => of([] as RepoFile[])))
-      .subscribe((files) => this.repoFiles.set(files));
+      .subscribe((files) => {
+        this.repoFiles.set(files);
+        const bm: Record<string, string> = {};
+        for (const f of files) {
+          if (f.is_downloaded) bm[f.filename] = f.base_model ?? '';
+        }
+        this.fileBaseModels.set(bm);
+      });
+  }
+
+  setFileBaseModel(filename: string, value: string) {
+    this.fileBaseModels.update((m) => ({ ...m, [filename]: value }));
   }
 
   private loadCatalogEntry(m: ModelMeta) {
@@ -213,6 +225,7 @@ export class ModelDetail implements OnInit {
         next: () => {
           this.saving.set(false);
           this.notifService.show('success', 'Metadata saved.');
+          this.saveSiblingBaseModels();
           if (typeChanged) {
             this.router.navigate(['/models', this.modelType, this.modelPath]);
           } else {
@@ -252,6 +265,18 @@ export class ModelDetail implements OnInit {
         this.notifService.show('error', (err as Error).message);
       },
     });
+  }
+
+  private saveSiblingBaseModels() {
+    const edits = this.fileBaseModels();
+    for (const f of this.repoFiles()) {
+      if (!f.is_downloaded) continue;
+      const newVal = edits[f.filename];
+      if (newVal === undefined || newVal === f.base_model) continue;
+      const path = f.installed_path || f.filename;
+      if (path === this.modelPath) continue; // current file is saved by the main save()
+      this.modelService.updateMetadata(f.model_type, path, { base_model: newVal }).subscribe();
+    }
   }
 
   addToWorkflow() {
