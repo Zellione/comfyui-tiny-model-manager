@@ -1,9 +1,18 @@
-import { Component, HostListener, OnInit, computed, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  HostListener,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { of } from 'rxjs';
-import { catchError, switchMap } from 'rxjs/operators';
+import { catchError, filter, switchMap } from 'rxjs/operators';
 import { ModelService, ModelMeta, RepoFile, CatalogEntryDetail } from '../../services/model';
 import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
@@ -73,6 +82,8 @@ export class ModelDetail implements OnInit {
     return 'source';
   });
 
+  private destroyRef = inject(DestroyRef);
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -88,6 +99,12 @@ export class ModelDetail implements OnInit {
     this.editType = this.modelType;
     this.modelService.getModelTypes().subscribe((types) => this.modelTypes.set(types));
     this.loadMeta();
+    this.downloadService.completedTasks$
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        filter((t) => t.status === 'done'),
+      )
+      .subscribe(() => this.loadRepoFiles());
   }
 
   loadMeta() {
@@ -263,9 +280,16 @@ export class ModelDetail implements OnInit {
       : '';
     const destFilename = dir + file.filename;
     const platform = this.meta()?.source_platform ?? '';
+    let sourceId = '';
+    if (platform === 'civitai') {
+      const m = file.download_url.match(/\/api\/download\/models\/(\d+)/);
+      sourceId = m?.[1] ?? '';
+    } else if (platform === 'huggingface') {
+      sourceId = this.catalogEntry()?.source_page_id ?? '';
+    }
     this.downloadingFiles.update((s) => new Set(s).add(file.filename));
     this.downloadService
-      .startDownload(file.download_url, this.modelType, destFilename, platform)
+      .startDownload(file.download_url, this.modelType, destFilename, platform, sourceId)
       .subscribe({
         next: () => {
           this.notifService.show('success', `Downloading ${file.filename}…`);

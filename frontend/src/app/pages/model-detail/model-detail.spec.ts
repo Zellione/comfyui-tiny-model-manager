@@ -24,7 +24,7 @@ const makeRepoFile = (overrides: Partial<RepoFile> = {}): RepoFile => ({
   filename: 'companion.safetensors',
   model_type: 'loras',
   size_bytes: 1048576,
-  download_url: 'https://example.com/companion',
+  download_url: 'https://civitai.com/api/download/models/99999?token=abc',
   source_page_url: 'https://civitai.com/models/1',
   is_downloaded: false,
   added_at: null,
@@ -242,10 +242,60 @@ describe('ModelDetail', () => {
       const file = makeRepoFile();
       component.downloadFile(file);
       expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
-        'https://example.com/companion',
+        'https://civitai.com/api/download/models/99999?token=abc',
         'loras',
         'companion.safetensors',
         'civitai',
+        '99999',
+      );
+    });
+
+    it('extracts CivitAI version_id from download_url as source_id', () => {
+      component.modelPath = 'my-lora.safetensors';
+      component.downloadFile(
+        makeRepoFile({ download_url: 'https://civitai.com/api/download/models/12345' }),
+      );
+      expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
+        expect.any(String),
+        'loras',
+        'companion.safetensors',
+        'civitai',
+        '12345',
+      );
+    });
+
+    it('uses catalog entry source_page_id as source_id for huggingface', () => {
+      component.meta.set(
+        makeMeta({
+          source_platform: 'huggingface',
+          source_url: 'https://huggingface.co/user/repo',
+        }),
+      );
+      component.catalogEntry.set({
+        id: 1,
+        source_platform: 'huggingface',
+        source_page_id: 'user/repo',
+        source_page_url: '',
+        display_name: '',
+        thumbnail_url: '',
+        base_model: '',
+        created_at: '',
+        model_type: 'loras',
+        is_empty: false,
+        installed_files: [],
+        repo_files: [],
+      } as CatalogEntryDetail);
+      component.downloadFile(
+        makeRepoFile({
+          download_url: 'https://huggingface.co/user/repo/resolve/main/model.safetensors',
+        }),
+      );
+      expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
+        expect.any(String),
+        'loras',
+        'companion.safetensors',
+        'huggingface',
+        'user/repo',
       );
     });
 
@@ -254,10 +304,11 @@ describe('ModelDetail', () => {
       const file = makeRepoFile();
       component.downloadFile(file);
       expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
-        'https://example.com/companion',
+        'https://civitai.com/api/download/models/99999?token=abc',
         'loras',
         'sdxl/companion.safetensors',
         'civitai',
+        '99999',
       );
     });
 
