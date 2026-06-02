@@ -249,7 +249,7 @@ async def _migrate_db():
             )
             # Populate thumbnail_url from first image in model_media
             await db.execute(
-                "UPDATE catalog_entries SET thumbnail_url = ("
+                "UPDATE catalog_entries SET thumbnail_url = COALESCE(("
                 "  SELECT mm.local_path"
                 "  FROM model_media mm"
                 "  JOIN models m ON mm.model_id = m.id"
@@ -264,7 +264,7 @@ async def _migrate_db():
                 "       AND m.source_id = catalog_entries.source_page_id)"
                 "    )"
                 "  LIMIT 1"
-                ") WHERE thumbnail_url = ''"
+                "), '') WHERE thumbnail_url = ''"
             )
             # Link models rows to their catalog entries
             await db.execute(
