@@ -285,8 +285,8 @@ export class ModelDetail implements OnInit {
     this.modelService.linkSource(this.modelType, this.modelPath, url).subscribe({
       next: () => {
         this.linking.set(false);
-        this.notifService.show('success', 'Source linked. Reloading…');
-        this.loadMeta();
+        this.notifService.show('success', 'Source linked.');
+        this.router.navigate(['/models']);
       },
       error: (err) => {
         this.linking.set(false);

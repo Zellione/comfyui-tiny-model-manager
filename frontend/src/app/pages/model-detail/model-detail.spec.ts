@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { EMPTY, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { ModelDetail } from './model-detail';
@@ -54,6 +54,7 @@ const mockNotifService = { show: vi.fn() };
 
 describe('ModelDetail', () => {
   let component: ModelDetail;
+  let router: Router;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -69,6 +70,8 @@ describe('ModelDetail', () => {
     }).compileComponents();
     const fixture = TestBed.createComponent(ModelDetail);
     component = fixture.componentInstance;
+    router = TestBed.inject(Router);
+    vi.spyOn(router, 'navigate').mockResolvedValue(true);
     component.modelType = 'loras';
     component.modelPath = 'my-lora.safetensors';
     component.editType = 'loras';
@@ -264,11 +267,11 @@ describe('ModelDetail', () => {
       expect(mockModelService.linkSource).not.toHaveBeenCalled();
     });
 
-    it('shows success notification and reloads on success', () => {
+    it('shows success notification and navigates to /models on success', () => {
       component.linkSourceUrl.set('https://civitai.com/models/42');
       component.linkSource();
       expect(mockNotifService.show).toHaveBeenCalledWith('success', expect.any(String));
-      expect(mockModelService.getMetadata).toHaveBeenCalled();
+      expect(router.navigate).toHaveBeenCalledWith(['/models']);
     });
 
     it('sets linkSourceError on failure', () => {
