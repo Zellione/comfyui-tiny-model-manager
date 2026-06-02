@@ -295,12 +295,28 @@
             </select>
           </label>
 
+          <datalist id="base-model-opts">
+            <option value="SD 1.5"></option>
+            <option value="SD 2.1"></option>
+            <option value="SDXL 1.0"></option>
+            <option value="Pony"></option>
+            <option value="Flux.1 D"></option>
+            <option value="Flux.1 S"></option>
+            <option value="SD 3.5"></option>
+            <option value="SD 3.5 Large"></option>
+            <option value="Illustrious XL"></option>
+            <option value="NoobAI XL"></option>
+            <option value="Hunyuan Video"></option>
+          </datalist>
+
           <label>
             <span class="field-label">Base Model</span>
             <input
               type="text"
+              list="base-model-opts"
               [(ngModel)]="editMeta.base_model"
               placeholder="e.g. SDXL 1.0, Flux.1 D, Pony"
+              (click)="$any($event.target).select()"
             />
           </label>
 
@@ -338,19 +354,6 @@
           @if (repoFiles().length > 0) {
             <div class="field-group">
               <span class="field-label">Files in this model</span>
-              <datalist id="base-model-opts">
-                <option value="SD 1.5"></option>
-                <option value="SD 2.1"></option>
-                <option value="SDXL 1.0"></option>
-                <option value="Pony"></option>
-                <option value="Flux.1 D"></option>
-                <option value="Flux.1 S"></option>
-                <option value="SD 3.5"></option>
-                <option value="SD 3.5 Large"></option>
-                <option value="Illustrious XL"></option>
-                <option value="NoobAI XL"></option>
-                <option value="Hunyuan Video"></option>
-              </datalist>
               @for (f of repoFiles(); track f.filename) {
                 <div class="edit-file-row">
                   <span class="edit-file-name" [class.missing]="!f.is_downloaded">
@@ -367,6 +370,7 @@
                       placeholder="Base model"
                       [ngModel]="fileBaseModels()[f.filename]"
                       (ngModelChange)="setFileBaseModel(f.filename, $event)"
+                      (click)="$any($event.target).select()"
                     />
                   }
                 </div>

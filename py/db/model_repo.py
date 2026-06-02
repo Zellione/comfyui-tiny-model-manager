@@ -48,7 +48,7 @@ async def upsert_model(
                 source_platform = excluded.source_platform,
                 source_id = excluded.source_id,
                 description = excluded.description,
-                base_model = excluded.base_model,
+                base_model = CASE WHEN excluded.base_model != '' THEN excluded.base_model ELSE base_model END,
                 civitai_model_id = excluded.civitai_model_id,
                 media_hash = excluded.media_hash
             """,
@@ -94,7 +94,7 @@ async def upsert_model_with_meta(
                 source_platform = excluded.source_platform,
                 source_id = excluded.source_id,
                 description = excluded.description,
-                base_model = excluded.base_model,
+                base_model = CASE WHEN excluded.base_model != '' THEN excluded.base_model ELSE base_model END,
                 civitai_model_id = excluded.civitai_model_id,
                 media_hash = excluded.media_hash
             """,
@@ -228,35 +228,45 @@ async def get_metadata_by_filenames(filenames: list[str]) -> dict[str, dict]:
 
 async def update_model_meta(
     filename: str,
-    description: str,
-    trigger_words: list[str],
+    description: str | None = None,
+    trigger_words: list[str] | None = None,
     tags: list[str] | None = None,
     base_model: str | None = None,
+    model_type: str = "",
 ):
-    if tags is None:
-        tags = []
     async with get_db() as db:
+        # Ensure a row exists for manually-placed or link-source-only files.
+        await db.execute(
+            "INSERT OR IGNORE INTO models (filename, model_type) VALUES (?, ?)",
+            (filename[:_MAX_PATH], model_type),
+        )
+        sets: list[str] = []
+        vals: list[object] = []
+        if description is not None:
+            sets.append("description = ?")
+            vals.append(description[:_MAX_DESCRIPTION])
         if base_model is not None:
+            sets.append("base_model = ?")
+            vals.append(base_model)
+        if sets:
             await db.execute(
-                "UPDATE models SET description = ?, base_model = ? WHERE filename = ?",
-                (description[:_MAX_DESCRIPTION], base_model, filename),
+                f"UPDATE models SET {', '.join(sets)} WHERE filename = ?",
+                (*vals, filename),
             )
-        else:
-            await db.execute(
-                "UPDATE models SET description = ? WHERE filename = ?",
-                (description[:_MAX_DESCRIPTION], filename),
-            )
-        row = await (
-            await db.execute("SELECT id FROM models WHERE filename = ?", (filename,))
-        ).fetchone()
-        if row:
-            model_id = row["id"]
-            await db.execute("DELETE FROM trigger_words WHERE model_id = ?", (model_id,))
-            await db.executemany(
-                "INSERT INTO trigger_words (model_id, word) VALUES (?, ?)",
-                [(model_id, w[:_MAX_WORD]) for w in trigger_words],
-            )
-            await _set_model_tags(db, model_id, tags)
+        if trigger_words is not None or tags is not None:
+            row = await (
+                await db.execute("SELECT id FROM models WHERE filename = ?", (filename,))
+            ).fetchone()
+            if row:
+                model_id = row["id"]
+                if trigger_words is not None:
+                    await db.execute("DELETE FROM trigger_words WHERE model_id = ?", (model_id,))
+                    await db.executemany(
+                        "INSERT INTO trigger_words (model_id, word) VALUES (?, ?)",
+                        [(model_id, w[:_MAX_WORD]) for w in trigger_words],
+                    )
+                if tags is not None:
+                    await _set_model_tags(db, model_id, tags)
         await db.commit()
 
 

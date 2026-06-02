@@ -128,6 +128,36 @@ class TestPutMetadata:
         )
         assert (await resp.json())["success"] is True
 
+    async def test_saves_base_model_for_file_with_no_db_row(self, client, ext_dir):
+        # No upsert_model call — the file has no models row (manually-placed file)
+        resp = await client.put(
+            "/tiny-model-manager/api/models/loras/manual.safetensors/metadata",
+            json={"base_model": "Flux.1 D"},
+        )
+        assert (await resp.json())["success"] is True
+        from py.db import model_repo
+
+        row = await model_repo.get_model_by_filename("manual.safetensors")
+        assert row is not None
+        assert row["base_model"] == "Flux.1 D"
+
+    async def test_partial_update_does_not_clear_existing_description(self, client, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_model_with_meta(
+            "existing.safetensors", "loras", "", "", "keep me", ["kw"], [], base_model=""
+        )
+        # Send only base_model — description and trigger_words must be preserved
+        resp = await client.put(
+            "/tiny-model-manager/api/models/loras/existing.safetensors/metadata",
+            json={"base_model": "SDXL 1.0"},
+        )
+        assert (await resp.json())["success"] is True
+        row = await model_repo.get_model_by_filename("existing.safetensors")
+        assert row["description"] == "keep me"
+        assert "kw" in row["trigger_words"]
+        assert row["base_model"] == "SDXL 1.0"
+
 
 class TestPutMetadataOrganize:
     @pytest.fixture()

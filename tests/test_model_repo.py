@@ -233,6 +233,53 @@ class TestUpdateModelMeta:
         row = await model_repo.get_model_by_filename("u.safetensors")
         assert row["base_model"] == "Flux.1 D"
 
+    async def test_creates_row_when_none_exists(self, ext_dir):
+        from py.db import model_repo
+
+        # No prior upsert — file has no models row
+        await model_repo.update_model_meta(
+            "new.safetensors", base_model="SDXL 1.0", model_type="loras"
+        )
+        row = await model_repo.get_model_by_filename("new.safetensors")
+        assert row is not None
+        assert row["base_model"] == "SDXL 1.0"
+
+    async def test_omitted_fields_are_not_overwritten(self, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_model_with_meta(
+            "partial.safetensors", "loras", "", "", "orig desc", ["kw1"], [], base_model="Pony"
+        )
+        # Updating only base_model must not touch description or trigger_words
+        await model_repo.update_model_meta("partial.safetensors", base_model="Flux.1 D")
+        row = await model_repo.get_model_by_filename("partial.safetensors")
+        assert row["description"] == "orig desc"
+        assert "kw1" in row["trigger_words"]
+        assert row["base_model"] == "Flux.1 D"
+
+
+class TestUpsertPreservesBaseModel:
+    async def test_upsert_does_not_overwrite_existing_base_model_with_empty(self, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_model(
+            "hf.safetensors", "loras", "huggingface", "user/repo", "", base_model="Flux.1 D"
+        )
+        # Simulate HF refetch that returns no base_model
+        await model_repo.upsert_model(
+            "hf.safetensors", "loras", "huggingface", "user/repo", "new desc", base_model=""
+        )
+        row = await model_repo.get_model_by_filename("hf.safetensors")
+        assert row["base_model"] == "Flux.1 D"  # preserved
+
+    async def test_upsert_sets_base_model_when_previously_empty(self, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_model("hf2.safetensors", "loras", "", "", "", base_model="")
+        await model_repo.upsert_model("hf2.safetensors", "loras", "", "", "", base_model="SDXL 1.0")
+        row = await model_repo.get_model_by_filename("hf2.safetensors")
+        assert row["base_model"] == "SDXL 1.0"
+
 
 class TestCascadeDelete:
     async def test_delete_model_cascades_to_child_rows(self, ext_dir):

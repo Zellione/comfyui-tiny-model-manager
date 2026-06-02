@@ -136,10 +136,11 @@ def add_metadata_routes(routes):
         model_type = request.match_info["model_type"]
         try:
             body = await request.json()
-            description = body.get("description", "")
-            trigger_words = body.get("trigger_words", [])
-            tags = body.get("tags", [])
-            new_base_model = body.get("base_model")  # None means "not provided, don't update"
+            # None means "not present in request — don't touch that field"
+            description = body.get("description")
+            trigger_words = body.get("trigger_words")
+            tags = body.get("tags")
+            new_base_model = body.get("base_model")
 
             if new_base_model is not None:
                 from .. import config as cfg
@@ -159,7 +160,12 @@ def add_metadata_routes(routes):
                             pass
 
             await model_repo.update_model_meta(
-                path, description, trigger_words, tags, base_model=new_base_model
+                path,
+                description=description,
+                trigger_words=trigger_words,
+                tags=tags,
+                base_model=new_base_model,
+                model_type=model_type,
             )
             return web.json_response({"success": True})
         except Exception as exc:
