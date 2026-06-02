@@ -346,6 +346,50 @@ class TestGetRepoFiles:
         data = (await resp.json())["data"]
         assert len(data) == 2
 
+    async def test_is_downloaded_true_via_db_when_file_in_models_table(self, client, ext_dir):
+        # A sibling file exists in the models table (same catalog entry) but is NOT on disk.
+        # The DB-based check should still mark it as downloaded.
+        from py.db import model_repo
+
+        files_with_sibling = [
+            {
+                "filename": "model-fp16.safetensors",
+                "size_bytes": 4096,
+                "download_url": "https://example.com/fp16",
+                "source_page_url": "https://civitai.com/models/1",
+            },
+            {
+                "filename": "model-q4.safetensors",
+                "size_bytes": 2048,
+                "download_url": "https://example.com/q4",
+                "source_page_url": "https://civitai.com/models/1",
+            },
+        ]
+        # Set up catalog entry and link both the current model AND the sibling
+        entry_id = await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id="my-lora.safetensors",
+            source_page_url="https://civitai.com/models/1",
+            display_name="Test",
+            thumbnail_url="",
+            base_model="",
+        )
+        await model_repo.upsert_model("my-lora.safetensors", "loras", "civitai", "100", "")
+        await model_repo.set_model_catalog_entry("my-lora.safetensors", entry_id)
+        # Also mark model-fp16 as installed in the DB (same catalog entry)
+        await model_repo.upsert_model("model-fp16.safetensors", "loras", "civitai", "100", "")
+        await model_repo.set_model_catalog_entry("model-fp16.safetensors", entry_id)
+        await model_repo.upsert_repo_files(entry_id, "loras", files_with_sibling)
+
+        resp = await client.get(
+            "/tiny-model-manager/api/models/loras/my-lora.safetensors/repo-files"
+        )
+        data = (await resp.json())["data"]
+        fp16 = next(d for d in data if d["filename"] == "model-fp16.safetensors")
+        q4 = next(d for d in data if d["filename"] == "model-q4.safetensors")
+        assert fp16["is_downloaded"] is True  # in models table → DB check succeeds
+        assert q4["is_downloaded"] is False  # not in models table, not on disk
+
 
 class TestLinkSource:
     async def test_returns_400_for_unrecognised_url(self, client, ext_dir):

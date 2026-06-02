@@ -1,3 +1,5 @@
+import os
+
 from .database import get_db
 
 _MAX_DESCRIPTION = 10_000
@@ -553,6 +555,26 @@ async def get_repo_files(_model_type: str, model_path: str) -> list[dict]:
             )
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+async def get_installed_basenames_for_model(model_path: str) -> set[str]:
+    """Return basenames of all models sharing the same catalog entry as model_path."""
+    async with get_db() as db:
+        row = await (
+            await db.execute(
+                "SELECT catalog_entry_id FROM models WHERE filename = ?",
+                (model_path,),
+            )
+        ).fetchone()
+        if not row or not row["catalog_entry_id"]:
+            return set()
+        installed = await (
+            await db.execute(
+                "SELECT filename FROM models WHERE catalog_entry_id = ?",
+                (row["catalog_entry_id"],),
+            )
+        ).fetchall()
+        return {os.path.basename(r["filename"]) for r in installed}
 
 
 async def ensure_model_with_source(

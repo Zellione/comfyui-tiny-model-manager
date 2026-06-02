@@ -216,14 +216,22 @@ def add_metadata_routes(routes):
         model_type = request.match_info["model_type"]
         try:
             files = await model_repo.get_repo_files(model_type, path)
+            installed_basenames = await model_repo.get_installed_basenames_for_model(path)
             model_dir = os.path.dirname(path)
             result = []
             for f in files:
                 ext = os.path.splitext(f["filename"].lower())[1]
                 if ext not in _MODEL_EXTENSIONS:
                     continue
-                f["is_downloaded"] = _file_exists_on_disk(model_type, model_dir, f["filename"])
-                f["added_at"] = _get_file_mtime(model_type, model_dir, f["filename"])
+                basename = os.path.basename(f["filename"])
+                f["is_downloaded"] = (
+                    basename in installed_basenames
+                    or _file_exists_on_disk(model_type, model_dir, f["filename"])
+                    or _file_exists_on_disk(model_type, "", basename)
+                )
+                f["added_at"] = _get_file_mtime(
+                    model_type, model_dir, f["filename"]
+                ) or _get_file_mtime(model_type, "", basename)
                 result.append(f)
             return web.json_response({"success": True, "data": result})
         except Exception as exc:
