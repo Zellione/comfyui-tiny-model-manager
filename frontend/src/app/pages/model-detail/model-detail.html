@@ -195,6 +195,9 @@
                       <span class="pill ok">Downloaded</span>
                     </div>
                     <div class="iv-row-meta">
+                      @if (f.base_model) {
+                        <span class="base-model-tag">{{ f.base_model }}</span>
+                      }
                       @if (f.size_bytes) {
                         <span>{{ formatBytes(f.size_bytes) }}</span>
                       }
@@ -255,11 +258,14 @@
                 @if (modelPath.includes('/')) {
                   <div class="iv-row-file">{{ modelPath }}</div>
                 }
-                @if (meta()!.size_bytes) {
-                  <div class="iv-row-meta">
+                <div class="iv-row-meta">
+                  @if (meta()!.base_model) {
+                    <span class="base-model-tag">{{ meta()!.base_model }}</span>
+                  }
+                  @if (meta()!.size_bytes) {
                     <span>{{ formatBytes(meta()!.size_bytes) }}</span>
-                  </div>
-                }
+                  }
+                </div>
               </div>
             </div>
           }
@@ -376,7 +382,6 @@
             <button class="btn ghost" (click)="refetch()" [disabled]="refetching()">
               {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
             </button>
-            <button class="btn-workflow" (click)="addToWorkflow()">Add to Workflow</button>
           </div>
         </div>
       }

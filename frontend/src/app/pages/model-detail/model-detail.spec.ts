@@ -144,15 +144,15 @@ describe('ModelDetail', () => {
   });
 
   describe('eyebrowParts', () => {
-    it('includes modelType, base_model, and formatted size', () => {
+    it('includes modelType and formatted size', () => {
       const parts = component.eyebrowParts();
       expect(parts).toContain('loras');
-      expect(parts).toContain('SDXL 1.0');
       expect(parts.some((p) => p.includes('GB'))).toBe(true);
+      expect(parts).not.toContain('SDXL 1.0');
     });
 
-    it('omits empty base_model', () => {
-      component.meta.set(makeMeta({ base_model: '', size_bytes: 0 }));
+    it('omits size when zero', () => {
+      component.meta.set(makeMeta({ base_model: 'SDXL 1.0', size_bytes: 0 }));
       const parts = component.eyebrowParts();
       expect(parts).toEqual(['loras']);
     });

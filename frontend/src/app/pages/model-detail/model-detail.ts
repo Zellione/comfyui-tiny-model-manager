@@ -75,7 +75,6 @@ export class ModelDetail implements OnInit {
     const parts: string[] = [];
     if (this.modelType) parts.push(this.modelType);
     const m = this.meta();
-    if (m?.base_model) parts.push(m.base_model);
     const size = this.formatBytes(m?.size_bytes ?? 0);
     if (size) parts.push(size);
     return parts;
