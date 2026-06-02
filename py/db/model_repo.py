@@ -555,6 +555,27 @@ async def get_repo_files(_model_type: str, model_path: str) -> list[dict]:
         return [dict(r) for r in rows]
 
 
+async def ensure_model_with_source(
+    filename: str,
+    model_type: str,
+    platform: str,
+    source_id: str,
+    civitai_model_id: str,
+) -> None:
+    """Ensure a models row exists for filename and update its source fields."""
+    async with get_db() as db:
+        await db.execute(
+            "INSERT OR IGNORE INTO models (filename, model_type, description) VALUES (?, ?, '')",
+            (filename, model_type),
+        )
+        await db.execute(
+            "UPDATE models SET source_platform = ?, source_id = ?, civitai_model_id = ?"
+            " WHERE filename = ?",
+            (platform, source_id or None, civitai_model_id or None, filename),
+        )
+        await db.commit()
+
+
 async def get_model_source_info(filename: str) -> dict | None:
     async with get_db() as db:
         row = await (

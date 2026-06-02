@@ -50,8 +50,12 @@ export class ModelDetail implements OnInit {
   repoFiles = signal<RepoFile[]>([]);
   downloadingFiles = signal<Set<string>>(new Set());
   catalogEntry = signal<CatalogEntryDetail | null>(null);
+  linkSourceUrl = signal('');
+  linking = signal(false);
+  linkSourceError = signal('');
 
   readonly displayTitle = computed(() => this.catalogEntry()?.display_name || this.modelBasename);
+  readonly showLinkSourcePanel = computed(() => !this.meta()?.source_url);
 
   @HostListener('document:keydown.escape')
   onEscapeKey() {
@@ -269,6 +273,24 @@ export class ModelDetail implements OnInit {
         this.deleting.set(false);
         this.showUninstallConfirm.set(false);
         this.notifService.show('error', (err as Error).message);
+      },
+    });
+  }
+
+  linkSource() {
+    const url = this.linkSourceUrl().trim();
+    if (!url) return;
+    this.linking.set(true);
+    this.linkSourceError.set('');
+    this.modelService.linkSource(this.modelType, this.modelPath, url).subscribe({
+      next: () => {
+        this.linking.set(false);
+        this.notifService.show('success', 'Source linked. Reloading…');
+        this.loadMeta();
+      },
+      error: (err) => {
+        this.linking.set(false);
+        this.linkSourceError.set((err as Error).message);
       },
     });
   }

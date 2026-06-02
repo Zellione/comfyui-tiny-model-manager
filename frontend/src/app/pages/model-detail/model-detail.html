@@ -71,6 +71,36 @@
         }
       </div>
 
+      <!-- Link to Source panel (shown when file has no source URL) -->
+      @if (showLinkSourcePanel()) {
+        <div class="link-source-panel">
+          <span class="link-source-label"
+            >No source linked — paste a CivitAI or HuggingFace URL to link this file to its catalog
+            entry:</span
+          >
+          <div class="link-source-row">
+            <input
+              class="link-source-input"
+              type="text"
+              placeholder="https://civitai.com/models/… or https://huggingface.co/…"
+              [value]="linkSourceUrl()"
+              (input)="linkSourceUrl.set($any($event.target).value)"
+              (keyup.enter)="linkSource()"
+            />
+            <button
+              class="btn small ghost"
+              (click)="linkSource()"
+              [disabled]="linking() || !linkSourceUrl()"
+            >
+              {{ linking() ? 'Linking…' : 'Link' }}
+            </button>
+          </div>
+          @if (linkSourceError()) {
+            <div class="link-source-error">{{ linkSourceError() }}</div>
+          }
+        </div>
+      }
+
       @if (!editMode()) {
         <!-- ── Read view ── -->
 

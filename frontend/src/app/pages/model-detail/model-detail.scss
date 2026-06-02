@@ -232,6 +232,48 @@
   word-break: break-all;
 }
 
+.link-source-panel {
+  background: rgba(255, 200, 0, 0.06);
+  border: 1px solid rgba(255, 200, 0, 0.2);
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.link-source-label {
+  font-size: 12px;
+  color: var(--text-muted, #aaa);
+}
+
+.link-source-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.link-source-input {
+  flex: 1;
+  background: var(--bg-input, #1a1a1a);
+  border: 1px solid var(--border, #333);
+  border-radius: 6px;
+  color: inherit;
+  font-size: 13px;
+  padding: 6px 10px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent, #7c6af0);
+  }
+}
+
+.link-source-error {
+  font-size: 12px;
+  color: var(--danger, #e05252);
+}
+
 .detail-subtitle {
   font-size: 12px;
   color: var(--text-muted, #888);

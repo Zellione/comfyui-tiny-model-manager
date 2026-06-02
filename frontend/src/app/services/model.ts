@@ -139,6 +139,12 @@ export class ModelService {
     return this.http.delete<void>(`${API}/catalog/${platform}/${pageId}`);
   }
 
+  linkSource(modelType: string, path: string, sourceUrl: string): Observable<void> {
+    return this.http.post<void>(`${API}/models/${modelType}/${path}/link-source`, {
+      source_url: sourceUrl,
+    });
+  }
+
   organizeIntoSubfolders(): Observable<{ moved: number; skipped: number; errors: number }> {
     return this.http
       .post<{

@@ -40,6 +40,7 @@ const mockModelService = {
   moveModel: vi.fn(() => of(undefined)),
   getRepoFiles: vi.fn(() => of([] as RepoFile[])),
   getCatalogEntry: vi.fn(() => of(null)),
+  linkSource: vi.fn(() => of(undefined)),
 };
 
 const mockDownloadService = {
@@ -233,6 +234,49 @@ describe('ModelDetail', () => {
         repo_files: [],
       } as CatalogEntryDetail);
       expect(component.displayTitle()).toBe('my-lora.safetensors');
+    });
+  });
+
+  describe('linkSource', () => {
+    it('showLinkSourcePanel is true when source_url is empty', () => {
+      component.meta.set(makeMeta({ source_url: '' }));
+      expect(component.showLinkSourcePanel()).toBe(true);
+    });
+
+    it('showLinkSourcePanel is false when source_url is set', () => {
+      component.meta.set(makeMeta({ source_url: 'https://civitai.com/models/1' }));
+      expect(component.showLinkSourcePanel()).toBe(false);
+    });
+
+    it('calls linkSource service with trimmed URL', () => {
+      component.linkSourceUrl.set('  https://civitai.com/models/123  ');
+      component.linkSource();
+      expect(mockModelService.linkSource).toHaveBeenCalledWith(
+        'loras',
+        'my-lora.safetensors',
+        'https://civitai.com/models/123',
+      );
+    });
+
+    it('does nothing when URL is empty', () => {
+      component.linkSourceUrl.set('');
+      component.linkSource();
+      expect(mockModelService.linkSource).not.toHaveBeenCalled();
+    });
+
+    it('shows success notification and reloads on success', () => {
+      component.linkSourceUrl.set('https://civitai.com/models/42');
+      component.linkSource();
+      expect(mockNotifService.show).toHaveBeenCalledWith('success', expect.any(String));
+      expect(mockModelService.getMetadata).toHaveBeenCalled();
+    });
+
+    it('sets linkSourceError on failure', () => {
+      mockModelService.linkSource.mockReturnValueOnce(throwError(() => new Error('bad URL')));
+      component.linkSourceUrl.set('https://example.com/bad');
+      component.linkSource();
+      expect(component.linkSourceError()).toBe('bad URL');
+      expect(component.linking()).toBe(false);
     });
   });
 

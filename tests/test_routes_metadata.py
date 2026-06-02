@@ -347,6 +347,74 @@ class TestGetRepoFiles:
         assert len(data) == 2
 
 
+class TestLinkSource:
+    async def test_returns_400_for_unrecognised_url(self, client, ext_dir):
+        resp = await client.post(
+            "/tiny-model-manager/api/models/loras/my.safetensors/link-source",
+            json={"source_url": "https://example.com/not-a-model"},
+        )
+        assert resp.status == 400
+
+    async def test_links_civitai_model_url(self, client, ext_dir):
+        from py.db import model_repo
+
+        entry_id = await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id="12345",
+            source_page_url="https://civitai.com/models/12345",
+            display_name="Test",
+            thumbnail_url="",
+            base_model="",
+        )
+        resp = await client.post(
+            "/tiny-model-manager/api/models/loras/my.safetensors/link-source",
+            json={"source_url": "https://civitai.com/models/12345"},
+        )
+        assert resp.status == 200
+        row = await model_repo.get_model_by_filename("my.safetensors")
+        assert row is not None
+        assert row["source_platform"] == "civitai"
+        assert row["civitai_model_id"] == "12345"
+        assert row["catalog_entry_id"] == entry_id
+
+    async def test_links_huggingface_url(self, client, ext_dir):
+        from py.db import model_repo
+
+        entry_id = await model_repo.upsert_catalog_entry(
+            source_platform="huggingface",
+            source_page_id="user/repo",
+            source_page_url="https://huggingface.co/user/repo",
+            display_name="HF Model",
+            thumbnail_url="",
+            base_model="",
+        )
+        resp = await client.post(
+            "/tiny-model-manager/api/models/loras/hf.safetensors/link-source",
+            json={"source_url": "https://huggingface.co/user/repo"},
+        )
+        assert resp.status == 200
+        row = await model_repo.get_model_by_filename("hf.safetensors")
+        assert row is not None
+        assert row["source_platform"] == "huggingface"
+        assert row["source_id"] == "user/repo"
+        assert row["catalog_entry_id"] == entry_id
+
+    async def test_links_without_catalog_entry(self, client, ext_dir):
+        """Linking succeeds even if no matching catalog entry exists yet."""
+        resp = await client.post(
+            "/tiny-model-manager/api/models/loras/lone.safetensors/link-source",
+            json={"source_url": "https://civitai.com/models/99999"},
+        )
+        assert resp.status == 200
+        from py.db import model_repo
+
+        row = await model_repo.get_model_by_filename("lone.safetensors")
+        assert row is not None
+        assert row["source_platform"] == "civitai"
+        assert row["civitai_model_id"] == "99999"
+        assert row["catalog_entry_id"] is None
+
+
 class TestServeMedia:
     async def test_serve_existing_file(self, client, ext_dir):
         from py import config as cfg
