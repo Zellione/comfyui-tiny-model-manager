@@ -2,64 +2,100 @@ feature_id: F-40
 title: "Persistent Model Catalog Entry"
 
 overview: >
-  Model entries are decoupled from locally downloaded files. An entry is anchored
-  to the upstream source page (CivitAI model or HuggingFace repo) and persists in
-  the catalog even after all its files are deleted from disk. A catalog entry can
-  be browsed, re-downloaded from, or explicitly removed by the user.
+  Model entries are decoupled from locally downloaded files. An entry (catalog_entries)
+  is anchored to the upstream source page (CivitAI model or HuggingFace repo) and
+  persists in the catalog even after all its files are deleted from disk. A catalog
+  entry can be browsed, re-downloaded from, or explicitly removed by the user.
+
+  The library page is catalog-centric: one card per catalog entry. Files on disk that
+  are not linked to any catalog entry appear in an "Unknown" group. A "Show empty"
+  toggle reveals entries with no downloaded files.
 
 requirements:
   # --- Catalog entity ---
-  - A new catalog_entries table stores one row per upstream source page, keyed on
+  - A catalog_entries table stores one row per upstream source page, keyed on
     (source_platform, source_page_id); source_page_id is the CivitAI model ID or
     the HuggingFace repo ID (e.g. "stabilityai/stable-diffusion-xl-base-1.0")
   - A catalog entry is created automatically when any file from that source is
-    first downloaded or when the user bookmarks a model from search results
+    downloaded (the download flow calls fetch_and_store which calls upsert_catalog_entry)
   - The entry stores: display_name (from API), source_platform, source_page_id,
-    source_page_url, thumbnail_url, base_model, and created_at
+    source_page_url, thumbnail_url (local media path), base_model, and created_at
+
+  # --- Library page ---
+  - The library page calls GET /api/catalog which returns catalog entries grouped by
+    model_type plus an unknown_files group for on-disk files not linked to any entry
+  - Each catalog entry card links to /catalog/:platform?pageId=<page_id>
 
   # --- Empty state ---
   - An entry is considered "empty" when none of its associated files exist on disk
     at read time (checked via filesystem stat, not persisted)
   - The library page shows empty entries with a distinct visual treatment
-    (e.g. dimmed card, "No files downloaded" badge) so users can distinguish them
-    from fully-installed models
+    (dashed border, "No files" badge) so users can distinguish them from installed models
   - Empty entries are hidden by default; a "Show empty" toggle in the library
     filters them back in
+
+  # --- Unknown files ---
+  - Files on disk whose models row has no catalog_entry_id appear in an "Unknown"
+    section of the library page with the same card layout used before F-40
 
   # --- Persistence and deletion ---
   - Deleting (uninstalling) a model file does NOT remove the catalog entry
   - A catalog entry is removed only when the user explicitly clicks
-    "Remove from catalog" on the catalog entry detail page or card action menu
-  - Removing the catalog entry also deletes all associated repo_files rows (F-39)
-    and any stored media from disk
+    "Remove from catalog" on the catalog entry detail page
+  - Removing the catalog entry also deletes all associated repo_files rows (via
+    ON DELETE CASCADE) and stored media files from disk
+  - The associated models rows are NOT deleted; they appear as Unknown after removal
 
   # --- Re-download ---
   - The catalog entry detail page lists all known files (from repo_files, F-39)
     with per-file Download buttons, enabling re-download of any previously seen file
-  - The per-file download button is identical to the one specified in F-39
 
   # --- Per-file base model and subfolder ---
-  - When available from the API, each sibling file carries its own base_model field
-    (fetched per-file from the provider); sibling downloads are organized into
-    subfolders using the file's own base_model (via the organize-into-subfolders
-    logic from F-35), not the primary model's base_model
+  - When available from the API, each sibling file carries its own base_model field;
+    sibling downloads use the file's own model_type for destination folder placement
+
+  # --- Migration ---
+  - On startup, existing models table data is migrated: catalog entries are created
+    for all models with a known source, models.catalog_entry_id is populated, and
+    repo_files is migrated from the model_path-keyed schema to catalog_entry_id-keyed
 
 db_schema:
   catalog_entries:
     - "id INTEGER PRIMARY KEY AUTOINCREMENT"
     - "source_platform TEXT NOT NULL — civitai | huggingface"
     - "source_page_id TEXT NOT NULL — CivitAI model ID or HuggingFace repo ID"
-    - "source_page_url TEXT NOT NULL"
+    - "source_page_url TEXT NOT NULL DEFAULT ''"
     - "display_name TEXT NOT NULL DEFAULT ''"
-    - "thumbnail_url TEXT NOT NULL DEFAULT ''"
+    - "thumbnail_url TEXT NOT NULL DEFAULT '' — absolute local path to first cached image"
     - "base_model TEXT NOT NULL DEFAULT ''"
     - "created_at TEXT DEFAULT (datetime('now'))"
     - "UNIQUE (source_platform, source_page_id)"
 
+  models (additions):
+    - "catalog_entry_id INTEGER REFERENCES catalog_entries(id)"
+
+  repo_files (replaced):
+    - "id INTEGER PRIMARY KEY AUTOINCREMENT"
+    - "catalog_entry_id INTEGER REFERENCES catalog_entries(id) ON DELETE CASCADE"
+    - "model_type TEXT NOT NULL"
+    - "filename TEXT NOT NULL"
+    - "size_bytes INTEGER"
+    - "download_url TEXT"
+    - "source_page_url TEXT"
+    - "UNIQUE (catalog_entry_id, filename)"
+
 api:
-  - "GET /tiny-model-manager/api/catalog — list all catalog entries with is_empty computed from disk"
-  - "GET /tiny-model-manager/api/catalog/{platform}/{page_id} — detail for one entry including repo_files"
-  - "DELETE /tiny-model-manager/api/catalog/{platform}/{page_id} — remove entry, its repo_files, and stored media"
+  - "GET /tiny-model-manager/api/catalog — list all catalog entries with is_empty + unknown_files"
+  - "GET /tiny-model-manager/api/catalog/{platform}/{page_id:.*} — detail for one entry including repo_files"
+  - "DELETE /tiny-model-manager/api/catalog/{platform}/{page_id:.*} — remove entry, repo_files (cascade), and stored media"
+
+frontend:
+  - "Library page (/models) is catalog-centric; calls /api/catalog as primary data source"
+  - "Show-empty toggle (checkbox in filter bar) reveals is_empty entries"
+  - "Empty entries: dashed border, 'No files' badge"
+  - "Unknown files group: on-disk files with no catalog entry, rendered as individual file cards"
+  - "Catalog detail page: /catalog/:platform?pageId=<page_id>"
+  - "Remove from Catalog button on catalog detail page with confirmation banner"
 
 depends_on:
   - F-39

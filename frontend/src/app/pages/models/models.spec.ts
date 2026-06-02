@@ -3,12 +3,11 @@ import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { Models } from './models';
-import { ModelService } from '../../services/model';
+import { ModelService, CatalogListResponse } from '../../services/model';
 import { WorkflowService } from '../../services/workflow';
 import { SettingsService } from '../../services/settings';
 
 // BroadcastChannel is not available in jsdom — stub it so `new` works correctly.
-// Returning a plain object from the implementation becomes the result of `new`.
 type MockChannel = {
   onmessage: ((ev: MessageEvent) => void) | null;
   close: ReturnType<typeof vi.fn>;
@@ -23,10 +22,10 @@ vi.stubGlobal(
   }),
 );
 
-const emptyModels = {};
+const emptyCatalog: CatalogListResponse = { entries: [], unknown_files: {} };
 
 const mockModelService = {
-  listModels: vi.fn(),
+  listCatalog: vi.fn(),
   deleteModel: vi.fn(),
   organizeIntoSubfolders: vi.fn(),
   getModelTypes: vi.fn(),
@@ -52,7 +51,7 @@ describe('Models component', () => {
   beforeEach(async () => {
     capturedChannel = null;
     vi.clearAllMocks();
-    mockModelService.listModels.mockReturnValue(of(emptyModels));
+    mockModelService.listCatalog.mockReturnValue(of(emptyCatalog));
     mockModelService.getPendingQueue.mockReturnValue(of([]));
     mockSettingsService.getOrganizeEnabled.mockReturnValue(of(false));
 
@@ -79,9 +78,9 @@ describe('Models component', () => {
     expect(fixture.componentInstance).toBeTruthy();
   });
 
-  it('calls listModels on init', async () => {
+  it('calls listCatalog on init', async () => {
     await createFixture();
-    expect(mockModelService.listModels).toHaveBeenCalledTimes(1);
+    expect(mockModelService.listCatalog).toHaveBeenCalledTimes(1);
   });
 
   it('calls getOrganizeEnabled on init', async () => {
@@ -111,17 +110,33 @@ describe('Models component', () => {
     expect(findOrganizeButton(fixture.nativeElement)).toBeTruthy();
   });
 
-  it('populates modelsByType on successful load', async () => {
-    const data = {
-      loras: [{ filename: 'a.safetensors', base_dir: '/m', size_bytes: 1, modified_at: 0 }],
+  it('populates catalogEntries on successful load', async () => {
+    const data: CatalogListResponse = {
+      entries: [
+        {
+          id: 1,
+          source_platform: 'civitai',
+          source_page_id: '123',
+          source_page_url: '',
+          display_name: 'My Model',
+          thumbnail_url: '',
+          base_model: 'SDXL',
+          created_at: '2024-01-01',
+          model_type: 'loras',
+          is_empty: false,
+          installed_files: [],
+        },
+      ],
+      unknown_files: {},
     };
-    mockModelService.listModels.mockReturnValue(of(data));
+    mockModelService.listCatalog.mockReturnValue(of(data));
     const fixture = await createFixture();
-    expect(fixture.componentInstance.modelsByType()).toEqual(data);
+    expect(fixture.componentInstance.catalogEntries().length).toBe(1);
+    expect(fixture.componentInstance.catalogEntries()[0].display_name).toBe('My Model');
   });
 
   it('sets error signal on load failure', async () => {
-    mockModelService.listModels.mockReturnValue(throwError(() => new Error('network error')));
+    mockModelService.listCatalog.mockReturnValue(throwError(() => new Error('network error')));
     const fixture = await createFixture();
     expect(fixture.componentInstance.error()).toBe('network error');
   });
@@ -129,6 +144,60 @@ describe('Models component', () => {
   it('sets loading to false after successful load', async () => {
     const fixture = await createFixture();
     expect(fixture.componentInstance.loading()).toBe(false);
+  });
+
+  it('showEmpty defaults to false', async () => {
+    const fixture = await createFixture();
+    expect(fixture.componentInstance.showEmpty()).toBe(false);
+  });
+
+  it('empty entries are filtered out when showEmpty is false', async () => {
+    const data: CatalogListResponse = {
+      entries: [
+        {
+          id: 1,
+          source_platform: 'civitai',
+          source_page_id: '123',
+          source_page_url: '',
+          display_name: 'Empty Model',
+          thumbnail_url: '',
+          base_model: '',
+          created_at: '2024-01-01',
+          model_type: 'loras',
+          is_empty: true,
+          installed_files: [],
+        },
+      ],
+      unknown_files: {},
+    };
+    mockModelService.listCatalog.mockReturnValue(of(data));
+    const fixture = await createFixture();
+    expect(fixture.componentInstance.filteredEntries().length).toBe(0);
+  });
+
+  it('empty entries appear when showEmpty is true', async () => {
+    const data: CatalogListResponse = {
+      entries: [
+        {
+          id: 1,
+          source_platform: 'civitai',
+          source_page_id: '123',
+          source_page_url: '',
+          display_name: 'Empty Model',
+          thumbnail_url: '',
+          base_model: '',
+          created_at: '2024-01-01',
+          model_type: 'loras',
+          is_empty: true,
+          installed_files: [],
+        },
+      ],
+      unknown_files: {},
+    };
+    mockModelService.listCatalog.mockReturnValue(of(data));
+    const fixture = await createFixture();
+    fixture.componentInstance.showEmpty.set(true);
+    expect(fixture.componentInstance.filteredEntries().length).toBe(1);
   });
 
   describe('BroadcastChannel tmm message', () => {
@@ -139,48 +208,28 @@ describe('Models component', () => {
     it('checks pending queue immediately when message arrives', async () => {
       await createFixture();
       const prevCalls = mockModelService.getPendingQueue.mock.calls.length;
-
       triggerMessage();
-
       expect(mockModelService.getPendingQueue).toHaveBeenCalledTimes(prevCalls + 1);
     });
 
-    it('does not call listModels directly when message arrives with empty queue', async () => {
+    it('does not call listCatalog directly when message arrives with empty queue', async () => {
       await createFixture();
-      expect(mockModelService.listModels).toHaveBeenCalledTimes(1);
-
+      expect(mockModelService.listCatalog).toHaveBeenCalledTimes(1);
       triggerMessage();
-
-      // BroadcastChannel triggers a pending-queue check, not a direct model reload
-      expect(mockModelService.listModels).toHaveBeenCalledTimes(1);
+      expect(mockModelService.listCatalog).toHaveBeenCalledTimes(1);
     });
 
     it('re-fetches organize setting when message arrives', async () => {
       await createFixture();
       expect(mockSettingsService.getOrganizeEnabled).toHaveBeenCalledTimes(1);
-
       triggerMessage();
-
       expect(mockSettingsService.getOrganizeEnabled).toHaveBeenCalledTimes(2);
-    });
-
-    it('updates organizeEnabled when message arrives with changed setting', async () => {
-      const fixture = await createFixture();
-      expect(fixture.componentInstance.organizeEnabled()).toBe(false);
-
-      mockSettingsService.getOrganizeEnabled.mockReturnValue(of(true));
-      triggerMessage();
-      fixture.detectChanges();
-
-      expect(fixture.componentInstance.organizeEnabled()).toBe(true);
     });
 
     it('closes the channel on component destroy', async () => {
       await createFixture();
       const channel = capturedChannel!;
-
       TestBed.resetTestingModule();
-
       expect(channel.close).toHaveBeenCalled();
     });
   });

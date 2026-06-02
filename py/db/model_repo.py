@@ -326,21 +326,193 @@ async def complete_job(job_id: int) -> None:
         await db.commit()
 
 
-async def upsert_repo_files(model_type: str, model_path: str, files: list[dict]) -> None:
+async def upsert_catalog_entry(
+    source_platform: str,
+    source_page_id: str,
+    source_page_url: str,
+    display_name: str,
+    thumbnail_url: str,
+    base_model: str,
+) -> int:
+    async with get_db() as db:
+        await db.execute(
+            """
+            INSERT INTO catalog_entries
+                (source_platform, source_page_id, source_page_url, display_name, thumbnail_url, base_model)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(source_platform, source_page_id) DO UPDATE SET
+                source_page_url = CASE WHEN excluded.source_page_url != '' THEN excluded.source_page_url ELSE source_page_url END,
+                display_name    = CASE WHEN excluded.display_name != ''    THEN excluded.display_name    ELSE display_name    END,
+                thumbnail_url   = CASE WHEN excluded.thumbnail_url != ''   THEN excluded.thumbnail_url   ELSE thumbnail_url   END,
+                base_model      = CASE WHEN excluded.base_model != ''      THEN excluded.base_model      ELSE base_model      END
+            """,
+            (
+                source_platform,
+                source_page_id,
+                source_page_url,
+                display_name,
+                thumbnail_url,
+                base_model,
+            ),
+        )
+        await db.commit()
+        row = await (
+            await db.execute(
+                "SELECT id FROM catalog_entries WHERE source_platform = ? AND source_page_id = ?",
+                (source_platform, source_page_id),
+            )
+        ).fetchone()
+        assert row is not None
+        return row["id"]
+
+
+async def set_model_catalog_entry(filename: str, catalog_entry_id: int) -> None:
+    async with get_db() as db:
+        await db.execute(
+            "UPDATE models SET catalog_entry_id = ? WHERE filename = ?",
+            (catalog_entry_id, filename),
+        )
+        await db.commit()
+
+
+async def get_first_image_path(model_id: int) -> str | None:
+    async with get_db() as db:
+        row = await (
+            await db.execute(
+                "SELECT local_path FROM model_media WHERE model_id = ? AND media_type = 'image' LIMIT 1",
+                (model_id,),
+            )
+        ).fetchone()
+        return row["local_path"] if row else None
+
+
+async def list_catalog_entries() -> list[dict]:
+    async with get_db() as db:
+        entries = await (
+            await db.execute(
+                "SELECT id, source_platform, source_page_id, source_page_url,"
+                "       display_name, thumbnail_url, base_model, created_at"
+                " FROM catalog_entries ORDER BY created_at DESC"
+            )
+        ).fetchall()
+        result = []
+        for entry in entries:
+            e = dict(entry)
+            installed = list(
+                await (
+                    await db.execute(
+                        "SELECT filename, model_type FROM models WHERE catalog_entry_id = ?",
+                        (e["id"],),
+                    )
+                ).fetchall()
+            )
+            e["installed_files"] = [dict(r) for r in installed]
+            # Derive a model_type for section grouping (from installed files or repo_files)
+            if installed:
+                e["model_type"] = installed[0]["model_type"] or "other"
+            else:
+                rf = await (
+                    await db.execute(
+                        "SELECT model_type FROM repo_files WHERE catalog_entry_id = ? LIMIT 1",
+                        (e["id"],),
+                    )
+                ).fetchone()
+                e["model_type"] = rf["model_type"] if rf else "other"
+            result.append(e)
+        return result
+
+
+async def get_catalog_entry(source_platform: str, source_page_id: str) -> dict | None:
+    async with get_db() as db:
+        row = await (
+            await db.execute(
+                "SELECT id, source_platform, source_page_id, source_page_url,"
+                "       display_name, thumbnail_url, base_model, created_at"
+                " FROM catalog_entries WHERE source_platform = ? AND source_page_id = ?",
+                (source_platform, source_page_id),
+            )
+        ).fetchone()
+        if not row:
+            return None
+        entry = dict(row)
+        repo_files = await (
+            await db.execute(
+                "SELECT filename, model_type, size_bytes, download_url, source_page_url"
+                " FROM repo_files WHERE catalog_entry_id = ?",
+                (entry["id"],),
+            )
+        ).fetchall()
+        entry["repo_files"] = [dict(r) for r in repo_files]
+        installed = await (
+            await db.execute(
+                "SELECT filename, model_type FROM models WHERE catalog_entry_id = ?",
+                (entry["id"],),
+            )
+        ).fetchall()
+        entry["installed_files"] = [dict(r) for r in installed]
+        return entry
+
+
+async def delete_catalog_entry(source_platform: str, source_page_id: str) -> dict | None:
+    """Deletes the catalog entry and returns media info needed for disk cleanup."""
+    async with get_db() as db:
+        row = await (
+            await db.execute(
+                "SELECT id FROM catalog_entries WHERE source_platform = ? AND source_page_id = ?",
+                (source_platform, source_page_id),
+            )
+        ).fetchone()
+        if not row:
+            return None
+        entry_id = row["id"]
+        # Collect model IDs and media paths before unlinking.
+        linked_models = list(
+            await (
+                await db.execute("SELECT id FROM models WHERE catalog_entry_id = ?", (entry_id,))
+            ).fetchall()
+        )
+        model_ids = [r["id"] for r in linked_models]
+        media_paths: list[str] = []
+        if model_ids:
+            placeholders = ",".join("?" * len(model_ids))
+            media_rows = await (
+                await db.execute(
+                    f"SELECT local_path FROM model_media WHERE model_id IN ({placeholders})",
+                    model_ids,
+                )
+            ).fetchall()
+            media_paths = [r["local_path"] for r in media_rows]
+            # Delete model_media rows (not covered by any CASCADE).
+            await db.execute(
+                f"DELETE FROM model_media WHERE model_id IN ({placeholders})", model_ids
+            )
+            # Unlink models so they appear as "unknown" after catalog removal.
+            await db.execute(
+                "UPDATE models SET catalog_entry_id = NULL WHERE catalog_entry_id = ?",
+                (entry_id,),
+            )
+        # ON DELETE CASCADE handles repo_files when catalog_entry is deleted.
+        await db.execute("DELETE FROM catalog_entries WHERE id = ?", (entry_id,))
+        await db.commit()
+        return {"media_paths": media_paths}
+
+
+async def upsert_repo_files(catalog_entry_id: int, model_type: str, files: list[dict]) -> None:
     async with get_db() as db:
         for f in files:
             await db.execute(
                 """
-                INSERT INTO repo_files (model_type, model_path, filename, size_bytes, download_url, source_page_url)
+                INSERT INTO repo_files (catalog_entry_id, model_type, filename, size_bytes, download_url, source_page_url)
                 VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(model_type, model_path, filename) DO UPDATE SET
-                    size_bytes = excluded.size_bytes,
-                    download_url = excluded.download_url,
+                ON CONFLICT(catalog_entry_id, filename) DO UPDATE SET
+                    model_type      = excluded.model_type,
+                    size_bytes      = excluded.size_bytes,
+                    download_url    = excluded.download_url,
                     source_page_url = excluded.source_page_url
                 """,
                 (
+                    catalog_entry_id,
                     model_type,
-                    model_path[:_MAX_PATH],
                     f.get("filename", "")[:_MAX_PATH],
                     f.get("size_bytes"),
                     f.get("download_url", ""),
@@ -350,13 +522,34 @@ async def upsert_repo_files(model_type: str, model_path: str, files: list[dict])
         await db.commit()
 
 
-async def get_repo_files(model_type: str, model_path: str) -> list[dict]:
+async def get_repo_files_by_catalog(catalog_entry_id: int) -> list[dict]:
     async with get_db() as db:
         rows = await (
             await db.execute(
-                "SELECT filename, size_bytes, download_url, source_page_url"
-                " FROM repo_files WHERE model_type = ? AND model_path = ?",
-                (model_type, model_path),
+                "SELECT filename, model_type, size_bytes, download_url, source_page_url"
+                " FROM repo_files WHERE catalog_entry_id = ?",
+                (catalog_entry_id,),
+            )
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+async def get_repo_files(_model_type: str, model_path: str) -> list[dict]:
+    """Returns repo_files for a model file, looked up via its catalog entry."""
+    async with get_db() as db:
+        row = await (
+            await db.execute(
+                "SELECT catalog_entry_id FROM models WHERE filename = ?",
+                (model_path,),
+            )
+        ).fetchone()
+        if not row or not row["catalog_entry_id"]:
+            return []
+        rows = await (
+            await db.execute(
+                "SELECT filename, model_type, size_bytes, download_url, source_page_url"
+                " FROM repo_files WHERE catalog_entry_id = ?",
+                (row["catalog_entry_id"],),
             )
         ).fetchall()
         return [dict(r) for r in rows]

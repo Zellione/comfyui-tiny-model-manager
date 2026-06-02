@@ -286,10 +286,24 @@ class TestGetRepoFiles:
         assert body["success"] is True
         assert body["data"] == []
 
-    async def test_returns_stored_files_with_is_downloaded(self, client, ext_dir):
+    async def _setup_model_with_repo_files(self, filename: str, model_type: str, files: list[dict]):
+        """Create a catalog entry, models row, and repo_files for testing."""
         from py.db import model_repo
 
-        await model_repo.upsert_repo_files("loras", "my-lora.safetensors", self._SAMPLE_FILES)
+        entry_id = await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id=filename,
+            source_page_url="https://civitai.com/models/1",
+            display_name="Test",
+            thumbnail_url="",
+            base_model="",
+        )
+        await model_repo.upsert_model(filename, model_type, "civitai", "100", "")
+        await model_repo.set_model_catalog_entry(filename, entry_id)
+        await model_repo.upsert_repo_files(entry_id, model_type, files)
+
+    async def test_returns_stored_files_with_is_downloaded(self, client, ext_dir):
+        await self._setup_model_with_repo_files("my-lora.safetensors", "loras", self._SAMPLE_FILES)
         resp = await client.get(
             "/tiny-model-manager/api/models/loras/my-lora.safetensors/repo-files"
         )
@@ -303,8 +317,6 @@ class TestGetRepoFiles:
     async def test_is_downloaded_true_when_file_exists(self, client, ext_dir):
         import sys
 
-        from py.db import model_repo
-
         # Create the file on disk in the test models dir
         models_dir = sys.modules["folder_paths"].models_dir
         loras_dir = os.path.join(models_dir, "loras")
@@ -313,7 +325,7 @@ class TestGetRepoFiles:
         with open(dummy_file, "wb") as f:
             f.write(b"dummy")
 
-        await model_repo.upsert_repo_files("loras", "my-lora.safetensors", self._SAMPLE_FILES)
+        await self._setup_model_with_repo_files("my-lora.safetensors", "loras", self._SAMPLE_FILES)
         resp = await client.get(
             "/tiny-model-manager/api/models/loras/my-lora.safetensors/repo-files"
         )
@@ -324,9 +336,9 @@ class TestGetRepoFiles:
         assert vae["is_downloaded"] is False
 
     async def test_subfolder_model_path(self, client, ext_dir):
-        from py.db import model_repo
-
-        await model_repo.upsert_repo_files("loras", "sdxl/my-lora.safetensors", self._SAMPLE_FILES)
+        await self._setup_model_with_repo_files(
+            "sdxl/my-lora.safetensors", "loras", self._SAMPLE_FILES
+        )
         resp = await client.get(
             "/tiny-model-manager/api/models/loras/sdxl/my-lora.safetensors/repo-files"
         )

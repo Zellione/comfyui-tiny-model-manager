@@ -22,6 +22,7 @@ const makeMeta = (overrides = {}) => ({
 
 const makeRepoFile = (overrides: Partial<RepoFile> = {}): RepoFile => ({
   filename: 'companion.safetensors',
+  model_type: 'loras',
   size_bytes: 1048576,
   download_url: 'https://example.com/companion',
   source_page_url: 'https://civitai.com/models/1',

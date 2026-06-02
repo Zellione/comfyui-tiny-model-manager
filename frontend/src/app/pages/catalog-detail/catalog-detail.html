@@ -1,0 +1,155 @@
+<div class="page">
+  <div class="detail-back">
+    <a routerLink="/models" class="btn ghost">← Back to Models</a>
+    <span class="crumbs">
+      <span>Catalog</span>
+      <span class="crumb-sep">/</span>
+      <span>{{ sourceName() }}</span>
+      <span class="crumb-sep">/</span>
+      <span class="crumb-active">{{ entry()?.display_name || pageId }}</span>
+    </span>
+    <span class="spacer"></span>
+    @if (!showRemoveConfirm()) {
+      <button class="btn danger-ghost" (click)="showRemoveConfirm.set(true)">
+        Remove from Catalog
+      </button>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="detail-card state-card"><p>Loading…</p></div>
+  } @else if (error()) {
+    <div class="detail-card state-card">
+      <p class="error-msg">{{ error() }}</p>
+    </div>
+  } @else if (entry()) {
+    <!-- Remove confirmation banner -->
+    @if (showRemoveConfirm()) {
+      <div class="uninstall-banner">
+        <span>
+          Remove <strong>{{ entry()!.display_name || pageId }}</strong> from catalog? This will also
+          delete stored media but will <em>not</em> delete downloaded files.
+        </span>
+        <div class="uninstall-actions">
+          <button class="btn small ghost" (click)="showRemoveConfirm.set(false)">Cancel</button>
+          <button class="btn small danger" (click)="removeFromCatalog()" [disabled]="removing()">
+            {{ removing() ? 'Removing…' : 'Yes, remove' }}
+          </button>
+        </div>
+      </div>
+    }
+
+    <div class="detail-card">
+      <div class="dl-detail-head">
+        <div>
+          @if (entry()!.base_model) {
+            <div class="detail-eyebrow">
+              <span>{{ entry()!.source_platform }}</span>
+              <span class="dot"></span>
+              <span>{{ entry()!.base_model }}</span>
+            </div>
+          }
+          <h2 class="detail-title">{{ entry()!.display_name || entry()!.source_page_id }}</h2>
+        </div>
+        <span class="dl-detail-spacer"></span>
+        @if (entry()!.source_page_url) {
+          <a
+            [href]="entry()!.source_page_url"
+            target="_blank"
+            rel="noopener"
+            class="dl-detail-source"
+          >
+            View on {{ sourceName() }} ↗
+          </a>
+        }
+      </div>
+
+      <!-- Thumbnail -->
+      @if (entry()!.thumbnail_url) {
+        <div class="catalog-thumb-wrap">
+          <img [src]="mediaUrl(entry()!.thumbnail_url)" alt="thumbnail" class="catalog-thumb" />
+        </div>
+      }
+
+      <!-- Installed files -->
+      @if (entry()!.installed_files.length > 0) {
+        <div class="section-label">Installed files</div>
+        <div class="iv-list">
+          @for (f of entry()!.installed_files; track f.filename) {
+            <div class="iv-row">
+              <div class="iv-status ok">✓</div>
+              <div class="iv-row-main">
+                <div class="iv-row-title">
+                  <span class="version-name">{{ f.filename }}</span>
+                  <span class="pill ok">Installed</span>
+                </div>
+                <div class="iv-row-sub">{{ f.model_type }}</div>
+              </div>
+              <a
+                class="btn small ghost iv-download-btn"
+                [routerLink]="['/models', f.model_type, f.filename]"
+              >
+                Details
+              </a>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Repo files (all known files from upstream) -->
+      @if (entry()!.repo_files.length > 0) {
+        <div class="section-label">
+          All known files
+          <span class="section-sub"
+            >{{ downloadedFiles().length }} / {{ entry()!.repo_files.length }} downloaded</span
+          >
+        </div>
+        <div class="iv-list">
+          @for (f of entry()!.repo_files; track f.filename) {
+            <div class="iv-row" [class.iv-row-missing]="!f.is_downloaded">
+              <div
+                class="iv-status"
+                [class.ok]="f.is_downloaded"
+                [class.missing]="!f.is_downloaded"
+              >
+                {{ f.is_downloaded ? '✓' : '↓' }}
+              </div>
+              <div class="iv-row-main">
+                <div class="iv-row-title">
+                  <span class="version-name">{{ f.filename }}</span>
+                  <span
+                    class="pill"
+                    [class.ok]="f.is_downloaded"
+                    [class.missing]="!f.is_downloaded"
+                  >
+                    {{ f.is_downloaded ? 'Downloaded' : 'Not downloaded' }}
+                  </span>
+                </div>
+                @if (f.size_bytes) {
+                  <div class="iv-row-sub">{{ formatBytes(f.size_bytes) }}</div>
+                }
+              </div>
+              @if (!f.is_downloaded) {
+                <button
+                  class="btn small ghost iv-download-btn"
+                  [disabled]="downloadingFiles().has(f.filename)"
+                  (click)="downloadFile(f)"
+                >
+                  {{ downloadingFiles().has(f.filename) ? 'Queued…' : 'Download' }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      } @else if (!entry()!.is_empty) {
+        <p class="state-note">No file listing available for this entry.</p>
+      } @else {
+        <p class="state-note">
+          No files downloaded yet. Use the
+          <a [href]="entry()!.source_page_url" target="_blank" rel="noopener">source page</a>
+          to find download links.
+        </p>
+      }
+    </div>
+  }
+</div>
