@@ -317,11 +317,12 @@ describe('ModelDetail', () => {
       expect(mockModelService.getRepoFiles).toHaveBeenCalled();
     });
 
-    it('navigates away when deleting the currently viewed file', () => {
+    it('reloads repo files when deleting the currently viewed file', () => {
       component.modelPath = 'companion.safetensors';
       const file = makeRepoFile({ is_downloaded: true, installed_path: 'companion.safetensors' });
       component.deleteFile(file);
-      expect(router.navigate).toHaveBeenCalledWith(['/models']);
+      expect(mockModelService.getRepoFiles).toHaveBeenCalled();
+      expect(router.navigate).not.toHaveBeenCalled();
     });
   });
 

@@ -332,13 +332,8 @@ export class ModelDetail implements OnInit {
     const path = file.installed_path || file.filename;
     this.modelService.deleteModel(this.modelType, path).subscribe({
       next: () => {
-        if (path === this.modelPath) {
-          this.notifService.show('success', `${this.modelBasename} uninstalled.`);
-          this.router.navigate(['/models']);
-        } else {
-          this.notifService.show('success', `${file.filename} deleted.`);
-          this.loadRepoFiles();
-        }
+        this.notifService.show('success', `${file.filename} deleted.`);
+        this.loadRepoFiles();
       },
       error: (err) => this.notifService.show('error', (err as Error).message),
     });
