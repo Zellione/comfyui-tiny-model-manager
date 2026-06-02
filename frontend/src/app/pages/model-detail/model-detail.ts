@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { of } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
-import { ModelService, ModelMeta, RepoFile } from '../../services/model';
+import { ModelService, ModelMeta, RepoFile, CatalogEntryDetail } from '../../services/model';
 import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
@@ -40,6 +40,9 @@ export class ModelDetail implements OnInit {
   lightboxOpen = signal(false);
   repoFiles = signal<RepoFile[]>([]);
   downloadingFiles = signal<Set<string>>(new Set());
+  catalogEntry = signal<CatalogEntryDetail | null>(null);
+
+  readonly displayTitle = computed(() => this.catalogEntry()?.display_name || this.modelBasename);
 
   @HostListener('document:keydown.escape')
   onEscapeKey() {
@@ -95,6 +98,7 @@ export class ModelDetail implements OnInit {
         this.syncEditMeta(m);
         this.loading.set(false);
         this.loadRepoFiles();
+        this.loadCatalogEntry(m);
       },
       error: (err) => {
         this.error.set((err as Error).message);
@@ -108,6 +112,24 @@ export class ModelDetail implements OnInit {
       .getRepoFiles(this.modelType, this.modelPath)
       .pipe(catchError(() => of([] as RepoFile[])))
       .subscribe((files) => this.repoFiles.set(files));
+  }
+
+  private loadCatalogEntry(m: ModelMeta) {
+    const platform = m.source_platform;
+    const url = m.source_url;
+    if (!platform || !url) return;
+    let pageId = '';
+    if (platform === 'huggingface') {
+      pageId = url.replace('https://huggingface.co/', '');
+    } else if (platform === 'civitai') {
+      const match = url.match(/\/models\/(\d+)/);
+      pageId = match?.[1] ?? '';
+    }
+    if (!pageId) return;
+    this.modelService
+      .getCatalogEntry(platform, pageId)
+      .pipe(catchError(() => of(null)))
+      .subscribe((entry) => this.catalogEntry.set(entry));
   }
 
   private syncEditMeta(m: ModelMeta) {

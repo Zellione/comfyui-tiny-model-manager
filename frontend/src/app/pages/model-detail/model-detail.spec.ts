@@ -3,7 +3,7 @@ import { provideRouter } from '@angular/router';
 import { EMPTY, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { ModelDetail } from './model-detail';
-import { ModelService, RepoFile } from '../../services/model';
+import { ModelService, RepoFile, CatalogEntryDetail } from '../../services/model';
 import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
@@ -39,6 +39,7 @@ const mockModelService = {
   getModelTypes: vi.fn(() => of(['checkpoints', 'loras'])),
   moveModel: vi.fn(() => of(undefined)),
   getRepoFiles: vi.fn(() => of([] as RepoFile[])),
+  getCatalogEntry: vi.fn(() => of(null)),
 };
 
 const mockDownloadService = {
@@ -189,6 +190,49 @@ describe('ModelDetail', () => {
       );
       component.loadRepoFiles();
       expect(component.repoFiles()).toEqual([]);
+    });
+  });
+
+  describe('displayTitle', () => {
+    it('falls back to modelBasename when catalogEntry is null', () => {
+      component.catalogEntry.set(null);
+      expect(component.displayTitle()).toBe('my-lora.safetensors');
+    });
+
+    it('returns display_name from catalog entry when set', () => {
+      component.catalogEntry.set({
+        id: 1,
+        source_platform: 'civitai',
+        source_page_id: '1',
+        source_page_url: '',
+        display_name: 'My Awesome LoRA',
+        thumbnail_url: '',
+        base_model: 'SDXL',
+        created_at: '',
+        model_type: 'loras',
+        is_empty: false,
+        installed_files: [],
+        repo_files: [],
+      } as CatalogEntryDetail);
+      expect(component.displayTitle()).toBe('My Awesome LoRA');
+    });
+
+    it('falls back to modelBasename when catalog display_name is empty', () => {
+      component.catalogEntry.set({
+        id: 1,
+        source_platform: 'civitai',
+        source_page_id: '1',
+        source_page_url: '',
+        display_name: '',
+        thumbnail_url: '',
+        base_model: '',
+        created_at: '',
+        model_type: 'loras',
+        is_empty: false,
+        installed_files: [],
+        repo_files: [],
+      } as CatalogEntryDetail);
+      expect(component.displayTitle()).toBe('my-lora.safetensors');
     });
   });
 

@@ -232,6 +232,13 @@
   word-break: break-all;
 }
 
+.detail-subtitle {
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  margin-top: 2px;
+  word-break: break-all;
+}
+
 .dl-detail-spacer {
   flex: 1;
 }

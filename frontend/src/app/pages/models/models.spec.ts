@@ -200,6 +200,141 @@ describe('Models component', () => {
     expect(fixture.componentInstance.filteredEntries().length).toBe(1);
   });
 
+  describe('cardTitle()', () => {
+    async function getComponent() {
+      return (await createFixture()).componentInstance;
+    }
+
+    it('returns display_name when set', async () => {
+      const c = await getComponent();
+      expect(
+        c.cardTitle({
+          id: 1,
+          source_platform: 'civitai',
+          source_page_id: '999',
+          source_page_url: '',
+          display_name: 'Awesome LoRA',
+          thumbnail_url: '',
+          base_model: '',
+          created_at: '',
+          model_type: 'loras',
+          is_empty: false,
+          installed_files: [],
+        }),
+      ).toBe('Awesome LoRA');
+    });
+
+    it('derives name from first installed filename when display_name empty', async () => {
+      const c = await getComponent();
+      expect(
+        c.cardTitle({
+          id: 2,
+          source_platform: 'civitai',
+          source_page_id: '999',
+          source_page_url: '',
+          display_name: '',
+          thumbnail_url: '',
+          base_model: '',
+          created_at: '',
+          model_type: 'loras',
+          is_empty: false,
+          installed_files: [
+            {
+              filename: 'sdxl/my-cool_lora.safetensors',
+              model_type: 'loras',
+              size_bytes: 0,
+              modified_at: 0,
+            },
+          ],
+        }),
+      ).toBe('my cool lora');
+    });
+
+    it('uses last segment of HuggingFace source_page_id as fallback', async () => {
+      const c = await getComponent();
+      expect(
+        c.cardTitle({
+          id: 3,
+          source_platform: 'huggingface',
+          source_page_id: 'Keltezaa/BonnieWright',
+          source_page_url: '',
+          display_name: '',
+          thumbnail_url: '',
+          base_model: '',
+          created_at: '',
+          model_type: 'loras',
+          is_empty: true,
+          installed_files: [],
+        }),
+      ).toBe('BonnieWright');
+    });
+
+    it('falls back to source_page_id for CivitAI without files', async () => {
+      const c = await getComponent();
+      expect(
+        c.cardTitle({
+          id: 4,
+          source_platform: 'civitai',
+          source_page_id: '12345',
+          source_page_url: '',
+          display_name: '',
+          thumbnail_url: '',
+          base_model: '',
+          created_at: '',
+          model_type: 'loras',
+          is_empty: true,
+          installed_files: [],
+        }),
+      ).toBe('12345');
+    });
+  });
+
+  describe('cardDetailRoute() and cardDetailQuery()', () => {
+    async function getComponent() {
+      return (await createFixture()).componentInstance;
+    }
+
+    it('routes non-empty entry to model-detail', async () => {
+      const c = await getComponent();
+      const entry = {
+        id: 1,
+        source_platform: 'civitai',
+        source_page_id: '123',
+        source_page_url: '',
+        display_name: 'Test',
+        thumbnail_url: '',
+        base_model: '',
+        created_at: '',
+        model_type: 'loras',
+        is_empty: false,
+        installed_files: [
+          { filename: 'my.safetensors', model_type: 'loras', size_bytes: 0, modified_at: 0 },
+        ],
+      };
+      expect(c.cardDetailRoute(entry)).toEqual(['/models', 'loras', 'my.safetensors']);
+      expect(c.cardDetailQuery(entry)).toBeNull();
+    });
+
+    it('routes empty entry to catalog-detail with queryParams', async () => {
+      const c = await getComponent();
+      const entry = {
+        id: 2,
+        source_platform: 'huggingface',
+        source_page_id: 'user/repo',
+        source_page_url: '',
+        display_name: '',
+        thumbnail_url: '',
+        base_model: '',
+        created_at: '',
+        model_type: 'loras',
+        is_empty: true,
+        installed_files: [],
+      };
+      expect(c.cardDetailRoute(entry)).toEqual(['/catalog', 'huggingface']);
+      expect(c.cardDetailQuery(entry)).toEqual({ pageId: 'user/repo' });
+    });
+  });
+
   describe('BroadcastChannel tmm message', () => {
     function triggerMessage() {
       capturedChannel?.onmessage?.(new MessageEvent('message'));

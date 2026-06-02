@@ -85,13 +85,9 @@ export class Models implements OnInit {
     list = [...list].sort((a, b) => {
       switch (sort) {
         case 'name-asc':
-          return (a.display_name || a.source_page_id).localeCompare(
-            b.display_name || b.source_page_id,
-          );
+          return this.cardTitle(a).localeCompare(this.cardTitle(b));
         case 'name-desc':
-          return (b.display_name || b.source_page_id).localeCompare(
-            a.display_name || a.source_page_id,
-          );
+          return this.cardTitle(b).localeCompare(this.cardTitle(a));
         case 'created-desc':
           return Date.parse(b.created_at) - Date.parse(a.created_at);
         case 'created-asc':
@@ -204,6 +200,30 @@ export class Models implements OnInit {
     if (bytes >= 1e9) return (bytes / 1e9).toFixed(1) + ' GB';
     if (bytes >= 1e6) return (bytes / 1e6).toFixed(1) + ' MB';
     return (bytes / 1e3).toFixed(0) + ' KB';
+  }
+
+  cardTitle(entry: CatalogEntry): string {
+    if (entry.display_name) return entry.display_name;
+    if (entry.installed_files.length > 0) {
+      const fname = entry.installed_files[0].filename.split('/').pop() ?? '';
+      return fname.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ');
+    }
+    if (entry.source_platform === 'huggingface') {
+      const parts = entry.source_page_id.split('/');
+      return parts[parts.length - 1];
+    }
+    return entry.source_page_id;
+  }
+
+  cardDetailRoute(entry: CatalogEntry): string[] {
+    if (!entry.is_empty && entry.installed_files[0]) {
+      return ['/models', entry.installed_files[0].model_type, entry.installed_files[0].filename];
+    }
+    return ['/catalog', entry.source_platform];
+  }
+
+  cardDetailQuery(entry: CatalogEntry): Record<string, string> | null {
+    return entry.is_empty ? { pageId: entry.source_page_id } : null;
   }
 
   catalogThumbnailUrl(entry: CatalogEntry): string | null {

@@ -58,7 +58,10 @@
               }
             </div>
           }
-          <h2 class="detail-title" [title]="modelPath">{{ modelBasename }}</h2>
+          <h2 class="detail-title" [title]="modelPath">{{ displayTitle() }}</h2>
+          @if (displayTitle() !== modelBasename) {
+            <div class="detail-subtitle">{{ modelBasename }}</div>
+          }
         </div>
         <span class="dl-detail-spacer"></span>
         @if (meta()!.source_url) {

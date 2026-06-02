@@ -93,8 +93,8 @@
             <div class="model-card" [class.entry-empty]="entry.is_empty">
               <div class="card-media">
                 <a
-                  [routerLink]="['/catalog', entry.source_platform]"
-                  [queryParams]="{ pageId: entry.source_page_id }"
+                  [routerLink]="cardDetailRoute(entry)"
+                  [queryParams]="cardDetailQuery(entry)"
                   class="thumb-link"
                 >
                   <div class="thumb-placeholder"></div>
@@ -113,8 +113,8 @@
               </div>
 
               <div class="card-body">
-                <div class="card-title" [title]="entry.source_page_id">
-                  {{ entry.display_name || entry.source_page_id }}
+                <div class="card-title" [title]="cardTitle(entry)">
+                  {{ cardTitle(entry) }}
                 </div>
                 <div class="card-meta">
                   @if (entry.is_empty) {
@@ -129,35 +129,11 @@
                 </div>
 
                 <div class="card-actions">
-                  <a
-                    class="card-action"
-                    [routerLink]="['/catalog', entry.source_platform]"
-                    [queryParams]="{ pageId: entry.source_page_id }"
-                    title="View catalog entry"
-                  >
-                    <svg
-                      width="13"
-                      height="13"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.75"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <circle cx="12" cy="12" r="9" />
-                      <path d="M12 8h.01M11 12h1v4h1" />
-                    </svg>
-                  </a>
                   @if (!entry.is_empty && entry.installed_files[0]) {
                     <a
                       class="card-action"
-                      [routerLink]="[
-                        '/models',
-                        entry.installed_files[0].model_type,
-                        entry.installed_files[0].filename,
-                      ]"
-                      title="View file details"
+                      [routerLink]="cardDetailRoute(entry)"
+                      title="View details"
                     >
                       <svg
                         width="13"
