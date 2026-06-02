@@ -388,7 +388,9 @@ class TestGetRepoFiles:
         fp16 = next(d for d in data if d["filename"] == "model-fp16.safetensors")
         q4 = next(d for d in data if d["filename"] == "model-q4.safetensors")
         assert fp16["is_downloaded"] is True  # in models table → DB check succeeds
+        assert fp16["installed_path"] == "model-fp16.safetensors"
         assert q4["is_downloaded"] is False  # not in models table, not on disk
+        assert q4["installed_path"] == ""
 
 
 class TestLinkSource:

@@ -203,6 +203,12 @@
                       }
                     </div>
                   </div>
+                  <div class="iv-row-actions">
+                    <button class="btn small ghost" (click)="addFileToWorkflow(f)">
+                      Add to Workflow
+                    </button>
+                    <button class="btn small danger-ghost" (click)="deleteFile(f)">Delete</button>
+                  </div>
                 </div>
               } @else {
                 <div class="iv-row iv-row-missing">

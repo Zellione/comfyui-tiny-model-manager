@@ -216,7 +216,7 @@ def add_metadata_routes(routes):
         model_type = request.match_info["model_type"]
         try:
             files = await model_repo.get_repo_files(model_type, path)
-            installed_basenames = await model_repo.get_installed_basenames_for_model(path)
+            installed_map = await model_repo.get_installed_basenames_for_model(path)
             model_dir = os.path.dirname(path)
             result = []
             for f in files:
@@ -224,11 +224,19 @@ def add_metadata_routes(routes):
                 if ext not in _MODEL_EXTENSIONS:
                     continue
                 basename = os.path.basename(f["filename"])
-                f["is_downloaded"] = (
-                    basename in installed_basenames
-                    or _file_exists_on_disk(model_type, model_dir, f["filename"])
-                    or _file_exists_on_disk(model_type, "", basename)
-                )
+                db_path = installed_map.get(basename, "")
+                fs_check = _file_exists_on_disk(
+                    model_type, model_dir, f["filename"]
+                ) or _file_exists_on_disk(model_type, "", basename)
+                f["is_downloaded"] = bool(db_path) or fs_check
+                if db_path:
+                    f["installed_path"] = db_path
+                elif fs_check:
+                    f["installed_path"] = (
+                        os.path.join(model_dir, basename) if model_dir else basename
+                    )
+                else:
+                    f["installed_path"] = ""
                 f["added_at"] = _get_file_mtime(
                     model_type, model_dir, f["filename"]
                 ) or _get_file_mtime(model_type, "", basename)

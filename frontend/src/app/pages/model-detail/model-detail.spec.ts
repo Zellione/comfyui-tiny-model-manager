@@ -28,6 +28,7 @@ const makeRepoFile = (overrides: Partial<RepoFile> = {}): RepoFile => ({
   source_page_url: 'https://civitai.com/models/1',
   is_downloaded: false,
   added_at: null,
+  installed_path: '',
   ...overrides,
 });
 
@@ -280,6 +281,46 @@ describe('ModelDetail', () => {
       component.linkSource();
       expect(component.linkSourceError()).toBe('bad URL');
       expect(component.linking()).toBe(false);
+    });
+  });
+
+  describe('addFileToWorkflow', () => {
+    it('uses installed_path when set', () => {
+      const file = makeRepoFile({
+        is_downloaded: true,
+        installed_path: 'sub/companion.safetensors',
+      });
+      component.addFileToWorkflow(file);
+      expect(mockWorkflowService.addToWorkflow).toHaveBeenCalledWith(
+        'loras',
+        'sub/companion.safetensors',
+      );
+    });
+
+    it('falls back to filename when installed_path is empty', () => {
+      const file = makeRepoFile({ is_downloaded: true, installed_path: '' });
+      component.addFileToWorkflow(file);
+      expect(mockWorkflowService.addToWorkflow).toHaveBeenCalledWith(
+        'loras',
+        'companion.safetensors',
+      );
+    });
+  });
+
+  describe('deleteFile', () => {
+    it('deletes sibling file and reloads repo files', () => {
+      const file = makeRepoFile({ is_downloaded: true, installed_path: 'companion.safetensors' });
+      component.deleteFile(file);
+      expect(mockModelService.deleteModel).toHaveBeenCalledWith('loras', 'companion.safetensors');
+      expect(mockNotifService.show).toHaveBeenCalledWith('success', expect.any(String));
+      expect(mockModelService.getRepoFiles).toHaveBeenCalled();
+    });
+
+    it('navigates away when deleting the currently viewed file', () => {
+      component.modelPath = 'companion.safetensors';
+      const file = makeRepoFile({ is_downloaded: true, installed_path: 'companion.safetensors' });
+      component.deleteFile(file);
+      expect(router.navigate).toHaveBeenCalledWith(['/models']);
     });
   });
 

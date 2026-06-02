@@ -295,6 +295,30 @@ export class ModelDetail implements OnInit {
     });
   }
 
+  addFileToWorkflow(file: RepoFile) {
+    const path = file.installed_path || file.filename;
+    this.workflowService.addToWorkflow(this.modelType, path).subscribe({
+      next: () => this.notifService.show('success', 'Queued for workflow insertion.'),
+      error: () => this.notifService.show('error', 'Failed to enqueue for workflow insertion.'),
+    });
+  }
+
+  deleteFile(file: RepoFile) {
+    const path = file.installed_path || file.filename;
+    this.modelService.deleteModel(this.modelType, path).subscribe({
+      next: () => {
+        if (path === this.modelPath) {
+          this.notifService.show('success', `${this.modelBasename} uninstalled.`);
+          this.router.navigate(['/models']);
+        } else {
+          this.notifService.show('success', `${file.filename} deleted.`);
+          this.loadRepoFiles();
+        }
+      },
+      error: (err) => this.notifService.show('error', (err as Error).message),
+    });
+  }
+
   downloadFile(file: RepoFile) {
     if (!file.download_url || this.downloadingFiles().has(file.filename)) return;
     const dir = this.modelPath.includes('/')

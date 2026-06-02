@@ -556,6 +556,13 @@
   margin-left: auto;
 }
 
+.iv-row-actions {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
 .iv-row-main {
   flex: 1;
   min-width: 0;

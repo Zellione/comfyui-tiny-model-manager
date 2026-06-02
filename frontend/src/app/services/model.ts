@@ -37,6 +37,7 @@ export interface RepoFile {
   source_page_url: string;
   is_downloaded: boolean;
   added_at: number | null;
+  installed_path: string;
 }
 
 export interface InstalledFile {

@@ -557,8 +557,8 @@ async def get_repo_files(_model_type: str, model_path: str) -> list[dict]:
         return [dict(r) for r in rows]
 
 
-async def get_installed_basenames_for_model(model_path: str) -> set[str]:
-    """Return basenames of all models sharing the same catalog entry as model_path."""
+async def get_installed_basenames_for_model(model_path: str) -> dict[str, str]:
+    """Return {basename: installed_filename} for all models sharing the same catalog entry."""
     async with get_db() as db:
         row = await (
             await db.execute(
@@ -567,14 +567,21 @@ async def get_installed_basenames_for_model(model_path: str) -> set[str]:
             )
         ).fetchone()
         if not row or not row["catalog_entry_id"]:
-            return set()
+            return {}
         installed = await (
             await db.execute(
                 "SELECT filename FROM models WHERE catalog_entry_id = ?",
                 (row["catalog_entry_id"],),
             )
         ).fetchall()
-        return {os.path.basename(r["filename"]) for r in installed}
+        return {os.path.basename(r["filename"]): r["filename"] for r in installed}
+
+
+async def delete_model_record(filename: str) -> None:
+    """Remove a model row from the DB after its file has been deleted from disk."""
+    async with get_db() as db:
+        await db.execute("DELETE FROM models WHERE filename = ?", (filename,))
+        await db.commit()
 
 
 async def ensure_model_with_source(

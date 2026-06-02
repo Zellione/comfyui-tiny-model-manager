@@ -28,6 +28,7 @@ const mockEntry: CatalogEntryDetail = {
       source_page_url: '',
       is_downloaded: false,
       added_at: null,
+      installed_path: '',
     },
   ],
 };
