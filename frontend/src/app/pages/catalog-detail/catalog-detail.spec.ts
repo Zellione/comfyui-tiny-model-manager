@@ -58,29 +58,29 @@ function makeRoute(platform: string, pageId: string) {
   };
 }
 
+async function createFixture(platform = 'civitai', pageId = '123') {
+  await TestBed.configureTestingModule({
+    imports: [CatalogDetail],
+    providers: [
+      provideRouter([{ path: '**', redirectTo: '' }]),
+      { provide: ActivatedRoute, useValue: makeRoute(platform, pageId) },
+      { provide: ModelService, useValue: mockModelService },
+      { provide: DownloadService, useValue: mockDownloadService },
+      { provide: NotificationService, useValue: mockNotifService },
+    ],
+  }).compileComponents();
+
+  const fixture = TestBed.createComponent(CatalogDetail);
+  fixture.detectChanges();
+  await fixture.whenStable();
+  return fixture;
+}
+
 describe('CatalogDetail component', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mockModelService.getCatalogEntry.mockReturnValue(of(mockEntry));
   });
-
-  async function createFixture(platform = 'civitai', pageId = '123') {
-    await TestBed.configureTestingModule({
-      imports: [CatalogDetail],
-      providers: [
-        provideRouter([{ path: '**', redirectTo: '' }]),
-        { provide: ActivatedRoute, useValue: makeRoute(platform, pageId) },
-        { provide: ModelService, useValue: mockModelService },
-        { provide: DownloadService, useValue: mockDownloadService },
-        { provide: NotificationService, useValue: mockNotifService },
-      ],
-    }).compileComponents();
-
-    const fixture = TestBed.createComponent(CatalogDetail);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    return fixture;
-  }
 
   afterEach(() => TestBed.resetTestingModule());
 

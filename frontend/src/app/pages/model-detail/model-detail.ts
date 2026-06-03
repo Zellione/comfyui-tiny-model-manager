@@ -87,7 +87,7 @@ export class ModelDetail implements OnInit {
     return 'source';
   });
 
-  private destroyRef = inject(DestroyRef);
+  private readonly destroyRef = inject(DestroyRef);
 
   constructor(
     private route: ActivatedRoute,
@@ -155,7 +155,7 @@ export class ModelDetail implements OnInit {
     if (platform === 'huggingface') {
       pageId = url.replace('https://huggingface.co/', '');
     } else if (platform === 'civitai') {
-      const match = url.match(/\/models\/(\d+)/);
+      const match = /\/models\/(\d+)/.exec(url);
       pageId = match?.[1] ?? '';
     }
     if (!pageId) return;
@@ -349,7 +349,7 @@ export class ModelDetail implements OnInit {
     const platform = this.meta()?.source_platform ?? '';
     let sourceId = '';
     if (platform === 'civitai') {
-      const m = file.download_url.match(/\/api\/download\/models\/(\d+)/);
+      const m = /\/api\/download\/models\/(\d+)/.exec(file.download_url);
       sourceId = m?.[1] ?? '';
     } else if (platform === 'huggingface') {
       sourceId = this.catalogEntry()?.source_page_id ?? '';

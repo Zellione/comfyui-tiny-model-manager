@@ -3,7 +3,7 @@ import { Router, provideRouter } from '@angular/router';
 import { EMPTY, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { ModelDetail } from './model-detail';
-import { ModelService, RepoFile, CatalogEntryDetail } from '../../services/model';
+import { ModelService, RepoFile } from '../../services/model';
 import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
@@ -219,7 +219,7 @@ describe('ModelDetail', () => {
         is_empty: false,
         installed_files: [],
         repo_files: [],
-      } as CatalogEntryDetail);
+      });
       expect(component.displayTitle()).toBe('My Awesome LoRA');
     });
 
@@ -237,7 +237,7 @@ describe('ModelDetail', () => {
         is_empty: false,
         installed_files: [],
         repo_files: [],
-      } as CatalogEntryDetail);
+      });
       expect(component.displayTitle()).toBe('my-lora.safetensors');
     });
   });
@@ -380,7 +380,7 @@ describe('ModelDetail', () => {
         is_empty: false,
         installed_files: [],
         repo_files: [],
-      } as CatalogEntryDetail);
+      });
       component.downloadFile(
         makeRepoFile({
           download_url: 'https://huggingface.co/user/repo/resolve/main/model.safetensors',

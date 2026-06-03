@@ -104,7 +104,8 @@ export class Models implements OnInit {
     const out: Record<string, CatalogEntry[]> = {};
     for (const e of this.filteredEntries()) {
       const t = e.model_type || 'other';
-      (out[t] = out[t] || []).push(e);
+      if (!out[t]) out[t] = [];
+      out[t].push(e);
     }
     return out;
   });
@@ -210,7 +211,7 @@ export class Models implements OnInit {
     }
     if (entry.source_platform === 'huggingface') {
       const parts = entry.source_page_id.split('/');
-      return parts[parts.length - 1];
+      return parts.at(-1) ?? '';
     }
     return entry.source_page_id;
   }

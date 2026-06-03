@@ -3,6 +3,7 @@ import os
 from .database import get_db
 
 _MAX_DESCRIPTION = 10_000
+_REPO_FILE_COLS = "SELECT filename, model_type, size_bytes, download_url, source_page_url"
 _MAX_WORD = 200
 _MAX_TAG = 200
 _MAX_PATH = 1_000
@@ -449,8 +450,7 @@ async def get_catalog_entry(source_platform: str, source_page_id: str) -> dict |
         entry = dict(row)
         repo_files = await (
             await db.execute(
-                "SELECT filename, model_type, size_bytes, download_url, source_page_url"
-                " FROM repo_files WHERE catalog_entry_id = ?",
+                _REPO_FILE_COLS + " FROM repo_files WHERE catalog_entry_id = ?",
                 (entry["id"],),
             )
         ).fetchall()
@@ -538,8 +538,7 @@ async def get_repo_files_by_catalog(catalog_entry_id: int) -> list[dict]:
     async with get_db() as db:
         rows = await (
             await db.execute(
-                "SELECT filename, model_type, size_bytes, download_url, source_page_url"
-                " FROM repo_files WHERE catalog_entry_id = ?",
+                _REPO_FILE_COLS + " FROM repo_files WHERE catalog_entry_id = ?",
                 (catalog_entry_id,),
             )
         ).fetchall()
@@ -559,8 +558,7 @@ async def get_repo_files(_model_type: str, model_path: str) -> list[dict]:
             return []
         rows = await (
             await db.execute(
-                "SELECT filename, model_type, size_bytes, download_url, source_page_url"
-                " FROM repo_files WHERE catalog_entry_id = ?",
+                _REPO_FILE_COLS + " FROM repo_files WHERE catalog_entry_id = ?",
                 (row["catalog_entry_id"],),
             )
         ).fetchall()

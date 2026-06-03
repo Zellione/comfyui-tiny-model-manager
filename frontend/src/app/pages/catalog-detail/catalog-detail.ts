@@ -40,11 +40,11 @@ export class CatalogDetail implements OnInit {
   );
 
   constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private modelService: ModelService,
-    private downloadService: DownloadService,
-    private notifService: NotificationService,
+    private readonly route: ActivatedRoute,
+    private readonly router: Router,
+    private readonly modelService: ModelService,
+    private readonly downloadService: DownloadService,
+    private readonly notifService: NotificationService,
   ) {}
 
   ngOnInit() {

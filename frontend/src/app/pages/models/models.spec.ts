@@ -73,6 +73,10 @@ describe('Models component', () => {
     return fixture;
   }
 
+  async function getComponent() {
+    return (await createFixture()).componentInstance;
+  }
+
   it('creates successfully', async () => {
     const fixture = await createFixture();
     expect(fixture.componentInstance).toBeTruthy();
@@ -201,10 +205,6 @@ describe('Models component', () => {
   });
 
   describe('cardTitle()', () => {
-    async function getComponent() {
-      return (await createFixture()).componentInstance;
-    }
-
     it('returns display_name when set', async () => {
       const c = await getComponent();
       expect(
@@ -290,10 +290,6 @@ describe('Models component', () => {
   });
 
   describe('cardDetailRoute() and cardDetailQuery()', () => {
-    async function getComponent() {
-      return (await createFixture()).componentInstance;
-    }
-
     it('routes non-empty entry to model-detail', async () => {
       const c = await getComponent();
       const entry = {

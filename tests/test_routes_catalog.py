@@ -1,6 +1,7 @@
 """Integration tests for py/routes/catalog.py."""
 
 import os
+from pathlib import Path
 
 import pytest
 from aiohttp import web
@@ -71,7 +72,7 @@ class TestListCatalog:
         # Write a file to disk and link it to the catalog entry
         loras_dir = folder_paths.folder_names_and_paths["loras"][0][0]
         fpath = os.path.join(loras_dir, "test.safetensors")
-        open(fpath, "wb").close()
+        Path(fpath).touch()
         model_id = await model_repo.upsert_model("test.safetensors", "loras", "civitai", "456", "")
         await model_repo.set_model_catalog_entry("test.safetensors", entry_id)
         _ = model_id
@@ -85,7 +86,7 @@ class TestListCatalog:
 
         loras_dir = folder_paths.folder_names_and_paths["loras"][0][0]
         fpath = os.path.join(loras_dir, "orphan.safetensors")
-        open(fpath, "wb").close()
+        Path(fpath).touch()
 
         resp = await client.get("/tiny-model-manager/api/catalog")
         data = (await resp.json())["data"]
@@ -174,7 +175,7 @@ class TestDeleteCatalogEntry:
         # Create a fake media file
         media_path = os.path.join(ext_dir, "media", "testhash", "0.jpg")
         os.makedirs(os.path.dirname(media_path), exist_ok=True)
-        open(media_path, "wb").close()
+        Path(media_path).touch()
         # Insert a model linked to this entry with media
         model_id = await model_repo.upsert_model(
             "linked.safetensors", "loras", "civitai", "456", ""

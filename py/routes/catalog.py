@@ -44,24 +44,19 @@ _BROAD_EXTENSIONS = {".safetensors", ".ckpt", ".pt", ".bin", ".gguf", ".pth"}
 _SKIP_TYPES = {"configs", "custom_nodes"}
 
 
-def _scan_all_files() -> dict[str, list[dict]]:
-    """Scan all ComfyUI model folders and return files grouped by type."""
-    result: dict[str, list[dict]] = {}
-    scanned: set[str] = set()
-
+def _scan_registered_folders(result: dict, scanned: set) -> None:
+    """Scan folders registered in folder_paths and populate result in-place."""
     for folder_type, (dirs, extensions) in folder_paths.folder_names_and_paths.items():
         if folder_type in _SKIP_TYPES:
             continue
+        allowed = set(extensions) | _BROAD_EXTENSIONS
         for base_dir in dirs:
-            norm = os.path.normpath(base_dir)
-            scanned.add(norm)
+            scanned.add(os.path.normpath(base_dir))
             if not os.path.isdir(base_dir):
                 continue
             for root, _, files in os.walk(base_dir):
                 for fname in files:
-                    if os.path.splitext(fname)[1].lower() not in (
-                        set(extensions) | _BROAD_EXTENSIONS
-                    ):
+                    if os.path.splitext(fname)[1].lower() not in allowed:
                         continue
                     full = os.path.join(root, fname)
                     rel = os.path.relpath(full, base_dir).replace("\\", "/")
@@ -75,31 +70,41 @@ def _scan_all_files() -> dict[str, list[dict]]:
                         }
                     )
 
+
+def _scan_extra_models_dir(result: dict, scanned: set, models_dir: str) -> None:
+    """Scan models_dir for folder types not already covered by folder_paths."""
+    for name in sorted(os.listdir(models_dir)):
+        if name in _SKIP_TYPES:
+            continue
+        physical = os.path.normpath(os.path.join(models_dir, name))
+        if not os.path.isdir(physical) or physical in scanned:
+            continue
+        scanned.add(physical)
+        for root, _, files in os.walk(physical):
+            for fname in files:
+                if os.path.splitext(fname)[1].lower() not in _BROAD_EXTENSIONS:
+                    continue
+                full = os.path.join(root, fname)
+                rel = os.path.relpath(full, physical).replace("\\", "/")
+                s = os.stat(full)
+                result.setdefault(name, []).append(
+                    {
+                        "filename": rel,
+                        "base_dir": physical,
+                        "size_bytes": s.st_size,
+                        "modified_at": s.st_mtime,
+                    }
+                )
+
+
+def _scan_all_files() -> dict[str, list[dict]]:
+    """Scan all ComfyUI model folders and return files grouped by type."""
+    result: dict[str, list[dict]] = {}
+    scanned: set[str] = set()
+    _scan_registered_folders(result, scanned)
     models_dir = getattr(folder_paths, "models_dir", None)
     if models_dir and os.path.isdir(models_dir):
-        for name in sorted(os.listdir(models_dir)):
-            if name in _SKIP_TYPES:
-                continue
-            physical = os.path.normpath(os.path.join(models_dir, name))
-            if not os.path.isdir(physical) or physical in scanned:
-                continue
-            scanned.add(physical)
-            for root, _, files in os.walk(physical):
-                for fname in files:
-                    if os.path.splitext(fname)[1].lower() not in _BROAD_EXTENSIONS:
-                        continue
-                    full = os.path.join(root, fname)
-                    rel = os.path.relpath(full, physical).replace("\\", "/")
-                    s = os.stat(full)
-                    result.setdefault(name, []).append(
-                        {
-                            "filename": rel,
-                            "base_dir": physical,
-                            "size_bytes": s.st_size,
-                            "modified_at": s.st_mtime,
-                        }
-                    )
-
+        _scan_extra_models_dir(result, scanned, models_dir)
     return result
 
 
@@ -121,42 +126,49 @@ def _delete_media_paths(paths: list[str]) -> None:
             pass
 
 
+def _annotate_entries(entries: list) -> tuple[list, set[str]]:
+    """Attach disk stats to each entry's installed_files; return (entries, cataloged filenames)."""
+    cataloged: set[str] = set()
+    for entry in entries:
+        stat_list = []
+        for f in entry["installed_files"]:
+            st = _model_file_stat(f["model_type"], f["filename"])
+            stat_list.append(
+                {
+                    "filename": f["filename"],
+                    "model_type": f["model_type"],
+                    **(st or {"size_bytes": 0, "modified_at": 0}),
+                }
+            )
+            if st is not None:
+                cataloged.add(f["filename"])
+        entry["installed_files"] = stat_list
+        entry["is_empty"] = not any(
+            st["size_bytes"] > 0 or _model_file_exists(st["model_type"], st["filename"])
+            for st in stat_list
+        )
+    return entries, cataloged
+
+
+def _collect_unknown(all_files: dict, cataloged: set[str]) -> dict:
+    """Return files on disk that are not linked to any catalog entry."""
+    unknown: dict[str, list[dict]] = {}
+    for mtype, files in all_files.items():
+        for f in files:
+            if f["filename"] not in cataloged:
+                unknown.setdefault(mtype, []).append(f)
+    return unknown
+
+
 def add_catalog_routes(routes):
 
     @routes.get("/tiny-model-manager/api/catalog")
     async def list_catalog(request):
         try:
             entries = await model_repo.list_catalog_entries()
-            # Scan filesystem for all model files
             all_files = _scan_all_files()
-            # Build set of filenames that belong to a catalog entry
-            cataloged: set[str] = set()
-            for entry in entries:
-                stat_list = []
-                for f in entry["installed_files"]:
-                    st = _model_file_stat(f["model_type"], f["filename"])
-                    stat_list.append(
-                        {
-                            "filename": f["filename"],
-                            "model_type": f["model_type"],
-                            **(st or {"size_bytes": 0, "modified_at": 0}),
-                        }
-                    )
-                    if st is not None:
-                        cataloged.add(f["filename"])
-                entry["installed_files"] = stat_list
-                entry["is_empty"] = not any(
-                    st["size_bytes"] > 0 or _model_file_exists(st["model_type"], st["filename"])
-                    for st in stat_list
-                )
-
-            # Unknown files: on disk but not linked to any catalog entry
-            unknown: dict[str, list[dict]] = {}
-            for mtype, files in all_files.items():
-                for f in files:
-                    if f["filename"] not in cataloged:
-                        unknown.setdefault(mtype, []).append(f)
-
+            entries, cataloged = _annotate_entries(entries)
+            unknown = _collect_unknown(all_files, cataloged)
             return web.json_response(
                 {"success": True, "data": {"entries": entries, "unknown_files": unknown}}
             )

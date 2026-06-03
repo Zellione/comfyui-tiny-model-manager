@@ -1,6 +1,7 @@
 """Integration tests for py/services/reorganizer.py."""
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -239,7 +240,7 @@ class TestOrganizeCatalogFallback:
 
         loras_dir = setup
         src = os.path.join(loras_dir, "nobase.safetensors")
-        open(src, "wb").close()
+        Path(src).touch()
 
         entry_id = await model_repo.upsert_catalog_entry(
             source_platform="civitai",
