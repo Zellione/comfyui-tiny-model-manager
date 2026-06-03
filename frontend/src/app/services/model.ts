@@ -31,11 +31,44 @@ export interface MediaItem {
 
 export interface RepoFile {
   filename: string;
+  model_type: string;
   size_bytes: number | null;
   download_url: string;
   source_page_url: string;
   is_downloaded: boolean;
   added_at: number | null;
+  installed_path: string;
+  base_model: string;
+}
+
+export interface InstalledFile {
+  filename: string;
+  model_type: string;
+  size_bytes: number;
+  modified_at: number;
+}
+
+export interface CatalogEntry {
+  id: number;
+  source_platform: string;
+  source_page_id: string;
+  source_page_url: string;
+  display_name: string;
+  thumbnail_url: string;
+  base_model: string;
+  created_at: string;
+  model_type: string;
+  is_empty: boolean;
+  installed_files: InstalledFile[];
+}
+
+export interface CatalogEntryDetail extends CatalogEntry {
+  repo_files: RepoFile[];
+}
+
+export interface CatalogListResponse {
+  entries: CatalogEntry[];
+  unknown_files: Record<string, ModelFile[]>;
 }
 
 const API = '/tiny-model-manager/api';
@@ -90,6 +123,28 @@ export class ModelService {
     return this.http
       .get<{ success: boolean; data: RepoFile[] }>(`${API}/models/${modelType}/${path}/repo-files`)
       .pipe(map((r) => r.data));
+  }
+
+  listCatalog(): Observable<CatalogListResponse> {
+    return this.http
+      .get<{ success: boolean; data: CatalogListResponse }>(`${API}/catalog`)
+      .pipe(map((r) => r.data));
+  }
+
+  getCatalogEntry(platform: string, pageId: string): Observable<CatalogEntryDetail> {
+    return this.http
+      .get<{ success: boolean; data: CatalogEntryDetail }>(`${API}/catalog/${platform}/${pageId}`)
+      .pipe(map((r) => r.data));
+  }
+
+  removeCatalogEntry(platform: string, pageId: string): Observable<void> {
+    return this.http.delete<void>(`${API}/catalog/${platform}/${pageId}`);
+  }
+
+  linkSource(modelType: string, path: string, sourceUrl: string): Observable<void> {
+    return this.http.post<void>(`${API}/models/${modelType}/${path}/link-source`, {
+      source_url: sourceUrl,
+    });
   }
 
   organizeIntoSubfolders(): Observable<{ moved: number; skipped: number; errors: number }> {

@@ -85,6 +85,10 @@ async def _process_organize_job(job: dict) -> None:
     try:
         model_info = await model_repo.get_model_by_filename(filename)
         base_model = (model_info or {}).get("base_model", "")
+        if not base_model:
+            base_model = await model_repo.get_effective_base_model(filename)
+            if base_model:
+                await model_repo.update_model_base_model(filename, base_model)
         new_fn = await _move_to_subfolder(filename, model_type, base_model)
         if new_fn != filename:
             await model_repo.update_model_filename(filename, new_fn)

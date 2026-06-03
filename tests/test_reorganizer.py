@@ -1,6 +1,7 @@
 """Integration tests for py/services/reorganizer.py."""
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -228,3 +229,38 @@ class TestOrdering:
         assert os.path.exists(os.path.join(loras_dir, "Pony", "flat.safetensors"))
         assert os.path.exists(os.path.join(loras_dir, "org.safetensors"))
         assert not await model_repo.get_pending_jobs()
+
+
+class TestOrganizeCatalogFallback:
+    async def test_uses_catalog_entry_base_model_when_model_base_model_is_empty(self, setup):
+        """When models.base_model is empty but catalog_entries.base_model is set,
+        the organizer should move the file into the correct subfolder."""
+        from py.db import model_repo
+        from py.services.reorganizer import process_pending_jobs
+
+        loras_dir = setup
+        src = os.path.join(loras_dir, "nobase.safetensors")
+        Path(src).touch()
+
+        entry_id = await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id="999",
+            source_page_url="https://civitai.com/models/999",
+            display_name="Test",
+            thumbnail_url="",
+            base_model="SDXL 1.0",
+        )
+        # Model row has empty base_model
+        await model_repo.upsert_model("nobase.safetensors", "loras", "civitai", "999", "")
+        await model_repo.set_model_catalog_entry("nobase.safetensors", entry_id)
+        await model_repo.enqueue_reorganize("nobase.safetensors", "loras", "organize")
+
+        await process_pending_jobs()
+
+        # File should have moved to the catalog entry's base_model subfolder
+        assert os.path.exists(os.path.join(loras_dir, "SDXL 1.0", "nobase.safetensors"))
+        assert not os.path.exists(src)
+        # DB should now have base_model set on the models row
+        row = await model_repo.get_model_by_filename("SDXL 1.0/nobase.safetensors")
+        assert row is not None
+        assert row["base_model"] == "SDXL 1.0"

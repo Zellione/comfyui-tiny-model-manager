@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { EMPTY, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { ModelDetail } from './model-detail';
@@ -22,11 +22,14 @@ const makeMeta = (overrides = {}) => ({
 
 const makeRepoFile = (overrides: Partial<RepoFile> = {}): RepoFile => ({
   filename: 'companion.safetensors',
+  model_type: 'loras',
   size_bytes: 1048576,
-  download_url: 'https://example.com/companion',
+  download_url: 'https://civitai.com/api/download/models/99999?token=abc',
   source_page_url: 'https://civitai.com/models/1',
   is_downloaded: false,
   added_at: null,
+  installed_path: '',
+  base_model: '',
   ...overrides,
 });
 
@@ -38,6 +41,8 @@ const mockModelService = {
   getModelTypes: vi.fn(() => of(['checkpoints', 'loras'])),
   moveModel: vi.fn(() => of(undefined)),
   getRepoFiles: vi.fn(() => of([] as RepoFile[])),
+  getCatalogEntry: vi.fn(() => of(null)),
+  linkSource: vi.fn(() => of(undefined)),
 };
 
 const mockDownloadService = {
@@ -51,6 +56,7 @@ const mockNotifService = { show: vi.fn() };
 
 describe('ModelDetail', () => {
   let component: ModelDetail;
+  let router: Router;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -66,6 +72,8 @@ describe('ModelDetail', () => {
     }).compileComponents();
     const fixture = TestBed.createComponent(ModelDetail);
     component = fixture.componentInstance;
+    router = TestBed.inject(Router);
+    vi.spyOn(router, 'navigate').mockResolvedValue(true);
     component.modelType = 'loras';
     component.modelPath = 'my-lora.safetensors';
     component.editType = 'loras';
@@ -136,15 +144,15 @@ describe('ModelDetail', () => {
   });
 
   describe('eyebrowParts', () => {
-    it('includes modelType, base_model, and formatted size', () => {
+    it('includes modelType and formatted size', () => {
       const parts = component.eyebrowParts();
       expect(parts).toContain('loras');
-      expect(parts).toContain('SDXL 1.0');
       expect(parts.some((p) => p.includes('GB'))).toBe(true);
+      expect(parts).not.toContain('SDXL 1.0');
     });
 
-    it('omits empty base_model', () => {
-      component.meta.set(makeMeta({ base_model: '', size_bytes: 0 }));
+    it('omits size when zero', () => {
+      component.meta.set(makeMeta({ base_model: 'SDXL 1.0', size_bytes: 0 }));
       const parts = component.eyebrowParts();
       expect(parts).toEqual(['loras']);
     });
@@ -191,16 +199,199 @@ describe('ModelDetail', () => {
     });
   });
 
+  describe('displayTitle', () => {
+    it('falls back to modelBasename when catalogEntry is null', () => {
+      component.catalogEntry.set(null);
+      expect(component.displayTitle()).toBe('my-lora.safetensors');
+    });
+
+    it('returns display_name from catalog entry when set', () => {
+      component.catalogEntry.set({
+        id: 1,
+        source_platform: 'civitai',
+        source_page_id: '1',
+        source_page_url: '',
+        display_name: 'My Awesome LoRA',
+        thumbnail_url: '',
+        base_model: 'SDXL',
+        created_at: '',
+        model_type: 'loras',
+        is_empty: false,
+        installed_files: [],
+        repo_files: [],
+      });
+      expect(component.displayTitle()).toBe('My Awesome LoRA');
+    });
+
+    it('falls back to modelBasename when catalog display_name is empty', () => {
+      component.catalogEntry.set({
+        id: 1,
+        source_platform: 'civitai',
+        source_page_id: '1',
+        source_page_url: '',
+        display_name: '',
+        thumbnail_url: '',
+        base_model: '',
+        created_at: '',
+        model_type: 'loras',
+        is_empty: false,
+        installed_files: [],
+        repo_files: [],
+      });
+      expect(component.displayTitle()).toBe('my-lora.safetensors');
+    });
+  });
+
+  describe('linkSource', () => {
+    it('showLinkSourcePanel is true when source_url is empty', () => {
+      component.meta.set(makeMeta({ source_url: '' }));
+      expect(component.showLinkSourcePanel()).toBe(true);
+    });
+
+    it('showLinkSourcePanel is false when source_url is set', () => {
+      component.meta.set(makeMeta({ source_url: 'https://civitai.com/models/1' }));
+      expect(component.showLinkSourcePanel()).toBe(false);
+    });
+
+    it('calls linkSource service with trimmed URL', () => {
+      component.linkSourceUrl.set('  https://civitai.com/models/123  ');
+      component.linkSource();
+      expect(mockModelService.linkSource).toHaveBeenCalledWith(
+        'loras',
+        'my-lora.safetensors',
+        'https://civitai.com/models/123',
+      );
+    });
+
+    it('does nothing when URL is empty', () => {
+      component.linkSourceUrl.set('');
+      component.linkSource();
+      expect(mockModelService.linkSource).not.toHaveBeenCalled();
+    });
+
+    it('shows success notification and navigates to /models on success', () => {
+      component.linkSourceUrl.set('https://civitai.com/models/42');
+      component.linkSource();
+      expect(mockNotifService.show).toHaveBeenCalledWith('success', expect.any(String));
+      expect(router.navigate).toHaveBeenCalledWith(['/models']);
+    });
+
+    it('sets linkSourceError on failure', () => {
+      mockModelService.linkSource.mockReturnValueOnce(throwError(() => new Error('bad URL')));
+      component.linkSourceUrl.set('https://example.com/bad');
+      component.linkSource();
+      expect(component.linkSourceError()).toBe('bad URL');
+      expect(component.linking()).toBe(false);
+    });
+  });
+
+  describe('addFileToWorkflow', () => {
+    it('uses installed_path when set', () => {
+      const file = makeRepoFile({
+        is_downloaded: true,
+        installed_path: 'sub/companion.safetensors',
+      });
+      component.addFileToWorkflow(file);
+      expect(mockWorkflowService.addToWorkflow).toHaveBeenCalledWith(
+        'loras',
+        'sub/companion.safetensors',
+      );
+    });
+
+    it('falls back to filename when installed_path is empty', () => {
+      const file = makeRepoFile({ is_downloaded: true, installed_path: '' });
+      component.addFileToWorkflow(file);
+      expect(mockWorkflowService.addToWorkflow).toHaveBeenCalledWith(
+        'loras',
+        'companion.safetensors',
+      );
+    });
+  });
+
+  describe('deleteFile', () => {
+    it('deletes file and reloads repo files on confirm', () => {
+      const file = makeRepoFile({ is_downloaded: true, installed_path: 'companion.safetensors' });
+      component.deleteFile(file);
+      expect(mockModelService.deleteModel).toHaveBeenCalledWith('loras', 'companion.safetensors');
+      expect(mockNotifService.show).toHaveBeenCalledWith('success', expect.any(String));
+      expect(mockModelService.getRepoFiles).toHaveBeenCalled();
+    });
+
+    it('clears pendingDeleteFile after successful delete', () => {
+      const file = makeRepoFile({ is_downloaded: true, installed_path: 'companion.safetensors' });
+      component.pendingDeleteFile.set(file);
+      component.deleteFile(file);
+      expect(component.pendingDeleteFile()).toBeNull();
+    });
+
+    it('does not navigate away even when deleting the currently viewed file', () => {
+      component.modelPath = 'companion.safetensors';
+      const file = makeRepoFile({ is_downloaded: true, installed_path: 'companion.safetensors' });
+      component.deleteFile(file);
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+  });
+
   describe('downloadFile', () => {
     it('calls startDownload with correct arguments for root-level model', () => {
       component.modelPath = 'my-lora.safetensors';
       const file = makeRepoFile();
       component.downloadFile(file);
       expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
-        'https://example.com/companion',
+        'https://civitai.com/api/download/models/99999?token=abc',
         'loras',
         'companion.safetensors',
         'civitai',
+        '99999',
+      );
+    });
+
+    it('extracts CivitAI version_id from download_url as source_id', () => {
+      component.modelPath = 'my-lora.safetensors';
+      component.downloadFile(
+        makeRepoFile({ download_url: 'https://civitai.com/api/download/models/12345' }),
+      );
+      expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
+        expect.any(String),
+        'loras',
+        'companion.safetensors',
+        'civitai',
+        '12345',
+      );
+    });
+
+    it('uses catalog entry source_page_id as source_id for huggingface', () => {
+      component.meta.set(
+        makeMeta({
+          source_platform: 'huggingface',
+          source_url: 'https://huggingface.co/user/repo',
+        }),
+      );
+      component.catalogEntry.set({
+        id: 1,
+        source_platform: 'huggingface',
+        source_page_id: 'user/repo',
+        source_page_url: '',
+        display_name: '',
+        thumbnail_url: '',
+        base_model: '',
+        created_at: '',
+        model_type: 'loras',
+        is_empty: false,
+        installed_files: [],
+        repo_files: [],
+      });
+      component.downloadFile(
+        makeRepoFile({
+          download_url: 'https://huggingface.co/user/repo/resolve/main/model.safetensors',
+        }),
+      );
+      expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
+        expect.any(String),
+        'loras',
+        'companion.safetensors',
+        'huggingface',
+        'user/repo',
       );
     });
 
@@ -209,10 +400,11 @@ describe('ModelDetail', () => {
       const file = makeRepoFile();
       component.downloadFile(file);
       expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
-        'https://example.com/companion',
+        'https://civitai.com/api/download/models/99999?token=abc',
         'loras',
         'sdxl/companion.safetensors',
         'civitai',
+        '99999',
       );
     });
 

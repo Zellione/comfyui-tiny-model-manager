@@ -155,6 +155,7 @@ class CivitaiProvider(ModelProvider):
         tags: list[str] = []
         model_id = data.get("modelId")
         civitai_model_id = str(model_id) if model_id else ""
+        display_name = ""
         if model_id:
             async with httpx.AsyncClient(timeout=15) as client:
                 model_resp = await client.get(
@@ -164,6 +165,7 @@ class CivitaiProvider(ModelProvider):
                     model_data = model_resp.json()
                     description = description or model_data.get("description") or ""
                     tags = model_data.get("tags", [])
+                    display_name = model_data.get("name", "")
         return ProviderMetadata(
             description=description,
             trigger_words=data.get("trainedWords", []),
@@ -171,4 +173,5 @@ class CivitaiProvider(ModelProvider):
             tags=tags,
             base_model=base_model,
             civitai_model_id=civitai_model_id,
+            display_name=display_name,
         )

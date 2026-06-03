@@ -233,6 +233,53 @@ class TestUpdateModelMeta:
         row = await model_repo.get_model_by_filename("u.safetensors")
         assert row["base_model"] == "Flux.1 D"
 
+    async def test_creates_row_when_none_exists(self, ext_dir):
+        from py.db import model_repo
+
+        # No prior upsert — file has no models row
+        await model_repo.update_model_meta(
+            "new.safetensors", base_model="SDXL 1.0", model_type="loras"
+        )
+        row = await model_repo.get_model_by_filename("new.safetensors")
+        assert row is not None
+        assert row["base_model"] == "SDXL 1.0"
+
+    async def test_omitted_fields_are_not_overwritten(self, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_model_with_meta(
+            "partial.safetensors", "loras", "", "", "orig desc", ["kw1"], [], base_model="Pony"
+        )
+        # Updating only base_model must not touch description or trigger_words
+        await model_repo.update_model_meta("partial.safetensors", base_model="Flux.1 D")
+        row = await model_repo.get_model_by_filename("partial.safetensors")
+        assert row["description"] == "orig desc"
+        assert "kw1" in row["trigger_words"]
+        assert row["base_model"] == "Flux.1 D"
+
+
+class TestUpsertPreservesBaseModel:
+    async def test_upsert_does_not_overwrite_existing_base_model_with_empty(self, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_model(
+            "hf.safetensors", "loras", "huggingface", "user/repo", "", base_model="Flux.1 D"
+        )
+        # Simulate HF refetch that returns no base_model
+        await model_repo.upsert_model(
+            "hf.safetensors", "loras", "huggingface", "user/repo", "new desc", base_model=""
+        )
+        row = await model_repo.get_model_by_filename("hf.safetensors")
+        assert row["base_model"] == "Flux.1 D"  # preserved
+
+    async def test_upsert_sets_base_model_when_previously_empty(self, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_model("hf2.safetensors", "loras", "", "", "", base_model="")
+        await model_repo.upsert_model("hf2.safetensors", "loras", "", "", "", base_model="SDXL 1.0")
+        row = await model_repo.get_model_by_filename("hf2.safetensors")
+        assert row["base_model"] == "SDXL 1.0"
+
 
 class TestCascadeDelete:
     async def test_delete_model_cascades_to_child_rows(self, ext_dir):
@@ -373,11 +420,24 @@ class TestRepoFiles:
         },
     ]
 
+    async def _make_entry(self, source_page_id: str = "1") -> int:
+        from py.db import model_repo
+
+        return await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id=source_page_id,
+            source_page_url=f"https://civitai.com/models/{source_page_id}",
+            display_name="Test",
+            thumbnail_url="",
+            base_model="",
+        )
+
     async def test_upsert_and_get(self, ext_dir):
         from py.db import model_repo
 
-        await model_repo.upsert_repo_files("loras", "my-lora.safetensors", self._FILES)
-        rows = await model_repo.get_repo_files("loras", "my-lora.safetensors")
+        eid = await self._make_entry("1")
+        await model_repo.upsert_repo_files(eid, "loras", self._FILES)
+        rows = await model_repo.get_repo_files_by_catalog(eid)
         assert len(rows) == 2
         filenames = {r["filename"] for r in rows}
         assert filenames == {"model-fp16.safetensors", "vae.safetensors"}
@@ -385,35 +445,58 @@ class TestRepoFiles:
     async def test_upsert_is_idempotent(self, ext_dir):
         from py.db import model_repo
 
-        await model_repo.upsert_repo_files("loras", "my-lora.safetensors", self._FILES)
-        await model_repo.upsert_repo_files("loras", "my-lora.safetensors", self._FILES)
-        rows = await model_repo.get_repo_files("loras", "my-lora.safetensors")
+        eid = await self._make_entry("2")
+        await model_repo.upsert_repo_files(eid, "loras", self._FILES)
+        await model_repo.upsert_repo_files(eid, "loras", self._FILES)
+        rows = await model_repo.get_repo_files_by_catalog(eid)
         assert len(rows) == 2
 
     async def test_upsert_updates_size_on_conflict(self, ext_dir):
         from py.db import model_repo
 
-        await model_repo.upsert_repo_files("loras", "my-lora.safetensors", self._FILES)
+        eid = await self._make_entry("3")
+        await model_repo.upsert_repo_files(eid, "loras", self._FILES)
         updated = [{**self._FILES[0], "size_bytes": 999}]
-        await model_repo.upsert_repo_files("loras", "my-lora.safetensors", updated)
-        rows = await model_repo.get_repo_files("loras", "my-lora.safetensors")
+        await model_repo.upsert_repo_files(eid, "loras", updated)
+        rows = await model_repo.get_repo_files_by_catalog(eid)
         fp16 = next(r for r in rows if r["filename"] == "model-fp16.safetensors")
         assert fp16["size_bytes"] == 999
 
-    async def test_get_returns_empty_for_unknown_path(self, ext_dir):
+    async def test_get_returns_empty_for_unknown_catalog_entry(self, ext_dir):
         from py.db import model_repo
 
-        rows = await model_repo.get_repo_files("loras", "nonexistent.safetensors")
+        rows = await model_repo.get_repo_files_by_catalog(99999)
         assert rows == []
 
-    async def test_scoped_by_model_type_and_path(self, ext_dir):
+    async def test_scoped_by_catalog_entry(self, ext_dir):
         from py.db import model_repo
 
-        await model_repo.upsert_repo_files("loras", "a.safetensors", [self._FILES[0]])
-        await model_repo.upsert_repo_files("checkpoints", "a.safetensors", [self._FILES[1]])
-        lora_rows = await model_repo.get_repo_files("loras", "a.safetensors")
-        ckpt_rows = await model_repo.get_repo_files("checkpoints", "a.safetensors")
+        eid_loras = await self._make_entry("lora-source")
+        eid_ckpts = await self._make_entry("ckpt-source")
+        await model_repo.upsert_repo_files(eid_loras, "loras", [self._FILES[0]])
+        await model_repo.upsert_repo_files(eid_ckpts, "checkpoints", [self._FILES[1]])
+        lora_rows = await model_repo.get_repo_files_by_catalog(eid_loras)
+        ckpt_rows = await model_repo.get_repo_files_by_catalog(eid_ckpts)
         assert len(lora_rows) == 1
         assert lora_rows[0]["filename"] == "model-fp16.safetensors"
         assert len(ckpt_rows) == 1
         assert ckpt_rows[0]["filename"] == "vae.safetensors"
+
+    async def test_get_repo_files_by_model_path_uses_catalog_entry(self, ext_dir):
+        """get_repo_files(type, path) delegates to the model's catalog_entry_id."""
+        from py.db import model_repo
+
+        eid = await self._make_entry("5")
+        await model_repo.upsert_repo_files(eid, "loras", self._FILES)
+        # Link a model to this catalog entry
+        await model_repo.upsert_model("my-lora.safetensors", "loras", "civitai", "100", "")
+        await model_repo.set_model_catalog_entry("my-lora.safetensors", eid)
+        rows = await model_repo.get_repo_files("loras", "my-lora.safetensors")
+        assert len(rows) == 2
+
+    async def test_get_repo_files_returns_empty_without_catalog_link(self, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_model("orphan.safetensors", "loras", "", "", "")
+        rows = await model_repo.get_repo_files("loras", "orphan.safetensors")
+        assert rows == []

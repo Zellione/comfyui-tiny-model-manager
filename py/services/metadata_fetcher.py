@@ -26,6 +26,7 @@ async def fetch_and_store(
     tags: list[str] = []
     base_model = ""
     civitai_model_id = ""
+    display_name = ""
 
     provider = get_provider(platform)
     if provider and source_id:
@@ -39,6 +40,7 @@ async def fetch_and_store(
                 tags = meta.tags
                 base_model = meta.base_model
                 civitai_model_id = meta.civitai_model_id
+                display_name = meta.display_name
                 fetch_ok = True
                 break
             except Exception:
@@ -78,19 +80,58 @@ async def fetch_and_store(
     )
     if not skip_media:
         await _download_images(model_id, media_hash, image_urls)
-    await _fetch_and_store_repo_files(
-        filename, model_type, platform, source_id, civitai_model_id=civitai_model_id
-    )
+
+    # Derive catalog entry fields
+    if platform == "civitai" and civitai_model_id:
+        source_page_id = civitai_model_id
+        source_page_url = f"https://civitai.com/models/{civitai_model_id}"
+    elif platform == "huggingface" and source_id:
+        source_page_id = source_id
+        source_page_url = f"https://huggingface.co/{source_id}"
+    else:
+        source_page_id = ""
+        source_page_url = ""
+
+    if source_page_id:
+        thumbnail_url = (await model_repo.get_first_image_path(model_id)) or ""
+        try:
+            catalog_entry_id = await model_repo.upsert_catalog_entry(
+                source_platform=platform,
+                source_page_id=source_page_id,
+                source_page_url=source_page_url,
+                display_name=display_name,
+                thumbnail_url=thumbnail_url,
+                base_model=base_model,
+            )
+            await model_repo.set_model_catalog_entry(filename, catalog_entry_id)
+        except Exception:
+            catalog_entry_id = 0
+
+        await _fetch_and_store_repo_files(
+            filename,
+            model_type,
+            platform,
+            source_id,
+            civitai_model_id=civitai_model_id,
+            catalog_entry_id=catalog_entry_id if source_page_id else 0,
+        )
+    else:
+        await _fetch_and_store_repo_files(
+            filename, model_type, platform, source_id, civitai_model_id=civitai_model_id
+        )
 
 
 async def _fetch_and_store_repo_files(
-    filename: str,
+    _filename: str,
     model_type: str,
     platform: str,
     source_id: str,
     civitai_model_id: str = "",
+    catalog_entry_id: int = 0,
 ):
     """Fetches sibling files from the upstream API and stores them in repo_files. Silent on failure."""
+    if not catalog_entry_id:
+        return
     provider = get_provider(platform)
     if not provider or not source_id:
         return
@@ -129,7 +170,7 @@ async def _fetch_and_store_repo_files(
             files = hf._model_files_for_storage(source_id, raw)
         else:
             return
-        await model_repo.upsert_repo_files(model_type, filename, files)
+        await model_repo.upsert_repo_files(catalog_entry_id, model_type, files)
     except Exception:
         pass
 

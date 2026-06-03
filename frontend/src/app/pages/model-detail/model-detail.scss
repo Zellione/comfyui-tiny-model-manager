@@ -232,6 +232,55 @@
   word-break: break-all;
 }
 
+.link-source-panel {
+  background: rgba(255, 200, 0, 0.06);
+  border: 1px solid rgba(255, 200, 0, 0.2);
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.link-source-label {
+  font-size: 12px;
+  color: var(--text-muted, #aaa);
+}
+
+.link-source-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.link-source-input {
+  flex: 1;
+  background: var(--bg-input, #1a1a1a);
+  border: 1px solid var(--border, #333);
+  border-radius: 6px;
+  color: inherit;
+  font-size: 13px;
+  padding: 6px 10px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent, #7c6af0);
+  }
+}
+
+.link-source-error {
+  font-size: 12px;
+  color: var(--danger, #e05252);
+}
+
+.detail-subtitle {
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  margin-top: 2px;
+  word-break: break-all;
+}
+
 .dl-detail-spacer {
   flex: 1;
 }
@@ -507,6 +556,20 @@
   margin-left: auto;
 }
 
+.iv-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.iv-delete-confirm-label {
+  font-size: 13px;
+  color: var(--danger, #e05555);
+  white-space: nowrap;
+}
+
 .iv-row-main {
   flex: 1;
   min-width: 0;
@@ -724,4 +787,38 @@ label {
   flex-wrap: wrap;
   padding-top: 6px;
   border-top: 1px solid var(--border);
+}
+
+// ── Edit-view file rows ───────────────────────────────────────────────────────
+
+.edit-file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.edit-file-name {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &.missing {
+    opacity: 0.5;
+  }
+}
+
+.edit-file-base-model {
+  flex: 0 0 200px;
+  font-size: 13px;
 }

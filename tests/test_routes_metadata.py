@@ -128,6 +128,36 @@ class TestPutMetadata:
         )
         assert (await resp.json())["success"] is True
 
+    async def test_saves_base_model_for_file_with_no_db_row(self, client, ext_dir):
+        # No upsert_model call — the file has no models row (manually-placed file)
+        resp = await client.put(
+            "/tiny-model-manager/api/models/loras/manual.safetensors/metadata",
+            json={"base_model": "Flux.1 D"},
+        )
+        assert (await resp.json())["success"] is True
+        from py.db import model_repo
+
+        row = await model_repo.get_model_by_filename("manual.safetensors")
+        assert row is not None
+        assert row["base_model"] == "Flux.1 D"
+
+    async def test_partial_update_does_not_clear_existing_description(self, client, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_model_with_meta(
+            "existing.safetensors", "loras", "", "", "keep me", ["kw"], [], base_model=""
+        )
+        # Send only base_model — description and trigger_words must be preserved
+        resp = await client.put(
+            "/tiny-model-manager/api/models/loras/existing.safetensors/metadata",
+            json={"base_model": "SDXL 1.0"},
+        )
+        assert (await resp.json())["success"] is True
+        row = await model_repo.get_model_by_filename("existing.safetensors")
+        assert row["description"] == "keep me"
+        assert "kw" in row["trigger_words"]
+        assert row["base_model"] == "SDXL 1.0"
+
 
 class TestPutMetadataOrganize:
     @pytest.fixture()
@@ -286,10 +316,24 @@ class TestGetRepoFiles:
         assert body["success"] is True
         assert body["data"] == []
 
-    async def test_returns_stored_files_with_is_downloaded(self, client, ext_dir):
+    async def _setup_model_with_repo_files(self, filename: str, model_type: str, files: list[dict]):
+        """Create a catalog entry, models row, and repo_files for testing."""
         from py.db import model_repo
 
-        await model_repo.upsert_repo_files("loras", "my-lora.safetensors", self._SAMPLE_FILES)
+        entry_id = await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id=filename,
+            source_page_url="https://civitai.com/models/1",
+            display_name="Test",
+            thumbnail_url="",
+            base_model="",
+        )
+        await model_repo.upsert_model(filename, model_type, "civitai", "100", "")
+        await model_repo.set_model_catalog_entry(filename, entry_id)
+        await model_repo.upsert_repo_files(entry_id, model_type, files)
+
+    async def test_returns_stored_files_with_is_downloaded(self, client, ext_dir):
+        await self._setup_model_with_repo_files("my-lora.safetensors", "loras", self._SAMPLE_FILES)
         resp = await client.get(
             "/tiny-model-manager/api/models/loras/my-lora.safetensors/repo-files"
         )
@@ -303,8 +347,6 @@ class TestGetRepoFiles:
     async def test_is_downloaded_true_when_file_exists(self, client, ext_dir):
         import sys
 
-        from py.db import model_repo
-
         # Create the file on disk in the test models dir
         models_dir = sys.modules["folder_paths"].models_dir
         loras_dir = os.path.join(models_dir, "loras")
@@ -313,7 +355,7 @@ class TestGetRepoFiles:
         with open(dummy_file, "wb") as f:
             f.write(b"dummy")
 
-        await model_repo.upsert_repo_files("loras", "my-lora.safetensors", self._SAMPLE_FILES)
+        await self._setup_model_with_repo_files("my-lora.safetensors", "loras", self._SAMPLE_FILES)
         resp = await client.get(
             "/tiny-model-manager/api/models/loras/my-lora.safetensors/repo-files"
         )
@@ -324,15 +366,173 @@ class TestGetRepoFiles:
         assert vae["is_downloaded"] is False
 
     async def test_subfolder_model_path(self, client, ext_dir):
-        from py.db import model_repo
-
-        await model_repo.upsert_repo_files("loras", "sdxl/my-lora.safetensors", self._SAMPLE_FILES)
+        await self._setup_model_with_repo_files(
+            "sdxl/my-lora.safetensors", "loras", self._SAMPLE_FILES
+        )
         resp = await client.get(
             "/tiny-model-manager/api/models/loras/sdxl/my-lora.safetensors/repo-files"
         )
         assert resp.status == 200
         data = (await resp.json())["data"]
         assert len(data) == 2
+
+    async def test_is_downloaded_true_via_db_when_file_in_models_table(self, client, ext_dir):
+        # A sibling file exists in the models table (same catalog entry) but is NOT on disk.
+        # The DB-based check should still mark it as downloaded.
+        from py.db import model_repo
+
+        files_with_sibling = [
+            {
+                "filename": "model-fp16.safetensors",
+                "size_bytes": 4096,
+                "download_url": "https://example.com/fp16",
+                "source_page_url": "https://civitai.com/models/1",
+            },
+            {
+                "filename": "model-q4.safetensors",
+                "size_bytes": 2048,
+                "download_url": "https://example.com/q4",
+                "source_page_url": "https://civitai.com/models/1",
+            },
+        ]
+        # Set up catalog entry and link both the current model AND the sibling
+        entry_id = await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id="my-lora.safetensors",
+            source_page_url="https://civitai.com/models/1",
+            display_name="Test",
+            thumbnail_url="",
+            base_model="",
+        )
+        await model_repo.upsert_model("my-lora.safetensors", "loras", "civitai", "100", "")
+        await model_repo.set_model_catalog_entry("my-lora.safetensors", entry_id)
+        # Also mark model-fp16 as installed in the DB (same catalog entry)
+        await model_repo.upsert_model("model-fp16.safetensors", "loras", "civitai", "100", "")
+        await model_repo.set_model_catalog_entry("model-fp16.safetensors", entry_id)
+        await model_repo.upsert_repo_files(entry_id, "loras", files_with_sibling)
+
+        resp = await client.get(
+            "/tiny-model-manager/api/models/loras/my-lora.safetensors/repo-files"
+        )
+        data = (await resp.json())["data"]
+        fp16 = next(d for d in data if d["filename"] == "model-fp16.safetensors")
+        q4 = next(d for d in data if d["filename"] == "model-q4.safetensors")
+        assert fp16["is_downloaded"] is True  # in models table → DB check succeeds
+        assert fp16["installed_path"] == "model-fp16.safetensors"
+        assert fp16["base_model"] == ""
+        assert q4["is_downloaded"] is False  # not in models table, not on disk
+        assert q4["installed_path"] == ""
+        assert q4["base_model"] == ""
+
+    async def test_base_model_returned_for_downloaded_sibling(self, client, ext_dir):
+        from py.db import model_repo
+
+        entry_id = await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id="my-lora.safetensors",
+            source_page_url="https://civitai.com/models/1",
+            display_name="Test",
+            thumbnail_url="",
+            base_model="",
+        )
+        await model_repo.upsert_model_with_meta(
+            "model-fp16.safetensors",
+            "loras",
+            "civitai",
+            "100",
+            "",
+            [],
+            [],
+            base_model="Flux.1 D",
+        )
+        await model_repo.set_model_catalog_entry("model-fp16.safetensors", entry_id)
+        await model_repo.upsert_model("my-lora.safetensors", "loras", "civitai", "100", "")
+        await model_repo.set_model_catalog_entry("my-lora.safetensors", entry_id)
+        files = [
+            {
+                "filename": "model-fp16.safetensors",
+                "size_bytes": 4096,
+                "download_url": "https://example.com/fp16",
+                "source_page_url": "https://civitai.com/models/1",
+            },
+        ]
+        await model_repo.upsert_repo_files(entry_id, "loras", files)
+
+        resp = await client.get(
+            "/tiny-model-manager/api/models/loras/my-lora.safetensors/repo-files"
+        )
+        data = (await resp.json())["data"]
+        fp16 = next(d for d in data if d["filename"] == "model-fp16.safetensors")
+        assert fp16["is_downloaded"] is True
+        assert fp16["base_model"] == "Flux.1 D"
+
+
+class TestLinkSource:
+    async def test_returns_400_for_unrecognised_url(self, client, ext_dir):
+        resp = await client.post(
+            "/tiny-model-manager/api/models/loras/my.safetensors/link-source",
+            json={"source_url": "https://example.com/not-a-model"},
+        )
+        assert resp.status == 400
+
+    async def test_links_civitai_model_url(self, client, ext_dir):
+        from py.db import model_repo
+
+        entry_id = await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id="12345",
+            source_page_url="https://civitai.com/models/12345",
+            display_name="Test",
+            thumbnail_url="",
+            base_model="",
+        )
+        resp = await client.post(
+            "/tiny-model-manager/api/models/loras/my.safetensors/link-source",
+            json={"source_url": "https://civitai.com/models/12345"},
+        )
+        assert resp.status == 200
+        row = await model_repo.get_model_by_filename("my.safetensors")
+        assert row is not None
+        assert row["source_platform"] == "civitai"
+        assert row["civitai_model_id"] == "12345"
+        assert row["catalog_entry_id"] == entry_id
+
+    async def test_links_huggingface_url(self, client, ext_dir):
+        from py.db import model_repo
+
+        entry_id = await model_repo.upsert_catalog_entry(
+            source_platform="huggingface",
+            source_page_id="user/repo",
+            source_page_url="https://huggingface.co/user/repo",
+            display_name="HF Model",
+            thumbnail_url="",
+            base_model="",
+        )
+        resp = await client.post(
+            "/tiny-model-manager/api/models/loras/hf.safetensors/link-source",
+            json={"source_url": "https://huggingface.co/user/repo"},
+        )
+        assert resp.status == 200
+        row = await model_repo.get_model_by_filename("hf.safetensors")
+        assert row is not None
+        assert row["source_platform"] == "huggingface"
+        assert row["source_id"] == "user/repo"
+        assert row["catalog_entry_id"] == entry_id
+
+    async def test_links_without_catalog_entry(self, client, ext_dir):
+        """Linking succeeds even if no matching catalog entry exists yet."""
+        resp = await client.post(
+            "/tiny-model-manager/api/models/loras/lone.safetensors/link-source",
+            json={"source_url": "https://civitai.com/models/99999"},
+        )
+        assert resp.status == 200
+        from py.db import model_repo
+
+        row = await model_repo.get_model_by_filename("lone.safetensors")
+        assert row is not None
+        assert row["source_platform"] == "civitai"
+        assert row["civitai_model_id"] == "99999"
+        assert row["catalog_entry_id"] is None
 
 
 class TestServeMedia:

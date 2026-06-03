@@ -2,6 +2,7 @@ import asyncio
 
 from .. import config as cfg
 from ..db.database import init_db
+from .catalog import add_catalog_routes
 from .download import add_download_routes
 from .metadata import add_metadata_routes
 from .models import add_model_routes
@@ -17,6 +18,7 @@ def register_routes(routes, ext_dir: str):
     add_model_routes(routes)
     add_download_routes(routes)
     add_metadata_routes(routes)
+    add_catalog_routes(routes)
     add_settings_routes(routes)
     add_notification_routes(routes)
     register_workflow_routes(routes)

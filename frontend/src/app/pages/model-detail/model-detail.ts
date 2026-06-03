@@ -1,10 +1,19 @@
-import { Component, HostListener, OnInit, computed, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  HostListener,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { of } from 'rxjs';
-import { catchError, switchMap } from 'rxjs/operators';
-import { ModelService, ModelMeta, RepoFile } from '../../services/model';
+import { catchError, filter, switchMap } from 'rxjs/operators';
+import { ModelService, ModelMeta, RepoFile, CatalogEntryDetail } from '../../services/model';
 import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
@@ -39,7 +48,16 @@ export class ModelDetail implements OnInit {
   copied = signal(false);
   lightboxOpen = signal(false);
   repoFiles = signal<RepoFile[]>([]);
+  fileBaseModels = signal<Record<string, string>>({});
+  pendingDeleteFile = signal<RepoFile | null>(null);
   downloadingFiles = signal<Set<string>>(new Set());
+  catalogEntry = signal<CatalogEntryDetail | null>(null);
+  linkSourceUrl = signal('');
+  linking = signal(false);
+  linkSourceError = signal('');
+
+  readonly displayTitle = computed(() => this.catalogEntry()?.display_name || this.modelBasename);
+  readonly showLinkSourcePanel = computed(() => !this.meta()?.source_url);
 
   @HostListener('document:keydown.escape')
   onEscapeKey() {
@@ -57,7 +75,6 @@ export class ModelDetail implements OnInit {
     const parts: string[] = [];
     if (this.modelType) parts.push(this.modelType);
     const m = this.meta();
-    if (m?.base_model) parts.push(m.base_model);
     const size = this.formatBytes(m?.size_bytes ?? 0);
     if (size) parts.push(size);
     return parts;
@@ -69,6 +86,8 @@ export class ModelDetail implements OnInit {
     if (platform === 'huggingface') return 'HuggingFace';
     return 'source';
   });
+
+  private readonly destroyRef = inject(DestroyRef);
 
   constructor(
     private route: ActivatedRoute,
@@ -85,6 +104,12 @@ export class ModelDetail implements OnInit {
     this.editType = this.modelType;
     this.modelService.getModelTypes().subscribe((types) => this.modelTypes.set(types));
     this.loadMeta();
+    this.downloadService.completedTasks$
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        filter((t) => t.status === 'done'),
+      )
+      .subscribe(() => this.loadRepoFiles());
   }
 
   loadMeta() {
@@ -95,6 +120,7 @@ export class ModelDetail implements OnInit {
         this.syncEditMeta(m);
         this.loading.set(false);
         this.loadRepoFiles();
+        this.loadCatalogEntry(m);
       },
       error: (err) => {
         this.error.set((err as Error).message);
@@ -107,7 +133,36 @@ export class ModelDetail implements OnInit {
     this.modelService
       .getRepoFiles(this.modelType, this.modelPath)
       .pipe(catchError(() => of([] as RepoFile[])))
-      .subscribe((files) => this.repoFiles.set(files));
+      .subscribe((files) => {
+        this.repoFiles.set(files);
+        const bm: Record<string, string> = {};
+        for (const f of files) {
+          if (f.is_downloaded) bm[f.filename] = f.base_model ?? '';
+        }
+        this.fileBaseModels.set(bm);
+      });
+  }
+
+  setFileBaseModel(filename: string, value: string) {
+    this.fileBaseModels.update((m) => ({ ...m, [filename]: value }));
+  }
+
+  private loadCatalogEntry(m: ModelMeta) {
+    const platform = m.source_platform;
+    const url = m.source_url;
+    if (!platform || !url) return;
+    let pageId = '';
+    if (platform === 'huggingface') {
+      pageId = url.replace('https://huggingface.co/', '');
+    } else if (platform === 'civitai') {
+      const match = /\/models\/(\d+)/.exec(url);
+      pageId = match?.[1] ?? '';
+    }
+    if (!pageId) return;
+    this.modelService
+      .getCatalogEntry(platform, pageId)
+      .pipe(catchError(() => of(null)))
+      .subscribe((entry) => this.catalogEntry.set(entry));
   }
 
   private syncEditMeta(m: ModelMeta) {
@@ -170,6 +225,7 @@ export class ModelDetail implements OnInit {
         next: () => {
           this.saving.set(false);
           this.notifService.show('success', 'Metadata saved.');
+          this.saveSiblingBaseModels();
           if (typeChanged) {
             this.router.navigate(['/models', this.modelType, this.modelPath]);
           } else {
@@ -211,6 +267,18 @@ export class ModelDetail implements OnInit {
     });
   }
 
+  private saveSiblingBaseModels() {
+    const edits = this.fileBaseModels();
+    for (const f of this.repoFiles()) {
+      if (!f.is_downloaded) continue;
+      const newVal = edits[f.filename];
+      if (newVal === undefined || newVal === f.base_model) continue;
+      const path = f.installed_path || f.filename;
+      if (path === this.modelPath) continue; // current file is saved by the main save()
+      this.modelService.updateMetadata(f.model_type, path, { base_model: newVal }).subscribe();
+    }
+  }
+
   addToWorkflow() {
     this.workflowService.addToWorkflow(this.modelType, this.modelPath).subscribe({
       next: () => this.notifService.show('success', 'Model queued for workflow insertion.'),
@@ -234,6 +302,44 @@ export class ModelDetail implements OnInit {
     });
   }
 
+  linkSource() {
+    const url = this.linkSourceUrl().trim();
+    if (!url) return;
+    this.linking.set(true);
+    this.linkSourceError.set('');
+    this.modelService.linkSource(this.modelType, this.modelPath, url).subscribe({
+      next: () => {
+        this.linking.set(false);
+        this.notifService.show('success', 'Source linked.');
+        this.router.navigate(['/models']);
+      },
+      error: (err) => {
+        this.linking.set(false);
+        this.linkSourceError.set((err as Error).message);
+      },
+    });
+  }
+
+  addFileToWorkflow(file: RepoFile) {
+    const path = file.installed_path || file.filename;
+    this.workflowService.addToWorkflow(this.modelType, path).subscribe({
+      next: () => this.notifService.show('success', 'Queued for workflow insertion.'),
+      error: () => this.notifService.show('error', 'Failed to enqueue for workflow insertion.'),
+    });
+  }
+
+  deleteFile(file: RepoFile) {
+    const path = file.installed_path || file.filename;
+    this.modelService.deleteModel(this.modelType, path).subscribe({
+      next: () => {
+        this.pendingDeleteFile.set(null);
+        this.notifService.show('success', `${file.filename} deleted.`);
+        this.loadRepoFiles();
+      },
+      error: (err) => this.notifService.show('error', (err as Error).message),
+    });
+  }
+
   downloadFile(file: RepoFile) {
     if (!file.download_url || this.downloadingFiles().has(file.filename)) return;
     const dir = this.modelPath.includes('/')
@@ -241,9 +347,16 @@ export class ModelDetail implements OnInit {
       : '';
     const destFilename = dir + file.filename;
     const platform = this.meta()?.source_platform ?? '';
+    let sourceId = '';
+    if (platform === 'civitai') {
+      const m = /\/api\/download\/models\/(\d+)/.exec(file.download_url);
+      sourceId = m?.[1] ?? '';
+    } else if (platform === 'huggingface') {
+      sourceId = this.catalogEntry()?.source_page_id ?? '';
+    }
     this.downloadingFiles.update((s) => new Set(s).add(file.filename));
     this.downloadService
-      .startDownload(file.download_url, this.modelType, destFilename, platform)
+      .startDownload(file.download_url, this.modelType, destFilename, platform, sourceId)
       .subscribe({
         next: () => {
           this.notifService.show('success', `Downloading ${file.filename}…`);

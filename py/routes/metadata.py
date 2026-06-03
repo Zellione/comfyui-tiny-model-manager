@@ -1,8 +1,20 @@
 import os
+import re
 
 from aiohttp import web
 
 from ..db import model_repo
+
+
+def _parse_source_url(url: str) -> tuple[str, str, str]:
+    """Return (platform, source_id, civitai_model_id) or ('', '', '') if unrecognised."""
+    m = re.match(r"https?://(?:www\.)?civitai\.com/models/(\d+)", url)
+    if m:
+        return "civitai", "", m.group(1)
+    m = re.match(r"https?://huggingface\.co/([^/?#]+/[^/?#]+)", url)
+    if m:
+        return "huggingface", m.group(1), ""
+    return "", "", ""
 
 
 def _resolve_file_size(model_type: str, path: str) -> int:
@@ -124,10 +136,11 @@ def add_metadata_routes(routes):
         model_type = request.match_info["model_type"]
         try:
             body = await request.json()
-            description = body.get("description", "")
-            trigger_words = body.get("trigger_words", [])
-            tags = body.get("tags", [])
-            new_base_model = body.get("base_model")  # None means "not provided, don't update"
+            # None means "not present in request — don't touch that field"
+            description = body.get("description")
+            trigger_words = body.get("trigger_words")
+            tags = body.get("tags")
+            new_base_model = body.get("base_model")
 
             if new_base_model is not None:
                 from .. import config as cfg
@@ -147,7 +160,12 @@ def add_metadata_routes(routes):
                             pass
 
             await model_repo.update_model_meta(
-                path, description, trigger_words, tags, base_model=new_base_model
+                path,
+                description=description,
+                trigger_words=trigger_words,
+                tags=tags,
+                base_model=new_base_model,
+                model_type=model_type,
             )
             return web.json_response({"success": True})
         except Exception as exc:
@@ -204,16 +222,63 @@ def add_metadata_routes(routes):
         model_type = request.match_info["model_type"]
         try:
             files = await model_repo.get_repo_files(model_type, path)
+            installed_map = await model_repo.get_installed_basenames_for_model(path)
             model_dir = os.path.dirname(path)
             result = []
             for f in files:
                 ext = os.path.splitext(f["filename"].lower())[1]
                 if ext not in _MODEL_EXTENSIONS:
                     continue
-                f["is_downloaded"] = _file_exists_on_disk(model_type, model_dir, f["filename"])
-                f["added_at"] = _get_file_mtime(model_type, model_dir, f["filename"])
+                basename = os.path.basename(f["filename"])
+                db_info = installed_map.get(basename, {})
+                db_path = db_info.get("installed_path", "")
+                fs_check = _file_exists_on_disk(
+                    model_type, model_dir, f["filename"]
+                ) or _file_exists_on_disk(model_type, "", basename)
+                f["is_downloaded"] = bool(db_path) or fs_check
+                if db_path:
+                    f["installed_path"] = db_path
+                    f["base_model"] = db_info.get("base_model", "")
+                elif fs_check:
+                    f["installed_path"] = (
+                        os.path.join(model_dir, basename) if model_dir else basename
+                    )
+                    f["base_model"] = ""
+                else:
+                    f["installed_path"] = ""
+                    f["base_model"] = ""
+                f["added_at"] = _get_file_mtime(
+                    model_type, model_dir, f["filename"]
+                ) or _get_file_mtime(model_type, "", basename)
                 result.append(f)
             return web.json_response({"success": True, "data": result})
+        except Exception as exc:
+            return web.json_response({"success": False, "error": str(exc)}, status=500)
+
+    @routes.post("/tiny-model-manager/api/models/{model_type}/{path:.*}/link-source")
+    async def link_source(request):
+        model_type = request.match_info["model_type"]
+        path = request.match_info["path"]
+        try:
+            body = await request.json()
+            source_url = (body.get("source_url") or "").strip()
+            platform, source_id, civitai_model_id = _parse_source_url(source_url)
+            if not platform:
+                return web.json_response(
+                    {
+                        "success": False,
+                        "error": "Unrecognised URL. Paste a CivitAI model page or HuggingFace repo URL.",
+                    },
+                    status=400,
+                )
+            await model_repo.ensure_model_with_source(
+                path, model_type, platform, source_id, civitai_model_id
+            )
+            page_id = source_id if platform == "huggingface" else civitai_model_id
+            entry = await model_repo.get_catalog_entry(platform, page_id)
+            if entry:
+                await model_repo.set_model_catalog_entry(path, entry["id"])
+            return web.json_response({"success": True})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
 

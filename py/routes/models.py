@@ -121,6 +121,7 @@ def add_model_routes(routes):
                     continue
                 if os.path.isfile(candidate):
                     os.remove(candidate)
+                    await model_repo.delete_model_record(rel_path)
                     return web.json_response({"success": True})
             return web.json_response({"success": False, "error": "File not found"}, status=404)
         except Exception as exc:

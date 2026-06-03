@@ -168,9 +168,11 @@ class HuggingFaceProvider(ModelProvider):
         description = card_data.get("description", "") or ""
         if not description:
             description = await self.get_readme(source_id)
+        display_name = source_id.split("/")[-1] if source_id else ""
         return ProviderMetadata(
             description=description,
             trigger_words=card_data.get("trigger") or [],
             image_urls=image_urls,
             tags=data.get("tags", []),
+            display_name=display_name,
         )

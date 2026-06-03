@@ -10,6 +10,7 @@ class ProviderMetadata:
     tags: list[str] = field(default_factory=list)
     base_model: str = ""
     civitai_model_id: str = ""
+    display_name: str = ""
 
 
 class ModelProvider(ABC):

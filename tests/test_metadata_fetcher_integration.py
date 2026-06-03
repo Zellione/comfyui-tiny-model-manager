@@ -241,10 +241,23 @@ class TestFetchRepoFilesAllVersions:
         mock_cls.return_value = instance
         return mock_cls, instance
 
+    async def _make_catalog_entry(self, source_page_id: str) -> int:
+        from py.db import model_repo
+
+        return await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id=source_page_id,
+            source_page_url=f"https://civitai.com/models/{source_page_id}",
+            display_name="Test",
+            thumbnail_url="",
+            base_model="SDXL",
+        )
+
     async def test_stores_files_from_all_versions(self, ext_dir):
         from py.db import model_repo
         from py.services.metadata_fetcher import _fetch_and_store_repo_files
 
+        catalog_entry_id = await self._make_catalog_entry("42")
         mock_cls, _ = self._make_civitai_mock(self._MODEL_DATA["modelVersions"])
         with patch("py.services.providers.civitai_provider.CivitaiProvider", mock_cls):
             await _fetch_and_store_repo_files(
@@ -253,9 +266,10 @@ class TestFetchRepoFilesAllVersions:
                 "civitai",
                 "100",
                 civitai_model_id="42",
+                catalog_entry_id=catalog_entry_id,
             )
 
-        files = await model_repo.get_repo_files("loras", "all-versions.safetensors")
+        files = await model_repo.get_repo_files_by_catalog(catalog_entry_id)
         filenames = {f["filename"] for f in files}
         assert "model-v2-fp16.safetensors" in filenames
         assert "model-v1.safetensors" in filenames
@@ -265,6 +279,7 @@ class TestFetchRepoFilesAllVersions:
         from py.db import model_repo
         from py.services.metadata_fetcher import _fetch_and_store_repo_files
 
+        catalog_entry_id = await self._make_catalog_entry("43")
         mock_cls, _ = self._make_civitai_mock(self._MODEL_DATA["modelVersions"])
         with patch("py.services.providers.civitai_provider.CivitaiProvider", mock_cls):
             await _fetch_and_store_repo_files(
@@ -272,10 +287,11 @@ class TestFetchRepoFilesAllVersions:
                 "loras",
                 "civitai",
                 "100",
-                civitai_model_id="42",
+                civitai_model_id="43",
+                catalog_entry_id=catalog_entry_id,
             )
 
-        files = await model_repo.get_repo_files("loras", "version-url.safetensors")
+        files = await model_repo.get_repo_files_by_catalog(catalog_entry_id)
         v2_file = next(f for f in files if f["filename"] == "model-v2-fp16.safetensors")
         assert "modelVersionId=200" in v2_file["source_page_url"]
         v1_file = next(f for f in files if f["filename"] == "model-v1.safetensors")
@@ -285,6 +301,7 @@ class TestFetchRepoFilesAllVersions:
         from py.db import model_repo
         from py.services.metadata_fetcher import _fetch_and_store_repo_files
 
+        catalog_entry_id = await self._make_catalog_entry("44")
         mock_cls = MagicMock()
         instance = AsyncMock()
         instance.get_version_files = AsyncMock(
@@ -305,7 +322,8 @@ class TestFetchRepoFilesAllVersions:
                 "civitai",
                 "100",
                 civitai_model_id="",
+                catalog_entry_id=catalog_entry_id,
             )
 
-        files = await model_repo.get_repo_files("loras", "fallback.safetensors")
+        files = await model_repo.get_repo_files_by_catalog(catalog_entry_id)
         assert any(f["filename"] == "fallback.safetensors" for f in files)
