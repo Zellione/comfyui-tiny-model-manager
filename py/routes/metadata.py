@@ -167,7 +167,7 @@ def add_metadata_routes(routes):
                 base_model=new_base_model,
                 model_type=model_type,
             )
-            return web.json_response({"success": True})
+            return web.json_response({"success": True, "new_path": path})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
 

@@ -36,6 +36,7 @@ const makeRepoFile = (overrides: Partial<RepoFile> = {}): RepoFile => ({
 const mockModelService = {
   getMetadata: vi.fn(() => of(makeMeta())),
   updateMetadata: vi.fn(() => of(undefined)),
+  updateMetadataWithPath: vi.fn(() => of({ new_path: 'my-lora.safetensors' })),
   refetchMetadata: vi.fn(() => of(makeMeta())),
   deleteModel: vi.fn(() => of(undefined)),
   getModelTypes: vi.fn(() => of(['checkpoints', 'loras'])),

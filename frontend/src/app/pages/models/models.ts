@@ -217,14 +217,20 @@ export class Models implements OnInit {
   }
 
   cardDetailRoute(entry: CatalogEntry): string[] {
-    if (!entry.is_empty && entry.installed_files[0]) {
+    if (entry.source_platform && entry.source_page_id) {
+      return ['/catalog', entry.source_platform];
+    }
+    if (entry.installed_files[0]) {
       return ['/models', entry.installed_files[0].model_type, entry.installed_files[0].filename];
     }
-    return ['/catalog', entry.source_platform];
+    return ['/catalog'];
   }
 
   cardDetailQuery(entry: CatalogEntry): Record<string, string> | null {
-    return entry.is_empty ? { pageId: entry.source_page_id } : null;
+    if (entry.source_platform && entry.source_page_id) {
+      return { pageId: entry.source_page_id };
+    }
+    return null;
   }
 
   catalogThumbnailUrl(entry: CatalogEntry): string | null {

@@ -218,16 +218,22 @@ export class ModelDetail implements OnInit {
       .pipe(
         switchMap(() => {
           if (typeChanged) this.modelType = this.editType;
-          return this.modelService.updateMetadata(this.modelType, this.modelPath, this.editMeta);
+          return this.modelService.updateMetadataWithPath(
+            this.modelType,
+            this.modelPath,
+            this.editMeta,
+          );
         }),
       )
       .subscribe({
-        next: () => {
+        next: (result) => {
           this.saving.set(false);
           this.notifService.show('success', 'Metadata saved.');
           this.saveSiblingBaseModels();
-          if (typeChanged) {
-            this.router.navigate(['/models', this.modelType, this.modelPath]);
+          const newPath = result.new_path;
+          if (typeChanged || newPath !== this.modelPath) {
+            this.modelPath = newPath;
+            this.router.navigate(['/models', this.modelType, newPath]);
           } else {
             this.editMode.set(false);
             const current = this.meta()!;

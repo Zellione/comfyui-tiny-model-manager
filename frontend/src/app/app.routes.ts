@@ -5,9 +5,10 @@ import { ModelDetail } from './pages/model-detail/model-detail';
 import { CatalogDetail } from './pages/catalog-detail/catalog-detail';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'models', pathMatch: 'full' },
-  { path: 'models', component: Models },
-  { path: 'models/:type/:path', component: ModelDetail },
+  { path: '', redirectTo: 'catalog', pathMatch: 'full' },
+  { path: 'catalog', component: Models },
+  { path: 'models', redirectTo: 'catalog', pathMatch: 'full' },
   { path: 'catalog/:platform', component: CatalogDetail },
+  { path: 'models/:type/:path', component: ModelDetail },
   { path: 'download', component: Download },
 ];

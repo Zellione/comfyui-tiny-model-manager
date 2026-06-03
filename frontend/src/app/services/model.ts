@@ -97,6 +97,19 @@ export class ModelService {
     return this.http.put<void>(`${API}/models/${modelType}/${path}/metadata`, meta);
   }
 
+  updateMetadataWithPath(
+    modelType: string,
+    path: string,
+    meta: Partial<ModelMeta>,
+  ): Observable<{ new_path: string }> {
+    return this.http
+      .put<{
+        success: boolean;
+        new_path: string;
+      }>(`${API}/models/${modelType}/${path}/metadata`, meta)
+      .pipe(map((r) => ({ new_path: r.new_path ?? path })));
+  }
+
   refetchMetadata(modelType: string, path: string): Observable<ModelMeta> {
     return this.http
       .post<{ success: boolean; data: ModelMeta }>(`${API}/models/${modelType}/${path}/refetch`, {})

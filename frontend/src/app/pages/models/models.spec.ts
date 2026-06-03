@@ -290,7 +290,7 @@ describe('Models component', () => {
   });
 
   describe('cardDetailRoute() and cardDetailQuery()', () => {
-    it('routes non-empty entry to model-detail', async () => {
+    it('routes non-empty catalog entry to catalog-detail with pageId', async () => {
       const c = await getComponent();
       const entry = {
         id: 1,
@@ -307,8 +307,8 @@ describe('Models component', () => {
           { filename: 'my.safetensors', model_type: 'loras', size_bytes: 0, modified_at: 0 },
         ],
       };
-      expect(c.cardDetailRoute(entry)).toEqual(['/models', 'loras', 'my.safetensors']);
-      expect(c.cardDetailQuery(entry)).toBeNull();
+      expect(c.cardDetailRoute(entry)).toEqual(['/catalog', 'civitai']);
+      expect(c.cardDetailQuery(entry)).toEqual({ pageId: '123' });
     });
 
     it('routes empty entry to catalog-detail with queryParams', async () => {
