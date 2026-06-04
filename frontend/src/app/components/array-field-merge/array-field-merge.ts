@@ -13,7 +13,7 @@ export class ArrayFieldMerge implements OnInit {
   lastEditedAt = input<string | null>(null);
   selectedItems = model<string[]>([]);
 
-  private _selected = signal<Set<string>>(new Set());
+  private readonly _selected = signal<Set<string>>(new Set());
 
   readonly shared = computed(() => {
     const oldSet = new Set(this.oldItems());
@@ -49,13 +49,11 @@ export class ArrayFieldMerge implements OnInit {
   }
 
   private _buildDefaultSelection(): string[] {
-    const result: string[] = [];
-    result.push(...this.oldOnly());
-    result.push(...this.shared());
-    if (this.oldItems().length === 0) {
-      result.push(...this.newOnly());
-    }
-    return result;
+    return [
+      ...this.oldOnly(),
+      ...this.shared(),
+      ...(this.oldItems().length === 0 ? this.newOnly() : []),
+    ];
   }
 
   isSelected(item: string): boolean {

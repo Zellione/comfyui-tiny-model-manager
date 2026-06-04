@@ -5,6 +5,8 @@
       [class.active]="selected() === 'old'"
       [class.dimmed]="selected() === 'new'"
       (click)="selectOld()"
+      (keydown.enter)="selectOld()"
+      tabindex="0"
     >
       <div class="panel-header">
         <span>Current</span>
@@ -17,6 +19,7 @@
           [checked]="selected() === 'old'"
           (change)="selectOld()"
           (click)="$event.stopPropagation()"
+          (keydown)="$event.stopPropagation()"
         />
       </div>
       <div class="diff-content">
@@ -34,6 +37,8 @@
       [class.active]="selected() === 'new'"
       [class.dimmed]="selected() === 'old'"
       (click)="selectNew()"
+      (keydown.enter)="selectNew()"
+      tabindex="0"
     >
       <div class="panel-header">
         <span>Incoming</span>
@@ -43,6 +48,7 @@
           [checked]="selected() === 'new'"
           (change)="selectNew()"
           (click)="$event.stopPropagation()"
+          (keydown)="$event.stopPropagation()"
         />
       </div>
       <div class="diff-content">

@@ -36,7 +36,7 @@ _cleanup_task: _asyncio.Task | None = None
 async def _cleanup_cache_loop():
     while True:
         await _asyncio.sleep(60)
-        expired = [k for k, v in list(_refetch_cache.items()) if v.is_expired]
+        expired = [k for k, v in _refetch_cache.items() if v.is_expired]
         for k in expired:
             _refetch_cache.pop(k, None)
 

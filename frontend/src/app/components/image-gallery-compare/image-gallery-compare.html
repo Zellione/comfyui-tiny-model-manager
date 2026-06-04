@@ -13,7 +13,7 @@
               [checked]="isExistingKept(item.local_path)"
               (change)="toggleExisting(item.local_path)"
             />
-            <img [src]="mediaUrl(item.local_path)" alt="current image" />
+            <img [src]="mediaUrl(item.local_path)" alt="current" />
             <span class="strip-label">Keep</span>
           </label>
         }
@@ -34,7 +34,7 @@
             [checked]="isIncomingSelected(url)"
             (change)="toggleIncoming(url)"
           />
-          <img [src]="url" alt="incoming image" />
+          <img [src]="url" alt="incoming" />
           <span class="strip-label">Download</span>
         </label>
       }

@@ -10,6 +10,7 @@ _MAX_WORD = 200
 _MAX_TAG = 200
 _MAX_PATH = 1_000
 _ALLOWED_MEDIA_TYPES = {"image", "video"}
+_MEDIA_SELECT = "SELECT id, media_type, local_path FROM model_media WHERE model_id = ?"
 
 
 async def _prune_orphan_tags(db) -> None:
@@ -180,7 +181,7 @@ async def get_model_by_filename(filename: str) -> dict | None:
         ).fetchall()
         media = await (
             await db.execute(
-                "SELECT id, media_type, local_path FROM model_media WHERE model_id = ?",
+                _MEDIA_SELECT,
                 (model["id"],),
             )
         ).fetchall()
@@ -212,7 +213,7 @@ async def get_metadata_by_filenames(filenames: list[str]) -> dict[str, dict]:
             ).fetchall()
             media = await (
                 await db.execute(
-                    "SELECT id, media_type, local_path FROM model_media WHERE model_id = ?",
+                    _MEDIA_SELECT,
                     (m["id"],),
                 )
             ).fetchall()
@@ -756,7 +757,7 @@ async def get_model_media(model_id: int) -> list[dict]:
     async with get_db() as db:
         rows = await (
             await db.execute(
-                "SELECT id, media_type, local_path FROM model_media WHERE model_id = ?",
+                _MEDIA_SELECT,
                 (model_id,),
             )
         ).fetchall()

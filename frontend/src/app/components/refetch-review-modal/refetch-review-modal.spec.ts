@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
 import { RefetchReviewModal } from './refetch-review-modal';
-import { ModelService, RefetchPreviewResponse, RefetchResult } from '../../services/model';
+import { ModelService, RefetchPreviewResponse } from '../../services/model';
 
 const makePreviewData = (
   overrides: Partial<RefetchPreviewResponse> = {},
@@ -28,7 +28,7 @@ const makePreviewData = (
 });
 
 const mockModelService = {
-  refetchApply: vi.fn(() => of({ removed: false, meta: {} } as RefetchResult)),
+  refetchApply: vi.fn(() => of({ removed: false, meta: {} })),
 };
 
 async function createFixture(data = makePreviewData()) {

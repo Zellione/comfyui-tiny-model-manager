@@ -13,6 +13,9 @@
             class="chip chip--active"
             [class.chip--inactive]="!isSelected(item)"
             (click)="toggle(item)"
+            (keydown.enter)="toggle(item)"
+            (keydown.space)="toggle(item)"
+            tabindex="0"
             title="Click to toggle"
             >{{ item }}</span
           >
@@ -22,6 +25,9 @@
             class="chip chip--shared"
             [class.chip--inactive]="!isSelected(item)"
             (click)="toggle(item)"
+            (keydown.enter)="toggle(item)"
+            (keydown.space)="toggle(item)"
+            tabindex="0"
             title="Click to toggle"
             >{{ item }}</span
           >
@@ -42,6 +48,9 @@
             class="chip chip--shared"
             [class.chip--inactive]="!isSelected(item)"
             (click)="toggle(item)"
+            (keydown.enter)="toggle(item)"
+            (keydown.space)="toggle(item)"
+            tabindex="0"
             title="Click to toggle"
             >{{ item }}</span
           >
@@ -52,6 +61,9 @@
             [class.chip--active]="isSelected(item)"
             [class.chip--inactive]="!isSelected(item)"
             (click)="toggle(item)"
+            (keydown.enter)="toggle(item)"
+            (keydown.space)="toggle(item)"
+            tabindex="0"
             title="Click to add"
             >{{ item }}</span
           >
