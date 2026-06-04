@@ -6,6 +6,7 @@ from aiohttp import web
 
 from .. import config as cfg
 from ..db import model_repo
+from ..services import model_paths
 
 _MEDIA_VIDEO_EXTS = {"mp4", "webm", "mov"}
 _CATALOG_NOT_FOUND = "Catalog entry not found"
@@ -61,34 +62,12 @@ def _annotate_catalog_detail(entry: dict) -> dict:
 
 def _model_file_exists(model_type: str, filename: str) -> bool:
     """Return True if the model file exists on disk in any registered location."""
-    candidates: list[str] = []
-    dirs, _ = folder_paths.folder_names_and_paths.get(model_type, ([], {}))
-    for base_dir in dirs:
-        candidates.append(os.path.join(base_dir, filename))
-    models_dir = getattr(folder_paths, "models_dir", None)
-    if models_dir:
-        candidates.append(os.path.join(models_dir, model_type, filename))
-    candidates.append(os.path.join(cfg.data_dir(), "models", model_type, filename))
-    return any(os.path.isfile(c) for c in candidates)
+    return model_paths.file_exists(model_type, filename)
 
 
 def _model_file_stat(model_type: str, filename: str) -> dict | None:
     """Return size_bytes and modified_at for the first found copy of the file."""
-    candidates: list[str] = []
-    dirs, _ = folder_paths.folder_names_and_paths.get(model_type, ([], {}))
-    for base_dir in dirs:
-        candidates.append(os.path.join(base_dir, filename))
-    models_dir = getattr(folder_paths, "models_dir", None)
-    if models_dir:
-        candidates.append(os.path.join(models_dir, model_type, filename))
-    candidates.append(os.path.join(cfg.data_dir(), "models", model_type, filename))
-    for c in candidates:
-        try:
-            s = os.stat(c)
-            return {"size_bytes": s.st_size, "modified_at": s.st_mtime}
-        except OSError:
-            pass
-    return None
+    return model_paths.file_stat(model_type, filename)
 
 
 _BROAD_EXTENSIONS = {".safetensors", ".ckpt", ".pt", ".bin", ".gguf", ".pth"}
