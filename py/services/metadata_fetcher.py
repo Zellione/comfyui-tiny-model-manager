@@ -5,6 +5,7 @@ import hashlib
 import os
 import re
 import shutil
+from pathlib import Path
 
 import httpx
 
@@ -250,12 +251,14 @@ async def _fetch_url_to_file(
     try:
         raw = url.rsplit(".", 1)[-1].split("?")[0].lower()
         ext = _SAFE_EXT.sub("", raw)[:10] or "jpg"
-        dest = os.path.join(dest_dir, f"{index}.{ext}")
+        base_real = os.path.realpath(dest_dir)
+        dest = os.path.realpath(os.path.join(dest_dir, f"{index}.{ext}"))
+        if not dest.startswith(base_real + os.sep):
+            return None
         if not os.path.isfile(dest):
             resp = await client.get(url)
             resp.raise_for_status()
-            with open(dest, "wb") as f:  # noqa: S603
-                f.write(resp.content)
+            await asyncio.to_thread(Path(dest).write_bytes, resp.content)
         return dest, ext
     except Exception:
         return None

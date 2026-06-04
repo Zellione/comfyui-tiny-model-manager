@@ -81,10 +81,15 @@
                     [src]="mediaUrl(m.local_path)"
                     alt="preview"
                     class="gallery-main-img"
+                    role="button"
+                    tabindex="0"
                     (click)="lightboxOpen.set(true)"
+                    (keydown.enter)="lightboxOpen.set(true)"
                   />
                 } @else {
-                  <video [src]="mediaUrl(m.local_path)" controls></video>
+                  <video [src]="mediaUrl(m.local_path)" controls>
+                    <track kind="captions" />
+                  </video>
                 }
               }
             </div>
@@ -94,7 +99,10 @@
                   <div
                     class="gallery-thumb"
                     [class.active]="i === galleryIdx()"
+                    role="button"
+                    tabindex="0"
                     (click)="galleryIdx.set(i)"
+                    (keydown.enter)="galleryIdx.set(i)"
                   >
                     @if (thumb.media_type === 'image') {
                       <img [src]="mediaUrl(thumb.local_path)" alt="" />
@@ -131,7 +139,13 @@
           @if (displayTriggerWords().length > 0) {
             <div class="keywords-row">
               <div class="keywords-label">Trigger keywords</div>
-              <div class="keywords-line" (click)="copyTriggerWords()">
+              <div
+                class="keywords-line"
+                role="button"
+                tabindex="0"
+                (click)="copyTriggerWords()"
+                (keydown.enter)="copyTriggerWords()"
+              >
                 <code>{{ displayTriggerWords().join(', ') }}</code>
                 <button
                   class="btn small ghost keywords-copy"
@@ -351,7 +365,13 @@
 
   <!-- Lightbox -->
   @if (lightboxOpen() && activeMedia()?.media_type === 'image') {
-    <div class="lightbox" (click)="lightboxOpen.set(false)">
+    <div
+      class="lightbox"
+      role="button"
+      tabindex="0"
+      (click)="lightboxOpen.set(false)"
+      (keydown.enter)="lightboxOpen.set(false)"
+    >
       <img [src]="mediaUrl(activeMedia()!.local_path)" alt="full size preview" />
     </div>
   }

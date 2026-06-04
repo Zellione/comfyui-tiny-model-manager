@@ -14,7 +14,14 @@
   @if (open() && filtered().length > 0) {
     <ul class="bms-panel">
       @for (opt of filtered(); track opt) {
-        <li class="bms-option" [class.active]="opt === value()" (click)="select(opt)">{{ opt }}</li>
+        <li
+          class="bms-option"
+          [class.active]="opt === value()"
+          (click)="select(opt)"
+          (keydown.enter)="select(opt)"
+        >
+          {{ opt }}
+        </li>
       }
     </ul>
   }

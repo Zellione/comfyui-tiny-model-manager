@@ -1,6 +1,7 @@
 """Integration tests for py/routes/metadata.py (metadata CRUD + media serving)."""
 
 import os
+from pathlib import Path
 
 import pytest
 from aiohttp import web
@@ -201,7 +202,7 @@ class TestPutMetadataOrganize:
         old_subfolder = os.path.join(loras_dir, "SDXL 1.0")
         os.makedirs(old_subfolder)
         src = os.path.join(old_subfolder, "move-me.safetensors")
-        open(src, "wb").close()
+        Path(src).touch()
 
         await model_repo.upsert_model(
             "SDXL 1.0/move-me.safetensors", "loras", "", "", "", base_model="SDXL 1.0"
@@ -226,7 +227,7 @@ class TestPutMetadataOrganize:
         cfg.save_settings({"organize_into_subfolders": False})
 
         src = os.path.join(loras_dir, "flat.safetensors")
-        open(src, "wb").close()
+        Path(src).touch()
 
         await model_repo.upsert_model(
             "flat.safetensors", "loras", "", "", "", base_model="SDXL 1.0"
@@ -250,7 +251,7 @@ class TestPutMetadataOrganize:
         old_subfolder = os.path.join(loras_dir, "SDXL 1.0")
         os.makedirs(old_subfolder)
         src = os.path.join(old_subfolder, "resp-test.safetensors")
-        open(src, "wb").close()
+        Path(src).touch()
 
         await model_repo.upsert_model(
             "SDXL 1.0/resp-test.safetensors", "loras", "", "", "", base_model="SDXL 1.0"

@@ -202,14 +202,14 @@
             </select>
           </label>
 
-          <label>
+          <div class="field-group">
             <span class="field-label">Base Model</span>
             <app-base-model-select
               [value]="editMeta.base_model ?? ''"
               (valueChange)="editMeta.base_model = $event"
               placeholder="e.g. SDXL 1.0, Flux.1 D, Pony"
             />
-          </label>
+          </div>
 
           <div class="field-group">
             <span class="field-label">Trigger Words</span>

@@ -246,10 +246,12 @@ class TestCatalogMetadata:
         from py import config as cfg
         from py.db import model_repo
 
-        media_dir = os.path.join(cfg.media_dir(), "gallhash")
+        _base = os.path.realpath(cfg.media_dir())
+        media_dir = os.path.realpath(os.path.join(_base, "gallhash"))
+        assert media_dir.startswith(_base + os.sep)
         os.makedirs(media_dir, exist_ok=True)
-        Path(os.path.join(media_dir, "0.jpg")).touch()
-        Path(os.path.join(media_dir, "1.mp4")).touch()
+        (Path(media_dir) / "0.jpg").touch()
+        (Path(media_dir) / "1.mp4").touch()
         await model_repo.upsert_catalog_entry(
             source_platform="civitai",
             source_page_id="501",
@@ -270,9 +272,11 @@ class TestCatalogMetadata:
         from py import config as cfg
         from py.db import model_repo
 
-        media_dir = os.path.join(cfg.media_dir(), "survivehash")
+        _base = os.path.realpath(cfg.media_dir())
+        media_dir = os.path.realpath(os.path.join(_base, "survivehash"))
+        assert media_dir.startswith(_base + os.sep)
         os.makedirs(media_dir, exist_ok=True)
-        Path(os.path.join(media_dir, "0.jpg")).touch()
+        (Path(media_dir) / "0.jpg").touch()
         await model_repo.upsert_catalog_entry(
             source_platform="civitai",
             source_page_id="502",

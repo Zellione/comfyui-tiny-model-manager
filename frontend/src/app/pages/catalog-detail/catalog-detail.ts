@@ -70,7 +70,7 @@ export class CatalogDetail implements OnInit {
   // fetch, subfolder move, catalog linking) is still in flight. The row shows a
   // "Processing…" state and is silently re-polled until is_downloaded flips true.
   finalizingFiles = signal<Set<string>>(new Set());
-  private finalizeTimers = new Set<ReturnType<typeof setTimeout>>();
+  private readonly finalizeTimers = new Set<ReturnType<typeof setTimeout>>();
 
   readonly activeTasks: Signal<DownloadTask[]>;
 

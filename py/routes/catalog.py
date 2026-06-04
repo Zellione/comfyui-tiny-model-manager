@@ -8,6 +8,7 @@ from .. import config as cfg
 from ..db import model_repo
 
 _MEDIA_VIDEO_EXTS = {"mp4", "webm", "mov"}
+_CATALOG_NOT_FOUND = "Catalog entry not found"
 
 
 def _list_catalog_media(media_hash: str) -> list[dict]:
@@ -18,7 +19,10 @@ def _list_catalog_media(media_hash: str) -> list[dict]:
     """
     if not media_hash:
         return []
-    media_dir = os.path.join(cfg.media_dir(), media_hash)
+    base = os.path.realpath(cfg.media_dir())
+    media_dir = os.path.realpath(os.path.join(base, media_hash))
+    if not media_dir.startswith(base + os.sep):
+        return []
     if not os.path.isdir(media_dir):
         return []
     items: list[dict] = []
@@ -207,6 +211,29 @@ def _collect_unknown(all_files: dict, cataloged: set[str]) -> dict:
     return unknown
 
 
+async def _handle_get_catalog_entry(platform: str, page_id: str) -> web.Response:
+    entry = await model_repo.get_catalog_entry(platform, page_id)
+    if not entry:
+        return web.json_response({"success": False, "error": _CATALOG_NOT_FOUND}, status=404)
+    return web.json_response({"success": True, "data": _annotate_catalog_detail(entry)})
+
+
+async def _handle_update_catalog_metadata(platform: str, page_id: str, body: dict) -> web.Response:
+    # Absent keys are left unchanged; present keys are written verbatim (so the
+    # user can clear fields).
+    ok = await model_repo.update_catalog_metadata(
+        platform,
+        page_id,
+        description=body.get("description"),
+        trigger_words=body.get("trigger_words"),
+        tags=body.get("tags"),
+        base_model=body.get("base_model"),
+    )
+    if not ok:
+        return web.json_response({"success": False, "error": _CATALOG_NOT_FOUND}, status=404)
+    return web.json_response({"success": True})
+
+
 def add_catalog_routes(routes):
 
     @routes.get("/tiny-model-manager/api/catalog")
@@ -224,39 +251,21 @@ def add_catalog_routes(routes):
 
     @routes.get("/tiny-model-manager/api/catalog/{platform}/{page_id:.*}")
     async def get_catalog_entry(request):
-        platform = request.match_info["platform"]
-        page_id = request.match_info["page_id"]
         try:
-            entry = await model_repo.get_catalog_entry(platform, page_id)
-            if not entry:
-                return web.json_response(
-                    {"success": False, "error": "Catalog entry not found"}, status=404
-                )
-            return web.json_response({"success": True, "data": _annotate_catalog_detail(entry)})
+            return await _handle_get_catalog_entry(
+                request.match_info["platform"], request.match_info["page_id"]
+            )
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
 
     @routes.put("/tiny-model-manager/api/catalog/{platform}/{page_id:.*}/metadata")
     async def update_catalog_metadata(request):
-        platform = request.match_info["platform"]
-        page_id = request.match_info["page_id"]
         try:
-            body = await request.json()
-            # Absent keys are left unchanged; present keys are written verbatim (so the
-            # user can clear fields).
-            ok = await model_repo.update_catalog_metadata(
-                platform,
-                page_id,
-                description=body.get("description"),
-                trigger_words=body.get("trigger_words"),
-                tags=body.get("tags"),
-                base_model=body.get("base_model"),
+            return await _handle_update_catalog_metadata(
+                request.match_info["platform"],
+                request.match_info["page_id"],
+                await request.json(),
             )
-            if not ok:
-                return web.json_response(
-                    {"success": False, "error": "Catalog entry not found"}, status=404
-                )
-            return web.json_response({"success": True})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
 
@@ -285,7 +294,7 @@ def add_catalog_routes(routes):
             result = await model_repo.delete_catalog_entry(platform, page_id)
             if result is None:
                 return web.json_response(
-                    {"success": False, "error": "Catalog entry not found"}, status=404
+                    {"success": False, "error": _CATALOG_NOT_FOUND}, status=404
                 )
             _delete_media_paths(result["media_paths"])
             return web.json_response({"success": True})
