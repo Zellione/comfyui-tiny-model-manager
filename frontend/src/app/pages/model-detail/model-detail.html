@@ -228,40 +228,7 @@
             (saveClicked)="save()"
             (cancelClicked)="cancelEdit()"
             (refetchClicked)="triggerRefetchPreview()"
-          >
-            <!-- Files in this model — base model per row -->
-            <div class="field-group">
-              <span class="field-label">Files in this model</span>
-              @if (repoFiles().length > 0) {
-                @for (f of repoFiles(); track f.filename) {
-                  <div class="edit-file-row">
-                    <span class="edit-file-name" [class.missing]="!f.is_downloaded">
-                      {{ f.filename }}
-                      @if (!f.is_downloaded) {
-                        <span class="pill missing">Not downloaded</span>
-                      }
-                    </span>
-                    @if (f.is_downloaded) {
-                      <app-base-model-select
-                        class="edit-file-base-model"
-                        [value]="fileBaseModels()[f.filename]"
-                        (valueChange)="setFileBaseModel(f.filename, $event)"
-                      />
-                    }
-                  </div>
-                }
-              } @else {
-                <div class="edit-file-row">
-                  <span class="edit-file-name">{{ modelBasename }}</span>
-                  <app-base-model-select
-                    class="edit-file-base-model"
-                    [value]="editMeta.base_model ?? ''"
-                    (valueChange)="editMeta.base_model = $event"
-                  />
-                </div>
-              }
-            </div>
-          </app-edit-meta-form>
+          />
         </div>
       }
     </div>
