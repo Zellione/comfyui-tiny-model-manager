@@ -409,28 +409,33 @@ async def update_catalog_metadata(
     """Edit catalog-owned metadata. Unlike upsert, a provided value is always written
     (so the user can clear fields). None means 'leave unchanged'. Returns True if a row
     matched."""
-    sets: list[str] = []
-    params: list = []
-    if description is not None:
-        sets.append("description = ?")
-        params.append(description[:_MAX_DESCRIPTION])
-    if trigger_words is not None:
-        sets.append("trigger_words = ?")
-        params.append(json.dumps(trigger_words))
-    if tags is not None:
-        sets.append("tags = ?")
-        params.append(json.dumps(tags))
-    if base_model is not None:
-        sets.append("base_model = ?")
-        params.append(base_model)
-    if not sets:
+    if description is None and trigger_words is None and tags is None and base_model is None:
         return True
-    params.extend([source_platform, source_page_id])
+    desc = description[:_MAX_DESCRIPTION] if description is not None else None
+    tw_json = json.dumps(trigger_words) if trigger_words is not None else None
+    tags_json = json.dumps(tags) if tags is not None else None
     async with get_db() as db:
         cur = await db.execute(
-            f"UPDATE catalog_entries SET {', '.join(sets)}"
-            " WHERE source_platform = ? AND source_page_id = ?",
-            params,
+            """
+            UPDATE catalog_entries SET
+                description   = CASE WHEN ? IS NOT NULL THEN ? ELSE description   END,
+                trigger_words = CASE WHEN ? IS NOT NULL THEN ? ELSE trigger_words END,
+                tags          = CASE WHEN ? IS NOT NULL THEN ? ELSE tags          END,
+                base_model    = CASE WHEN ? IS NOT NULL THEN ? ELSE base_model    END
+            WHERE source_platform = ? AND source_page_id = ?
+            """,
+            (
+                desc,
+                desc,
+                tw_json,
+                tw_json,
+                tags_json,
+                tags_json,
+                base_model,
+                base_model,
+                source_platform,
+                source_page_id,
+            ),
         )
         await db.commit()
         return cur.rowcount > 0

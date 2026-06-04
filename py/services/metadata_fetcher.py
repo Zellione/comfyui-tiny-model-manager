@@ -3,6 +3,7 @@
 import asyncio
 import hashlib
 import os
+import re
 import shutil
 
 import httpx
@@ -235,35 +236,50 @@ async def migrate_existing_media():
         await db.commit()
 
 
+_SAFE_EXT = re.compile(r"[^a-z0-9]")
+
+
 async def _fetch_url_to_file(
     client: httpx.AsyncClient, url: str, dest_dir: str, index: int
 ) -> tuple[str, str] | None:
-    """Download url to dest_dir/{index}.{ext}. Returns (dest, ext) or None on failure."""
+    """Download url to dest_dir/{index}.{ext}. Returns (dest, ext) or None on failure.
+
+    The extension is sanitised to alphanumeric characters only so that a
+    crafted URL cannot inject path separators into dest_dir.
+    """
     try:
-        ext = url.rsplit(".", 1)[-1].split("?")[0] or "jpg"
+        raw = url.rsplit(".", 1)[-1].split("?")[0].lower()
+        ext = _SAFE_EXT.sub("", raw)[:10] or "jpg"
         dest = os.path.join(dest_dir, f"{index}.{ext}")
         if not os.path.isfile(dest):
             resp = await client.get(url)
             resp.raise_for_status()
-            with open(dest, "wb") as f:
+            with open(dest, "wb") as f:  # noqa: S603
                 f.write(resp.content)
         return dest, ext
     except Exception:
         return None
 
 
-async def _download_images(model_id: int, media_hash: str, urls: list[str]):
-    if not urls:
-        return
+async def _iter_downloaded_urls(media_hash: str, urls: list[str]) -> list[tuple[str, str]]:
+    """Download up to 5 URLs into the media hash dir; return (dest, ext) pairs."""
     dest_dir = os.path.join(cfg.media_dir(), media_hash)
     os.makedirs(dest_dir, exist_ok=True)
+    results: list[tuple[str, str]] = []
     async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
         for i, url in enumerate(urls[:5]):
             result = await _fetch_url_to_file(client, url, dest_dir, i)
             if result:
-                dest, ext = result
-                media_type = "video" if ext in ("mp4", "webm", "mov") else "image"
-                await model_repo.add_media(model_id, media_type, dest)
+                results.append(result)
+    return results
+
+
+async def _download_images(model_id: int, media_hash: str, urls: list[str]):
+    if not urls:
+        return
+    for dest, ext in await _iter_downloaded_urls(media_hash, urls):
+        media_type = "video" if ext in ("mp4", "webm", "mov") else "image"
+        await model_repo.add_media(model_id, media_type, dest)
 
 
 def catalog_media_hash(platform: str, page_id: str) -> str:
@@ -273,15 +289,8 @@ def catalog_media_hash(platform: str, page_id: str) -> str:
 
 async def _download_catalog_images(media_hash: str, urls: list[str]) -> str:
     """Download gallery images into the catalog media dir. Returns the first image path."""
-    dest_dir = os.path.join(cfg.media_dir(), media_hash)
-    os.makedirs(dest_dir, exist_ok=True)
-    first = ""
-    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-        for i, url in enumerate(urls[:5]):
-            result = await _fetch_url_to_file(client, url, dest_dir, i)
-            if result and not first:
-                first = result[0]
-    return first
+    results = await _iter_downloaded_urls(media_hash, urls)
+    return results[0][0] if results else ""
 
 
 async def refetch_catalog_metadata(platform: str, page_id: str) -> dict | None:

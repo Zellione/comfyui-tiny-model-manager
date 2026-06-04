@@ -4,6 +4,7 @@ import {
   HostListener,
   OnInit,
   Signal,
+  WritableSignal,
   computed,
   signal,
 } from '@angular/core';
@@ -143,11 +144,7 @@ export class CatalogDetail implements OnInit {
         const entry = this.entry();
         if (!entry?.repo_files.some((rf) => rf.filename === task.filename)) return;
         // The download is no longer in the queued/downloading phase.
-        this.downloadingFiles.update((s) => {
-          const next = new Set(s);
-          next.delete(task.filename);
-          return next;
-        });
+        this.dropFromSet(this.downloadingFiles, task.filename);
         if (task.status === 'error') {
           this.notifService.show('error', `Download failed: ${task.error ?? task.filename}`);
           this.load();
@@ -175,11 +172,7 @@ export class CatalogDetail implements OnInit {
         this.applyEntry(data);
         const rf = data.repo_files.find((r) => r.filename === filename);
         if (rf?.is_downloaded || attempt + 1 >= CatalogDetail.FINALIZE_MAX_ATTEMPTS) {
-          this.finalizingFiles.update((s) => {
-            const next = new Set(s);
-            next.delete(filename);
-            return next;
-          });
+          this.dropFromSet(this.finalizingFiles, filename);
           return;
         }
         const timer = setTimeout(() => {
@@ -189,11 +182,7 @@ export class CatalogDetail implements OnInit {
         this.finalizeTimers.add(timer);
       },
       error: () => {
-        this.finalizingFiles.update((s) => {
-          const next = new Set(s);
-          next.delete(filename);
-          return next;
-        });
+        this.dropFromSet(this.finalizingFiles, filename);
       },
     });
   }
@@ -354,13 +343,16 @@ export class CatalogDetail implements OnInit {
     this.editMeta.tags = (this.editMeta.tags ?? []).filter((t) => t !== tag);
   }
 
-  copyTriggerWords() {
+  copyTriggerWords(): void {
     const words = this.displayTriggerWords();
     if (!words.length) return;
-    navigator.clipboard.writeText(words.join(', ')).then(() => {
-      this.copied.set(true);
-      setTimeout(() => this.copied.set(false), 2000);
-    });
+    navigator.clipboard.writeText(words.join(', ')).then(
+      () => {
+        this.copied.set(true);
+        setTimeout(() => this.copied.set(false), 2000);
+      },
+      () => {},
+    );
   }
 
   modelDetailUrl(type: string, path: string): string {
@@ -461,14 +453,18 @@ export class CatalogDetail implements OnInit {
       .subscribe({
         next: () => this.notifService.show('success', `Downloading ${file.filename}…`),
         error: () => {
-          this.downloadingFiles.update((s) => {
-            const next = new Set(s);
-            next.delete(file.filename);
-            return next;
-          });
+          this.dropFromSet(this.downloadingFiles, file.filename);
           this.notifService.show('error', `Failed to start download for ${file.filename}`);
         },
       });
+  }
+
+  private dropFromSet(sig: WritableSignal<Set<string>>, value: string): void {
+    sig.update((s) => {
+      const next = new Set(s);
+      next.delete(value);
+      return next;
+    });
   }
 
   mediaUrl(path: string): string {
