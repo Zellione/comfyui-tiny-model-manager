@@ -13,17 +13,32 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { of } from 'rxjs';
 import { catchError, filter, switchMap } from 'rxjs/operators';
-import { ModelService, ModelMeta, RepoFile, CatalogEntryDetail } from '../../services/model';
+import {
+  ModelService,
+  ModelMeta,
+  RepoFile,
+  CatalogEntryDetail,
+  RefetchPreviewResponse,
+} from '../../services/model';
 import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
 import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
 import { EditMetaForm } from '../../components/edit-meta-form/edit-meta-form';
+import { RefetchReviewModal } from '../../components/refetch-review-modal/refetch-review-modal';
 
 @Component({
   selector: 'app-model-detail',
-  imports: [CommonModule, FormsModule, RouterLink, SafeHtmlPipe, BaseModelSelect, EditMetaForm],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    SafeHtmlPipe,
+    BaseModelSelect,
+    EditMetaForm,
+    RefetchReviewModal,
+  ],
   templateUrl: './model-detail.html',
   styleUrl: './model-detail.scss',
 })
@@ -55,6 +70,9 @@ export class ModelDetail implements OnInit {
   linkSourceUrl = signal('');
   linking = signal(false);
   linkSourceError = signal('');
+  refetchPreviewData = signal<RefetchPreviewResponse | null>(null);
+  showRefetchModal = signal(false);
+  refetchNoChanges = signal(false);
 
   readonly displayTitle = computed(() => this.catalogEntry()?.display_name || this.modelBasename);
   readonly showLinkSourcePanel = computed(() => !this.meta()?.source_url);
@@ -235,10 +253,11 @@ export class ModelDetail implements OnInit {
       });
   }
 
-  refetch() {
+  triggerRefetchPreview() {
     this.refetching.set(true);
     this.error.set('');
-    this.modelService.refetchMetadata(this.modelType, this.modelPath).subscribe({
+    this.refetchNoChanges.set(false);
+    this.modelService.refetchPreview(this.modelType, this.modelPath).subscribe({
       next: (res) => {
         this.refetching.set(false);
         if (res.removed) {
@@ -246,17 +265,36 @@ export class ModelDetail implements OnInit {
           this.router.navigate(['/models']);
           return;
         }
-        this.meta.set(res.meta);
-        this.syncEditMeta(res.meta);
-        this.notifService.show('success', 'Metadata re-fetched.');
-        this.loadRepoFiles();
+        this.refetchPreviewData.set(res);
+        if (res.no_changes) {
+          this.refetchNoChanges.set(true);
+        } else {
+          this.showRefetchModal.set(true);
+        }
       },
       error: (err) => {
-        this.error.set((err as Error).message);
         this.refetching.set(false);
+        this.error.set((err as Error).message);
         this.notifService.show('error', (err as Error).message);
       },
     });
+  }
+
+  onModalApplied(meta: ModelMeta) {
+    this.showRefetchModal.set(false);
+    this.meta.set(meta);
+    this.syncEditMeta(meta);
+    this.notifService.show('success', 'Metadata updated.');
+    this.loadRepoFiles();
+  }
+
+  onModalCancelled() {
+    this.showRefetchModal.set(false);
+  }
+
+  reviewAnyway() {
+    this.refetchNoChanges.set(false);
+    this.showRefetchModal.set(true);
   }
 
   private saveSiblingBaseModels() {

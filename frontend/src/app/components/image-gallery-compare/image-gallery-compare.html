@@ -1,0 +1,43 @@
+<div class="gallery-compare">
+  <div class="gallery-strip-wrapper">
+    <div class="strip-header">Current images</div>
+    <div class="gallery-strip">
+      @if (currentMedia().length === 0) {
+        <div class="strip-empty">No current images</div>
+      }
+      @for (item of currentMedia(); track item.id) {
+        @if (item.media_type === 'image') {
+          <label class="strip-item">
+            <input
+              type="checkbox"
+              [checked]="isExistingKept(item.local_path)"
+              (change)="toggleExisting(item.local_path)"
+            />
+            <img [src]="mediaUrl(item.local_path)" alt="current image" />
+            <span class="strip-label">Keep</span>
+          </label>
+        }
+      }
+    </div>
+  </div>
+
+  <div class="gallery-strip-wrapper">
+    <div class="strip-header">Incoming images</div>
+    <div class="gallery-strip">
+      @if (incomingUrls().length === 0) {
+        <div class="strip-empty">No incoming images</div>
+      }
+      @for (url of incomingUrls(); track url) {
+        <label class="strip-item">
+          <input
+            type="checkbox"
+            [checked]="isIncomingSelected(url)"
+            (change)="toggleIncoming(url)"
+          />
+          <img [src]="url" alt="incoming image" />
+          <span class="strip-label">Download</span>
+        </label>
+      }
+    </div>
+  </div>
+</div>

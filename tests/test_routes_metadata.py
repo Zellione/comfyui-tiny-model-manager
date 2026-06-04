@@ -1,6 +1,7 @@
 """Integration tests for py/routes/metadata.py (metadata CRUD + media serving)."""
 
 import os
+from datetime import UTC
 from pathlib import Path
 
 import pytest
@@ -601,6 +602,366 @@ class TestLinkSource:
         assert row["source_platform"] == "civitai"
         assert row["civitai_model_id"] == "99999"
         assert row["catalog_entry_id"] is None
+
+
+class TestRefetchPreview:
+    @staticmethod
+    def _touch_model_file(rel_path: str, model_type: str = "loras") -> None:
+        import folder_paths
+
+        full = os.path.join(folder_paths.models_dir, model_type, rel_path)
+        os.makedirs(os.path.dirname(full), exist_ok=True)
+        with open(full, "wb") as f:
+            f.write(b"x")
+
+    @staticmethod
+    def _make_fake_metadata(**kwargs):
+        from unittest.mock import AsyncMock
+
+        from py.services.providers.base import ProviderMetadata
+
+        defaults = dict(
+            description="New desc",
+            trigger_words=["new_word"],
+            tags=["new_tag"],
+            base_model="Flux.1 D",
+            image_urls=["https://example.com/img.jpg"],
+            civitai_model_id="",
+            display_name="Model",
+        )
+        defaults.update(kwargs)
+        return AsyncMock(return_value=ProviderMetadata(**defaults))
+
+    async def test_returns_old_and_new_data(self, client, ext_dir, monkeypatch):
+        from py.db import model_repo
+
+        self._touch_model_file("preview-model.safetensors")
+        await model_repo.upsert_model_with_meta(
+            "preview-model.safetensors",
+            "loras",
+            "huggingface",
+            "user/repo",
+            "Old desc",
+            trigger_words=["old_word"],
+            tags=["old_tag"],
+            base_model="SDXL 1.0",
+        )
+        monkeypatch.setattr(
+            "py.services.metadata_fetcher.fetch_metadata_only",
+            self._make_fake_metadata(),
+        )
+        resp = await client.post(
+            "/tiny-model-manager/api/models/loras/preview-model.safetensors/refetch-preview"
+        )
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert "old" in data
+        assert "new" in data
+        assert "expires_at" in data
+        assert "no_changes" in data
+        assert data["no_changes"] is False
+
+    async def test_no_changes_flag(self, client, ext_dir, monkeypatch):
+        from py.db import model_repo
+
+        self._touch_model_file("same-model.safetensors")
+        await model_repo.upsert_model_with_meta(
+            "same-model.safetensors",
+            "loras",
+            "huggingface",
+            "user/repo",
+            "Same desc",
+            trigger_words=["word"],
+            tags=["tag"],
+            base_model="SDXL 1.0",
+        )
+        monkeypatch.setattr(
+            "py.services.metadata_fetcher.fetch_metadata_only",
+            self._make_fake_metadata(
+                description="Same desc",
+                trigger_words=["word"],
+                tags=["tag"],
+                base_model="SDXL 1.0",
+                image_urls=[],
+            ),
+        )
+        resp = await client.post(
+            "/tiny-model-manager/api/models/loras/same-model.safetensors/refetch-preview"
+        )
+        data = (await resp.json())["data"]
+        assert data["no_changes"] is True
+
+    async def test_returns_400_when_no_source_info(self, client, ext_dir):
+        self._touch_model_file("no-source.safetensors")
+        resp = await client.post(
+            "/tiny-model-manager/api/models/loras/no-source.safetensors/refetch-preview"
+        )
+        assert resp.status == 400
+
+    async def test_removes_stale_record_when_file_missing(self, client, ext_dir, monkeypatch):
+        from py.db import model_repo
+
+        await model_repo.upsert_model_with_meta(
+            "ghost-preview.safetensors",
+            "loras",
+            "huggingface",
+            "user/repo",
+            "",
+            trigger_words=[],
+            tags=[],
+        )
+        monkeypatch.setattr(
+            "py.services.metadata_fetcher.fetch_metadata_only",
+            self._make_fake_metadata(),
+        )
+        resp = await client.post(
+            "/tiny-model-manager/api/models/loras/ghost-preview.safetensors/refetch-preview"
+        )
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert data.get("removed") is True
+
+    async def test_cache_entry_created(self, client, ext_dir, monkeypatch):
+        from py.db import model_repo
+        from py.routes.metadata import _refetch_cache
+
+        self._touch_model_file("cached-model.safetensors")
+        await model_repo.upsert_model_with_meta(
+            "cached-model.safetensors",
+            "loras",
+            "huggingface",
+            "user/repo",
+            "desc",
+            trigger_words=[],
+            tags=[],
+        )
+        monkeypatch.setattr(
+            "py.services.metadata_fetcher.fetch_metadata_only",
+            self._make_fake_metadata(),
+        )
+        await client.post(
+            "/tiny-model-manager/api/models/loras/cached-model.safetensors/refetch-preview"
+        )
+        assert "cached-model.safetensors" in _refetch_cache
+
+    async def test_apply_returns_400_when_no_cache(self, client, ext_dir):
+        resp = await client.post(
+            "/tiny-model-manager/api/models/loras/no-cache.safetensors/refetch-apply",
+            json={
+                "description": "d",
+                "trigger_words": [],
+                "tags": [],
+                "base_model": "",
+                "replace_media": False,
+                "media_urls": [],
+                "keep_existing_media": [],
+            },
+        )
+        assert resp.status == 400
+
+    async def test_apply_returns_410_when_expired(self, client, ext_dir):
+        from datetime import datetime as dt
+        from datetime import timedelta
+
+        from py.routes.metadata import _refetch_cache, _RefetchEntry
+
+        expired_entry = _RefetchEntry(
+            fetched_at=dt.now(UTC) - timedelta(seconds=400),
+            old={},
+            new_data={},
+        )
+        _refetch_cache["expired.safetensors"] = expired_entry
+
+        resp = await client.post(
+            "/tiny-model-manager/api/models/loras/expired.safetensors/refetch-apply",
+            json={
+                "description": "d",
+                "trigger_words": [],
+                "tags": [],
+                "base_model": "",
+                "replace_media": False,
+                "media_urls": [],
+                "keep_existing_media": [],
+            },
+        )
+        assert resp.status == 410
+        assert "expired.safetensors" not in _refetch_cache
+
+    async def test_apply_writes_selected_values(self, client, ext_dir, monkeypatch):
+        from datetime import datetime
+
+        from py.db import model_repo
+        from py.routes.metadata import _refetch_cache, _RefetchEntry
+
+        self._touch_model_file("apply-test.safetensors")
+        await model_repo.upsert_model_with_meta(
+            "apply-test.safetensors",
+            "loras",
+            "huggingface",
+            "user/repo",
+            "old",
+            trigger_words=[],
+            tags=[],
+        )
+        _refetch_cache["apply-test.safetensors"] = _RefetchEntry(
+            fetched_at=datetime.now(UTC),
+            old={"description": "old", "trigger_words": [], "tags": [], "base_model": ""},
+            new_data={
+                "description": "new",
+                "trigger_words": ["w1"],
+                "tags": ["t1"],
+                "base_model": "Flux.1 D",
+            },
+        )
+
+        resp = await client.post(
+            "/tiny-model-manager/api/models/loras/apply-test.safetensors/refetch-apply",
+            json={
+                "description": "new",
+                "trigger_words": ["w1"],
+                "tags": ["t1"],
+                "base_model": "Flux.1 D",
+                "replace_media": False,
+                "media_urls": [],
+                "keep_existing_media": [],
+            },
+        )
+        assert resp.status == 200
+        row = await model_repo.get_model_by_filename("apply-test.safetensors")
+        assert row["description"] == "new"
+        assert row["trigger_words"] == ["w1"]
+        assert row["tags"] == ["t1"]
+        assert row["base_model"] == "Flux.1 D"
+
+    async def test_apply_sets_edited_at(self, client, ext_dir, monkeypatch):
+        from datetime import datetime
+
+        from py.db import model_repo
+        from py.db.database import get_db
+        from py.routes.metadata import _refetch_cache, _RefetchEntry
+
+        self._touch_model_file("edited-at.safetensors")
+        await model_repo.upsert_model_with_meta(
+            "edited-at.safetensors",
+            "loras",
+            "huggingface",
+            "user/repo",
+            "",
+            trigger_words=[],
+            tags=[],
+        )
+        _refetch_cache["edited-at.safetensors"] = _RefetchEntry(
+            fetched_at=datetime.now(UTC),
+            old={},
+            new_data={},
+        )
+
+        await client.post(
+            "/tiny-model-manager/api/models/loras/edited-at.safetensors/refetch-apply",
+            json={
+                "description": "desc",
+                "trigger_words": ["w"],
+                "tags": ["t"],
+                "base_model": "Pony",
+                "replace_media": False,
+                "media_urls": [],
+                "keep_existing_media": [],
+            },
+        )
+
+        async with get_db() as db:
+            row = await (
+                await db.execute(
+                    "SELECT description_edited_at, trigger_words_edited_at, tags_edited_at,"
+                    " base_model_edited_at FROM models WHERE filename = ?",
+                    ("edited-at.safetensors",),
+                )
+            ).fetchone()
+        assert row is not None
+        assert row["description_edited_at"] is not None
+        assert row["trigger_words_edited_at"] is not None
+        assert row["tags_edited_at"] is not None
+        assert row["base_model_edited_at"] is not None
+
+    async def test_apply_clears_cache(self, client, ext_dir, monkeypatch):
+        from datetime import datetime
+
+        from py.db import model_repo
+        from py.routes.metadata import _refetch_cache, _RefetchEntry
+
+        self._touch_model_file("clear-cache.safetensors")
+        await model_repo.upsert_model_with_meta(
+            "clear-cache.safetensors",
+            "loras",
+            "huggingface",
+            "user/repo",
+            "",
+            trigger_words=[],
+            tags=[],
+        )
+        _refetch_cache["clear-cache.safetensors"] = _RefetchEntry(
+            fetched_at=datetime.now(UTC),
+            old={},
+            new_data={},
+        )
+
+        await client.post(
+            "/tiny-model-manager/api/models/loras/clear-cache.safetensors/refetch-apply",
+            json={
+                "description": "d",
+                "trigger_words": [],
+                "tags": [],
+                "base_model": "",
+                "replace_media": False,
+                "media_urls": [],
+                "keep_existing_media": [],
+            },
+        )
+        assert "clear-cache.safetensors" not in _refetch_cache
+
+    async def test_apply_replace_media(self, client, ext_dir, monkeypatch):
+        from datetime import datetime
+        from unittest.mock import AsyncMock
+
+        from py.db import model_repo
+        from py.routes.metadata import _refetch_cache, _RefetchEntry
+
+        self._touch_model_file("media-replace.safetensors")
+        model_id = await model_repo.upsert_model_with_meta(
+            "media-replace.safetensors",
+            "loras",
+            "huggingface",
+            "user/repo",
+            "",
+            trigger_words=[],
+            tags=[],
+        )
+        old_media_id = await model_repo.add_media(model_id, "image", "/old/path/0.jpg")
+
+        _refetch_cache["media-replace.safetensors"] = _RefetchEntry(
+            fetched_at=datetime.now(UTC),
+            old={},
+            new_data={},
+        )
+        monkeypatch.setattr(
+            "py.services.metadata_fetcher._download_images",
+            AsyncMock(),
+        )
+        resp = await client.post(
+            "/tiny-model-manager/api/models/loras/media-replace.safetensors/refetch-apply",
+            json={
+                "description": "",
+                "trigger_words": [],
+                "tags": [],
+                "base_model": "",
+                "replace_media": True,
+                "media_urls": ["https://example.com/new.jpg"],
+                "keep_existing_media": [],
+            },
+        )
+        assert resp.status == 200
+        remaining = await model_repo.get_model_media(model_id)
+        assert not any(r["id"] == old_media_id for r in remaining)
 
 
 class TestServeMedia:

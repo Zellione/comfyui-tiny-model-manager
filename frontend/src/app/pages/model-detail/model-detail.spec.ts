@@ -3,7 +3,13 @@ import { Router, provideRouter } from '@angular/router';
 import { EMPTY, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { ModelDetail } from './model-detail';
-import { ModelService, RepoFile, RefetchResult, CatalogEntryDetail } from '../../services/model';
+import {
+  ModelService,
+  RepoFile,
+  RefetchResult,
+  CatalogEntryDetail,
+  RefetchPreviewResponse,
+} from '../../services/model';
 import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
@@ -53,11 +59,36 @@ const makeRepoFile = (overrides: Partial<RepoFile> = {}): RepoFile => ({
   ...overrides,
 });
 
+const makePreviewData = (
+  overrides: Partial<RefetchPreviewResponse> = {},
+): RefetchPreviewResponse => ({
+  old: {
+    description: 'Old desc',
+    trigger_words: [],
+    tags: [],
+    base_model: '',
+    media: [],
+    last_edited_at: { description: null, trigger_words: null, tags: null, base_model: null },
+  },
+  new: {
+    description: 'New desc',
+    trigger_words: [],
+    tags: [],
+    base_model: '',
+    media_urls: [],
+  },
+  expires_at: new Date(Date.now() + 300_000).toISOString(),
+  no_changes: false,
+  ...overrides,
+});
+
 const mockModelService = {
   getMetadata: vi.fn(() => of(makeMeta())),
   updateMetadata: vi.fn(() => of(undefined)),
   updateMetadataWithPath: vi.fn(() => of({ new_path: 'my-lora.safetensors' })),
   refetchMetadata: vi.fn(() => of({ removed: false, meta: makeMeta() } as RefetchResult)),
+  refetchPreview: vi.fn(() => of(makePreviewData())),
+  refetchApply: vi.fn(() => of({ removed: false, meta: makeMeta() } as RefetchResult)),
   deleteModel: vi.fn(() => of(undefined)),
   getModelTypes: vi.fn(() => of(['checkpoints', 'loras'])),
   moveModel: vi.fn(() => of(undefined)),
@@ -146,24 +177,71 @@ describe('ModelDetail', () => {
     });
   });
 
-  describe('refetch', () => {
-    it('updates metadata on a normal refetch', () => {
-      mockModelService.refetchMetadata.mockReturnValueOnce(
-        of({ removed: false, meta: makeMeta({ description: 'fresh' }) } as RefetchResult),
+  describe('triggerRefetchPreview', () => {
+    it('calls refetchPreview on the service', () => {
+      component.triggerRefetchPreview();
+      expect(mockModelService.refetchPreview).toHaveBeenCalledWith('loras', 'my-lora.safetensors');
+    });
+
+    it('sets showRefetchModal when no_changes is false', () => {
+      mockModelService.refetchPreview.mockReturnValueOnce(
+        of(makePreviewData({ no_changes: false })),
       );
-      component.refetch();
-      expect(component.meta()?.description).toBe('fresh');
-      expect(router.navigate).not.toHaveBeenCalled();
+      component.triggerRefetchPreview();
+      expect(component.showRefetchModal()).toBe(true);
+      expect(component.refetchNoChanges()).toBe(false);
+    });
+
+    it('sets refetchNoChanges when no_changes is true (no modal)', () => {
+      mockModelService.refetchPreview.mockReturnValueOnce(
+        of(makePreviewData({ no_changes: true })),
+      );
+      component.triggerRefetchPreview();
+      expect(component.refetchNoChanges()).toBe(true);
+      expect(component.showRefetchModal()).toBe(false);
     });
 
     it('navigates to /models and notifies when the stale record was pruned', () => {
-      mockModelService.refetchMetadata.mockReturnValueOnce(of({ removed: true } as RefetchResult));
-      component.refetch();
+      mockModelService.refetchPreview.mockReturnValueOnce(
+        of({ removed: true } as RefetchPreviewResponse),
+      );
+      component.triggerRefetchPreview();
       expect(mockNotifService.show).toHaveBeenCalledWith(
         'success',
         expect.stringContaining('no longer on disk'),
       );
       expect(router.navigate).toHaveBeenCalledWith(['/models']);
+    });
+  });
+
+  describe('onModalApplied', () => {
+    it('updates meta signal and closes modal', () => {
+      component.showRefetchModal.set(true);
+      const newMeta = makeMeta({ description: 'applied' });
+      component.onModalApplied(newMeta);
+      expect(component.meta()?.description).toBe('applied');
+      expect(component.showRefetchModal()).toBe(false);
+    });
+
+    it('shows success notification', () => {
+      component.onModalApplied(makeMeta());
+      expect(mockNotifService.show).toHaveBeenCalledWith('success', expect.any(String));
+    });
+
+    it('calls loadRepoFiles (getRepoFiles is invoked)', () => {
+      vi.clearAllMocks();
+      component.onModalApplied(makeMeta());
+      expect(mockModelService.getRepoFiles).toHaveBeenCalled();
+    });
+  });
+
+  describe('reviewAnyway', () => {
+    it('clears no-changes flag and shows modal', () => {
+      component.refetchNoChanges.set(true);
+      component.refetchPreviewData.set(makePreviewData());
+      component.reviewAnyway();
+      expect(component.refetchNoChanges()).toBe(false);
+      expect(component.showRefetchModal()).toBe(true);
     });
   });
 

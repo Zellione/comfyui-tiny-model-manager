@@ -11,7 +11,7 @@
     </span>
     <span class="spacer"></span>
     @if (!editMode() && !showUninstallConfirm()) {
-      <button class="btn ghost" (click)="refetch()" [disabled]="refetching()">
+      <button class="btn ghost" (click)="triggerRefetchPreview()" [disabled]="refetching()">
         {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
       </button>
       <button class="btn ghost" (click)="enterEdit()">Edit</button>
@@ -95,6 +95,13 @@
           @if (linkSourceError()) {
             <div class="link-source-error">{{ linkSourceError() }}</div>
           }
+        </div>
+      }
+
+      @if (refetchNoChanges()) {
+        <div class="no-changes-banner">
+          Metadata already up to date.
+          <button class="btn ghost small" (click)="reviewAnyway()">Review anyway</button>
         </div>
       }
 
@@ -220,7 +227,7 @@
             [refetching]="refetching()"
             (saveClicked)="save()"
             (cancelClicked)="cancelEdit()"
-            (refetchClicked)="refetch()"
+            (refetchClicked)="triggerRefetchPreview()"
           >
             <!-- Files in this model — base model per row -->
             <div class="field-group">
@@ -265,5 +272,16 @@
     <div class="lightbox" (click)="lightboxOpen.set(false)">
       <img [src]="mediaUrl(activeMedia()!.local_path)" alt="full size preview" />
     </div>
+  }
+
+  <!-- Refetch review modal -->
+  @if (showRefetchModal() && refetchPreviewData()) {
+    <app-refetch-review-modal
+      [data]="refetchPreviewData()!"
+      [modelType]="modelType"
+      [modelPath]="modelPath"
+      (applied)="onModalApplied($event)"
+      (cancelled)="onModalCancelled()"
+    />
   }
 </div>
