@@ -83,7 +83,7 @@ Assumes ComfyUI was installed via [comfy-cli](https://comfyui-wiki.com/en/instal
 - [x] F-38 — Visual upgrade of model detail page — modern card layout, separate read/edit modes, delete with confirmation, 16:9 gallery + thumbnail strip, click-to-copy trigger keywords
 - [x] F-39 — Repo files listing in model detail — sibling files stored at download/refetch time, full list with downloaded/available rows and per-file Download buttons
 - [x] F-40 — Persistent Model Catalog Entry — catalog entries keyed to CivitAI/HuggingFace source pages; survive file deletion; show as empty until explicitly removed; enable re-download of any known file
-- [ ] F-41 — Catalog Routes + HF base_model Fix — /models renamed to /catalog; detail URL uses platform+pageId (no model type); CatalogDetail enhanced to full ModelDetail layout; PUT /metadata returns new_path so frontend navigates after subfolder reorganization
+- [x] F-41 — Catalog Routes + HF base_model Fix — /models renamed to /catalog; detail URL uses platform+pageId (no model type); CatalogDetail enhanced to full ModelDetail layout; PUT /metadata returns new_path so frontend navigates after subfolder reorganization
 - [ ] F-42 — Refetch Metadata — field-level before/after review modal with smart defaults, per-field diff, image comparison, and TTL-guarded apply
 - [ ] F-43 — Cancel Download — cancel an individual or all active downloads; stops transfer and deletes partial file
 - [ ] F-44 — Copy Trigger Words — one-click copy of all trigger words (comma-separated) from the Model Detail header and the library card action menu

@@ -29,6 +29,10 @@ export interface MediaItem {
   local_path: string;
 }
 
+/** Result of a metadata re-fetch: either fresh metadata, or a signal that the stale
+ *  record was pruned because the file no longer exists on disk. */
+export type RefetchResult = { removed: true } | { removed: false; meta: ModelMeta };
+
 export interface RepoFile {
   filename: string;
   model_type: string;
@@ -64,6 +68,11 @@ export interface CatalogEntry {
 
 export interface CatalogEntryDetail extends CatalogEntry {
   repo_files: RepoFile[];
+  // Catalog-owned source-page metadata (present even when no file is installed).
+  description: string;
+  trigger_words: string[];
+  tags: string[];
+  media: MediaItem[];
 }
 
 export interface CatalogListResponse {
@@ -97,10 +106,33 @@ export class ModelService {
     return this.http.put<void>(`${API}/models/${modelType}/${path}/metadata`, meta);
   }
 
-  refetchMetadata(modelType: string, path: string): Observable<ModelMeta> {
+  updateMetadataWithPath(
+    modelType: string,
+    path: string,
+    meta: Partial<ModelMeta>,
+  ): Observable<{ new_path: string }> {
     return this.http
-      .post<{ success: boolean; data: ModelMeta }>(`${API}/models/${modelType}/${path}/refetch`, {})
-      .pipe(map((r) => r.data));
+      .put<{
+        success: boolean;
+        new_path: string;
+      }>(`${API}/models/${modelType}/${path}/metadata`, meta)
+      .pipe(map((r) => ({ new_path: r.new_path ?? path })));
+  }
+
+  refetchMetadata(modelType: string, path: string): Observable<RefetchResult> {
+    return this.http
+      .post<{
+        success: boolean;
+        data: (ModelMeta & { removed?: boolean }) | { removed: true };
+      }>(`${API}/models/${modelType}/${path}/refetch`, {})
+      .pipe(
+        map((r) => {
+          // When the file no longer exists on disk the backend prunes the stale record
+          // and returns { removed: true } instead of metadata.
+          if ('removed' in r.data && r.data.removed) return { removed: true as const };
+          return { removed: false as const, meta: r.data as ModelMeta };
+        }),
+      );
   }
 
   getModelTypes(): Observable<string[]> {
@@ -139,6 +171,23 @@ export class ModelService {
 
   removeCatalogEntry(platform: string, pageId: string): Observable<void> {
     return this.http.delete<void>(`${API}/catalog/${platform}/${pageId}`);
+  }
+
+  refetchCatalog(platform: string, pageId: string): Observable<CatalogEntryDetail> {
+    return this.http
+      .post<{
+        success: boolean;
+        data: CatalogEntryDetail;
+      }>(`${API}/catalog/${platform}/${pageId}/refetch`, {})
+      .pipe(map((r) => r.data));
+  }
+
+  updateCatalogMetadata(
+    platform: string,
+    pageId: string,
+    meta: { description?: string; trigger_words?: string[]; tags?: string[]; base_model?: string },
+  ): Observable<void> {
+    return this.http.put<void>(`${API}/catalog/${platform}/${pageId}/metadata`, meta);
   }
 
   linkSource(modelType: string, path: string, sourceUrl: string): Observable<void> {

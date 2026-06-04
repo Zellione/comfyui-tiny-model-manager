@@ -26,9 +26,11 @@ def register_routes(routes, ext_dir: str):
     async def _startup():
         await init_db()
         from ..services.metadata_fetcher import migrate_existing_media
+        from ..services.reconciler import prune_stale_models
         from ..services.reorganizer import process_pending_jobs
 
         await migrate_existing_media()
+        await prune_stale_models()
         await process_pending_jobs()
 
     asyncio.ensure_future(_startup())

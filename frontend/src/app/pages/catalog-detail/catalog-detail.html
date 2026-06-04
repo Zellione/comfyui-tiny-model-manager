@@ -1,6 +1,7 @@
 <div class="page">
+  <!-- Header bar -->
   <div class="detail-back">
-    <a routerLink="/models" class="btn ghost">← Back to Models</a>
+    <a routerLink="/catalog" class="btn ghost">← Back to Catalog</a>
     <span class="crumbs">
       <span>Catalog</span>
       <span class="crumb-sep">/</span>
@@ -9,6 +10,12 @@
       <span class="crumb-active">{{ entry()?.display_name || pageId }}</span>
     </span>
     <span class="spacer"></span>
+    @if (entry() && !editMode() && !showRemoveConfirm()) {
+      <button class="btn ghost" (click)="refetch()" [disabled]="refetching()">
+        {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
+      </button>
+      <button class="btn ghost" (click)="enterEdit()">Edit</button>
+    }
     @if (!showRemoveConfirm()) {
       <button class="btn danger-ghost" (click)="showRemoveConfirm.set(true)">
         Remove from Catalog
@@ -40,13 +47,12 @@
     }
 
     <div class="detail-card">
+      <!-- Card header -->
       <div class="dl-detail-head">
         <div>
-          @if (entry()!.base_model) {
+          @if (entry()!.source_platform) {
             <div class="detail-eyebrow">
               <span>{{ entry()!.source_platform }}</span>
-              <span class="dot"></span>
-              <span>{{ entry()!.base_model }}</span>
             </div>
           }
           <h2 class="detail-title">{{ entry()!.display_name || entry()!.source_page_id }}</h2>
@@ -64,92 +70,281 @@
         }
       </div>
 
-      <!-- Thumbnail -->
-      @if (entry()!.thumbnail_url) {
-        <div class="catalog-thumb-wrap">
-          <img [src]="mediaUrl(entry()!.thumbnail_url)" alt="thumbnail" class="catalog-thumb" />
-        </div>
-      }
-
-      <!-- Installed files -->
-      @if (entry()!.installed_files.length > 0) {
-        <div class="section-label">Installed files</div>
-        <div class="iv-list">
-          @for (f of entry()!.installed_files; track f.filename) {
-            <div class="iv-row">
-              <div class="iv-status ok">✓</div>
-              <div class="iv-row-main">
-                <div class="iv-row-title">
-                  <span class="version-name">{{ f.filename }}</span>
-                  <span class="pill ok">Installed</span>
-                </div>
-                <div class="iv-row-sub">{{ f.model_type }}</div>
-              </div>
-              <a
-                class="btn small ghost iv-download-btn"
-                [routerLink]="['/models', f.model_type, f.filename]"
-              >
-                Details
-              </a>
-            </div>
-          }
-        </div>
-      }
-
-      <!-- Repo files (all known files from upstream) -->
-      @if (entry()!.repo_files.length > 0) {
-        <div class="section-label">
-          All known files
-          <span class="section-sub"
-            >{{ downloadedFiles().length }} / {{ entry()!.repo_files.length }} downloaded</span
-          >
-        </div>
-        <div class="iv-list">
-          @for (f of entry()!.repo_files; track f.filename) {
-            <div class="iv-row" [class.iv-row-missing]="!f.is_downloaded">
-              <div
-                class="iv-status"
-                [class.ok]="f.is_downloaded"
-                [class.missing]="!f.is_downloaded"
-              >
-                {{ f.is_downloaded ? '✓' : '↓' }}
-              </div>
-              <div class="iv-row-main">
-                <div class="iv-row-title">
-                  <span class="version-name">{{ f.filename }}</span>
-                  <span
-                    class="pill"
-                    [class.ok]="f.is_downloaded"
-                    [class.missing]="!f.is_downloaded"
-                  >
-                    {{ f.is_downloaded ? 'Downloaded' : 'Not downloaded' }}
-                  </span>
-                </div>
-                @if (f.size_bytes) {
-                  <div class="iv-row-sub">{{ formatBytes(f.size_bytes) }}</div>
+      @if (!editMode()) {
+        <!-- Gallery (catalog-owned media; survives uninstall) -->
+        @if (displayMedia().length > 0) {
+          <div class="gallery">
+            <div class="gallery-main">
+              @if (activeMedia(); as m) {
+                @if (m.media_type === 'image') {
+                  <img
+                    [src]="mediaUrl(m.local_path)"
+                    alt="preview"
+                    class="gallery-main-img"
+                    role="button"
+                    tabindex="0"
+                    (click)="lightboxOpen.set(true)"
+                    (keydown.enter)="lightboxOpen.set(true)"
+                  />
+                } @else {
+                  <video [src]="mediaUrl(m.local_path)" controls>
+                    <track kind="captions" />
+                  </video>
                 }
-              </div>
-              @if (!f.is_downloaded) {
-                <button
-                  class="btn small ghost iv-download-btn"
-                  [disabled]="downloadingFiles().has(f.filename)"
-                  (click)="downloadFile(f)"
-                >
-                  {{ downloadingFiles().has(f.filename) ? 'Queued…' : 'Download' }}
-                </button>
               }
             </div>
+            @if (displayMedia().length > 1) {
+              <div class="gallery-thumbs">
+                @for (thumb of displayMedia(); track thumb.id; let i = $index) {
+                  <div
+                    class="gallery-thumb"
+                    [class.active]="i === galleryIdx()"
+                    role="button"
+                    tabindex="0"
+                    (click)="galleryIdx.set(i)"
+                    (keydown.enter)="galleryIdx.set(i)"
+                  >
+                    @if (thumb.media_type === 'image') {
+                      <img [src]="mediaUrl(thumb.local_path)" alt="" />
+                    } @else {
+                      <div class="gallery-thumb-video">▶</div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        } @else if (entry()!.thumbnail_url) {
+          <div class="catalog-thumb-wrap">
+            <img [src]="mediaUrl(entry()!.thumbnail_url)" alt="thumbnail" class="catalog-thumb" />
+          </div>
+        } @else {
+          <div class="gallery">
+            <div class="gallery-main gallery-placeholder">NO PREVIEW</div>
+          </div>
+        }
+
+        <!-- Tags -->
+        @if (displayTags().length > 0) {
+          <div class="dl-tags">
+            <span class="dl-tags-label">Tags</span>
+            @for (t of displayTags(); track t) {
+              <span class="tag">{{ t }}</span>
+            }
+          </div>
+        }
+
+        <!-- Trigger keywords -->
+        <div class="detail-section">
+          @if (displayTriggerWords().length > 0) {
+            <div class="keywords-row">
+              <div class="keywords-label">Trigger keywords</div>
+              <div
+                class="keywords-line"
+                role="button"
+                tabindex="0"
+                (click)="copyTriggerWords()"
+                (keydown.enter)="copyTriggerWords()"
+              >
+                <code>{{ displayTriggerWords().join(', ') }}</code>
+                <button
+                  class="btn small ghost keywords-copy"
+                  (click)="$event.stopPropagation(); copyTriggerWords()"
+                >
+                  {{ copied() ? '✓ Copied' : 'Copy' }}
+                </button>
+              </div>
+              <div class="keywords-chips">
+                @for (w of displayTriggerWords(); track w) {
+                  <span class="tag accent">{{ w }}</span>
+                }
+              </div>
+            </div>
+          } @else {
+            <div class="keywords-row empty">
+              <div class="keywords-label">Trigger keywords</div>
+              <div class="keywords-empty">No trigger words for this model</div>
+            </div>
           }
         </div>
-      } @else if (!entry()!.is_empty) {
-        <p class="state-note">No file listing available for this entry.</p>
+
+        <!-- Unified files list -->
+        @if (entry()!.repo_files.length > 0) {
+          <div class="section-label-wrap">
+            <div class="section-label">
+              Files
+              <span class="section-sub"
+                >{{ downloadedFiles().length }} / {{ entry()!.repo_files.length }} downloaded</span
+              >
+            </div>
+          </div>
+          <div class="iv-list">
+            @for (f of entry()!.repo_files; track f.filename) {
+              <div class="iv-row" [class.iv-row-missing]="!f.is_downloaded">
+                <div
+                  class="iv-status"
+                  [class.ok]="f.is_downloaded"
+                  [class.missing]="!f.is_downloaded"
+                >
+                  {{ f.is_downloaded ? '✓' : '↓' }}
+                </div>
+                <div class="iv-row-main">
+                  <div class="iv-row-title">
+                    <span class="version-name">{{ f.filename }}</span>
+                    <span
+                      class="pill"
+                      [class.ok]="f.is_downloaded"
+                      [class.missing]="!f.is_downloaded"
+                    >
+                      {{ f.is_downloaded ? 'Downloaded' : 'Not downloaded' }}
+                    </span>
+                  </div>
+                  @if (repoFileFullSubLabel(f)) {
+                    <div class="iv-row-sub">{{ repoFileFullSubLabel(f) }}</div>
+                  }
+                </div>
+                @if (f.is_downloaded) {
+                  @if (pendingUninstallRepoFile()?.filename === f.filename) {
+                    <div class="iv-row-confirm">
+                      <span class="iv-confirm-text"
+                        >Uninstall from disk? This cannot be undone.</span
+                      >
+                      <button class="btn small ghost" (click)="pendingUninstallRepoFile.set(null)">
+                        Cancel
+                      </button>
+                      <button
+                        class="btn small danger"
+                        (click)="uninstallRepoFile()"
+                        [disabled]="deleting()"
+                      >
+                        {{ deleting() ? 'Removing…' : 'Yes, uninstall' }}
+                      </button>
+                    </div>
+                  } @else {
+                    <div class="iv-row-actions">
+                      <button class="btn small ghost" (click)="addRepoFileToWorkflow(f)">
+                        Add to Workflow
+                      </button>
+                      <a
+                        class="btn small ghost"
+                        [routerLink]="modelDetailUrl(f.model_type, f.installed_path || f.filename)"
+                      >
+                        Details
+                      </a>
+                      <button
+                        class="btn small danger-ghost"
+                        (click)="pendingUninstallRepoFile.set(f)"
+                      >
+                        Uninstall
+                      </button>
+                    </div>
+                  }
+                } @else {
+                  @if (activeTaskForFile(f); as task) {
+                    <div class="iv-download-progress">
+                      @if (task.status === 'downloading' && task.total_bytes > 0) {
+                        <div class="iv-progress-bar">
+                          <div class="iv-progress-fill" [style.width.%]="task.progress"></div>
+                        </div>
+                      }
+                      <span class="iv-progress-label" [class.error]="task.status === 'error'">
+                        @if (task.status === 'queued') {
+                          Queued…
+                        } @else if (task.status === 'downloading') {
+                          {{ task.progress | number: '1.0-0' }}%
+                          @if (task.total_bytes > 0) {
+                            &middot; {{ formatBytes(task.downloaded_bytes) }} /
+                            {{ formatBytes(task.total_bytes) }}
+                          }
+                        } @else if (task.status === 'done') {
+                          Done
+                        } @else if (task.status === 'error') {
+                          Failed
+                        }
+                      </span>
+                    </div>
+                  } @else if (finalizingFiles().has(f.filename)) {
+                    <span class="iv-progress-label processing">Processing…</span>
+                  } @else if (downloadingFiles().has(f.filename)) {
+                    <span class="iv-progress-label">Queued…</span>
+                  } @else {
+                    <button class="btn small ghost iv-download-btn" (click)="downloadFile(f)">
+                      Download
+                    </button>
+                  }
+                }
+              </div>
+            }
+          </div>
+        } @else if (!entry()!.is_empty) {
+          <p class="state-note">No file listing available for this entry.</p>
+        } @else {
+          <p class="state-note">
+            No files downloaded yet. Use the
+            <a [href]="entry()!.source_page_url" target="_blank" rel="noopener">source page</a>
+            to find download links.
+          </p>
+        }
+
+        <!-- Description -->
+        @if (displayDescription()) {
+          <div class="description">
+            <h3>About this model</h3>
+            <div class="description-body" [innerHTML]="displayDescription() | safeHtml"></div>
+          </div>
+        }
       } @else {
-        <p class="state-note">
-          No files downloaded yet. Use the
-          <a [href]="entry()!.source_page_url" target="_blank" rel="noopener">source page</a>
-          to find download links.
-        </p>
+        <!-- Edit panel -->
+        <div class="edit-panel">
+          <label>
+            <span class="field-label">Description</span>
+            <textarea [(ngModel)]="editMeta.description" rows="6"></textarea>
+          </label>
+
+          <div class="field-group">
+            <span class="field-label">Base Model per file</span>
+            @if (editableFiles().length > 0) {
+              @for (f of editableFiles(); track f.filename) {
+                <div class="edit-file-row">
+                  <span class="edit-file-name">{{ f.filename }}</span>
+                  <app-base-model-select
+                    class="edit-file-base-model"
+                    [value]="fileBaseModels()[f.filename]"
+                    (valueChange)="setFileBaseModel(f.filename, $event)"
+                  />
+                </div>
+              }
+            } @else {
+              <p class="state-note">No downloaded files to assign a base model to.</p>
+            }
+          </div>
+
+          <app-edit-meta-form
+            [triggerWords]="editMeta.trigger_words ?? []"
+            (triggerWordsChange)="editMeta.trigger_words = $event"
+            [tags]="editMeta.tags ?? []"
+            (tagsChange)="editMeta.tags = $event"
+            [saving]="saving()"
+            [refetching]="refetching()"
+            (saveClicked)="save()"
+            (cancelClicked)="cancelEdit()"
+            (refetchClicked)="refetch()"
+          />
+        </div>
       }
+    </div>
+  }
+
+  <!-- Lightbox -->
+  @if (lightboxOpen() && activeMedia()?.media_type === 'image') {
+    <div
+      class="lightbox"
+      role="button"
+      tabindex="0"
+      (click)="lightboxOpen.set(false)"
+      (keydown.enter)="lightboxOpen.set(false)"
+    >
+      <img [src]="mediaUrl(activeMedia()!.local_path)" alt="full size preview" />
     </div>
   }
 </div>

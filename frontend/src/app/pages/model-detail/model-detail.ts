@@ -18,10 +18,12 @@ import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
 import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
+import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
+import { EditMetaForm } from '../../components/edit-meta-form/edit-meta-form';
 
 @Component({
   selector: 'app-model-detail',
-  imports: [CommonModule, FormsModule, RouterLink, SafeHtmlPipe],
+  imports: [CommonModule, FormsModule, RouterLink, SafeHtmlPipe, BaseModelSelect, EditMetaForm],
   templateUrl: './model-detail.html',
   styleUrl: './model-detail.scss',
 })
@@ -35,8 +37,6 @@ export class ModelDetail implements OnInit {
   modelTypes = signal<string[]>([]);
   meta = signal<ModelMeta | null>(null);
   editMeta: Partial<ModelMeta> = {};
-  newTriggerWord = '';
-  newTag = '';
   loading = signal(true);
   saving = signal(false);
   refetching = signal(false);
@@ -75,6 +75,7 @@ export class ModelDetail implements OnInit {
     const parts: string[] = [];
     if (this.modelType) parts.push(this.modelType);
     const m = this.meta();
+    if (m?.base_model) parts.push(m.base_model);
     const size = this.formatBytes(m?.size_bytes ?? 0);
     if (size) parts.push(size);
     return parts;
@@ -100,7 +101,7 @@ export class ModelDetail implements OnInit {
 
   ngOnInit() {
     this.modelType = this.route.snapshot.paramMap.get('type') ?? '';
-    this.modelPath = this.route.snapshot.paramMap.get('path') ?? '';
+    this.modelPath = decodeURIComponent(this.route.snapshot.paramMap.get('path') ?? '');
     this.editType = this.modelType;
     this.modelService.getModelTypes().subscribe((types) => this.modelTypes.set(types));
     this.loadMeta();
@@ -185,28 +186,6 @@ export class ModelDetail implements OnInit {
     this.editMode.set(false);
   }
 
-  addTriggerWord() {
-    const w = this.newTriggerWord.trim();
-    if (!w) return;
-    this.editMeta.trigger_words = [...(this.editMeta.trigger_words ?? []), w];
-    this.newTriggerWord = '';
-  }
-
-  removeTriggerWord(word: string) {
-    this.editMeta.trigger_words = (this.editMeta.trigger_words ?? []).filter((w) => w !== word);
-  }
-
-  addTag() {
-    const t = this.newTag.trim();
-    if (!t) return;
-    this.editMeta.tags = [...(this.editMeta.tags ?? []), t];
-    this.newTag = '';
-  }
-
-  removeTag(tag: string) {
-    this.editMeta.tags = (this.editMeta.tags ?? []).filter((t) => t !== tag);
-  }
-
   save() {
     this.saving.set(true);
     this.error.set('');
@@ -218,16 +197,24 @@ export class ModelDetail implements OnInit {
       .pipe(
         switchMap(() => {
           if (typeChanged) this.modelType = this.editType;
-          return this.modelService.updateMetadata(this.modelType, this.modelPath, this.editMeta);
+          return this.modelService.updateMetadataWithPath(
+            this.modelType,
+            this.modelPath,
+            this.editMeta,
+          );
         }),
       )
       .subscribe({
-        next: () => {
+        next: (result) => {
           this.saving.set(false);
           this.notifService.show('success', 'Metadata saved.');
           this.saveSiblingBaseModels();
-          if (typeChanged) {
-            this.router.navigate(['/models', this.modelType, this.modelPath]);
+          const newPath = result.new_path;
+          if (typeChanged || newPath !== this.modelPath) {
+            this.modelPath = newPath;
+            this.router.navigateByUrl(
+              '/models/' + this.modelType + '/' + encodeURIComponent(newPath),
+            );
           } else {
             this.editMode.set(false);
             const current = this.meta()!;
@@ -252,10 +239,15 @@ export class ModelDetail implements OnInit {
     this.refetching.set(true);
     this.error.set('');
     this.modelService.refetchMetadata(this.modelType, this.modelPath).subscribe({
-      next: (m) => {
-        this.meta.set(m);
-        this.syncEditMeta(m);
+      next: (res) => {
         this.refetching.set(false);
+        if (res.removed) {
+          this.notifService.show('success', 'File no longer on disk — removed its stale entry.');
+          this.router.navigate(['/models']);
+          return;
+        }
+        this.meta.set(res.meta);
+        this.syncEditMeta(res.meta);
         this.notifService.show('success', 'Metadata re-fetched.');
         this.loadRepoFiles();
       },

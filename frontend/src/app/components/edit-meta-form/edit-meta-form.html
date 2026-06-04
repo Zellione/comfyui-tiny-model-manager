@@ -1,0 +1,45 @@
+<div class="field-group">
+  <span class="field-label">Trigger Words</span>
+  <div class="chips">
+    @for (w of triggerWords(); track w) {
+      <span class="chip"
+        >{{ w }}<button type="button" (click)="removeTriggerWord(w)">×</button></span
+      >
+    }
+  </div>
+  <div class="add-row">
+    <input
+      [(ngModel)]="newTriggerWord"
+      placeholder="Add trigger word"
+      (keyup.enter)="addTriggerWord()"
+    />
+    <button type="button" class="btn small" (click)="addTriggerWord()">Add</button>
+  </div>
+</div>
+
+<div class="field-group">
+  <span class="field-label">Tags</span>
+  <div class="chips">
+    @for (t of tags(); track t) {
+      <span class="chip chip-tag"
+        >{{ t }}<button type="button" (click)="removeTag(t)">×</button></span
+      >
+    }
+  </div>
+  <div class="add-row">
+    <input [(ngModel)]="newTag" placeholder="Add tag" (keyup.enter)="addTag()" />
+    <button type="button" class="btn small" (click)="addTag()">Add</button>
+  </div>
+</div>
+
+<ng-content />
+
+<div class="edit-actions">
+  <button type="button" class="btn primary" (click)="saveClicked.emit()" [disabled]="saving()">
+    {{ saving() ? 'Saving…' : 'Save' }}
+  </button>
+  <button type="button" class="btn ghost" (click)="cancelClicked.emit()">Cancel</button>
+  <button type="button" class="btn ghost" (click)="refetchClicked.emit()" [disabled]="refetching()">
+    {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
+  </button>
+</div>

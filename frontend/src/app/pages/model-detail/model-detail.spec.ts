@@ -3,10 +3,30 @@ import { Router, provideRouter } from '@angular/router';
 import { EMPTY, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { ModelDetail } from './model-detail';
-import { ModelService, RepoFile } from '../../services/model';
+import { ModelService, RepoFile, RefetchResult, CatalogEntryDetail } from '../../services/model';
 import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
+
+const makeCatalogEntry = (overrides: Partial<CatalogEntryDetail> = {}): CatalogEntryDetail => ({
+  id: 1,
+  source_platform: 'civitai',
+  source_page_id: '1',
+  source_page_url: '',
+  display_name: '',
+  thumbnail_url: '',
+  base_model: '',
+  created_at: '',
+  model_type: 'loras',
+  is_empty: false,
+  installed_files: [],
+  repo_files: [],
+  description: '',
+  trigger_words: [],
+  tags: [],
+  media: [],
+  ...overrides,
+});
 
 const makeMeta = (overrides = {}) => ({
   description: 'A test model',
@@ -36,7 +56,8 @@ const makeRepoFile = (overrides: Partial<RepoFile> = {}): RepoFile => ({
 const mockModelService = {
   getMetadata: vi.fn(() => of(makeMeta())),
   updateMetadata: vi.fn(() => of(undefined)),
-  refetchMetadata: vi.fn(() => of(makeMeta())),
+  updateMetadataWithPath: vi.fn(() => of({ new_path: 'my-lora.safetensors' })),
+  refetchMetadata: vi.fn(() => of({ removed: false, meta: makeMeta() } as RefetchResult)),
   deleteModel: vi.fn(() => of(undefined)),
   getModelTypes: vi.fn(() => of(['checkpoints', 'loras'])),
   moveModel: vi.fn(() => of(undefined)),
@@ -125,6 +146,27 @@ describe('ModelDetail', () => {
     });
   });
 
+  describe('refetch', () => {
+    it('updates metadata on a normal refetch', () => {
+      mockModelService.refetchMetadata.mockReturnValueOnce(
+        of({ removed: false, meta: makeMeta({ description: 'fresh' }) } as RefetchResult),
+      );
+      component.refetch();
+      expect(component.meta()?.description).toBe('fresh');
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('navigates to /models and notifies when the stale record was pruned', () => {
+      mockModelService.refetchMetadata.mockReturnValueOnce(of({ removed: true } as RefetchResult));
+      component.refetch();
+      expect(mockNotifService.show).toHaveBeenCalledWith(
+        'success',
+        expect.stringContaining('no longer on disk'),
+      );
+      expect(router.navigate).toHaveBeenCalledWith(['/models']);
+    });
+  });
+
   describe('formatBytes', () => {
     it('returns empty string for 0', () => {
       expect(component.formatBytes(0)).toBe('');
@@ -144,17 +186,25 @@ describe('ModelDetail', () => {
   });
 
   describe('eyebrowParts', () => {
-    it('includes modelType and formatted size', () => {
+    it('includes modelType, formatted size, and base_model', () => {
       const parts = component.eyebrowParts();
       expect(parts).toContain('loras');
       expect(parts.some((p) => p.includes('GB'))).toBe(true);
-      expect(parts).not.toContain('SDXL 1.0');
+      expect(parts).toContain('SDXL 1.0');
     });
 
-    it('omits size when zero', () => {
+    it('omits size when zero but keeps base_model', () => {
       component.meta.set(makeMeta({ base_model: 'SDXL 1.0', size_bytes: 0 }));
       const parts = component.eyebrowParts();
-      expect(parts).toEqual(['loras']);
+      expect(parts).toEqual(['loras', 'SDXL 1.0']); // size omitted, base_model present
+    });
+
+    it('orders parts as type → base_model → size', () => {
+      component.meta.set(makeMeta({ base_model: 'Flux', size_bytes: 1024 * 1024 }));
+      const parts = component.eyebrowParts();
+      expect(parts[0]).toBe('loras');
+      expect(parts[1]).toBe('Flux');
+      expect(parts[2]).toMatch(/MB/);
     });
   });
 
@@ -206,38 +256,14 @@ describe('ModelDetail', () => {
     });
 
     it('returns display_name from catalog entry when set', () => {
-      component.catalogEntry.set({
-        id: 1,
-        source_platform: 'civitai',
-        source_page_id: '1',
-        source_page_url: '',
-        display_name: 'My Awesome LoRA',
-        thumbnail_url: '',
-        base_model: 'SDXL',
-        created_at: '',
-        model_type: 'loras',
-        is_empty: false,
-        installed_files: [],
-        repo_files: [],
-      });
+      component.catalogEntry.set(
+        makeCatalogEntry({ display_name: 'My Awesome LoRA', base_model: 'SDXL' }),
+      );
       expect(component.displayTitle()).toBe('My Awesome LoRA');
     });
 
     it('falls back to modelBasename when catalog display_name is empty', () => {
-      component.catalogEntry.set({
-        id: 1,
-        source_platform: 'civitai',
-        source_page_id: '1',
-        source_page_url: '',
-        display_name: '',
-        thumbnail_url: '',
-        base_model: '',
-        created_at: '',
-        model_type: 'loras',
-        is_empty: false,
-        installed_files: [],
-        repo_files: [],
-      });
+      component.catalogEntry.set(makeCatalogEntry({ display_name: '' }));
       expect(component.displayTitle()).toBe('my-lora.safetensors');
     });
   });
@@ -380,6 +406,10 @@ describe('ModelDetail', () => {
         is_empty: false,
         installed_files: [],
         repo_files: [],
+        description: '',
+        trigger_words: [],
+        tags: [],
+        media: [],
       });
       component.downloadFile(
         makeRepoFile({

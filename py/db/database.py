@@ -13,6 +13,10 @@ CREATE TABLE IF NOT EXISTS catalog_entries (
     display_name     TEXT NOT NULL DEFAULT '',
     thumbnail_url    TEXT NOT NULL DEFAULT '',
     base_model       TEXT NOT NULL DEFAULT '',
+    description      TEXT NOT NULL DEFAULT '',
+    trigger_words    TEXT NOT NULL DEFAULT '',
+    tags             TEXT NOT NULL DEFAULT '',
+    media_hash       TEXT NOT NULL DEFAULT '',
     created_at       TEXT DEFAULT (datetime('now')),
     UNIQUE (source_platform, source_page_id)
 );
@@ -135,6 +139,11 @@ async def _migrate_db():
         "ALTER TABLE models ADD COLUMN base_model TEXT NOT NULL DEFAULT ''",
         "ALTER TABLE models ADD COLUMN civitai_model_id TEXT",
         "ALTER TABLE models ADD COLUMN media_hash TEXT NOT NULL DEFAULT ''",
+        # Catalog-owned source-page metadata (shown even when no file is installed)
+        "ALTER TABLE catalog_entries ADD COLUMN description TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE catalog_entries ADD COLUMN trigger_words TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE catalog_entries ADD COLUMN tags TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE catalog_entries ADD COLUMN media_hash TEXT NOT NULL DEFAULT ''",
     ]
     async with aiosqlite.connect(cfg.db_path()) as db:
         for sql in migrations:

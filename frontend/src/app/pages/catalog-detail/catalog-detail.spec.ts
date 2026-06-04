@@ -1,11 +1,19 @@
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { CatalogDetail } from './catalog-detail';
-import { ModelService, CatalogEntryDetail } from '../../services/model';
+import { ModelService, CatalogEntryDetail, InstalledFile } from '../../services/model';
 import { DownloadService } from '../../services/download';
+import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
+
+const mockInstalledFile: InstalledFile = {
+  filename: 'test.safetensors',
+  model_type: 'loras',
+  size_bytes: 1024,
+  modified_at: 0,
+};
 
 const mockEntry: CatalogEntryDetail = {
   id: 1,
@@ -32,17 +40,32 @@ const mockEntry: CatalogEntryDetail = {
       base_model: '',
     },
   ],
+  description: '',
+  trigger_words: [],
+  tags: [],
+  media: [],
 };
 
 const mockModelService = {
   getCatalogEntry: vi.fn(),
   removeCatalogEntry: vi.fn(),
+  getRepoFiles: vi.fn(),
+  updateMetadata: vi.fn(),
+  updateMetadataWithPath: vi.fn(),
+  updateCatalogMetadata: vi.fn(),
+  refetchCatalog: vi.fn(),
+  refetchMetadata: vi.fn(),
+  deleteModel: vi.fn(),
 };
 
 const mockDownloadService = {
   startDownload: vi.fn(),
   activeTasks$: of([]),
   completedTasks$: of([]),
+};
+
+const mockWorkflowService = {
+  addToWorkflow: vi.fn(),
 };
 
 const mockNotifService = {
@@ -66,6 +89,7 @@ async function createFixture(platform = 'civitai', pageId = '123') {
       { provide: ActivatedRoute, useValue: makeRoute(platform, pageId) },
       { provide: ModelService, useValue: mockModelService },
       { provide: DownloadService, useValue: mockDownloadService },
+      { provide: WorkflowService, useValue: mockWorkflowService },
       { provide: NotificationService, useValue: mockNotifService },
     ],
   }).compileComponents();
@@ -80,6 +104,11 @@ describe('CatalogDetail component', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mockModelService.getCatalogEntry.mockReturnValue(of(mockEntry));
+    mockModelService.getRepoFiles.mockReturnValue(of([]));
+    mockModelService.updateMetadata.mockReturnValue(of(undefined));
+    mockModelService.updateMetadataWithPath.mockReturnValue(of({ new_path: 'test.safetensors' }));
+    mockModelService.updateCatalogMetadata.mockReturnValue(of(undefined));
+    mockModelService.refetchCatalog.mockReturnValue(of(mockEntry));
   });
 
   afterEach(() => TestBed.resetTestingModule());
@@ -136,10 +165,143 @@ describe('CatalogDetail component', () => {
     expect(fixture.componentInstance.showRemoveConfirm()).toBe(false);
   });
 
-  it('removeFromCatalog calls service', async () => {
+  it('removeFromCatalog calls service and navigates to /catalog', async () => {
     mockModelService.removeCatalogEntry.mockReturnValue(of(undefined));
     const fixture = await createFixture();
+    const router = TestBed.inject(Router);
+    const navigateSpy = vi.spyOn(router, 'navigate');
     fixture.componentInstance.removeFromCatalog();
     expect(mockModelService.removeCatalogEntry).toHaveBeenCalledWith('civitai', '123');
+    expect(navigateSpy).toHaveBeenCalledWith(['/catalog']);
+  });
+
+  it('sets primaryType and primaryPath from first installed file', async () => {
+    mockModelService.getCatalogEntry.mockReturnValue(
+      of({ ...mockEntry, installed_files: [mockInstalledFile] }),
+    );
+    const fixture = await createFixture();
+    expect(fixture.componentInstance.primaryType).toBe('loras');
+    expect(fixture.componentInstance.primaryPath).toBe('test.safetensors');
+  });
+
+  it('shows edit button when installed files present', async () => {
+    mockModelService.getCatalogEntry.mockReturnValue(
+      of({ ...mockEntry, installed_files: [mockInstalledFile] }),
+    );
+    const fixture = await createFixture();
+    fixture.detectChanges();
+    const buttons = fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLElement>;
+    const labels = Array.from(buttons).map((b) => b.textContent?.trim());
+    expect(labels).toContain('Edit');
+  });
+
+  it('enterEdit sets editMode true', async () => {
+    mockModelService.getCatalogEntry.mockReturnValue(
+      of({ ...mockEntry, installed_files: [mockInstalledFile] }),
+    );
+    const fixture = await createFixture();
+    fixture.componentInstance.enterEdit();
+    expect(fixture.componentInstance.editMode()).toBe(true);
+  });
+
+  it('cancelEdit sets editMode false', async () => {
+    mockModelService.getCatalogEntry.mockReturnValue(
+      of({ ...mockEntry, installed_files: [mockInstalledFile] }),
+    );
+    const fixture = await createFixture();
+    fixture.componentInstance.enterEdit();
+    fixture.componentInstance.cancelEdit();
+    expect(fixture.componentInstance.editMode()).toBe(false);
+  });
+
+  it('save() writes catalog-owned metadata for the entry', async () => {
+    mockModelService.getCatalogEntry.mockReturnValue(
+      of({ ...mockEntry, installed_files: [mockInstalledFile] }),
+    );
+    const fixture = await createFixture();
+    fixture.componentInstance.enterEdit();
+    fixture.componentInstance.save();
+    expect(mockModelService.updateCatalogMetadata).toHaveBeenCalledWith(
+      'civitai',
+      '123',
+      expect.objectContaining({
+        description: expect.any(String),
+        trigger_words: expect.any(Array),
+        tags: expect.any(Array),
+      }),
+    );
+  });
+
+  it('save() sends per-file base model changes and reloads the entry', async () => {
+    const downloadedRepoFile = {
+      ...mockEntry.repo_files[0],
+      is_downloaded: true,
+      installed_path: 'test.safetensors',
+      base_model: '',
+    };
+    mockModelService.getCatalogEntry.mockReturnValue(
+      of({ ...mockEntry, installed_files: [mockInstalledFile] }),
+    );
+    mockModelService.getRepoFiles.mockReturnValue(of([downloadedRepoFile]));
+    const fixture = await createFixture();
+    fixture.componentInstance.enterEdit();
+    fixture.componentInstance.setFileBaseModel('test.safetensors', 'Pony');
+    mockModelService.getCatalogEntry.mockClear();
+    fixture.componentInstance.save();
+    // The changed file is moved/updated via updateMetadata...
+    expect(mockModelService.updateMetadata).toHaveBeenCalledWith('loras', 'test.safetensors', {
+      base_model: 'Pony',
+    });
+    // ...and the catalog entry is reloaded so the move is reflected.
+    expect(mockModelService.getCatalogEntry).toHaveBeenCalled();
+  });
+
+  it('refetch() pulls fresh catalog metadata from source and applies it', async () => {
+    const refreshed = { ...mockEntry, description: 'fresh from source' };
+    mockModelService.refetchCatalog.mockReturnValue(of(refreshed));
+    const fixture = await createFixture();
+    fixture.componentInstance.refetch();
+    expect(mockModelService.refetchCatalog).toHaveBeenCalledWith('civitai', '123');
+    expect(fixture.componentInstance.displayDescription()).toBe('fresh from source');
+    expect(mockNotifService.show).toHaveBeenCalledWith(
+      'success',
+      expect.stringContaining('re-fetched'),
+    );
+    expect(fixture.componentInstance.refetching()).toBe(false);
+  });
+
+  it('displays catalog-owned metadata with zero files installed', async () => {
+    mockModelService.getCatalogEntry.mockReturnValue(
+      of({
+        ...mockEntry,
+        installed_files: [],
+        description: 'standalone desc',
+        trigger_words: ['kw1'],
+        tags: ['anime'],
+        media: [{ id: 0, media_type: 'image', local_path: '/m/0.jpg' }],
+      }),
+    );
+    const fixture = await createFixture();
+    expect(fixture.componentInstance.displayDescription()).toBe('standalone desc');
+    expect(fixture.componentInstance.displayTriggerWords()).toEqual(['kw1']);
+    expect(fixture.componentInstance.displayTags()).toEqual(['anime']);
+    expect(fixture.componentInstance.displayMedia().length).toBe(1);
+  });
+
+  it('save() does not send base model updates for unchanged files', async () => {
+    const downloadedRepoFile = {
+      ...mockEntry.repo_files[0],
+      is_downloaded: true,
+      installed_path: 'test.safetensors',
+      base_model: 'SDXL 1.0',
+    };
+    mockModelService.getCatalogEntry.mockReturnValue(
+      of({ ...mockEntry, installed_files: [mockInstalledFile] }),
+    );
+    mockModelService.getRepoFiles.mockReturnValue(of([downloadedRepoFile]));
+    const fixture = await createFixture();
+    fixture.componentInstance.enterEdit();
+    fixture.componentInstance.save();
+    expect(mockModelService.updateMetadata).not.toHaveBeenCalled();
   });
 });

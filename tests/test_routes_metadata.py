@@ -1,6 +1,7 @@
 """Integration tests for py/routes/metadata.py (metadata CRUD + media serving)."""
 
 import os
+from pathlib import Path
 
 import pytest
 from aiohttp import web
@@ -128,6 +129,17 @@ class TestPutMetadata:
         )
         assert (await resp.json())["success"] is True
 
+    async def test_returns_new_path_equal_to_original_when_no_move(self, client, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_model("np.safetensors", "loras", "", "", "")
+        resp = await client.put(
+            "/tiny-model-manager/api/models/loras/np.safetensors/metadata",
+            json={"description": "d", "trigger_words": []},
+        )
+        data = await resp.json()
+        assert data["new_path"] == "np.safetensors"
+
     async def test_saves_base_model_for_file_with_no_db_row(self, client, ext_dir):
         # No upsert_model call — the file has no models row (manually-placed file)
         resp = await client.put(
@@ -190,7 +202,7 @@ class TestPutMetadataOrganize:
         old_subfolder = os.path.join(loras_dir, "SDXL 1.0")
         os.makedirs(old_subfolder)
         src = os.path.join(old_subfolder, "move-me.safetensors")
-        open(src, "wb").close()
+        Path(src).touch()
 
         await model_repo.upsert_model(
             "SDXL 1.0/move-me.safetensors", "loras", "", "", "", base_model="SDXL 1.0"
@@ -215,7 +227,7 @@ class TestPutMetadataOrganize:
         cfg.save_settings({"organize_into_subfolders": False})
 
         src = os.path.join(loras_dir, "flat.safetensors")
-        open(src, "wb").close()
+        Path(src).touch()
 
         await model_repo.upsert_model(
             "flat.safetensors", "loras", "", "", "", base_model="SDXL 1.0"
@@ -229,8 +241,41 @@ class TestPutMetadataOrganize:
         assert os.path.exists(src)
         assert not os.path.exists(os.path.join(loras_dir, "Pony", "flat.safetensors"))
 
+    async def test_returns_new_path_in_response_when_file_moves(self, organize_client, ext_dir):
+        from py import config as cfg
+        from py.db import model_repo
+
+        client, loras_dir = organize_client
+        cfg.save_settings({"organize_into_subfolders": True})
+
+        old_subfolder = os.path.join(loras_dir, "SDXL 1.0")
+        os.makedirs(old_subfolder)
+        src = os.path.join(old_subfolder, "resp-test.safetensors")
+        Path(src).touch()
+
+        await model_repo.upsert_model(
+            "SDXL 1.0/resp-test.safetensors", "loras", "", "", "", base_model="SDXL 1.0"
+        )
+
+        resp = await client.put(
+            "/tiny-model-manager/api/models/loras/SDXL 1.0/resp-test.safetensors/metadata",
+            json={"description": "", "trigger_words": [], "base_model": "Pony"},
+        )
+        data = await resp.json()
+        assert data["new_path"] == "Pony/resp-test.safetensors"
+
 
 class TestRefetchMetadata:
+    @staticmethod
+    def _touch_model_file(rel_path: str, model_type: str = "loras") -> None:
+        """Create an empty model file on disk so refetch's disk check passes."""
+        import folder_paths
+
+        full = os.path.join(folder_paths.models_dir, model_type, rel_path)
+        os.makedirs(os.path.dirname(full), exist_ok=True)
+        with open(full, "wb") as f:
+            f.write(b"x")
+
     async def test_skip_media_false_when_no_existing_media(self, client, ext_dir, monkeypatch):
         """Refetch downloads images when the model has no stored media rows."""
         from py.db import model_repo
@@ -242,6 +287,7 @@ class TestRefetchMetadata:
 
         monkeypatch.setattr("py.services.metadata_fetcher.fetch_and_store", fake_fetch)
 
+        self._touch_model_file("no-media.safetensors")
         await model_repo.upsert_model_with_meta(
             "no-media.safetensors",
             "loras",
@@ -268,6 +314,7 @@ class TestRefetchMetadata:
 
         monkeypatch.setattr("py.services.metadata_fetcher.fetch_and_store", fake_fetch)
 
+        self._touch_model_file("has-media.safetensors")
         model_id = await model_repo.upsert_model_with_meta(
             "has-media.safetensors",
             "loras",
@@ -286,9 +333,30 @@ class TestRefetchMetadata:
         assert captured.get("skip_media") is True
 
     async def test_returns_400_when_no_source_info(self, client, ext_dir):
-        """Refetch returns 400 when the model has no source platform/id stored."""
+        """Refetch returns 400 when the file exists but has no source platform/id stored."""
+        self._touch_model_file("unknown.safetensors")
         resp = await client.post("/tiny-model-manager/api/models/loras/unknown.safetensors/refetch")
         assert resp.status == 400
+
+    async def test_removes_stale_record_when_file_missing(self, client, ext_dir):
+        """Refetch prunes the DB record when the file no longer exists on disk."""
+        from py.db import model_repo
+
+        await model_repo.upsert_model_with_meta(
+            "ghost.safetensors",
+            "loras",
+            "huggingface",
+            "user/repo",
+            "desc",
+            trigger_words=[],
+            tags=[],
+        )
+        resp = await client.post("/tiny-model-manager/api/models/loras/ghost.safetensors/refetch")
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert data["removed"] is True
+        # The stale row is gone.
+        assert await model_repo.get_model_by_filename("ghost.safetensors") is None
 
 
 class TestGetRepoFiles:

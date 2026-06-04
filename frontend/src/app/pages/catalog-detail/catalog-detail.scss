@@ -1,7 +1,7 @@
 // ── Page container ────────────────────────────────────────────────────────────
 
 .page {
-  max-width: 900px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 28px 28px 100px;
 }
@@ -35,6 +35,62 @@
 
 .spacer {
   flex: 1;
+}
+
+// ── Workflow flyout ───────────────────────────────────────────────────────────
+
+.workflow-flyout-wrap {
+  position: relative;
+}
+
+.workflow-flyout {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 280px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  z-index: 200;
+}
+
+.workflow-flyout-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text);
+  gap: 2px;
+
+  &:not(:last-child) {
+    border-bottom: 1px solid var(--border);
+  }
+
+  &:hover {
+    background: var(--surface-2);
+  }
+}
+
+.flyout-filename {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.flyout-type {
+  font-size: 11px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 // ── Buttons ───────────────────────────────────────────────────────────────────
@@ -310,6 +366,55 @@
   margin-left: auto;
 }
 
+.iv-download-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  flex: 0 0 auto;
+  min-width: 120px;
+}
+
+.iv-progress-bar {
+  width: 100%;
+  height: 3px;
+  background: var(--surface-hi);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.iv-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+.iv-progress-label {
+  font-size: 12px;
+  color: var(--text-3);
+  white-space: nowrap;
+
+  &.error {
+    color: var(--danger);
+  }
+
+  &.processing {
+    color: var(--accent);
+    animation: iv-processing-pulse 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes iv-processing-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
 // ── State note ────────────────────────────────────────────────────────────────
 
 .state-note {
@@ -318,5 +423,452 @@
 
   a {
     color: var(--accent);
+  }
+}
+
+// ── Section label wrapper ─────────────────────────────────────────────────────
+
+.section-label-wrap {
+  padding: 4px 0 2px;
+}
+
+// ── Gallery ───────────────────────────────────────────────────────────────────
+
+.gallery {
+  padding: 4px 0;
+}
+
+.gallery-main {
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img,
+  video {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    display: block;
+    object-fit: contain;
+  }
+
+  .gallery-main-img {
+    cursor: zoom-in;
+  }
+
+  &.gallery-placeholder {
+    background: var(--surface-2);
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+  }
+}
+
+.gallery-thumbs {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.gallery-thumb {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  overflow: hidden;
+  background: var(--surface-2);
+  transition: border-color var(--dur);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  &.active {
+    border-color: var(--accent);
+  }
+
+  &:hover:not(.active) {
+    border-color: var(--border-strong);
+  }
+}
+
+.gallery-thumb-video {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+  font-size: 20px;
+}
+
+// ── Lightbox ──────────────────────────────────────────────────────────────────
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+
+  img {
+    max-width: 95vw;
+    max-height: 95vh;
+    object-fit: contain;
+    border-radius: 4px;
+    display: block;
+  }
+}
+
+// ── Tags ──────────────────────────────────────────────────────────────────────
+
+.dl-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px 0;
+}
+
+.dl-tags-label {
+  font-size: 12px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-right: 4px;
+}
+
+.tag {
+  font-size: 13px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--surface-hi);
+  color: var(--text-2);
+  font-weight: 500;
+
+  &.accent {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+}
+
+// ── Trigger keywords ──────────────────────────────────────────────────────────
+
+.detail-section {
+  padding: 4px 0 0;
+}
+
+.keywords-row {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-top: 6px;
+
+  &.empty {
+    padding: 12px 16px;
+  }
+}
+
+.keywords-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-3);
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.keywords-empty {
+  color: var(--text-3);
+  font-size: 14px;
+}
+
+.keywords-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color var(--dur);
+
+  &:hover {
+    border-color: var(--border-strong);
+  }
+
+  code {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 15px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.keywords-copy {
+  flex: 0 0 auto;
+}
+
+.keywords-chips {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+// ── Installed files row actions ───────────────────────────────────────────────
+
+.iv-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.iv-row-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.iv-confirm-text {
+  font-size: 12px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+// ── Description ───────────────────────────────────────────────────────────────
+
+.description {
+  padding: 8px 0 4px;
+  border-top: 1px solid var(--border);
+  color: var(--text-2);
+  line-height: 1.65;
+  font-size: 15px;
+
+  h3 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-3);
+    margin: 0 0 10px;
+    font-weight: 600;
+  }
+
+  .description-body {
+    p {
+      margin: 0 0 0.75em;
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      color: var(--text);
+      font-weight: 600;
+      margin: 1em 0 0.4em;
+      &:first-child {
+        margin-top: 0;
+      }
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+
+    ul,
+    ol {
+      margin: 0 0 0.75em 1.4em;
+      padding: 0;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      background: var(--surface-hi);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+
+    pre {
+      background: var(--surface-hi);
+      border-radius: 6px;
+      padding: 10px 12px;
+      overflow-x: auto;
+      margin: 0 0 0.75em;
+      code {
+        background: none;
+        padding: 0;
+      }
+    }
+
+    img {
+      max-width: 100%;
+      border-radius: 4px;
+    }
+  }
+}
+
+// ── Edit panel ────────────────────────────────────────────────────────────────
+
+.edit-panel {
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.field-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+.chip {
+  background: var(--surface-hi);
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text);
+
+  button {
+    background: none;
+    border: none;
+    color: var(--text-3);
+    padding: 0;
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 1;
+    border-radius: 0;
+
+    &:hover {
+      color: var(--text);
+    }
+  }
+
+  &.chip-tag {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+}
+
+.add-row {
+  display: flex;
+  gap: 8px;
+
+  input {
+    flex: 1;
+  }
+}
+
+// ── Edit-view per-file base model rows ────────────────────────────────────────
+
+.edit-file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.edit-file-name {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edit-file-base-model {
+  flex: 0 0 200px;
+  font-size: 13px;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+// ── Inputs and textareas ──────────────────────────────────────────────────────
+
+input[type='text'],
+textarea {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent);
   }
 }
