@@ -22,7 +22,18 @@
     object-fit: contain;
   }
 
-  .gallery-main-img {
+  // Clickable wrapper that opens the lightbox; reset the global button chrome
+  // so it is layout-transparent over the preview image.
+  .gallery-main-btn {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
     cursor: zoom-in;
   }
 
@@ -47,6 +58,7 @@
   width: 64px;
   height: 64px;
   flex: 0 0 64px;
+  padding: 0;
   border-radius: 6px;
   cursor: pointer;
   border: 1px solid transparent;
@@ -86,6 +98,9 @@
   position: fixed;
   inset: 0;
   z-index: 200;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
   background: rgba(0, 0, 0, 0.92);
   display: flex;
   align-items: center;

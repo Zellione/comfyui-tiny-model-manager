@@ -16,25 +16,57 @@ import folder_paths
 from .. import config as cfg
 
 
+def _is_safe_segment(segment: str) -> bool:
+    """True if ``segment`` is a single, non-traversing path component.
+
+    ``model_type`` reaches these helpers straight from a URL route parameter; a value
+    such as ``..`` or ``a/b`` must never be treated as a physical subfolder name, or it
+    could redirect the search outside the model roots.
+    """
+    return (
+        bool(segment) and segment not in (".", "..") and "/" not in segment and "\\" not in segment
+    )
+
+
 def candidate_dirs(model_type: str) -> list[str]:
     """All base directories a model file of ``model_type`` might live in, in search order."""
     dirs: list[str] = []
     registered, _ = folder_paths.folder_names_and_paths.get(model_type, ([], {}))
     dirs.extend(registered)
-    models_dir = getattr(folder_paths, "models_dir", None)
-    if models_dir:
-        dirs.append(os.path.join(models_dir, model_type))
-    dirs.append(os.path.join(cfg.data_dir(), "models", model_type))
+    if _is_safe_segment(model_type):
+        models_dir = getattr(folder_paths, "models_dir", None)
+        if models_dir:
+            dirs.append(os.path.join(models_dir, model_type))
+        dirs.append(os.path.join(cfg.data_dir(), "models", model_type))
     return dirs
 
 
+def _contained_path(base: str, *parts: str) -> str | None:
+    """Resolve ``parts`` under ``base``; return the real path only if it stays inside ``base``.
+
+    ``parts`` is built from untrusted request data (filenames, relative model paths). A
+    value containing ``../`` that escapes the base directory is a filesystem-oracle vector
+    (CWE-22) and is rejected here by canonical-path validation.
+    """
+    base_real = os.path.realpath(base)
+    full_real = os.path.realpath(os.path.join(base, *parts))
+    if full_real == base_real or full_real.startswith(base_real + os.sep):
+        return full_real
+    return None
+
+
 def candidate_paths(model_type: str, *parts: str) -> list[str]:
-    """Candidate absolute paths for ``parts`` joined under each base dir."""
-    return [os.path.join(base, *parts) for base in candidate_dirs(model_type)]
+    """Candidate real paths for ``parts`` under each base dir, excluding any that escape it."""
+    resolved: list[str] = []
+    for base in candidate_dirs(model_type):
+        full = _contained_path(base, *parts)
+        if full is not None:
+            resolved.append(full)
+    return resolved
 
 
 def find_file(model_type: str, *parts: str) -> str | None:
-    """Return the first existing candidate path for ``parts``, or None."""
+    """Return the first existing, in-bounds candidate path for ``parts``, or None."""
     for full in candidate_paths(model_type, *parts):
         if os.path.isfile(full):
             return full

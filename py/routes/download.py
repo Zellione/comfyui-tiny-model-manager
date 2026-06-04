@@ -2,6 +2,8 @@ from ..services import downloader as dl
 from ..services.providers import civitai, huggingface
 from ._helpers import err, json_route, ok
 
+_MISSING_REPO = "Missing repo"
+
 
 def add_download_routes(routes):
 
@@ -50,7 +52,7 @@ def add_download_routes(routes):
     async def hf_files(request):
         repo_id = request.rel_url.query.get("repo", "")
         if not repo_id:
-            return err("Missing repo", status=400)
+            return err(_MISSING_REPO, status=400)
         files = await huggingface.get_model_files(repo_id)
         return ok(files)
 
@@ -66,7 +68,7 @@ def add_download_routes(routes):
     async def hf_readme(request):
         repo_id = request.rel_url.query.get("repo", "")
         if not repo_id:
-            return err("Missing repo", status=400)
+            return err(_MISSING_REPO, status=400)
         text = await huggingface.get_readme(repo_id)
         return ok({"description": text})
 
@@ -75,7 +77,7 @@ def add_download_routes(routes):
     async def hf_resolve(request):
         repo_id = request.rel_url.query.get("repo", "")
         if not repo_id:
-            return err("Missing repo", status=400)
+            return err(_MISSING_REPO, status=400)
         result = await huggingface.resolve_direct_link(repo_id)
         return ok(result)
 
