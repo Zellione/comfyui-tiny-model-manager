@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 @Component({
   selector: 'app-edit-meta-form',
   templateUrl: './edit-meta-form.html',
+  styleUrl: './edit-meta-form.scss',
   imports: [FormsModule],
 })
 export class EditMetaForm {
