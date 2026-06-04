@@ -19,10 +19,11 @@ import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
 import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
+import { EditMetaForm } from '../../components/edit-meta-form/edit-meta-form';
 
 @Component({
   selector: 'app-model-detail',
-  imports: [CommonModule, FormsModule, RouterLink, SafeHtmlPipe, BaseModelSelect],
+  imports: [CommonModule, FormsModule, RouterLink, SafeHtmlPipe, BaseModelSelect, EditMetaForm],
   templateUrl: './model-detail.html',
   styleUrl: './model-detail.scss',
 })
@@ -36,8 +37,6 @@ export class ModelDetail implements OnInit {
   modelTypes = signal<string[]>([]);
   meta = signal<ModelMeta | null>(null);
   editMeta: Partial<ModelMeta> = {};
-  newTriggerWord = '';
-  newTag = '';
   loading = signal(true);
   saving = signal(false);
   refetching = signal(false);
@@ -185,28 +184,6 @@ export class ModelDetail implements OnInit {
     const m = this.meta();
     if (m) this.syncEditMeta(m);
     this.editMode.set(false);
-  }
-
-  addTriggerWord() {
-    const w = this.newTriggerWord.trim();
-    if (!w) return;
-    this.editMeta.trigger_words = [...(this.editMeta.trigger_words ?? []), w];
-    this.newTriggerWord = '';
-  }
-
-  removeTriggerWord(word: string) {
-    this.editMeta.trigger_words = (this.editMeta.trigger_words ?? []).filter((w) => w !== word);
-  }
-
-  addTag() {
-    const t = this.newTag.trim();
-    if (!t) return;
-    this.editMeta.tags = [...(this.editMeta.tags ?? []), t];
-    this.newTag = '';
-  }
-
-  removeTag(tag: string) {
-    this.editMeta.tags = (this.editMeta.tags ?? []).filter((t) => t !== tag);
   }
 
   save() {

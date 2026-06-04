@@ -25,12 +25,13 @@ import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
 import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
+import { EditMetaForm } from '../../components/edit-meta-form/edit-meta-form';
 
 const MEDIA_API = '/tiny-model-manager/api/media';
 
 @Component({
   selector: 'app-catalog-detail',
-  imports: [CommonModule, FormsModule, RouterLink, SafeHtmlPipe, BaseModelSelect],
+  imports: [CommonModule, FormsModule, RouterLink, SafeHtmlPipe, BaseModelSelect, EditMetaForm],
   templateUrl: './catalog-detail.html',
   styleUrl: './catalog-detail.scss',
 })
@@ -57,8 +58,6 @@ export class CatalogDetail implements OnInit {
   // /repo-files endpoint. Used by the edit panel's per-file base-model list.
   repoFiles = signal<RepoFile[]>([]);
   fileBaseModels = signal<Record<string, string>>({});
-  newTriggerWord = '';
-  newTag = '';
   copied = signal(false);
   galleryIdx = signal(0);
   lightboxOpen = signal(false);
@@ -319,28 +318,6 @@ export class CatalogDetail implements OnInit {
         this.notifService.show('error', (err as Error).message);
       },
     });
-  }
-
-  addTriggerWord() {
-    const w = this.newTriggerWord.trim();
-    if (!w) return;
-    this.editMeta.trigger_words = [...(this.editMeta.trigger_words ?? []), w];
-    this.newTriggerWord = '';
-  }
-
-  removeTriggerWord(word: string) {
-    this.editMeta.trigger_words = (this.editMeta.trigger_words ?? []).filter((w) => w !== word);
-  }
-
-  addTag() {
-    const t = this.newTag.trim();
-    if (!t) return;
-    this.editMeta.tags = [...(this.editMeta.tags ?? []), t];
-    this.newTag = '';
-  }
-
-  removeTag(tag: string) {
-    this.editMeta.tags = (this.editMeta.tags ?? []).filter((t) => t !== tag);
   }
 
   copyTriggerWords(): void {

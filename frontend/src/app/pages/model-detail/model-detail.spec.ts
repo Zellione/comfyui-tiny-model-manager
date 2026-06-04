@@ -3,10 +3,30 @@ import { Router, provideRouter } from '@angular/router';
 import { EMPTY, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { ModelDetail } from './model-detail';
-import { ModelService, RepoFile, RefetchResult } from '../../services/model';
+import { ModelService, RepoFile, RefetchResult, CatalogEntryDetail } from '../../services/model';
 import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
+
+const makeCatalogEntry = (overrides: Partial<CatalogEntryDetail> = {}): CatalogEntryDetail => ({
+  id: 1,
+  source_platform: 'civitai',
+  source_page_id: '1',
+  source_page_url: '',
+  display_name: '',
+  thumbnail_url: '',
+  base_model: '',
+  created_at: '',
+  model_type: 'loras',
+  is_empty: false,
+  installed_files: [],
+  repo_files: [],
+  description: '',
+  trigger_words: [],
+  tags: [],
+  media: [],
+  ...overrides,
+});
 
 const makeMeta = (overrides = {}) => ({
   description: 'A test model',
@@ -236,46 +256,14 @@ describe('ModelDetail', () => {
     });
 
     it('returns display_name from catalog entry when set', () => {
-      component.catalogEntry.set({
-        id: 1,
-        source_platform: 'civitai',
-        source_page_id: '1',
-        source_page_url: '',
-        display_name: 'My Awesome LoRA',
-        thumbnail_url: '',
-        base_model: 'SDXL',
-        created_at: '',
-        model_type: 'loras',
-        is_empty: false,
-        installed_files: [],
-        repo_files: [],
-        description: '',
-        trigger_words: [],
-        tags: [],
-        media: [],
-      });
+      component.catalogEntry.set(
+        makeCatalogEntry({ display_name: 'My Awesome LoRA', base_model: 'SDXL' }),
+      );
       expect(component.displayTitle()).toBe('My Awesome LoRA');
     });
 
     it('falls back to modelBasename when catalog display_name is empty', () => {
-      component.catalogEntry.set({
-        id: 1,
-        source_platform: 'civitai',
-        source_page_id: '1',
-        source_page_url: '',
-        display_name: '',
-        thumbnail_url: '',
-        base_model: '',
-        created_at: '',
-        model_type: 'loras',
-        is_empty: false,
-        installed_files: [],
-        repo_files: [],
-        description: '',
-        trigger_words: [],
-        tags: [],
-        media: [],
-      });
+      component.catalogEntry.set(makeCatalogEntry({ display_name: '' }));
       expect(component.displayTitle()).toBe('my-lora.safetensors');
     });
   });

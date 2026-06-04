@@ -319,45 +319,17 @@
             }
           </div>
 
-          <div class="field-group">
-            <span class="field-label">Trigger Words</span>
-            <div class="chips">
-              @for (w of editMeta.trigger_words; track w) {
-                <span class="chip">{{ w }}<button (click)="removeTriggerWord(w)">×</button></span>
-              }
-            </div>
-            <div class="add-row">
-              <input
-                [(ngModel)]="newTriggerWord"
-                placeholder="Add trigger word"
-                (keyup.enter)="addTriggerWord()"
-              />
-              <button class="btn small" (click)="addTriggerWord()">Add</button>
-            </div>
-          </div>
-
-          <div class="field-group">
-            <span class="field-label">Tags</span>
-            <div class="chips">
-              @for (t of editMeta.tags; track t) {
-                <span class="chip chip-tag">{{ t }}<button (click)="removeTag(t)">×</button></span>
-              }
-            </div>
-            <div class="add-row">
-              <input [(ngModel)]="newTag" placeholder="Add tag" (keyup.enter)="addTag()" />
-              <button class="btn small" (click)="addTag()">Add</button>
-            </div>
-          </div>
-
-          <div class="edit-actions">
-            <button class="btn primary" (click)="save()" [disabled]="saving()">
-              {{ saving() ? 'Saving…' : 'Save' }}
-            </button>
-            <button class="btn ghost" (click)="cancelEdit()">Cancel</button>
-            <button class="btn ghost" (click)="refetch()" [disabled]="refetching()">
-              {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
-            </button>
-          </div>
+          <app-edit-meta-form
+            [triggerWords]="editMeta.trigger_words ?? []"
+            (triggerWordsChange)="editMeta.trigger_words = $event"
+            [tags]="editMeta.tags ?? []"
+            (tagsChange)="editMeta.tags = $event"
+            [saving]="saving()"
+            [refetching]="refetching()"
+            (saveClicked)="save()"
+            (cancelClicked)="cancelEdit()"
+            (refetchClicked)="refetch()"
+          />
         </div>
       }
     </div>
