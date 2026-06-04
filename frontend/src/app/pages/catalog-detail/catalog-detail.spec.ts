@@ -3,7 +3,7 @@ import { ActivatedRoute, Router, provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { CatalogDetail } from './catalog-detail';
-import { ModelService, CatalogEntryDetail, ModelMeta, InstalledFile } from '../../services/model';
+import { ModelService, CatalogEntryDetail, InstalledFile } from '../../services/model';
 import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
@@ -13,17 +13,6 @@ const mockInstalledFile: InstalledFile = {
   model_type: 'loras',
   size_bytes: 1024,
   modified_at: 0,
-};
-
-const mockMeta: ModelMeta = {
-  description: 'A test model',
-  trigger_words: ['word1'],
-  tags: ['portrait'],
-  media: [],
-  base_model: 'SDXL 1.0',
-  source_platform: 'civitai',
-  source_url: 'https://civitai.com/models/123',
-  size_bytes: 1024,
 };
 
 const mockEntry: CatalogEntryDetail = {
@@ -51,13 +40,20 @@ const mockEntry: CatalogEntryDetail = {
       base_model: '',
     },
   ],
+  description: '',
+  trigger_words: [],
+  tags: [],
+  media: [],
 };
 
 const mockModelService = {
   getCatalogEntry: vi.fn(),
   removeCatalogEntry: vi.fn(),
-  getMetadata: vi.fn(),
+  getRepoFiles: vi.fn(),
+  updateMetadata: vi.fn(),
   updateMetadataWithPath: vi.fn(),
+  updateCatalogMetadata: vi.fn(),
+  refetchCatalog: vi.fn(),
   refetchMetadata: vi.fn(),
   deleteModel: vi.fn(),
 };
@@ -108,7 +104,11 @@ describe('CatalogDetail component', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mockModelService.getCatalogEntry.mockReturnValue(of(mockEntry));
-    mockModelService.getMetadata.mockReturnValue(of(mockMeta));
+    mockModelService.getRepoFiles.mockReturnValue(of([]));
+    mockModelService.updateMetadata.mockReturnValue(of(undefined));
+    mockModelService.updateMetadataWithPath.mockReturnValue(of({ new_path: 'test.safetensors' }));
+    mockModelService.updateCatalogMetadata.mockReturnValue(of(undefined));
+    mockModelService.refetchCatalog.mockReturnValue(of(mockEntry));
   });
 
   afterEach(() => TestBed.resetTestingModule());
@@ -175,21 +175,6 @@ describe('CatalogDetail component', () => {
     expect(navigateSpy).toHaveBeenCalledWith(['/catalog']);
   });
 
-  it('does not load primaryMeta when no installed files', async () => {
-    const fixture = await createFixture();
-    expect(mockModelService.getMetadata).not.toHaveBeenCalled();
-    expect(fixture.componentInstance.primaryMeta()).toBeNull();
-  });
-
-  it('loads primaryMeta when entry has installed files', async () => {
-    mockModelService.getCatalogEntry.mockReturnValue(
-      of({ ...mockEntry, installed_files: [mockInstalledFile] }),
-    );
-    const fixture = await createFixture();
-    expect(mockModelService.getMetadata).toHaveBeenCalledWith('loras', 'test.safetensors');
-    expect(fixture.componentInstance.primaryMeta()?.description).toBe('A test model');
-  });
-
   it('sets primaryType and primaryPath from first installed file', async () => {
     mockModelService.getCatalogEntry.mockReturnValue(
       of({ ...mockEntry, installed_files: [mockInstalledFile] }),
@@ -229,31 +214,94 @@ describe('CatalogDetail component', () => {
     expect(fixture.componentInstance.editMode()).toBe(false);
   });
 
-  it('save() calls updateMetadataWithPath with primaryType and primaryPath', async () => {
+  it('save() writes catalog-owned metadata for the entry', async () => {
     mockModelService.getCatalogEntry.mockReturnValue(
       of({ ...mockEntry, installed_files: [mockInstalledFile] }),
     );
-    mockModelService.updateMetadataWithPath.mockReturnValue(of({ new_path: 'test.safetensors' }));
     const fixture = await createFixture();
     fixture.componentInstance.enterEdit();
     fixture.componentInstance.save();
-    expect(mockModelService.updateMetadataWithPath).toHaveBeenCalledWith(
-      'loras',
-      'test.safetensors',
-      expect.any(Object),
+    expect(mockModelService.updateCatalogMetadata).toHaveBeenCalledWith(
+      'civitai',
+      '123',
+      expect.objectContaining({
+        description: expect.any(String),
+        trigger_words: expect.any(Array),
+        tags: expect.any(Array),
+      }),
     );
   });
 
-  it('save() updates primaryPath when new_path differs', async () => {
+  it('save() sends per-file base model changes and reloads the entry', async () => {
+    const downloadedRepoFile = {
+      ...mockEntry.repo_files[0],
+      is_downloaded: true,
+      installed_path: 'test.safetensors',
+      base_model: '',
+    };
     mockModelService.getCatalogEntry.mockReturnValue(
       of({ ...mockEntry, installed_files: [mockInstalledFile] }),
     );
-    mockModelService.updateMetadataWithPath.mockReturnValue(
-      of({ new_path: 'Pony/test.safetensors' }),
+    mockModelService.getRepoFiles.mockReturnValue(of([downloadedRepoFile]));
+    const fixture = await createFixture();
+    fixture.componentInstance.enterEdit();
+    fixture.componentInstance.setFileBaseModel('test.safetensors', 'Pony');
+    mockModelService.getCatalogEntry.mockClear();
+    fixture.componentInstance.save();
+    // The changed file is moved/updated via updateMetadata...
+    expect(mockModelService.updateMetadata).toHaveBeenCalledWith('loras', 'test.safetensors', {
+      base_model: 'Pony',
+    });
+    // ...and the catalog entry is reloaded so the move is reflected.
+    expect(mockModelService.getCatalogEntry).toHaveBeenCalled();
+  });
+
+  it('refetch() pulls fresh catalog metadata from source and applies it', async () => {
+    const refreshed = { ...mockEntry, description: 'fresh from source' };
+    mockModelService.refetchCatalog.mockReturnValue(of(refreshed));
+    const fixture = await createFixture();
+    fixture.componentInstance.refetch();
+    expect(mockModelService.refetchCatalog).toHaveBeenCalledWith('civitai', '123');
+    expect(fixture.componentInstance.displayDescription()).toBe('fresh from source');
+    expect(mockNotifService.show).toHaveBeenCalledWith(
+      'success',
+      expect.stringContaining('re-fetched'),
     );
+    expect(fixture.componentInstance.refetching()).toBe(false);
+  });
+
+  it('displays catalog-owned metadata with zero files installed', async () => {
+    mockModelService.getCatalogEntry.mockReturnValue(
+      of({
+        ...mockEntry,
+        installed_files: [],
+        description: 'standalone desc',
+        trigger_words: ['kw1'],
+        tags: ['anime'],
+        media: [{ id: 0, media_type: 'image', local_path: '/m/0.jpg' }],
+      }),
+    );
+    const fixture = await createFixture();
+    expect(fixture.componentInstance.displayDescription()).toBe('standalone desc');
+    expect(fixture.componentInstance.displayTriggerWords()).toEqual(['kw1']);
+    expect(fixture.componentInstance.displayTags()).toEqual(['anime']);
+    expect(fixture.componentInstance.displayMedia().length).toBe(1);
+  });
+
+  it('save() does not send base model updates for unchanged files', async () => {
+    const downloadedRepoFile = {
+      ...mockEntry.repo_files[0],
+      is_downloaded: true,
+      installed_path: 'test.safetensors',
+      base_model: 'SDXL 1.0',
+    };
+    mockModelService.getCatalogEntry.mockReturnValue(
+      of({ ...mockEntry, installed_files: [mockInstalledFile] }),
+    );
+    mockModelService.getRepoFiles.mockReturnValue(of([downloadedRepoFile]));
     const fixture = await createFixture();
     fixture.componentInstance.enterEdit();
     fixture.componentInstance.save();
-    expect(fixture.componentInstance.primaryPath).toBe('Pony/test.safetensors');
+    expect(mockModelService.updateMetadata).not.toHaveBeenCalled();
   });
 });

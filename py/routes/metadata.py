@@ -174,7 +174,14 @@ def add_metadata_routes(routes):
     @routes.post("/tiny-model-manager/api/models/{model_type}/{path:.*}/refetch")
     async def refetch_metadata(request):
         path = request.match_info["path"]
+        model_type = request.match_info["model_type"]
         try:
+            # If the file has been removed from disk, prune the stale DB record rather
+            # than re-fetching metadata for a model that no longer exists locally.
+            if not _file_exists_on_disk(model_type, os.path.dirname(path), os.path.basename(path)):
+                await model_repo.delete_model_record(path)
+                return web.json_response({"success": True, "data": {"removed": True}})
+
             info = await model_repo.get_model_source_info(path)
             if not info or not info.get("source_platform") or not info.get("source_id"):
                 return web.json_response(
@@ -201,6 +208,7 @@ def add_metadata_routes(routes):
                 {
                     "success": True,
                     "data": {
+                        "removed": False,
                         "description": meta.get("description", ""),
                         "trigger_words": meta.get("trigger_words", []),
                         "tags": meta.get("tags", []),

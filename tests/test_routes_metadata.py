@@ -265,6 +265,16 @@ class TestPutMetadataOrganize:
 
 
 class TestRefetchMetadata:
+    @staticmethod
+    def _touch_model_file(rel_path: str, model_type: str = "loras") -> None:
+        """Create an empty model file on disk so refetch's disk check passes."""
+        import folder_paths
+
+        full = os.path.join(folder_paths.models_dir, model_type, rel_path)
+        os.makedirs(os.path.dirname(full), exist_ok=True)
+        with open(full, "wb") as f:
+            f.write(b"x")
+
     async def test_skip_media_false_when_no_existing_media(self, client, ext_dir, monkeypatch):
         """Refetch downloads images when the model has no stored media rows."""
         from py.db import model_repo
@@ -276,6 +286,7 @@ class TestRefetchMetadata:
 
         monkeypatch.setattr("py.services.metadata_fetcher.fetch_and_store", fake_fetch)
 
+        self._touch_model_file("no-media.safetensors")
         await model_repo.upsert_model_with_meta(
             "no-media.safetensors",
             "loras",
@@ -302,6 +313,7 @@ class TestRefetchMetadata:
 
         monkeypatch.setattr("py.services.metadata_fetcher.fetch_and_store", fake_fetch)
 
+        self._touch_model_file("has-media.safetensors")
         model_id = await model_repo.upsert_model_with_meta(
             "has-media.safetensors",
             "loras",
@@ -320,9 +332,30 @@ class TestRefetchMetadata:
         assert captured.get("skip_media") is True
 
     async def test_returns_400_when_no_source_info(self, client, ext_dir):
-        """Refetch returns 400 when the model has no source platform/id stored."""
+        """Refetch returns 400 when the file exists but has no source platform/id stored."""
+        self._touch_model_file("unknown.safetensors")
         resp = await client.post("/tiny-model-manager/api/models/loras/unknown.safetensors/refetch")
         assert resp.status == 400
+
+    async def test_removes_stale_record_when_file_missing(self, client, ext_dir):
+        """Refetch prunes the DB record when the file no longer exists on disk."""
+        from py.db import model_repo
+
+        await model_repo.upsert_model_with_meta(
+            "ghost.safetensors",
+            "loras",
+            "huggingface",
+            "user/repo",
+            "desc",
+            trigger_words=[],
+            tags=[],
+        )
+        resp = await client.post("/tiny-model-manager/api/models/loras/ghost.safetensors/refetch")
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert data["removed"] is True
+        # The stale row is gone.
+        assert await model_repo.get_model_by_filename("ghost.safetensors") is None
 
 
 class TestGetRepoFiles:

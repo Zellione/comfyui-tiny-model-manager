@@ -1,3 +1,4 @@
+import json
 import os
 
 from .database import get_db
@@ -346,18 +347,32 @@ async def upsert_catalog_entry(
     display_name: str,
     thumbnail_url: str,
     base_model: str,
+    description: str = "",
+    trigger_words: list[str] | None = None,
+    tags: list[str] | None = None,
+    media_hash: str = "",
 ) -> int:
+    # Source-page metadata is stored on the catalog entry so it survives even when no
+    # model file is installed. Empty values never overwrite existing data (so a partial
+    # fetch can't wipe good metadata) — editing uses update_catalog_metadata instead.
+    trigger_json = json.dumps(trigger_words) if trigger_words else ""
+    tags_json = json.dumps(tags) if tags else ""
     async with get_db() as db:
         await db.execute(
             """
             INSERT INTO catalog_entries
-                (source_platform, source_page_id, source_page_url, display_name, thumbnail_url, base_model)
-            VALUES (?, ?, ?, ?, ?, ?)
+                (source_platform, source_page_id, source_page_url, display_name, thumbnail_url,
+                 base_model, description, trigger_words, tags, media_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(source_platform, source_page_id) DO UPDATE SET
                 source_page_url = CASE WHEN excluded.source_page_url != '' THEN excluded.source_page_url ELSE source_page_url END,
                 display_name    = CASE WHEN excluded.display_name != ''    THEN excluded.display_name    ELSE display_name    END,
                 thumbnail_url   = CASE WHEN excluded.thumbnail_url != ''   THEN excluded.thumbnail_url   ELSE thumbnail_url   END,
-                base_model      = CASE WHEN excluded.base_model != ''      THEN excluded.base_model      ELSE base_model      END
+                base_model      = CASE WHEN excluded.base_model != ''      THEN excluded.base_model      ELSE base_model      END,
+                description     = CASE WHEN excluded.description != ''      THEN excluded.description     ELSE description     END,
+                trigger_words   = CASE WHEN excluded.trigger_words != ''   THEN excluded.trigger_words   ELSE trigger_words   END,
+                tags            = CASE WHEN excluded.tags != ''            THEN excluded.tags            ELSE tags            END,
+                media_hash      = CASE WHEN excluded.media_hash != ''      THEN excluded.media_hash      ELSE media_hash      END
             """,
             (
                 source_platform,
@@ -366,6 +381,10 @@ async def upsert_catalog_entry(
                 display_name,
                 thumbnail_url,
                 base_model,
+                description,
+                trigger_json,
+                tags_json,
+                media_hash,
             ),
         )
         await db.commit()
@@ -377,6 +396,44 @@ async def upsert_catalog_entry(
         ).fetchone()
         assert row is not None
         return row["id"]
+
+
+async def update_catalog_metadata(
+    source_platform: str,
+    source_page_id: str,
+    description: str | None = None,
+    trigger_words: list[str] | None = None,
+    tags: list[str] | None = None,
+    base_model: str | None = None,
+) -> bool:
+    """Edit catalog-owned metadata. Unlike upsert, a provided value is always written
+    (so the user can clear fields). None means 'leave unchanged'. Returns True if a row
+    matched."""
+    sets: list[str] = []
+    params: list = []
+    if description is not None:
+        sets.append("description = ?")
+        params.append(description[:_MAX_DESCRIPTION])
+    if trigger_words is not None:
+        sets.append("trigger_words = ?")
+        params.append(json.dumps(trigger_words))
+    if tags is not None:
+        sets.append("tags = ?")
+        params.append(json.dumps(tags))
+    if base_model is not None:
+        sets.append("base_model = ?")
+        params.append(base_model)
+    if not sets:
+        return True
+    params.extend([source_platform, source_page_id])
+    async with get_db() as db:
+        cur = await db.execute(
+            f"UPDATE catalog_entries SET {', '.join(sets)}"
+            " WHERE source_platform = ? AND source_page_id = ?",
+            params,
+        )
+        await db.commit()
+        return cur.rowcount > 0
 
 
 async def set_model_catalog_entry(filename: str, catalog_entry_id: int) -> None:
@@ -435,12 +492,23 @@ async def list_catalog_entries() -> list[dict]:
         return result
 
 
+def _parse_json_list(value: str) -> list:
+    if not value:
+        return []
+    try:
+        parsed = json.loads(value)
+        return parsed if isinstance(parsed, list) else []
+    except (ValueError, TypeError):
+        return []
+
+
 async def get_catalog_entry(source_platform: str, source_page_id: str) -> dict | None:
     async with get_db() as db:
         row = await (
             await db.execute(
                 "SELECT id, source_platform, source_page_id, source_page_url,"
-                "       display_name, thumbnail_url, base_model, created_at"
+                "       display_name, thumbnail_url, base_model, description,"
+                "       trigger_words, tags, media_hash, created_at"
                 " FROM catalog_entries WHERE source_platform = ? AND source_page_id = ?",
                 (source_platform, source_page_id),
             )
@@ -448,6 +516,8 @@ async def get_catalog_entry(source_platform: str, source_page_id: str) -> dict |
         if not row:
             return None
         entry = dict(row)
+        entry["trigger_words"] = _parse_json_list(entry.get("trigger_words", ""))
+        entry["tags"] = _parse_json_list(entry.get("tags", ""))
         repo_files = await (
             await db.execute(
                 _REPO_FILE_COLS + " FROM repo_files WHERE catalog_entry_id = ?",

@@ -58,10 +58,7 @@
               }
             </div>
           }
-          <h2 class="detail-title" [title]="modelPath">{{ displayTitle() }}</h2>
-          @if (displayTitle() !== modelBasename) {
-            <div class="detail-subtitle">{{ modelBasename }}</div>
-          }
+          <h2 class="detail-title" [title]="modelPath">{{ modelBasename }}</h2>
         </div>
         <span class="dl-detail-spacer"></span>
         @if (meta()!.source_url) {
@@ -181,96 +178,6 @@
           }
         </div>
 
-        <!-- Files in this model -->
-        <div class="versions">
-          <div class="versions-title">Files in this model</div>
-          @if (repoFiles().length > 0) {
-            @for (f of repoFiles(); track f.filename) {
-              @if (f.is_downloaded) {
-                <div class="iv-row">
-                  <div class="iv-status ok">✓</div>
-                  <div class="iv-row-main">
-                    <div class="iv-row-title">
-                      <span class="version-name">{{ f.filename }}</span>
-                      <span class="pill ok">Downloaded</span>
-                    </div>
-                    <div class="iv-row-meta">
-                      @if (f.base_model) {
-                        <span class="base-model-tag">{{ f.base_model }}</span>
-                      }
-                      @if (f.size_bytes) {
-                        <span>{{ formatBytes(f.size_bytes) }}</span>
-                      }
-                      @if (f.added_at) {
-                        <span>{{ f.added_at * 1000 | date: 'mediumDate' }}</span>
-                      }
-                    </div>
-                  </div>
-                  <div class="iv-row-actions">
-                    @if (pendingDeleteFile()?.filename === f.filename) {
-                      <span class="iv-delete-confirm-label">Delete {{ f.filename }}?</span>
-                      <button class="btn small ghost" (click)="pendingDeleteFile.set(null)">
-                        Cancel
-                      </button>
-                      <button class="btn small danger" (click)="deleteFile(f)">Yes, delete</button>
-                    } @else {
-                      <button class="btn small ghost" (click)="addFileToWorkflow(f)">
-                        Add to Workflow
-                      </button>
-                      <button class="btn small danger-ghost" (click)="pendingDeleteFile.set(f)">
-                        Delete
-                      </button>
-                    }
-                  </div>
-                </div>
-              } @else {
-                <div class="iv-row iv-row-missing">
-                  <div class="iv-status missing">↓</div>
-                  <div class="iv-row-main">
-                    <div class="iv-row-title">
-                      <span class="version-name">{{ f.filename }}</span>
-                      <span class="pill missing">Not downloaded</span>
-                    </div>
-                    @if (f.size_bytes) {
-                      <div class="iv-row-meta">
-                        <span>{{ formatBytes(f.size_bytes) }}</span>
-                      </div>
-                    }
-                  </div>
-                  <button
-                    class="btn small ghost iv-download-btn"
-                    [disabled]="downloadingFiles().has(f.filename)"
-                    (click)="downloadFile(f)"
-                  >
-                    {{ downloadingFiles().has(f.filename) ? 'Queued…' : 'Download' }}
-                  </button>
-                </div>
-              }
-            }
-          } @else {
-            <div class="iv-row">
-              <div class="iv-status ok">✓</div>
-              <div class="iv-row-main">
-                <div class="iv-row-title">
-                  <span class="version-name">{{ modelBasename }}</span>
-                  <span class="pill ok">Downloaded</span>
-                </div>
-                @if (modelPath.includes('/')) {
-                  <div class="iv-row-file">{{ modelPath }}</div>
-                }
-                <div class="iv-row-meta">
-                  @if (meta()!.base_model) {
-                    <span class="base-model-tag">{{ meta()!.base_model }}</span>
-                  }
-                  @if (meta()!.size_bytes) {
-                    <span>{{ formatBytes(meta()!.size_bytes) }}</span>
-                  }
-                </div>
-              </div>
-            </div>
-          }
-        </div>
-
         <!-- About this model -->
         @if (meta()!.description) {
           <div class="description">
@@ -295,28 +202,12 @@
             </select>
           </label>
 
-          <datalist id="base-model-opts">
-            <option value="SD 1.5"></option>
-            <option value="SD 2.1"></option>
-            <option value="SDXL 1.0"></option>
-            <option value="Pony"></option>
-            <option value="Flux.1 D"></option>
-            <option value="Flux.1 S"></option>
-            <option value="SD 3.5"></option>
-            <option value="SD 3.5 Large"></option>
-            <option value="Illustrious XL"></option>
-            <option value="NoobAI XL"></option>
-            <option value="Hunyuan Video"></option>
-          </datalist>
-
           <label>
             <span class="field-label">Base Model</span>
-            <input
-              type="text"
-              list="base-model-opts"
-              [(ngModel)]="editMeta.base_model"
+            <app-base-model-select
+              [value]="editMeta.base_model ?? ''"
+              (valueChange)="editMeta.base_model = $event"
               placeholder="e.g. SDXL 1.0, Flux.1 D, Pony"
-              (click)="$any($event.target).select()"
             />
           </label>
 
@@ -351,9 +242,9 @@
           </div>
 
           <!-- Files in this model — base model per row -->
-          @if (repoFiles().length > 0) {
-            <div class="field-group">
-              <span class="field-label">Files in this model</span>
+          <div class="field-group">
+            <span class="field-label">Files in this model</span>
+            @if (repoFiles().length > 0) {
               @for (f of repoFiles(); track f.filename) {
                 <div class="edit-file-row">
                   <span class="edit-file-name" [class.missing]="!f.is_downloaded">
@@ -363,20 +254,25 @@
                     }
                   </span>
                   @if (f.is_downloaded) {
-                    <input
+                    <app-base-model-select
                       class="edit-file-base-model"
-                      type="text"
-                      list="base-model-opts"
-                      placeholder="Base model"
-                      [ngModel]="fileBaseModels()[f.filename]"
-                      (ngModelChange)="setFileBaseModel(f.filename, $event)"
-                      (click)="$any($event.target).select()"
+                      [value]="fileBaseModels()[f.filename]"
+                      (valueChange)="setFileBaseModel(f.filename, $event)"
                     />
                   }
                 </div>
               }
-            </div>
-          }
+            } @else {
+              <div class="edit-file-row">
+                <span class="edit-file-name">{{ modelBasename }}</span>
+                <app-base-model-select
+                  class="edit-file-base-model"
+                  [value]="editMeta.base_model ?? ''"
+                  (valueChange)="editMeta.base_model = $event"
+                />
+              </div>
+            }
+          </div>
 
           <div class="edit-actions">
             <button class="btn primary" (click)="save()" [disabled]="saving()">

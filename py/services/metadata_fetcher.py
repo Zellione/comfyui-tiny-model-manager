@@ -102,6 +102,10 @@ async def fetch_and_store(
                 display_name=display_name,
                 thumbnail_url=thumbnail_url,
                 base_model=base_model,
+                description=description,
+                trigger_words=trigger_words,
+                tags=tags,
+                media_hash=media_hash,
             )
             await model_repo.set_model_catalog_entry(filename, catalog_entry_id)
         except Exception:
@@ -253,3 +257,73 @@ async def _download_images(model_id: int, media_hash: str, urls: list[str]):
                 await model_repo.add_media(model_id, media_type, dest)
             except Exception:
                 continue
+
+
+def catalog_media_hash(platform: str, page_id: str) -> str:
+    """Stable media-hash for a catalog page (independent of any installed file)."""
+    return hashlib.sha1(f"catalog:{platform}:{page_id}".encode()).hexdigest()
+
+
+async def _download_catalog_images(media_hash: str, urls: list[str]) -> str:
+    """Download gallery images into the catalog media dir. Returns the first image path."""
+    dest_dir = os.path.join(cfg.media_dir(), media_hash)
+    os.makedirs(dest_dir, exist_ok=True)
+    first = ""
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+        for i, url in enumerate(urls[:5]):
+            try:
+                ext = url.rsplit(".", 1)[-1].split("?")[0] or "jpg"
+                dest = os.path.join(dest_dir, f"{i}.{ext}")
+                if not os.path.isfile(dest):
+                    resp = await client.get(url)
+                    resp.raise_for_status()
+                    with open(dest, "wb") as f:
+                        f.write(resp.content)
+                if not first:
+                    first = dest
+            except Exception:
+                continue
+    return first
+
+
+async def refetch_catalog_metadata(platform: str, page_id: str) -> dict | None:
+    """Re-fetch source-page metadata for a catalog entry independent of installed files.
+
+    Works with zero files installed. Returns the refreshed catalog entry, or None if the
+    platform/page could not be resolved.
+    """
+    provider = get_provider(platform)
+    if not provider:
+        return None
+
+    if platform == "huggingface":
+        source_id = page_id
+        source_page_url = f"https://huggingface.co/{page_id}"
+    elif platform == "civitai":
+        from .providers.civitai_provider import CivitaiProvider
+
+        versions = (await CivitaiProvider().get_model_versions(int(page_id))).get("versions", [])
+        if not versions:
+            return None
+        source_id = str(versions[0].get("id", ""))
+        source_page_url = f"https://civitai.com/models/{page_id}"
+    else:
+        return None
+
+    meta = await provider.fetch_metadata(source_id)
+    media_hash = catalog_media_hash(platform, page_id)
+    thumbnail_url = await _download_catalog_images(media_hash, meta.image_urls)
+
+    await model_repo.upsert_catalog_entry(
+        source_platform=platform,
+        source_page_id=page_id,
+        source_page_url=source_page_url,
+        display_name=meta.display_name,
+        thumbnail_url=thumbnail_url,
+        base_model=meta.base_model,
+        description=meta.description,
+        trigger_words=meta.trigger_words,
+        tags=meta.tags,
+        media_hash=media_hash,
+    )
+    return await model_repo.get_catalog_entry(platform, page_id)

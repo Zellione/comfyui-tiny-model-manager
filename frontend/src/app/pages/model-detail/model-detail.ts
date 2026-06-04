@@ -18,10 +18,11 @@ import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
 import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
+import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
 
 @Component({
   selector: 'app-model-detail',
-  imports: [CommonModule, FormsModule, RouterLink, SafeHtmlPipe],
+  imports: [CommonModule, FormsModule, RouterLink, SafeHtmlPipe, BaseModelSelect],
   templateUrl: './model-detail.html',
   styleUrl: './model-detail.scss',
 })
@@ -75,6 +76,7 @@ export class ModelDetail implements OnInit {
     const parts: string[] = [];
     if (this.modelType) parts.push(this.modelType);
     const m = this.meta();
+    if (m?.base_model) parts.push(m.base_model);
     const size = this.formatBytes(m?.size_bytes ?? 0);
     if (size) parts.push(size);
     return parts;
@@ -100,7 +102,7 @@ export class ModelDetail implements OnInit {
 
   ngOnInit() {
     this.modelType = this.route.snapshot.paramMap.get('type') ?? '';
-    this.modelPath = this.route.snapshot.paramMap.get('path') ?? '';
+    this.modelPath = decodeURIComponent(this.route.snapshot.paramMap.get('path') ?? '');
     this.editType = this.modelType;
     this.modelService.getModelTypes().subscribe((types) => this.modelTypes.set(types));
     this.loadMeta();
@@ -233,7 +235,9 @@ export class ModelDetail implements OnInit {
           const newPath = result.new_path;
           if (typeChanged || newPath !== this.modelPath) {
             this.modelPath = newPath;
-            this.router.navigate(['/models', this.modelType, newPath]);
+            this.router.navigateByUrl(
+              '/models/' + this.modelType + '/' + encodeURIComponent(newPath),
+            );
           } else {
             this.editMode.set(false);
             const current = this.meta()!;
@@ -258,10 +262,15 @@ export class ModelDetail implements OnInit {
     this.refetching.set(true);
     this.error.set('');
     this.modelService.refetchMetadata(this.modelType, this.modelPath).subscribe({
-      next: (m) => {
-        this.meta.set(m);
-        this.syncEditMeta(m);
+      next: (res) => {
         this.refetching.set(false);
+        if (res.removed) {
+          this.notifService.show('success', 'File no longer on disk — removed its stale entry.');
+          this.router.navigate(['/models']);
+          return;
+        }
+        this.meta.set(res.meta);
+        this.syncEditMeta(res.meta);
         this.notifService.show('success', 'Metadata re-fetched.');
         this.loadRepoFiles();
       },

@@ -1,7 +1,7 @@
 // ── Page container ────────────────────────────────────────────────────────────
 
 .page {
-  max-width: 900px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 28px 28px 100px;
 }
@@ -35,6 +35,62 @@
 
 .spacer {
   flex: 1;
+}
+
+// ── Workflow flyout ───────────────────────────────────────────────────────────
+
+.workflow-flyout-wrap {
+  position: relative;
+}
+
+.workflow-flyout {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 280px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  z-index: 200;
+}
+
+.workflow-flyout-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text);
+  gap: 2px;
+
+  &:not(:last-child) {
+    border-bottom: 1px solid var(--border);
+  }
+
+  &:hover {
+    background: var(--surface-2);
+  }
+}
+
+.flyout-filename {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.flyout-type {
+  font-size: 11px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 // ── Buttons ───────────────────────────────────────────────────────────────────
@@ -310,6 +366,55 @@
   margin-left: auto;
 }
 
+.iv-download-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  flex: 0 0 auto;
+  min-width: 120px;
+}
+
+.iv-progress-bar {
+  width: 100%;
+  height: 3px;
+  background: var(--surface-hi);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.iv-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+.iv-progress-label {
+  font-size: 12px;
+  color: var(--text-3);
+  white-space: nowrap;
+
+  &.error {
+    color: var(--danger);
+  }
+
+  &.processing {
+    color: var(--accent);
+    animation: iv-processing-pulse 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes iv-processing-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
 // ── State note ────────────────────────────────────────────────────────────────
 
 .state-note {
@@ -542,6 +647,20 @@
   margin-left: auto;
 }
 
+.iv-row-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.iv-confirm-text {
+  font-size: 12px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
 // ── Description ───────────────────────────────────────────────────────────────
 
 .description {
@@ -696,6 +815,36 @@ label {
   input {
     flex: 1;
   }
+}
+
+// ── Edit-view per-file base model rows ────────────────────────────────────────
+
+.edit-file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.edit-file-name {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edit-file-base-model {
+  flex: 0 0 200px;
+  font-size: 13px;
 }
 
 .edit-actions {

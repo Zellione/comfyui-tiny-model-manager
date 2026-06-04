@@ -57,7 +57,7 @@ describe('ModelService', () => {
     expect(req.request.body).toEqual({ description: 'new' });
   });
 
-  it('refetchMetadata POSTs to /refetch and unwraps data', () => {
+  it('refetchMetadata POSTs to /refetch and unwraps fresh metadata', () => {
     const meta = {
       description: '',
       trigger_words: [],
@@ -72,7 +72,16 @@ describe('ModelService', () => {
     http
       .expectOne('/tiny-model-manager/api/models/loras/my.safetensors/refetch')
       .flush({ success: true, data: meta });
-    expect(result).toEqual(meta);
+    expect(result).toEqual({ removed: false, meta });
+  });
+
+  it('refetchMetadata reports removed when the stale record was pruned', () => {
+    let result: unknown;
+    service.refetchMetadata('loras', 'gone.safetensors').subscribe((r) => (result = r));
+    http
+      .expectOne('/tiny-model-manager/api/models/loras/gone.safetensors/refetch')
+      .flush({ success: true, data: { removed: true } });
+    expect(result).toEqual({ removed: true });
   });
 
   it('getModelTypes GETs /model-types and unwraps data', () => {
@@ -88,5 +97,21 @@ describe('ModelService', () => {
     service.moveModel('checkpoints', 'f.safetensors', 'loras').subscribe();
     const req = http.expectOne('/tiny-model-manager/api/models/checkpoints/f.safetensors/move');
     expect(req.request.body).toEqual({ new_type: 'loras' });
+  });
+
+  it('refetchCatalog POSTs to catalog /refetch and unwraps the entry', () => {
+    let result: unknown;
+    service.refetchCatalog('huggingface', 'user/repo').subscribe((r) => (result = r));
+    http
+      .expectOne('/tiny-model-manager/api/catalog/huggingface/user/repo/refetch')
+      .flush({ success: true, data: { id: 1, description: 'd' } });
+    expect(result).toEqual({ id: 1, description: 'd' });
+  });
+
+  it('updateCatalogMetadata PUTs to catalog /metadata with the payload', () => {
+    service.updateCatalogMetadata('civitai', '123', { description: 'x', tags: [] }).subscribe();
+    const req = http.expectOne('/tiny-model-manager/api/catalog/civitai/123/metadata');
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ description: 'x', tags: [] });
   });
 });

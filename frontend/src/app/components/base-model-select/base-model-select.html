@@ -1,0 +1,21 @@
+<div class="bms-wrap">
+  <input
+    class="bms-input"
+    type="text"
+    [value]="value()"
+    [placeholder]="placeholder()"
+    (input)="onInput($any($event.target).value)"
+    (focus)="onFocus()"
+    (click)="$any($event.target).select()"
+  />
+  <button type="button" class="bms-chevron" (click)="toggle()" aria-label="Show base models">
+    ▾
+  </button>
+  @if (open() && filtered().length > 0) {
+    <ul class="bms-panel">
+      @for (opt of filtered(); track opt) {
+        <li class="bms-option" [class.active]="opt === value()" (click)="select(opt)">{{ opt }}</li>
+      }
+    </ul>
+  }
+</div>

@@ -131,6 +131,38 @@ class TestGetCatalogEntry:
         assert "is_downloaded" in data["repo_files"][0]
         assert data["repo_files"][0]["is_downloaded"] is False
 
+    async def test_is_downloaded_true_when_installed_in_subfolder(self, client, ext_dir):
+        from py.db import model_repo
+
+        entry_id = await _make_entry(page_id="778")
+        await model_repo.upsert_repo_files(
+            entry_id,
+            "loras",
+            [
+                {
+                    "filename": "model.safetensors",
+                    "size_bytes": 1000,
+                    "download_url": "https://example.com/model.safetensors",
+                    "source_page_url": "https://civitai.com/models/778",
+                }
+            ],
+        )
+        # Simulate file installed in a base-model subfolder
+        await model_repo.upsert_model(
+            filename="Illustrious/model.safetensors",
+            model_type="loras",
+            source_platform="civitai",
+            source_id="778",
+            description="",
+        )
+        await model_repo.set_model_catalog_entry("Illustrious/model.safetensors", entry_id)
+
+        resp = await client.get("/tiny-model-manager/api/catalog/civitai/778")
+        data = (await resp.json())["data"]
+        rf = data["repo_files"][0]
+        assert rf["is_downloaded"] is True
+        assert rf["installed_path"] == "Illustrious/model.safetensors"
+
 
 class TestDeleteCatalogEntry:
     async def test_returns_404_for_missing_entry(self, client, ext_dir):
@@ -185,3 +217,169 @@ class TestDeleteCatalogEntry:
 
         await client.delete("/tiny-model-manager/api/catalog/civitai/111")
         assert not os.path.isfile(media_path)
+
+
+class TestCatalogMetadata:
+    async def test_get_returns_catalog_owned_metadata(self, client, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id="500",
+            source_page_url="https://civitai.com/models/500",
+            display_name="Meta Model",
+            thumbnail_url="",
+            base_model="Pony",
+            description="A described model",
+            trigger_words=["alpha", "beta"],
+            tags=["anime"],
+            media_hash="metahash",
+        )
+        resp = await client.get("/tiny-model-manager/api/catalog/civitai/500")
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert data["description"] == "A described model"
+        assert data["trigger_words"] == ["alpha", "beta"]
+        assert data["tags"] == ["anime"]
+
+    async def test_get_returns_gallery_from_media_hash_dir(self, client, ext_dir):
+        from py import config as cfg
+        from py.db import model_repo
+
+        media_dir = os.path.join(cfg.media_dir(), "gallhash")
+        os.makedirs(media_dir, exist_ok=True)
+        Path(os.path.join(media_dir, "0.jpg")).touch()
+        Path(os.path.join(media_dir, "1.mp4")).touch()
+        await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id="501",
+            source_page_url="",
+            display_name="Gallery",
+            thumbnail_url="",
+            base_model="",
+            media_hash="gallhash",
+        )
+        resp = await client.get("/tiny-model-manager/api/catalog/civitai/501")
+        media = (await resp.json())["data"]["media"]
+        assert len(media) == 2
+        assert media[0]["media_type"] == "image"
+        assert media[1]["media_type"] == "video"
+
+    async def test_gallery_survives_with_zero_installed_files(self, client, ext_dir):
+        """The whole point: metadata + gallery still present when nothing is installed."""
+        from py import config as cfg
+        from py.db import model_repo
+
+        media_dir = os.path.join(cfg.media_dir(), "survivehash")
+        os.makedirs(media_dir, exist_ok=True)
+        Path(os.path.join(media_dir, "0.jpg")).touch()
+        await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id="502",
+            source_page_url="",
+            display_name="Survivor",
+            thumbnail_url="",
+            base_model="",
+            description="still here",
+            media_hash="survivehash",
+        )
+        resp = await client.get("/tiny-model-manager/api/catalog/civitai/502")
+        data = (await resp.json())["data"]
+        assert data["installed_files"] == []
+        assert data["description"] == "still here"
+        assert len(data["media"]) == 1
+
+    async def test_put_metadata_updates_and_can_clear(self, client, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id="503",
+            source_page_url="",
+            display_name="Editable",
+            thumbnail_url="",
+            base_model="",
+            description="old",
+            trigger_words=["x"],
+            tags=["t"],
+        )
+        resp = await client.put(
+            "/tiny-model-manager/api/catalog/civitai/503/metadata",
+            json={"description": "new", "trigger_words": ["a", "b"], "tags": []},
+        )
+        assert resp.status == 200
+        entry = await model_repo.get_catalog_entry("civitai", "503")
+        assert entry["description"] == "new"
+        assert entry["trigger_words"] == ["a", "b"]
+        assert entry["tags"] == []  # cleared
+
+    async def test_put_metadata_returns_404_for_unknown_entry(self, client, ext_dir):
+        resp = await client.put(
+            "/tiny-model-manager/api/catalog/civitai/999999/metadata",
+            json={"description": "x"},
+        )
+        assert resp.status == 404
+
+    async def test_refetch_updates_catalog_from_source(self, client, ext_dir, monkeypatch):
+        from py.db import model_repo
+
+        await model_repo.upsert_catalog_entry(
+            source_platform="huggingface",
+            source_page_id="user/repo",
+            source_page_url="https://huggingface.co/user/repo",
+            display_name="HF Model",
+            thumbnail_url="",
+            base_model="",
+        )
+
+        async def fake_refetch(platform, page_id):
+            await model_repo.update_catalog_metadata(
+                platform, page_id, description="fetched desc", trigger_words=["fw"]
+            )
+            return await model_repo.get_catalog_entry(platform, page_id)
+
+        monkeypatch.setattr("py.services.metadata_fetcher.refetch_catalog_metadata", fake_refetch)
+        resp = await client.post("/tiny-model-manager/api/catalog/huggingface/user/repo/refetch")
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert data["description"] == "fetched desc"
+        assert data["trigger_words"] == ["fw"]
+
+    async def test_refetch_response_annotates_repo_files(self, client, ext_dir, monkeypatch):
+        """Regression: the refetch payload must carry the same per-file install state as
+        GET, so the file list is accurate without a page refresh."""
+        from py.db import model_repo
+
+        entry_id = await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id="600",
+            source_page_url="https://civitai.com/models/600",
+            display_name="Annotated",
+            thumbnail_url="",
+            base_model="",
+        )
+        await model_repo.upsert_repo_files(
+            entry_id,
+            "loras",
+            [
+                {
+                    "filename": "thefile.safetensors",
+                    "size_bytes": 1000,
+                    "download_url": "https://example.com/thefile.safetensors",
+                    "source_page_url": "https://civitai.com/models/600",
+                }
+            ],
+        )
+
+        async def fake_refetch(platform, page_id):
+            return await model_repo.get_catalog_entry(platform, page_id)
+
+        monkeypatch.setattr("py.services.metadata_fetcher.refetch_catalog_metadata", fake_refetch)
+        resp = await client.post("/tiny-model-manager/api/catalog/civitai/600/refetch")
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert "is_empty" in data
+        assert len(data["repo_files"]) == 1
+        rf = data["repo_files"][0]
+        assert rf["is_downloaded"] is False
+        assert "installed_path" in rf

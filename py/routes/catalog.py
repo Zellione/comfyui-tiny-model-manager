@@ -7,6 +7,53 @@ from aiohttp import web
 from .. import config as cfg
 from ..db import model_repo
 
+_MEDIA_VIDEO_EXTS = {"mp4", "webm", "mov"}
+
+
+def _list_catalog_media(media_hash: str) -> list[dict]:
+    """List gallery media stored under the catalog entry's media_hash directory.
+
+    These files persist on disk after a model is uninstalled, so the gallery survives
+    even when no file is installed.
+    """
+    if not media_hash:
+        return []
+    media_dir = os.path.join(cfg.media_dir(), media_hash)
+    if not os.path.isdir(media_dir):
+        return []
+    items: list[dict] = []
+    for i, name in enumerate(sorted(os.listdir(media_dir))):
+        full = os.path.join(media_dir, name)
+        if not os.path.isfile(full):
+            continue
+        ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+        media_type = "video" if ext in _MEDIA_VIDEO_EXTS else "image"
+        items.append({"id": i, "media_type": media_type, "local_path": full})
+    return items
+
+
+def _annotate_catalog_detail(entry: dict) -> dict:
+    """Compute per-file install state, is_empty, and the gallery for a catalog entry.
+
+    Shared by the GET and refetch routes so both return a fully-resolved detail payload.
+    """
+    # Build basename → installed_path map from DB-linked installed files so subfolder
+    # installs (e.g. Illustrious/foo.safetensors) are correctly recognised.
+    installed_basename_map: dict[str, str] = {
+        os.path.basename(f["filename"]): f["filename"] for f in entry["installed_files"]
+    }
+    for rf in entry["repo_files"]:
+        basename = os.path.basename(rf["filename"])
+        db_path = installed_basename_map.get(basename, "")
+        rf["is_downloaded"] = bool(db_path) or _model_file_exists(rf["model_type"], rf["filename"])
+        rf["installed_path"] = db_path
+    entry["is_empty"] = not any(
+        _model_file_exists(f["model_type"], f["filename"]) for f in entry["installed_files"]
+    )
+    # Catalog-owned gallery (survives uninstall); served like model media.
+    entry["media"] = _list_catalog_media(entry.get("media_hash", ""))
+    return entry
+
 
 def _model_file_exists(model_type: str, filename: str) -> bool:
     """Return True if the model file exists on disk in any registered location."""
@@ -185,14 +232,48 @@ def add_catalog_routes(routes):
                 return web.json_response(
                     {"success": False, "error": "Catalog entry not found"}, status=404
                 )
-            # Compute is_downloaded per repo file
-            for rf in entry["repo_files"]:
-                rf["is_downloaded"] = _model_file_exists(rf["model_type"], rf["filename"])
-            # Compute is_empty
-            entry["is_empty"] = not any(
-                _model_file_exists(f["model_type"], f["filename"]) for f in entry["installed_files"]
+            return web.json_response({"success": True, "data": _annotate_catalog_detail(entry)})
+        except Exception as exc:
+            return web.json_response({"success": False, "error": str(exc)}, status=500)
+
+    @routes.put("/tiny-model-manager/api/catalog/{platform}/{page_id:.*}/metadata")
+    async def update_catalog_metadata(request):
+        platform = request.match_info["platform"]
+        page_id = request.match_info["page_id"]
+        try:
+            body = await request.json()
+            # Absent keys are left unchanged; present keys are written verbatim (so the
+            # user can clear fields).
+            ok = await model_repo.update_catalog_metadata(
+                platform,
+                page_id,
+                description=body.get("description"),
+                trigger_words=body.get("trigger_words"),
+                tags=body.get("tags"),
+                base_model=body.get("base_model"),
             )
-            return web.json_response({"success": True, "data": entry})
+            if not ok:
+                return web.json_response(
+                    {"success": False, "error": "Catalog entry not found"}, status=404
+                )
+            return web.json_response({"success": True})
+        except Exception as exc:
+            return web.json_response({"success": False, "error": str(exc)}, status=500)
+
+    @routes.post("/tiny-model-manager/api/catalog/{platform}/{page_id:.*}/refetch")
+    async def refetch_catalog_entry(request):
+        platform = request.match_info["platform"]
+        page_id = request.match_info["page_id"]
+        try:
+            from ..services.metadata_fetcher import refetch_catalog_metadata
+
+            entry = await refetch_catalog_metadata(platform, page_id)
+            if entry is None:
+                return web.json_response(
+                    {"success": False, "error": "Could not fetch metadata from source"},
+                    status=502,
+                )
+            return web.json_response({"success": True, "data": _annotate_catalog_detail(entry)})
         except Exception as exc:
             return web.json_response({"success": False, "error": str(exc)}, status=500)
 
