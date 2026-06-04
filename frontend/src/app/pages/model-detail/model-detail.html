@@ -11,7 +11,7 @@
     </span>
     <span class="spacer"></span>
     @if (!editMode() && !showUninstallConfirm()) {
-      <button class="btn ghost" (click)="refetch()" [disabled]="refetching()">
+      <button class="btn ghost" (click)="triggerRefetchPreview()" [disabled]="refetching()">
         {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
       </button>
       <button class="btn ghost" (click)="enterEdit()">Edit</button>
@@ -95,6 +95,13 @@
           @if (linkSourceError()) {
             <div class="link-source-error">{{ linkSourceError() }}</div>
           }
+        </div>
+      }
+
+      @if (refetchNoChanges()) {
+        <div class="no-changes-banner">
+          Metadata already up to date.
+          <button class="btn ghost small" (click)="reviewAnyway()">Review anyway</button>
         </div>
       }
 
@@ -220,41 +227,8 @@
             [refetching]="refetching()"
             (saveClicked)="save()"
             (cancelClicked)="cancelEdit()"
-            (refetchClicked)="refetch()"
-          >
-            <!-- Files in this model — base model per row -->
-            <div class="field-group">
-              <span class="field-label">Files in this model</span>
-              @if (repoFiles().length > 0) {
-                @for (f of repoFiles(); track f.filename) {
-                  <div class="edit-file-row">
-                    <span class="edit-file-name" [class.missing]="!f.is_downloaded">
-                      {{ f.filename }}
-                      @if (!f.is_downloaded) {
-                        <span class="pill missing">Not downloaded</span>
-                      }
-                    </span>
-                    @if (f.is_downloaded) {
-                      <app-base-model-select
-                        class="edit-file-base-model"
-                        [value]="fileBaseModels()[f.filename]"
-                        (valueChange)="setFileBaseModel(f.filename, $event)"
-                      />
-                    }
-                  </div>
-                }
-              } @else {
-                <div class="edit-file-row">
-                  <span class="edit-file-name">{{ modelBasename }}</span>
-                  <app-base-model-select
-                    class="edit-file-base-model"
-                    [value]="editMeta.base_model ?? ''"
-                    (valueChange)="editMeta.base_model = $event"
-                  />
-                </div>
-              }
-            </div>
-          </app-edit-meta-form>
+            (refetchClicked)="triggerRefetchPreview()"
+          />
         </div>
       }
     </div>
@@ -265,5 +239,16 @@
     <div class="lightbox" (click)="lightboxOpen.set(false)">
       <img [src]="mediaUrl(activeMedia()!.local_path)" alt="full size preview" />
     </div>
+  }
+
+  <!-- Refetch review modal -->
+  @if (showRefetchModal() && refetchPreviewData()) {
+    <app-refetch-review-modal
+      [data]="refetchPreviewData()!"
+      [modelType]="modelType"
+      [modelPath]="modelPath"
+      (applied)="onModalApplied($event)"
+      (cancelled)="onModalCancelled()"
+    />
   }
 </div>

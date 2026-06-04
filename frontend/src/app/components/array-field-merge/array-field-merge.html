@@ -1,0 +1,77 @@
+<div class="merge-field">
+  <div class="merge-panels">
+    <div class="merge-panel">
+      <div class="panel-header">
+        <span>Current</span>
+        @if (lastEditedAt()) {
+          <span class="edited-icon" title="Manually edited">✏</span>
+        }
+      </div>
+      <div class="chip-list">
+        @for (item of oldOnly(); track item) {
+          <span
+            class="chip chip--active"
+            [class.chip--inactive]="!isSelected(item)"
+            (click)="toggle(item)"
+            (keydown.enter)="toggle(item)"
+            (keydown.space)="toggle(item)"
+            tabindex="0"
+            title="Click to toggle"
+            >{{ item }}</span
+          >
+        }
+        @for (item of shared(); track item) {
+          <span
+            class="chip chip--shared"
+            [class.chip--inactive]="!isSelected(item)"
+            (click)="toggle(item)"
+            (keydown.enter)="toggle(item)"
+            (keydown.space)="toggle(item)"
+            tabindex="0"
+            title="Click to toggle"
+            >{{ item }}</span
+          >
+        }
+        @if (oldOnly().length === 0 && shared().length === 0) {
+          <span class="empty-label">No items</span>
+        }
+      </div>
+    </div>
+
+    <div class="merge-panel">
+      <div class="panel-header">
+        <span>Incoming</span>
+      </div>
+      <div class="chip-list">
+        @for (item of shared(); track item) {
+          <span
+            class="chip chip--shared"
+            [class.chip--inactive]="!isSelected(item)"
+            (click)="toggle(item)"
+            (keydown.enter)="toggle(item)"
+            (keydown.space)="toggle(item)"
+            tabindex="0"
+            title="Click to toggle"
+            >{{ item }}</span
+          >
+        }
+        @for (item of newOnly(); track item) {
+          <span
+            class="chip chip--new"
+            [class.chip--active]="isSelected(item)"
+            [class.chip--inactive]="!isSelected(item)"
+            (click)="toggle(item)"
+            (keydown.enter)="toggle(item)"
+            (keydown.space)="toggle(item)"
+            tabindex="0"
+            title="Click to add"
+            >{{ item }}</span
+          >
+        }
+        @if (shared().length === 0 && newOnly().length === 0) {
+          <span class="empty-label">No items</span>
+        }
+      </div>
+    </div>
+  </div>
+</div>

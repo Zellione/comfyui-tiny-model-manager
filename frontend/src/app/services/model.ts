@@ -33,6 +33,46 @@ export interface MediaItem {
  *  record was pruned because the file no longer exists on disk. */
 export type RefetchResult = { removed: true } | { removed: false; meta: ModelMeta };
 
+export interface RefetchPreviewOld {
+  description: string;
+  trigger_words: string[];
+  tags: string[];
+  base_model: string;
+  media: MediaItem[];
+  last_edited_at: {
+    description: string | null;
+    trigger_words: string | null;
+    tags: string | null;
+    base_model: string | null;
+  };
+}
+
+export interface RefetchPreviewNew {
+  description: string;
+  trigger_words: string[];
+  tags: string[];
+  base_model: string;
+  media_urls: string[];
+}
+
+export interface RefetchPreviewResponse {
+  old: RefetchPreviewOld;
+  new: RefetchPreviewNew;
+  expires_at: string;
+  no_changes: boolean;
+  removed?: boolean;
+}
+
+export interface RefetchApplyRequest {
+  description: string;
+  trigger_words: string[];
+  tags: string[];
+  base_model: string;
+  replace_media: boolean;
+  media_urls: string[];
+  keep_existing_media: string[];
+}
+
 export interface RepoFile {
   filename: string;
   model_type: string;
@@ -203,5 +243,32 @@ export class ModelService {
         data: { moved: number; skipped: number; errors: number };
       }>(`${API}/models/organize`, {})
       .pipe(map((r) => r.data));
+  }
+
+  refetchPreview(modelType: string, path: string): Observable<RefetchPreviewResponse> {
+    return this.http
+      .post<{
+        success: boolean;
+        data: RefetchPreviewResponse;
+      }>(`${API}/models/${modelType}/${path}/refetch-preview`, {})
+      .pipe(map((r) => r.data));
+  }
+
+  refetchApply(
+    modelType: string,
+    path: string,
+    body: RefetchApplyRequest,
+  ): Observable<RefetchResult> {
+    return this.http
+      .post<{
+        success: boolean;
+        data: (ModelMeta & { removed?: boolean }) | { removed: true };
+      }>(`${API}/models/${modelType}/${path}/refetch-apply`, body)
+      .pipe(
+        map((r) => {
+          if ('removed' in r.data && r.data.removed) return { removed: true as const };
+          return { removed: false as const, meta: r.data as ModelMeta };
+        }),
+      );
   }
 }

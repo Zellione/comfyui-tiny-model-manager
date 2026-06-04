@@ -1,0 +1,121 @@
+<div
+  class="refetch-modal-overlay"
+  (click)="cancelled.emit()"
+  (keydown.escape)="cancelled.emit()"
+  tabindex="0"
+>
+  <div
+    class="refetch-modal"
+    (click)="$event.stopPropagation()"
+    (keydown)="$event.stopPropagation()"
+  >
+    <div class="modal-header">
+      <h3>Review fetched metadata</h3>
+      <button class="btn ghost small" (click)="cancelled.emit()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <section class="diff-section">
+        <h4>Description</h4>
+        <app-text-diff-field
+          [oldValue]="data().old.description"
+          [newValue]="data().new.description"
+          [lastEditedAt]="data().old.last_edited_at.description"
+          [(selected)]="descriptionChoice"
+        />
+      </section>
+
+      <section class="diff-section">
+        <h4>Trigger Words</h4>
+        <app-array-field-merge
+          [oldItems]="data().old.trigger_words"
+          [newItems]="data().new.trigger_words"
+          [lastEditedAt]="data().old.last_edited_at.trigger_words"
+          [(selectedItems)]="selectedTriggerWords"
+        />
+      </section>
+
+      <section class="diff-section">
+        <h4>Tags</h4>
+        <app-array-field-merge
+          [oldItems]="data().old.tags"
+          [newItems]="data().new.tags"
+          [lastEditedAt]="data().old.last_edited_at.tags"
+          [(selectedItems)]="selectedTags"
+        />
+      </section>
+
+      <section class="diff-section">
+        <h4>Base Model</h4>
+        <div class="base-model-chips">
+          <span
+            class="chip"
+            [class.chip--active]="baseModelChoice() === 'old'"
+            (click)="baseModelChoice.set('old')"
+            (keydown.enter)="baseModelChoice.set('old')"
+            (keydown.space)="baseModelChoice.set('old')"
+            tabindex="0"
+          >
+            <input
+              type="radio"
+              [checked]="baseModelChoice() === 'old'"
+              (change)="baseModelChoice.set('old')"
+            />
+            Current: {{ data().old.base_model || '(none)' }}
+            @if (data().old.last_edited_at.base_model) {
+              <span class="edited-icon">✏</span>
+            }
+          </span>
+          <span
+            class="chip"
+            [class.chip--active]="baseModelChoice() === 'new'"
+            (click)="baseModelChoice.set('new')"
+            (keydown.enter)="baseModelChoice.set('new')"
+            (keydown.space)="baseModelChoice.set('new')"
+            tabindex="0"
+          >
+            <input
+              type="radio"
+              [checked]="baseModelChoice() === 'new'"
+              (change)="baseModelChoice.set('new')"
+            />
+            Incoming: {{ data().new.base_model || '(none)' }}
+          </span>
+        </div>
+      </section>
+
+      <section class="image-section">
+        <label class="replace-toggle">
+          <input
+            type="checkbox"
+            [checked]="replaceImages()"
+            (change)="replaceImages.set(!replaceImages())"
+          />
+          Also replace images?
+        </label>
+        @if (replaceImages()) {
+          <app-image-gallery-compare
+            [currentMedia]="data().old.media"
+            [incomingUrls]="data().new.media_urls"
+            [(selectedIncoming)]="selectedIncomingMedia"
+            [(keepExisting)]="keepExistingMedia"
+          />
+        }
+      </section>
+    </div>
+
+    <div class="modal-footer">
+      @if (expired()) {
+        <p class="expire-msg">Preview expired — re-fetch to review again.</p>
+      } @else if (secondsRemaining() !== null) {
+        <p class="countdown">Preview expires in {{ formatCountdown(secondsRemaining()!) }}</p>
+      }
+      <div class="footer-actions">
+        <button class="btn ghost" (click)="cancelled.emit()">Cancel</button>
+        <button class="btn primary" (click)="applySelected()" [disabled]="expired() || applying()">
+          {{ applying() ? 'Applying…' : 'Apply selected' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

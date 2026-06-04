@@ -1,0 +1,86 @@
+.merge-field {
+  width: 100%;
+}
+
+.merge-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.merge-panel {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+
+  span:first-child {
+    flex: 1;
+  }
+
+  .edited-icon {
+    font-size: 11px;
+    color: var(--accent);
+    flex: unset;
+  }
+}
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+  min-height: 44px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background var(--dur),
+    opacity var(--dur);
+
+  &--active {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  &--shared {
+    background: var(--surface-hi);
+    color: var(--text-2);
+  }
+
+  &--new {
+    background: var(--surface-hi);
+    color: var(--text-2);
+  }
+
+  &--inactive {
+    opacity: 0.4;
+  }
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+.empty-label {
+  color: var(--text-3);
+  font-style: italic;
+  font-size: 12px;
+}

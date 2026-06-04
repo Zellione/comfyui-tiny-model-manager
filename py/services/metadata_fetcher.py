@@ -12,11 +12,31 @@ import httpx
 from .. import config as cfg
 from ..db import model_repo
 from .providers import get_provider
+from .providers.base import ProviderMetadata
 
 
 def _compute_media_hash(platform: str, source_id: str, filename: str) -> str:
     key = f"{platform}:{source_id}" if (platform and source_id) else filename
     return hashlib.sha1(key.encode()).hexdigest()
+
+
+async def fetch_metadata_only(platform: str, source_id: str) -> ProviderMetadata:
+    """Fetch metadata from the upstream provider without persisting anything.
+
+    Raises RuntimeError if the provider is unknown or all 3 attempts fail.
+    """
+    provider = get_provider(platform)
+    if not provider:
+        raise RuntimeError(f"Unknown platform: {platform!r}")
+    last_exc: Exception = RuntimeError("No attempts made")
+    for attempt in range(3):
+        try:
+            return await provider.fetch_metadata(source_id)
+        except Exception as exc:
+            last_exc = exc
+            if attempt < 2:
+                await asyncio.sleep(1)
+    raise last_exc
 
 
 async def fetch_and_store(

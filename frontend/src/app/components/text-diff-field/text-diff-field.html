@@ -1,0 +1,64 @@
+<div class="diff-field">
+  <div class="diff-panels">
+    <div
+      class="diff-panel"
+      [class.active]="selected() === 'old'"
+      [class.dimmed]="selected() === 'new'"
+      (click)="selectOld()"
+      (keydown.enter)="selectOld()"
+      tabindex="0"
+    >
+      <div class="panel-header">
+        <span>Current</span>
+        @if (lastEditedAt()) {
+          <span class="edited-icon" title="Manually edited">✏</span>
+        }
+        <input
+          type="radio"
+          name="diff-select"
+          [checked]="selected() === 'old'"
+          (change)="selectOld()"
+          (click)="$event.stopPropagation()"
+          (keydown)="$event.stopPropagation()"
+        />
+      </div>
+      <div class="diff-content">
+        @for (line of oldLines(); track $index) {
+          <div class="diff-line" [class.diff-remove]="line.type === 'remove'">{{ line.text }}</div>
+        }
+        @if (oldLines().length === 0) {
+          <div class="diff-empty">(empty)</div>
+        }
+      </div>
+    </div>
+
+    <div
+      class="diff-panel"
+      [class.active]="selected() === 'new'"
+      [class.dimmed]="selected() === 'old'"
+      (click)="selectNew()"
+      (keydown.enter)="selectNew()"
+      tabindex="0"
+    >
+      <div class="panel-header">
+        <span>Incoming</span>
+        <input
+          type="radio"
+          name="diff-select"
+          [checked]="selected() === 'new'"
+          (change)="selectNew()"
+          (click)="$event.stopPropagation()"
+          (keydown)="$event.stopPropagation()"
+        />
+      </div>
+      <div class="diff-content">
+        @for (line of newLines(); track $index) {
+          <div class="diff-line" [class.diff-add]="line.type === 'add'">{{ line.text }}</div>
+        }
+        @if (newLines().length === 0) {
+          <div class="diff-empty">(empty)</div>
+        }
+      </div>
+    </div>
+  </div>
+</div>

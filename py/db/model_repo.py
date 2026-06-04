@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import UTC, datetime
 
 from .database import get_db
 
@@ -9,6 +10,7 @@ _MAX_WORD = 200
 _MAX_TAG = 200
 _MAX_PATH = 1_000
 _ALLOWED_MEDIA_TYPES = {"image", "video"}
+_MEDIA_SELECT = "SELECT id, media_type, local_path FROM model_media WHERE model_id = ?"
 
 
 async def _prune_orphan_tags(db) -> None:
@@ -179,7 +181,7 @@ async def get_model_by_filename(filename: str) -> dict | None:
         ).fetchall()
         media = await (
             await db.execute(
-                "SELECT id, media_type, local_path FROM model_media WHERE model_id = ?",
+                _MEDIA_SELECT,
                 (model["id"],),
             )
         ).fetchall()
@@ -211,7 +213,7 @@ async def get_metadata_by_filenames(filenames: list[str]) -> dict[str, dict]:
             ).fetchall()
             media = await (
                 await db.execute(
-                    "SELECT id, media_type, local_path FROM model_media WHERE model_id = ?",
+                    _MEDIA_SELECT,
                     (m["id"],),
                 )
             ).fetchall()
@@ -236,6 +238,7 @@ async def update_model_meta(
     base_model: str | None = None,
     model_type: str = "",
 ):
+    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     async with get_db() as db:
         # Ensure a row exists for manually-placed or link-source-only files.
         await db.execute(
@@ -245,11 +248,13 @@ async def update_model_meta(
         sets: list[str] = []
         vals: list[object] = []
         if description is not None:
-            sets.append("description = ?")
+            sets.append("description = ?, description_edited_at = ?")
             vals.append(description[:_MAX_DESCRIPTION])
+            vals.append(now)
         if base_model is not None:
-            sets.append("base_model = ?")
+            sets.append("base_model = ?, base_model_edited_at = ?")
             vals.append(base_model)
+            vals.append(now)
         if sets:
             await db.execute(
                 f"UPDATE models SET {', '.join(sets)} WHERE filename = ?",
@@ -267,8 +272,16 @@ async def update_model_meta(
                         "INSERT INTO trigger_words (model_id, word) VALUES (?, ?)",
                         [(model_id, w[:_MAX_WORD]) for w in trigger_words],
                     )
+                    await db.execute(
+                        "UPDATE models SET trigger_words_edited_at = ? WHERE id = ?",
+                        (now, model_id),
+                    )
                 if tags is not None:
                     await _set_model_tags(db, model_id, tags)
+                    await db.execute(
+                        "UPDATE models SET tags_edited_at = ? WHERE id = ?",
+                        (now, model_id),
+                    )
         await db.commit()
 
 
@@ -730,3 +743,28 @@ async def get_model_source_info(filename: str) -> dict | None:
             )
         ).fetchone()
         return dict(row) if row else None
+
+
+async def get_model_id_and_hash(filename: str) -> tuple[int, str] | None:
+    async with get_db() as db:
+        row = await (
+            await db.execute("SELECT id, media_hash FROM models WHERE filename = ?", (filename,))
+        ).fetchone()
+        return (row["id"], row["media_hash"]) if row else None
+
+
+async def get_model_media(model_id: int) -> list[dict]:
+    async with get_db() as db:
+        rows = await (
+            await db.execute(
+                _MEDIA_SELECT,
+                (model_id,),
+            )
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+async def delete_media_row(media_id: int) -> None:
+    async with get_db() as db:
+        await db.execute("DELETE FROM model_media WHERE id = ?", (media_id,))
+        await db.commit()
