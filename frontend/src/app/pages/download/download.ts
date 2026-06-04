@@ -17,9 +17,10 @@ import { HuggingFaceService, HfModel } from '../../services/huggingface';
 import { ModelService } from '../../services/model';
 import { NotificationService } from '../../services/notification';
 import { detectLink, LinkKind } from '../../utils/link-detector';
-import { ModelType, MODEL_TYPES } from '../../utils/model-types';
+import { ModelType } from '../../utils/model-types';
 import { formatSize } from '../../utils/format';
 import { isVideo } from '../../utils/media';
+import { ModelTypeSelect } from '../../components/model-type-select/model-type-select';
 
 type HfFileItem = { filename: string; size: number; url: string };
 
@@ -27,7 +28,7 @@ type Platform = 'civitai' | 'huggingface';
 
 @Component({
   selector: 'app-download',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ModelTypeSelect],
   templateUrl: './download.html',
   styleUrl: './download.scss',
 })
@@ -84,7 +85,6 @@ export class Download {
   platform = signal<Platform>('civitai');
   query = signal('');
   modelType = signal<ModelType>('checkpoints');
-  modelTypes: ModelType[] = MODEL_TYPES;
 
   hfRowTypes = signal<Record<string, ModelType>>({});
   linkHfRowTypes = signal<Record<string, ModelType>>({});
@@ -389,23 +389,28 @@ export class Download {
     this.pasteUrl$.next(url);
   }
 
+  /** Start a download and toast on success. Shared by all download buttons. */
+  private enqueue(
+    url: string,
+    type: ModelType,
+    filename: string,
+    platform: string,
+    sourceId: string,
+  ) {
+    this.dlService.startDownload(url, type, filename, platform, sourceId).subscribe({
+      next: () => this.notifService.show('success', `Download enqueued: ${filename}`),
+    });
+  }
+
   submitDirectLink() {
     const kind = this.linkKind();
     const type = this.linkModelType();
     if (kind.type === 'hf-resolve') {
-      this.dlService
-        .startDownload(this.pasteUrl(), type, kind.filename, 'huggingface', kind.repo)
-        .subscribe({
-          next: () => this.notifService.show('success', `Download enqueued: ${kind.filename}`),
-        });
+      this.enqueue(this.pasteUrl(), type, kind.filename, 'huggingface', kind.repo);
     } else if (kind.type === 'civitai-download') {
       const r = this.linkResolved();
       if (!r) return;
-      this.dlService
-        .startDownload(this.pasteUrl(), type, r.filename, 'civitai', String(kind.versionId))
-        .subscribe({
-          next: () => this.notifService.show('success', `Download enqueued: ${r.filename}`),
-        });
+      this.enqueue(this.pasteUrl(), type, r.filename, 'civitai', String(kind.versionId));
     }
     this.pasteUrl.set('');
     this.linkKind.set({ type: 'empty' });
@@ -418,11 +423,7 @@ export class Download {
   downloadLinkHfFile(f: HfFileItem) {
     const kind = this.linkKind();
     const repo = kind.type === 'hf-repo' ? kind.repo : '';
-    this.dlService
-      .startDownload(f.url, this.linkHfRowType(f.filename), f.filename, 'huggingface', repo)
-      .subscribe({
-        next: () => this.notifService.show('success', `Download enqueued: ${f.filename}`),
-      });
+    this.enqueue(f.url, this.linkHfRowType(f.filename), f.filename, 'huggingface', repo);
   }
 
   // F-20 — CivitAI model link methods
@@ -444,32 +445,24 @@ export class Download {
   }
 
   downloadLinkFile(file: CivitaiFile, versionId: number) {
-    this.dlService
-      .startDownload(
+    this.enqueue(
+      file.downloadUrl,
+      this.linkCivitaiFileType(versionId, file),
+      file.name,
+      'civitai',
+      String(versionId),
+    );
+  }
+
+  downloadSelectedLinkCivitai() {
+    for (const { file, versionId } of this.linkCivitaiSelected().values()) {
+      this.enqueue(
         file.downloadUrl,
         this.linkCivitaiFileType(versionId, file),
         file.name,
         'civitai',
         String(versionId),
-      )
-      .subscribe({
-        next: () => this.notifService.show('success', `Download enqueued: ${file.name}`),
-      });
-  }
-
-  downloadSelectedLinkCivitai() {
-    for (const { file, versionId } of this.linkCivitaiSelected().values()) {
-      this.dlService
-        .startDownload(
-          file.downloadUrl,
-          this.linkCivitaiFileType(versionId, file),
-          file.name,
-          'civitai',
-          String(versionId),
-        )
-        .subscribe({
-          next: () => this.notifService.show('success', `Download enqueued: ${file.name}`),
-        });
+      );
     }
     this.linkCivitaiSelected.set(new Map());
   }
@@ -674,32 +667,24 @@ export class Download {
   }
 
   downloadFile(file: CivitaiFile, versionId: number) {
-    this.dlService
-      .startDownload(
+    this.enqueue(
+      file.downloadUrl,
+      this.civitaiFileType(versionId, file),
+      file.name,
+      'civitai',
+      String(versionId),
+    );
+  }
+
+  downloadSelectedCivitai() {
+    for (const { file, versionId } of this.selectedCivitaiFiles().values()) {
+      this.enqueue(
         file.downloadUrl,
         this.civitaiFileType(versionId, file),
         file.name,
         'civitai',
         String(versionId),
-      )
-      .subscribe({
-        next: () => this.notifService.show('success', `Download enqueued: ${file.name}`),
-      });
-  }
-
-  downloadSelectedCivitai() {
-    for (const { file, versionId } of this.selectedCivitaiFiles().values()) {
-      this.dlService
-        .startDownload(
-          file.downloadUrl,
-          this.civitaiFileType(versionId, file),
-          file.name,
-          'civitai',
-          String(versionId),
-        )
-        .subscribe({
-          next: () => this.notifService.show('success', `Download enqueued: ${file.name}`),
-        });
+      );
     }
     this.selectedCivitaiFiles.set(new Map());
   }
@@ -734,17 +719,13 @@ export class Download {
   }
 
   downloadHf(file: { filename: string; size: number; url: string }) {
-    this.dlService
-      .startDownload(
-        file.url,
-        this.hfRowType(file.filename),
-        file.filename,
-        'huggingface',
-        this.selectedHfRepoId(),
-      )
-      .subscribe({
-        next: () => this.notifService.show('success', `Download enqueued: ${file.filename}`),
-      });
+    this.enqueue(
+      file.url,
+      this.hfRowType(file.filename),
+      file.filename,
+      'huggingface',
+      this.selectedHfRepoId(),
+    );
   }
 
   formatSize = formatSize;
