@@ -14,8 +14,8 @@ import {
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
 import { SettingsService } from '../../services/settings';
-
-const MEDIA_API = '/tiny-model-manager/api/media';
+import { formatSize } from '../../utils/format';
+import { mediaUrl } from '../../utils/media';
 const UNKNOWN_BASE_MODEL = '__unknown__';
 const UNKNOWN_SOURCE = '__unknown_source__';
 
@@ -197,11 +197,7 @@ export class Models implements OnInit {
     return path.split('/').pop() ?? path;
   }
 
-  formatSize(bytes: number): string {
-    if (bytes >= 1e9) return (bytes / 1e9).toFixed(1) + ' GB';
-    if (bytes >= 1e6) return (bytes / 1e6).toFixed(1) + ' MB';
-    return (bytes / 1e3).toFixed(0) + ' KB';
-  }
+  formatSize = formatSize;
 
   cardTitle(entry: CatalogEntry): string {
     if (entry.display_name) return entry.display_name;
@@ -235,12 +231,12 @@ export class Models implements OnInit {
 
   catalogThumbnailUrl(entry: CatalogEntry): string | null {
     if (!entry.thumbnail_url) return null;
-    return `${MEDIA_API}/${encodeURIComponent(entry.thumbnail_url)}`;
+    return mediaUrl(entry.thumbnail_url);
   }
 
   unknownThumbnailUrl(meta?: ModelMeta): string | null {
     const img = meta?.media?.find((m) => m.media_type === 'image');
-    return img ? `${MEDIA_API}/${encodeURIComponent(img.local_path)}` : null;
+    return img ? mediaUrl(img.local_path) : null;
   }
 
   entryFileCount(entry: CatalogEntry): number {

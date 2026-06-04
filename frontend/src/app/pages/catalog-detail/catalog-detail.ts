@@ -24,10 +24,10 @@ import { DownloadService, DownloadTask } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
 import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
+import { formatBytes } from '../../utils/format';
+import { mediaUrl } from '../../utils/media';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
 import { EditMetaForm } from '../../components/edit-meta-form/edit-meta-form';
-
-const MEDIA_API = '/tiny-model-manager/api/media';
 
 @Component({
   selector: 'app-catalog-detail',
@@ -444,14 +444,6 @@ export class CatalogDetail implements OnInit {
     });
   }
 
-  mediaUrl(path: string): string {
-    return `${MEDIA_API}/${encodeURIComponent(path)}`;
-  }
-
-  formatBytes(bytes: number | null): string {
-    if (!bytes) return '';
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-    return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
-  }
+  mediaUrl = mediaUrl;
+  formatBytes = formatBytes;
 }

@@ -17,27 +17,13 @@ import { HuggingFaceService, HfModel } from '../../services/huggingface';
 import { ModelService } from '../../services/model';
 import { NotificationService } from '../../services/notification';
 import { detectLink, LinkKind } from '../../utils/link-detector';
+import { ModelType, MODEL_TYPES } from '../../utils/model-types';
+import { formatSize } from '../../utils/format';
+import { isVideo } from '../../utils/media';
 
 type HfFileItem = { filename: string; size: number; url: string };
 
 type Platform = 'civitai' | 'huggingface';
-type ModelType =
-  | 'checkpoints'
-  | 'loras'
-  | 'embeddings'
-  | 'vae'
-  | 'controlnet'
-  | 'upscale_models'
-  | 'hypernetworks'
-  | 'clip_vision'
-  | 'style_models'
-  | 'gligen'
-  | 'diffusion_models'
-  | 'text_encoders'
-  | 'photomaker'
-  | 'vae_approx'
-  | 'unet'
-  | 'clip';
 
 @Component({
   selector: 'app-download',
@@ -98,24 +84,7 @@ export class Download {
   platform = signal<Platform>('civitai');
   query = signal('');
   modelType = signal<ModelType>('checkpoints');
-  modelTypes: ModelType[] = [
-    'checkpoints',
-    'loras',
-    'embeddings',
-    'vae',
-    'controlnet',
-    'upscale_models',
-    'hypernetworks',
-    'clip_vision',
-    'style_models',
-    'gligen',
-    'diffusion_models',
-    'text_encoders',
-    'photomaker',
-    'vae_approx',
-    'unet',
-    'clip',
-  ];
+  modelTypes: ModelType[] = MODEL_TYPES;
 
   hfRowTypes = signal<Record<string, ModelType>>({});
   linkHfRowTypes = signal<Record<string, ModelType>>({});
@@ -778,11 +747,7 @@ export class Download {
       });
   }
 
-  formatSize(bytes: number): string {
-    if (bytes >= 1e9) return (bytes / 1e9).toFixed(1) + ' GB';
-    if (bytes >= 1e6) return (bytes / 1e6).toFixed(1) + ' MB';
-    return (bytes / 1e3).toFixed(0) + ' KB';
-  }
+  formatSize = formatSize;
 
   activePct(t: DownloadTask): string {
     return t.progress.toFixed(0) + '%';
@@ -799,10 +764,7 @@ export class Download {
       .filter(Boolean);
   }
 
-  isVideo(url: string): boolean {
-    const lower = url.toLowerCase();
-    return lower.includes('.mp4') || lower.includes('.webm') || lower.includes('.mov');
-  }
+  isVideo = isVideo;
 
   setGalleryIndex(i: number) {
     this.galleryIndex.set(i);
