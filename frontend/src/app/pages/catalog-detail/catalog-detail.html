@@ -73,55 +73,13 @@
       @if (!editMode()) {
         <!-- Gallery (catalog-owned media; survives uninstall) -->
         @if (displayMedia().length > 0) {
-          <div class="gallery">
-            <div class="gallery-main">
-              @if (activeMedia(); as m) {
-                @if (m.media_type === 'image') {
-                  <img
-                    [src]="mediaUrl(m.local_path)"
-                    alt="preview"
-                    class="gallery-main-img"
-                    role="button"
-                    tabindex="0"
-                    (click)="lightboxOpen.set(true)"
-                    (keydown.enter)="lightboxOpen.set(true)"
-                  />
-                } @else {
-                  <video [src]="mediaUrl(m.local_path)" controls>
-                    <track kind="captions" />
-                  </video>
-                }
-              }
-            </div>
-            @if (displayMedia().length > 1) {
-              <div class="gallery-thumbs">
-                @for (thumb of displayMedia(); track thumb.id; let i = $index) {
-                  <div
-                    class="gallery-thumb"
-                    [class.active]="i === galleryIdx()"
-                    role="button"
-                    tabindex="0"
-                    (click)="galleryIdx.set(i)"
-                    (keydown.enter)="galleryIdx.set(i)"
-                  >
-                    @if (thumb.media_type === 'image') {
-                      <img [src]="mediaUrl(thumb.local_path)" alt="" />
-                    } @else {
-                      <div class="gallery-thumb-video">▶</div>
-                    }
-                  </div>
-                }
-              </div>
-            }
-          </div>
+          <app-media-gallery [media]="displayMedia()" />
         } @else if (entry()!.thumbnail_url) {
           <div class="catalog-thumb-wrap">
             <img [src]="mediaUrl(entry()!.thumbnail_url)" alt="thumbnail" class="catalog-thumb" />
           </div>
         } @else {
-          <div class="gallery">
-            <div class="gallery-main gallery-placeholder">NO PREVIEW</div>
-          </div>
+          <app-media-gallery [media]="[]" />
         }
 
         <!-- Tags -->
@@ -332,19 +290,6 @@
           />
         </div>
       }
-    </div>
-  }
-
-  <!-- Lightbox -->
-  @if (lightboxOpen() && activeMedia()?.media_type === 'image') {
-    <div
-      class="lightbox"
-      role="button"
-      tabindex="0"
-      (click)="lightboxOpen.set(false)"
-      (keydown.enter)="lightboxOpen.set(false)"
-    >
-      <img [src]="mediaUrl(activeMedia()!.local_path)" alt="full size preview" />
     </div>
   }
 </div>
