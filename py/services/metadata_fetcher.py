@@ -235,33 +235,40 @@ async def migrate_existing_media():
         await db.commit()
 
 
+async def _fetch_url_to_file(
+    client: httpx.AsyncClient, url: str, dest_dir: str, index: int
+) -> tuple[str, str] | None:
+    """Download url to dest_dir/{index}.{ext}. Returns (dest, ext) or None on failure."""
+    try:
+        ext = url.rsplit(".", 1)[-1].split("?")[0] or "jpg"
+        dest = os.path.join(dest_dir, f"{index}.{ext}")
+        if not os.path.isfile(dest):
+            resp = await client.get(url)
+            resp.raise_for_status()
+            with open(dest, "wb") as f:
+                f.write(resp.content)
+        return dest, ext
+    except Exception:
+        return None
+
+
 async def _download_images(model_id: int, media_hash: str, urls: list[str]):
     if not urls:
         return
     dest_dir = os.path.join(cfg.media_dir(), media_hash)
     os.makedirs(dest_dir, exist_ok=True)
-
     async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
         for i, url in enumerate(urls[:5]):
-            try:
-                ext = url.rsplit(".", 1)[-1].split("?")[0] or "jpg"
-                dest = os.path.join(dest_dir, f"{i}.{ext}")
+            result = await _fetch_url_to_file(client, url, dest_dir, i)
+            if result:
+                dest, ext = result
                 media_type = "video" if ext in ("mp4", "webm", "mov") else "image"
-                if os.path.isfile(dest):
-                    await model_repo.add_media(model_id, media_type, dest)
-                    continue
-                resp = await client.get(url)
-                resp.raise_for_status()
-                with open(dest, "wb") as f:
-                    f.write(resp.content)
                 await model_repo.add_media(model_id, media_type, dest)
-            except Exception:
-                continue
 
 
 def catalog_media_hash(platform: str, page_id: str) -> str:
     """Stable media-hash for a catalog page (independent of any installed file)."""
-    return hashlib.sha1(f"catalog:{platform}:{page_id}".encode()).hexdigest()
+    return hashlib.sha256(f"catalog:{platform}:{page_id}".encode()).hexdigest()
 
 
 async def _download_catalog_images(media_hash: str, urls: list[str]) -> str:
@@ -271,18 +278,9 @@ async def _download_catalog_images(media_hash: str, urls: list[str]) -> str:
     first = ""
     async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
         for i, url in enumerate(urls[:5]):
-            try:
-                ext = url.rsplit(".", 1)[-1].split("?")[0] or "jpg"
-                dest = os.path.join(dest_dir, f"{i}.{ext}")
-                if not os.path.isfile(dest):
-                    resp = await client.get(url)
-                    resp.raise_for_status()
-                    with open(dest, "wb") as f:
-                        f.write(resp.content)
-                if not first:
-                    first = dest
-            except Exception:
-                continue
+            result = await _fetch_url_to_file(client, url, dest_dir, i)
+            if result and not first:
+                first = result[0]
     return first
 
 
@@ -296,6 +294,8 @@ async def refetch_catalog_metadata(platform: str, page_id: str) -> dict | None:
     if not provider:
         return None
 
+    source_id = ""
+    source_page_url = ""
     if platform == "huggingface":
         source_id = page_id
         source_page_url = f"https://huggingface.co/{page_id}"
