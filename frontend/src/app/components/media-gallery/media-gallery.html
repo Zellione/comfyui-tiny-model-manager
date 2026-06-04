@@ -1,0 +1,50 @@
+@if (media().length > 0) {
+  <div class="gallery">
+    <div class="gallery-main">
+      @if (activeMedia(); as m) {
+        @if (m.media_type === 'image') {
+          <button type="button" class="gallery-main-btn" (click)="lightboxOpen.set(true)">
+            <img [src]="mediaUrl(m.local_path)" alt="preview" />
+          </button>
+        } @else {
+          <video [src]="mediaUrl(m.local_path)" controls>
+            <track kind="captions" />
+          </video>
+        }
+      }
+    </div>
+    @if (media().length > 1) {
+      <div class="gallery-thumbs">
+        @for (thumb of media(); track thumb.id; let i = $index) {
+          <button
+            type="button"
+            class="gallery-thumb"
+            [class.active]="i === galleryIdx()"
+            (click)="galleryIdx.set(i)"
+          >
+            @if (thumb.media_type === 'image') {
+              <img [src]="mediaUrl(thumb.local_path)" alt="" />
+            } @else {
+              <div class="gallery-thumb-video">▶</div>
+            }
+          </button>
+        }
+      </div>
+    }
+  </div>
+} @else {
+  <div class="gallery">
+    <div class="gallery-main gallery-placeholder">NO PREVIEW</div>
+  </div>
+}
+
+@if (lightboxOpen() && activeMedia()?.media_type === 'image') {
+  <button
+    type="button"
+    class="lightbox"
+    aria-label="Close preview"
+    (click)="lightboxOpen.set(false)"
+  >
+    <img [src]="mediaUrl(activeMedia()!.local_path)" alt="full size preview" />
+  </button>
+}

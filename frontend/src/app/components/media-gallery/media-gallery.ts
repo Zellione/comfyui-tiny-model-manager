@@ -1,0 +1,38 @@
+import { Component, HostListener, computed, input, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { MediaItem } from '../../services/model';
+import { mediaUrl } from '../../utils/media';
+
+/**
+ * Shared media gallery: a large main preview, a thumbnail strip, and an image
+ * lightbox. Used by the model-detail and catalog-detail pages, which previously
+ * carried byte-for-byte copies of this markup, state and styling.
+ *
+ * The host element is `display: block`; pages set their own padding on the
+ * `app-media-gallery` element (the only per-page difference).
+ */
+@Component({
+  selector: 'app-media-gallery',
+  imports: [CommonModule],
+  templateUrl: './media-gallery.html',
+  styleUrl: './media-gallery.scss',
+})
+export class MediaGallery {
+  media = input<MediaItem[]>([]);
+
+  readonly galleryIdx = signal(0);
+  readonly lightboxOpen = signal(false);
+
+  readonly activeMedia = computed(() => {
+    const m = this.media();
+    if (!m.length) return null;
+    return m[Math.min(this.galleryIdx(), m.length - 1)];
+  });
+
+  mediaUrl = mediaUrl;
+
+  @HostListener('document:keydown.escape')
+  onEscape() {
+    if (this.lightboxOpen()) this.lightboxOpen.set(false);
+  }
+}

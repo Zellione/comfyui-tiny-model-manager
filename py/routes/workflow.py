@@ -2,9 +2,12 @@ import uuid
 
 from aiohttp import web
 
+from ._helpers import json_route, ok
+
 _pending: list[dict] = []
 
 
+@json_route
 async def workflow_insert(request: web.Request) -> web.Response:
     body = await request.json()
     item = {
@@ -13,19 +16,21 @@ async def workflow_insert(request: web.Request) -> web.Response:
         "filename": body.get("filename", ""),
     }
     _pending.append(item)
-    return web.json_response({"success": True, "id": item["id"]})
+    return ok(id=item["id"])
 
 
+@json_route
 async def workflow_pending(request: web.Request) -> web.Response:
-    return web.json_response({"success": True, "data": list(_pending)})
+    return ok(list(_pending))
 
 
+@json_route
 async def workflow_ack(request: web.Request) -> web.Response:
     global _pending
     body = await request.json()
     item_id = body.get("id")
     _pending = [p for p in _pending if p["id"] != item_id]
-    return web.json_response({"success": True})
+    return ok()
 
 
 def register_workflow_routes(routes) -> None:

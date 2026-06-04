@@ -73,11 +73,7 @@
   <!-- F-17/F-18: single-file download action -->
   @if (canSubmitLink()) {
     <div class="paste-actions">
-      <select [ngModel]="linkModelType()" (ngModelChange)="linkModelType.set($event)">
-        @for (t of modelTypes; track t) {
-          <option [value]="t">{{ t }}</option>
-        }
-      </select>
+      <app-model-type-select [value]="linkModelType()" (valueChange)="linkModelType.set($event)" />
       @switch (fileStatus(linkFilename())) {
         @case ('installed') {
           <button class="btn-library">In library</button>
@@ -111,14 +107,10 @@
             <div class="version-row-bottom">
               <div class="row-format"></div>
               <small>{{ formatSize(f.size) }}</small>
-              <select
-                [ngModel]="linkHfRowType(f.filename)"
-                (ngModelChange)="setLinkHfRowType(f.filename, $event)"
-              >
-                @for (t of modelTypes; track t) {
-                  <option [value]="t">{{ t }}</option>
-                }
-              </select>
+              <app-model-type-select
+                [value]="linkHfRowType(f.filename)"
+                (valueChange)="setLinkHfRowType(f.filename, $event)"
+              />
               @switch (fileStatus(f.filename)) {
                 @case ('installed') {
                   <button class="btn-library">In library</button>
@@ -185,14 +177,10 @@
                       }
                     </div>
                     <small>{{ formatSize(f.sizeKB * 1024) }}</small>
-                    <select
-                      [ngModel]="linkCivitaiFileType(v.id, f)"
-                      (ngModelChange)="setLinkCivitaiFileType(v.id, f, $event)"
-                    >
-                      @for (t of modelTypes; track t) {
-                        <option [value]="t">{{ t }}</option>
-                      }
-                    </select>
+                    <app-model-type-select
+                      [value]="linkCivitaiFileType(v.id, f)"
+                      (valueChange)="setLinkCivitaiFileType(v.id, f, $event)"
+                    />
                     @switch (fileStatus(f.name)) {
                       @case ('installed') {
                         <button class="btn-library">In library</button>
@@ -235,11 +223,7 @@
     (keyup.enter)="search()"
   />
   @if (platform() === 'civitai') {
-    <select [ngModel]="modelType()" (ngModelChange)="modelType.set($event)">
-      @for (t of modelTypes; track t) {
-        <option [value]="t">{{ t }}</option>
-      }
-    </select>
+    <app-model-type-select [value]="modelType()" (valueChange)="modelType.set($event)" />
   }
   <button class="btn-primary" (click)="search()" [disabled]="searching()">
     {{ searching() ? 'Searching…' : 'Search' }}
@@ -536,14 +520,10 @@
                               }
                             </div>
                             <small>{{ formatSize(f.sizeKB * 1024) }}</small>
-                            <select
-                              [ngModel]="civitaiFileType(v.id, f)"
-                              (ngModelChange)="setCivitaiFileType(v.id, f, $event)"
-                            >
-                              @for (t of modelTypes; track t) {
-                                <option [value]="t">{{ t }}</option>
-                              }
-                            </select>
+                            <app-model-type-select
+                              [value]="civitaiFileType(v.id, f)"
+                              (valueChange)="setCivitaiFileType(v.id, f, $event)"
+                            />
                             @switch (fileStatus(f.name)) {
                               @case ('installed') {
                                 <button class="btn-library">In library</button>
@@ -670,14 +650,10 @@
                     <div class="version-row-bottom">
                       <div class="row-format"></div>
                       <small>{{ formatSize(f.size) }}</small>
-                      <select
-                        [ngModel]="hfRowType(f.filename)"
-                        (ngModelChange)="setHfRowType(f.filename, $event)"
-                      >
-                        @for (t of modelTypes; track t) {
-                          <option [value]="t">{{ t }}</option>
-                        }
-                      </select>
+                      <app-model-type-select
+                        [value]="hfRowType(f.filename)"
+                        (valueChange)="setHfRowType(f.filename, $event)"
+                      />
                       @switch (fileStatus(f.filename)) {
                         @case ('installed') {
                           <button class="btn-library">In library</button>

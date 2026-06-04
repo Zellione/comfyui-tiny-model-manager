@@ -32,6 +32,50 @@ async def _set_model_tags(db, model_id: int, tags: list[str]) -> None:
     await _prune_orphan_tags(db)
 
 
+async def _upsert_model_row(
+    db,
+    filename: str,
+    model_type: str,
+    source_platform: str,
+    source_id: str,
+    description: str,
+    base_model: str,
+    civitai_model_id: str,
+    media_hash: str,
+) -> int:
+    """Insert/update the models row and return its id (does not commit)."""
+    cursor = await db.execute(
+        """
+        INSERT INTO models (filename, model_type, source_platform, source_id, description, base_model, civitai_model_id, media_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(filename) DO UPDATE SET
+            model_type = excluded.model_type,
+            source_platform = excluded.source_platform,
+            source_id = excluded.source_id,
+            description = excluded.description,
+            base_model = CASE WHEN excluded.base_model != '' THEN excluded.base_model ELSE base_model END,
+            civitai_model_id = excluded.civitai_model_id,
+            media_hash = excluded.media_hash
+        """,
+        (
+            filename,
+            model_type,
+            source_platform,
+            source_id,
+            description[:_MAX_DESCRIPTION],
+            base_model,
+            civitai_model_id,
+            media_hash,
+        ),
+    )
+    if cursor.lastrowid:
+        return cursor.lastrowid
+    row = await (
+        await db.execute("SELECT id FROM models WHERE filename = ?", (filename,))
+    ).fetchone()
+    return row["id"]
+
+
 async def upsert_model(
     filename: str,
     model_type: str,
@@ -43,37 +87,19 @@ async def upsert_model(
     media_hash: str = "",
 ) -> int:
     async with get_db() as db:
-        cursor = await db.execute(
-            """
-            INSERT INTO models (filename, model_type, source_platform, source_id, description, base_model, civitai_model_id, media_hash)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(filename) DO UPDATE SET
-                model_type = excluded.model_type,
-                source_platform = excluded.source_platform,
-                source_id = excluded.source_id,
-                description = excluded.description,
-                base_model = CASE WHEN excluded.base_model != '' THEN excluded.base_model ELSE base_model END,
-                civitai_model_id = excluded.civitai_model_id,
-                media_hash = excluded.media_hash
-            """,
-            (
-                filename,
-                model_type,
-                source_platform,
-                source_id,
-                description[:_MAX_DESCRIPTION],
-                base_model,
-                civitai_model_id,
-                media_hash,
-            ),
+        model_id = await _upsert_model_row(
+            db,
+            filename,
+            model_type,
+            source_platform,
+            source_id,
+            description,
+            base_model,
+            civitai_model_id,
+            media_hash,
         )
         await db.commit()
-        if cursor.lastrowid:
-            return cursor.lastrowid
-        row = await (
-            await db.execute("SELECT id FROM models WHERE filename = ?", (filename,))
-        ).fetchone()
-        return row["id"]
+        return model_id
 
 
 async def upsert_model_with_meta(
@@ -89,38 +115,17 @@ async def upsert_model_with_meta(
     media_hash: str = "",
 ) -> int:
     async with get_db() as db:
-        cursor = await db.execute(
-            """
-            INSERT INTO models (filename, model_type, source_platform, source_id, description, base_model, civitai_model_id, media_hash)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(filename) DO UPDATE SET
-                model_type = excluded.model_type,
-                source_platform = excluded.source_platform,
-                source_id = excluded.source_id,
-                description = excluded.description,
-                base_model = CASE WHEN excluded.base_model != '' THEN excluded.base_model ELSE base_model END,
-                civitai_model_id = excluded.civitai_model_id,
-                media_hash = excluded.media_hash
-            """,
-            (
-                filename,
-                model_type,
-                source_platform,
-                source_id,
-                description[:_MAX_DESCRIPTION],
-                base_model,
-                civitai_model_id,
-                media_hash,
-            ),
+        model_id = await _upsert_model_row(
+            db,
+            filename,
+            model_type,
+            source_platform,
+            source_id,
+            description,
+            base_model,
+            civitai_model_id,
+            media_hash,
         )
-        if cursor.lastrowid:
-            model_id = cursor.lastrowid
-        else:
-            row = await (
-                await db.execute("SELECT id FROM models WHERE filename = ?", (filename,))
-            ).fetchone()
-            model_id = row["id"]
-
         await db.execute("DELETE FROM trigger_words WHERE model_id = ?", (model_id,))
         await db.executemany(
             "INSERT INTO trigger_words (model_id, word) VALUES (?, ?)",
@@ -168,33 +173,32 @@ async def add_media(model_id: int, media_type: str, local_path: str) -> int:
         return cursor.lastrowid
 
 
+async def _hydrate_model(db, row) -> dict:
+    """Attach trigger_words, tags and media lists to a models row."""
+    model = dict(row)
+    model_id = model["id"]
+    words = await (
+        await db.execute("SELECT word FROM trigger_words WHERE model_id = ?", (model_id,))
+    ).fetchall()
+    media = await (await db.execute(_MEDIA_SELECT, (model_id,))).fetchall()
+    tags = await (
+        await db.execute(
+            "SELECT t.name FROM tags t JOIN model_tags mt ON mt.tag_id = t.id WHERE mt.model_id = ?",
+            (model_id,),
+        )
+    ).fetchall()
+    model["trigger_words"] = [r["word"] for r in words]
+    model["tags"] = [r["name"] for r in tags]
+    model["media"] = [dict(r) for r in media]
+    return model
+
+
 async def get_model_by_filename(filename: str) -> dict | None:
     async with get_db() as db:
         row = await (
             await db.execute("SELECT * FROM models WHERE filename = ?", (filename,))
         ).fetchone()
-        if not row:
-            return None
-        model = dict(row)
-        words = await (
-            await db.execute("SELECT word FROM trigger_words WHERE model_id = ?", (model["id"],))
-        ).fetchall()
-        media = await (
-            await db.execute(
-                _MEDIA_SELECT,
-                (model["id"],),
-            )
-        ).fetchall()
-        tags = await (
-            await db.execute(
-                "SELECT t.name FROM tags t JOIN model_tags mt ON mt.tag_id = t.id WHERE mt.model_id = ?",
-                (model["id"],),
-            )
-        ).fetchall()
-        model["trigger_words"] = [r["word"] for r in words]
-        model["tags"] = [r["name"] for r in tags]
-        model["media"] = [dict(r) for r in media]
-        return model
+        return await _hydrate_model(db, row) if row else None
 
 
 async def get_metadata_by_filenames(filenames: list[str]) -> dict[str, dict]:
@@ -207,26 +211,8 @@ async def get_metadata_by_filenames(filenames: list[str]) -> dict[str, dict]:
         ).fetchall()
         result = {}
         for row in rows:
-            m = dict(row)
-            words = await (
-                await db.execute("SELECT word FROM trigger_words WHERE model_id = ?", (m["id"],))
-            ).fetchall()
-            media = await (
-                await db.execute(
-                    _MEDIA_SELECT,
-                    (m["id"],),
-                )
-            ).fetchall()
-            tags = await (
-                await db.execute(
-                    "SELECT t.name FROM tags t JOIN model_tags mt ON mt.tag_id = t.id WHERE mt.model_id = ?",
-                    (m["id"],),
-                )
-            ).fetchall()
-            m["trigger_words"] = [r["word"] for r in words]
-            m["tags"] = [r["name"] for r in tags]
-            m["media"] = [dict(r) for r in media]
-            result[m["filename"]] = m
+            model = await _hydrate_model(db, row)
+            result[model["filename"]] = model
         return result
 
 

@@ -1,12 +1,4 @@
-import {
-  Component,
-  DestroyRef,
-  HostListener,
-  OnInit,
-  computed,
-  inject,
-  signal,
-} from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -24,9 +16,11 @@ import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
 import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
+import { formatBytes } from '../../utils/format';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
 import { EditMetaForm } from '../../components/edit-meta-form/edit-meta-form';
 import { RefetchReviewModal } from '../../components/refetch-review-modal/refetch-review-modal';
+import { MediaGallery } from '../../components/media-gallery/media-gallery';
 
 @Component({
   selector: 'app-model-detail',
@@ -38,6 +32,7 @@ import { RefetchReviewModal } from '../../components/refetch-review-modal/refetc
     BaseModelSelect,
     EditMetaForm,
     RefetchReviewModal,
+    MediaGallery,
   ],
   templateUrl: './model-detail.html',
   styleUrl: './model-detail.scss',
@@ -59,9 +54,7 @@ export class ModelDetail implements OnInit {
   error = signal('');
   editMode = signal(false);
   showUninstallConfirm = signal(false);
-  galleryIdx = signal(0);
   copied = signal(false);
-  lightboxOpen = signal(false);
   repoFiles = signal<RepoFile[]>([]);
   fileBaseModels = signal<Record<string, string>>({});
   pendingDeleteFile = signal<RepoFile | null>(null);
@@ -76,18 +69,6 @@ export class ModelDetail implements OnInit {
 
   readonly displayTitle = computed(() => this.catalogEntry()?.display_name || this.modelBasename);
   readonly showLinkSourcePanel = computed(() => !this.meta()?.source_url);
-
-  @HostListener('document:keydown.escape')
-  onEscapeKey() {
-    if (this.lightboxOpen()) this.lightboxOpen.set(false);
-  }
-
-  readonly activeMedia = computed(() => {
-    const m = this.meta();
-    const idx = this.galleryIdx();
-    if (!m?.media?.length) return null;
-    return m.media[Math.min(idx, m.media.length - 1)];
-  });
 
   readonly eyebrowParts = computed(() => {
     const parts: string[] = [];
@@ -424,14 +405,5 @@ export class ModelDetail implements OnInit {
     }
   }
 
-  mediaUrl(path: string): string {
-    return `/tiny-model-manager/api/media/${encodeURIComponent(path)}`;
-  }
-
-  formatBytes(bytes: number): string {
-    if (!bytes) return '';
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-    return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
-  }
+  formatBytes = formatBytes;
 }

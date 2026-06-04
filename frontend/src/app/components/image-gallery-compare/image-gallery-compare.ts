@@ -1,6 +1,7 @@
 import { Component, effect, input, model } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MediaItem } from '../../services/model';
+import { mediaUrl } from '../../utils/media';
 
 @Component({
   selector: 'app-image-gallery-compare',
@@ -21,9 +22,7 @@ export class ImageGalleryCompare {
     });
   }
 
-  mediaUrl(localPath: string): string {
-    return `/tiny-model-manager/api/media/${encodeURIComponent(localPath)}`;
-  }
+  mediaUrl = mediaUrl;
 
   toggleIncoming(url: string) {
     const current = this.selectedIncoming();

@@ -11,21 +11,8 @@ so curated metadata is never lost to a transient storage outage.
 
 import os
 
-import folder_paths
-
-from .. import config as cfg
 from ..db import model_repo
-
-
-def _candidate_dirs(model_type: str) -> list[str]:
-    dirs: list[str] = []
-    registered, _ = folder_paths.folder_names_and_paths.get(model_type, ([], {}))
-    dirs.extend(registered)
-    models_dir = getattr(folder_paths, "models_dir", None)
-    if models_dir:
-        dirs.append(os.path.join(models_dir, model_type))
-    dirs.append(os.path.join(cfg.data_dir(), "models", model_type))
-    return dirs
+from . import model_paths
 
 
 def _file_status(model_type: str, filename: str) -> str:
@@ -35,7 +22,7 @@ def _file_status(model_type: str, filename: str) -> str:
     of them. 'unknown' means no candidate directory is accessible.
     """
     any_dir = False
-    for base_dir in _candidate_dirs(model_type):
+    for base_dir in model_paths.candidate_dirs(model_type):
         if os.path.isdir(base_dir):
             any_dir = True
             if os.path.isfile(os.path.join(base_dir, filename)):

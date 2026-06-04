@@ -109,43 +109,7 @@
         <!-- ── Read view ── -->
 
         <!-- Gallery -->
-        <div class="gallery">
-          @if (meta()!.media && meta()!.media.length > 0) {
-            <div class="gallery-main">
-              @if (activeMedia(); as m) {
-                @if (m.media_type === 'image') {
-                  <img
-                    [src]="mediaUrl(m.local_path)"
-                    alt="preview"
-                    class="gallery-main-img"
-                    (click)="lightboxOpen.set(true)"
-                  />
-                } @else {
-                  <video [src]="mediaUrl(m.local_path)" controls></video>
-                }
-              }
-            </div>
-            @if (meta()!.media.length > 1) {
-              <div class="gallery-thumbs">
-                @for (thumb of meta()!.media; track thumb.id; let i = $index) {
-                  <div
-                    class="gallery-thumb"
-                    [class.active]="i === galleryIdx()"
-                    (click)="galleryIdx.set(i)"
-                  >
-                    @if (thumb.media_type === 'image') {
-                      <img [src]="mediaUrl(thumb.local_path)" alt="" />
-                    } @else {
-                      <div class="gallery-thumb-video">▶</div>
-                    }
-                  </div>
-                }
-              </div>
-            }
-          } @else {
-            <div class="gallery-main gallery-placeholder">NO PREVIEW</div>
-          }
-        </div>
+        <app-media-gallery [media]="meta()!.media" />
 
         <!-- Tags -->
         @if (meta()!.tags && meta()!.tags.length > 0) {
@@ -235,12 +199,6 @@
   }
 
   <!-- Lightbox -->
-  @if (lightboxOpen() && activeMedia()?.media_type === 'image') {
-    <div class="lightbox" (click)="lightboxOpen.set(false)">
-      <img [src]="mediaUrl(activeMedia()!.local_path)" alt="full size preview" />
-    </div>
-  }
-
   <!-- Refetch review modal -->
   @if (showRefetchModal() && refetchPreviewData()) {
     <app-refetch-review-modal

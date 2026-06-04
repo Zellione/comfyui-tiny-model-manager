@@ -24,14 +24,23 @@ import { DownloadService, DownloadTask } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
 import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
+import { formatBytes } from '../../utils/format';
+import { mediaUrl } from '../../utils/media';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
 import { EditMetaForm } from '../../components/edit-meta-form/edit-meta-form';
-
-const MEDIA_API = '/tiny-model-manager/api/media';
+import { MediaGallery } from '../../components/media-gallery/media-gallery';
 
 @Component({
   selector: 'app-catalog-detail',
-  imports: [CommonModule, FormsModule, RouterLink, SafeHtmlPipe, BaseModelSelect, EditMetaForm],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    SafeHtmlPipe,
+    BaseModelSelect,
+    EditMetaForm,
+    MediaGallery,
+  ],
   templateUrl: './catalog-detail.html',
   styleUrl: './catalog-detail.scss',
 })
@@ -59,8 +68,6 @@ export class CatalogDetail implements OnInit {
   repoFiles = signal<RepoFile[]>([]);
   fileBaseModels = signal<Record<string, string>>({});
   copied = signal(false);
-  galleryIdx = signal(0);
-  lightboxOpen = signal(false);
 
   pendingUninstallRepoFile = signal<RepoFile | null>(null);
   deleting = signal(false);
@@ -111,17 +118,9 @@ export class CatalogDetail implements OnInit {
   readonly displayTags = computed(() => this.entry()?.tags ?? []);
   readonly displayMedia = computed(() => this.entry()?.media ?? []);
 
-  readonly activeMedia = computed(() => {
-    const media = this.displayMedia();
-    const idx = this.galleryIdx();
-    if (!media.length) return null;
-    return media[Math.min(idx, media.length - 1)];
-  });
-
   @HostListener('document:keydown.escape')
   onEscapeKey() {
-    if (this.lightboxOpen()) this.lightboxOpen.set(false);
-    else if (this.pendingUninstallRepoFile()) this.pendingUninstallRepoFile.set(null);
+    if (this.pendingUninstallRepoFile()) this.pendingUninstallRepoFile.set(null);
   }
 
   constructor(
@@ -444,14 +443,6 @@ export class CatalogDetail implements OnInit {
     });
   }
 
-  mediaUrl(path: string): string {
-    return `${MEDIA_API}/${encodeURIComponent(path)}`;
-  }
-
-  formatBytes(bytes: number | null): string {
-    if (!bytes) return '';
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-    return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
-  }
+  mediaUrl = mediaUrl;
+  formatBytes = formatBytes;
 }
