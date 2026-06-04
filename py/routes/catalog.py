@@ -7,6 +7,7 @@ from aiohttp import web
 from .. import config as cfg
 from ..db import model_repo
 from ..services import model_paths
+from ._helpers import err, json_route, ok
 
 _MEDIA_VIDEO_EXTS = {"mp4", "webm", "mov"}
 _CATALOG_NOT_FOUND = "Catalog entry not found"
@@ -193,14 +194,14 @@ def _collect_unknown(all_files: dict, cataloged: set[str]) -> dict:
 async def _handle_get_catalog_entry(platform: str, page_id: str) -> web.Response:
     entry = await model_repo.get_catalog_entry(platform, page_id)
     if not entry:
-        return web.json_response({"success": False, "error": _CATALOG_NOT_FOUND}, status=404)
-    return web.json_response({"success": True, "data": _annotate_catalog_detail(entry)})
+        return err(_CATALOG_NOT_FOUND, status=404)
+    return ok(_annotate_catalog_detail(entry))
 
 
 async def _handle_update_catalog_metadata(platform: str, page_id: str, body: dict) -> web.Response:
     # Absent keys are left unchanged; present keys are written verbatim (so the
     # user can clear fields).
-    ok = await model_repo.update_catalog_metadata(
+    matched = await model_repo.update_catalog_metadata(
         platform,
         page_id,
         description=body.get("description"),
@@ -208,74 +209,57 @@ async def _handle_update_catalog_metadata(platform: str, page_id: str, body: dic
         tags=body.get("tags"),
         base_model=body.get("base_model"),
     )
-    if not ok:
-        return web.json_response({"success": False, "error": _CATALOG_NOT_FOUND}, status=404)
-    return web.json_response({"success": True})
+    if not matched:
+        return err(_CATALOG_NOT_FOUND, status=404)
+    return ok()
 
 
 def add_catalog_routes(routes):
 
     @routes.get("/tiny-model-manager/api/catalog")
+    @json_route
     async def list_catalog(request):
-        try:
-            entries = await model_repo.list_catalog_entries()
-            all_files = _scan_all_files()
-            entries, cataloged = _annotate_entries(entries)
-            unknown = _collect_unknown(all_files, cataloged)
-            return web.json_response(
-                {"success": True, "data": {"entries": entries, "unknown_files": unknown}}
-            )
-        except Exception as exc:
-            return web.json_response({"success": False, "error": str(exc)}, status=500)
+        entries = await model_repo.list_catalog_entries()
+        all_files = _scan_all_files()
+        entries, cataloged = _annotate_entries(entries)
+        unknown = _collect_unknown(all_files, cataloged)
+        return ok({"entries": entries, "unknown_files": unknown})
 
     @routes.get("/tiny-model-manager/api/catalog/{platform}/{page_id:.*}")
+    @json_route
     async def get_catalog_entry(request):
-        try:
-            return await _handle_get_catalog_entry(
-                request.match_info["platform"], request.match_info["page_id"]
-            )
-        except Exception as exc:
-            return web.json_response({"success": False, "error": str(exc)}, status=500)
+        return await _handle_get_catalog_entry(
+            request.match_info["platform"], request.match_info["page_id"]
+        )
 
     @routes.put("/tiny-model-manager/api/catalog/{platform}/{page_id:.*}/metadata")
+    @json_route
     async def update_catalog_metadata(request):
-        try:
-            return await _handle_update_catalog_metadata(
-                request.match_info["platform"],
-                request.match_info["page_id"],
-                await request.json(),
-            )
-        except Exception as exc:
-            return web.json_response({"success": False, "error": str(exc)}, status=500)
+        return await _handle_update_catalog_metadata(
+            request.match_info["platform"],
+            request.match_info["page_id"],
+            await request.json(),
+        )
 
     @routes.post("/tiny-model-manager/api/catalog/{platform}/{page_id:.*}/refetch")
+    @json_route
     async def refetch_catalog_entry(request):
         platform = request.match_info["platform"]
         page_id = request.match_info["page_id"]
-        try:
-            from ..services.metadata_fetcher import refetch_catalog_metadata
+        from ..services.metadata_fetcher import refetch_catalog_metadata
 
-            entry = await refetch_catalog_metadata(platform, page_id)
-            if entry is None:
-                return web.json_response(
-                    {"success": False, "error": "Could not fetch metadata from source"},
-                    status=502,
-                )
-            return web.json_response({"success": True, "data": _annotate_catalog_detail(entry)})
-        except Exception as exc:
-            return web.json_response({"success": False, "error": str(exc)}, status=500)
+        entry = await refetch_catalog_metadata(platform, page_id)
+        if entry is None:
+            return err("Could not fetch metadata from source", status=502)
+        return ok(_annotate_catalog_detail(entry))
 
     @routes.delete("/tiny-model-manager/api/catalog/{platform}/{page_id:.*}")
+    @json_route
     async def delete_catalog_entry(request):
         platform = request.match_info["platform"]
         page_id = request.match_info["page_id"]
-        try:
-            result = await model_repo.delete_catalog_entry(platform, page_id)
-            if result is None:
-                return web.json_response(
-                    {"success": False, "error": _CATALOG_NOT_FOUND}, status=404
-                )
-            _delete_media_paths(result["media_paths"])
-            return web.json_response({"success": True})
-        except Exception as exc:
-            return web.json_response({"success": False, "error": str(exc)}, status=500)
+        result = await model_repo.delete_catalog_entry(platform, page_id)
+        if result is None:
+            return err(_CATALOG_NOT_FOUND, status=404)
+        _delete_media_paths(result["media_paths"])
+        return ok()
