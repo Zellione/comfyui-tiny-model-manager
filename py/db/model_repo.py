@@ -11,6 +11,9 @@ _MAX_TAG = 200
 _MAX_PATH = 1_000
 _ALLOWED_MEDIA_TYPES = {"image", "video"}
 _MEDIA_SELECT = "SELECT id, media_type, local_path FROM model_media WHERE model_id = ?"
+_REPO_FILES_FROM_WHERE = " FROM repo_files WHERE catalog_entry_id = ?"
+_DELETE_TRIGGER_WORDS = "DELETE FROM trigger_words WHERE model_id = ?"
+_INSERT_TRIGGER_WORD = "INSERT INTO trigger_words (model_id, word) VALUES (?, ?)"
 
 
 async def _prune_orphan_tags(db) -> None:
@@ -126,9 +129,9 @@ async def upsert_model_with_meta(
             civitai_model_id,
             media_hash,
         )
-        await db.execute("DELETE FROM trigger_words WHERE model_id = ?", (model_id,))
+        await db.execute(_DELETE_TRIGGER_WORDS, (model_id,))
         await db.executemany(
-            "INSERT INTO trigger_words (model_id, word) VALUES (?, ?)",
+            _INSERT_TRIGGER_WORD,
             [(model_id, w[:_MAX_WORD]) for w in trigger_words],
         )
         await _set_model_tags(db, model_id, tags)
@@ -138,9 +141,9 @@ async def upsert_model_with_meta(
 
 async def set_trigger_words(model_id: int, words: list[str]):
     async with get_db() as db:
-        await db.execute("DELETE FROM trigger_words WHERE model_id = ?", (model_id,))
+        await db.execute(_DELETE_TRIGGER_WORDS, (model_id,))
         await db.executemany(
-            "INSERT INTO trigger_words (model_id, word) VALUES (?, ?)",
+            _INSERT_TRIGGER_WORD,
             [(model_id, w[:_MAX_WORD]) for w in words],
         )
         await db.commit()
@@ -253,9 +256,9 @@ async def update_model_meta(
             if row:
                 model_id = row["id"]
                 if trigger_words is not None:
-                    await db.execute("DELETE FROM trigger_words WHERE model_id = ?", (model_id,))
+                    await db.execute(_DELETE_TRIGGER_WORDS, (model_id,))
                     await db.executemany(
-                        "INSERT INTO trigger_words (model_id, word) VALUES (?, ?)",
+                        _INSERT_TRIGGER_WORD,
                         [(model_id, w[:_MAX_WORD]) for w in trigger_words],
                     )
                     await db.execute(
@@ -524,7 +527,7 @@ async def get_catalog_entry(source_platform: str, source_page_id: str) -> dict |
         entry["tags"] = _parse_json_list(entry.get("tags", ""))
         repo_files = await (
             await db.execute(
-                _REPO_FILE_COLS + " FROM repo_files WHERE catalog_entry_id = ?",
+                _REPO_FILE_COLS + _REPO_FILES_FROM_WHERE,
                 (entry["id"],),
             )
         ).fetchall()
@@ -612,7 +615,7 @@ async def get_repo_files_by_catalog(catalog_entry_id: int) -> list[dict]:
     async with get_db() as db:
         rows = await (
             await db.execute(
-                _REPO_FILE_COLS + " FROM repo_files WHERE catalog_entry_id = ?",
+                _REPO_FILE_COLS + _REPO_FILES_FROM_WHERE,
                 (catalog_entry_id,),
             )
         ).fetchall()
@@ -632,7 +635,7 @@ async def get_repo_files(_model_type: str, model_path: str) -> list[dict]:
             return []
         rows = await (
             await db.execute(
-                _REPO_FILE_COLS + " FROM repo_files WHERE catalog_entry_id = ?",
+                _REPO_FILE_COLS + _REPO_FILES_FROM_WHERE,
                 (row["catalog_entry_id"],),
             )
         ).fetchall()

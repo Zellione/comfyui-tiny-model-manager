@@ -20,6 +20,9 @@ import pytest
 
 _MODELS_DIR = tempfile.mkdtemp(prefix="comfyui_models_")
 
+_COMFY_SD = "comfy.sd"
+_COMFY_UTILS = "comfy.utils"
+
 
 def _make_folder_paths_stub(models_dir: str) -> types.ModuleType:
     mod = types.ModuleType("folder_paths")
@@ -61,25 +64,25 @@ def _install_stubs(models_dir: str) -> None:
 
     for name in (
         "comfy",
-        "comfy.sd",
-        "comfy.utils",
+        _COMFY_SD,
+        _COMFY_UTILS,
         "comfy.controlnet",
         "comfy_extras",
         "comfy_extras.chainner_models",
     ):
         sys.modules.setdefault(name, types.ModuleType(name))
 
-    comfy_sd = sys.modules["comfy.sd"]
+    comfy_sd = sys.modules[_COMFY_SD]
     if not hasattr(comfy_sd, "load_lora_for_models"):
         comfy_sd.load_lora_for_models = lambda m, c, lora, sm, sc: (m, c)  # type: ignore[attr-defined]
 
-    comfy_utils = sys.modules["comfy.utils"]
+    comfy_utils = sys.modules[_COMFY_UTILS]
     if not hasattr(comfy_utils, "load_torch_file"):
         comfy_utils.load_torch_file = lambda path, safe_load=True: {}  # type: ignore[attr-defined]
 
     # Wire sub-module attributes so ``comfy.sd`` etc. resolve after import
-    sys.modules["comfy"].sd = sys.modules["comfy.sd"]  # type: ignore[attr-defined]
-    sys.modules["comfy"].utils = sys.modules["comfy.utils"]  # type: ignore[attr-defined]
+    sys.modules["comfy"].sd = sys.modules[_COMFY_SD]  # type: ignore[attr-defined]
+    sys.modules["comfy"].utils = sys.modules[_COMFY_UTILS]  # type: ignore[attr-defined]
     sys.modules["comfy"].controlnet = sys.modules["comfy.controlnet"]  # type: ignore[attr-defined]
     sys.modules["comfy_extras"].chainner_models = sys.modules["comfy_extras.chainner_models"]  # type: ignore[attr-defined]
 
