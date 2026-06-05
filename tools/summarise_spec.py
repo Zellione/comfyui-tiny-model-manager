@@ -63,17 +63,14 @@ _PREAMBLE = re.compile(
 )
 
 
-def _bullets_under(section: str, heading_pattern: re.Pattern[str]) -> list[str]:
-    """Return bullet text under the first matching heading, stopping at the next bold heading.
+def _lines_under_heading(section: str, heading_pattern: re.Pattern[str]) -> list[str]:
+    """Return the lines following the first matching heading, up to the next bold heading.
 
-    Continuation lines (indented with 2+ spaces, no leading dash) are joined onto the
-    previous bullet so multi-line PRD bullets become single YAML strings.
+    Blockquote lines are dropped, and the heading line itself is excluded.
     """
-    lines = section.splitlines()
-    result: list[str] = []
+    block: list[str] = []
     active = False
-    current: str | None = None
-    for line in lines:
+    for line in section.splitlines():
         if line.startswith(">"):
             continue
         if heading_pattern.match(line):
@@ -83,6 +80,19 @@ def _bullets_under(section: str, heading_pattern: re.Pattern[str]) -> list[str]:
             continue
         if re.match(r"^\*\*[^*]", line):
             break
+        block.append(line)
+    return block
+
+
+def _bullets_under(section: str, heading_pattern: re.Pattern[str]) -> list[str]:
+    """Return bullet text under the first matching heading, stopping at the next bold heading.
+
+    Continuation lines (indented with 2+ spaces, no leading dash) are joined onto the
+    previous bullet so multi-line PRD bullets become single YAML strings.
+    """
+    result: list[str] = []
+    current: str | None = None
+    for line in _lines_under_heading(section, heading_pattern):
         m = re.match(r"^- (.+)$", line)
         if m:
             if current is not None:
