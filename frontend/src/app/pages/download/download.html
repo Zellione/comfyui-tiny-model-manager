@@ -1,10 +1,13 @@
 <h2>Download Models</h2>
 
 <!-- Active downloads -->
-@if (activeTasks().length > 0) {
+@if (displayTasks().length > 0) {
   <section class="active-downloads">
-    <h3>Active Downloads</h3>
-    @for (task of activeTasks(); track task.id) {
+    <div class="active-downloads-header">
+      <h3>Active Downloads</h3>
+      <button class="btn-secondary" (click)="onCancelAll()">Cancel all</button>
+    </div>
+    @for (task of displayTasks(); track task.id) {
       <div class="task-row">
         <span class="task-name">{{ task.filename }}</span>
         <span class="badge">{{ task.status }}</span>
@@ -14,6 +17,13 @@
           <div class="progress-bar"><div class="fill" [style.width]="activePct(task)"></div></div>
           <span class="pct">{{ activePct(task) }}</span>
         }
+        <button
+          class="btn-secondary"
+          [disabled]="cancellingIds().has(task.id)"
+          (click)="onCancelTask(task.id)"
+        >
+          {{ cancellingIds().has(task.id) ? '…' : 'Cancel' }}
+        </button>
       </div>
     }
   </section>

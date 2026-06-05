@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of, throwError, EMPTY } from 'rxjs';
+import { of, throwError, EMPTY, Subject } from 'rxjs';
 import { vi } from 'vitest';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Download } from './download';
@@ -38,6 +38,7 @@ const mockDownloadService = {
   activeTasks$: of([] as DownloadTask[]),
   completedTasks$: EMPTY,
   startDownload: vi.fn().mockReturnValue(of({})),
+  cancelDownload: vi.fn().mockReturnValue(of(void 0)),
 };
 
 const mockModelService = {
@@ -347,5 +348,103 @@ describe('Download component — F-37 Load More', () => {
 
       expect(c.loadingMore()).toBe(false);
     });
+  });
+});
+
+describe('Download component — F-43 Cancel Download', () => {
+  const activeTask = (): DownloadTask => ({
+    id: 'task-1',
+    url: 'https://example.com/m.safetensors',
+    model_type: 'loras',
+    filename: 'm.safetensors',
+    platform: 'civitai',
+    source_id: '123',
+    status: 'downloading',
+    progress: 50,
+    downloaded_bytes: 512,
+    total_bytes: 1024,
+    error: null,
+  });
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mockDownloadService.activeTasks$ = of([activeTask()]);
+    mockDownloadService.cancelDownload.mockReturnValue(of(void 0));
+    mockModelService.listModels.mockReturnValue(of({}));
+    mockCivitaiService.search.mockReturnValue(of({ items: [], metadata: {} }));
+    mockHfService.search.mockReturnValue(of({ items: [], hasMore: false, nextPage: 1 }));
+
+    await TestBed.configureTestingModule({
+      imports: [Download],
+      providers: [
+        provideRouter([]),
+        { provide: CivitaiService, useValue: mockCivitaiService },
+        { provide: HuggingFaceService, useValue: mockHfService },
+        { provide: DownloadService, useValue: mockDownloadService },
+        { provide: ModelService, useValue: mockModelService },
+        { provide: NotificationService, useValue: mockNotifService },
+      ],
+    }).compileComponents();
+  });
+
+  async function createFixture() {
+    const fixture = TestBed.createComponent(Download);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    return fixture;
+  }
+
+  it('onCancelTask calls cancelDownload with the task id', async () => {
+    const fixture = await createFixture();
+    fixture.componentInstance.onCancelTask('task-1');
+    expect(mockDownloadService.cancelDownload).toHaveBeenCalledWith('task-1');
+  });
+
+  it('adds task to cancelledIds on success', async () => {
+    const fixture = await createFixture();
+    fixture.componentInstance.onCancelTask('task-1');
+    expect(fixture.componentInstance.cancelledIds().has('task-1')).toBe(true);
+  });
+
+  it('adds task to cancelledIds on 404 (already done)', async () => {
+    mockDownloadService.cancelDownload.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 404 })),
+    );
+    const fixture = await createFixture();
+    fixture.componentInstance.onCancelTask('task-1');
+    expect(fixture.componentInstance.cancelledIds().has('task-1')).toBe(true);
+  });
+
+  it('tracks in-flight cancellation in cancellingIds', async () => {
+    const subject = new Subject<void>();
+    mockDownloadService.cancelDownload.mockReturnValue(subject.asObservable());
+    const fixture = await createFixture();
+
+    fixture.componentInstance.onCancelTask('task-1');
+    expect(fixture.componentInstance.cancellingIds().has('task-1')).toBe(true);
+
+    subject.next();
+    subject.complete();
+    expect(fixture.componentInstance.cancellingIds().has('task-1')).toBe(false);
+  });
+
+  it('displayTasks excludes cancelled ids', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    expect(c.displayTasks().length).toBe(1);
+    c.onCancelTask('task-1');
+    expect(c.displayTasks().length).toBe(0);
+  });
+
+  it('onCancelAll cancels every display task', async () => {
+    const tasks: DownloadTask[] = [
+      { ...activeTask(), id: 'task-1', filename: 'a.safetensors' },
+      { ...activeTask(), id: 'task-2', filename: 'b.safetensors', status: 'queued' },
+    ];
+    mockDownloadService.activeTasks$ = of(tasks);
+    const fixture = await createFixture();
+    fixture.componentInstance.onCancelAll();
+    expect(mockDownloadService.cancelDownload).toHaveBeenCalledWith('task-1');
+    expect(mockDownloadService.cancelDownload).toHaveBeenCalledWith('task-2');
   });
 });
