@@ -41,11 +41,11 @@ def add_download_routes(routes):
         p = int(request.rel_url.query.get("p", 0))
         sort = request.rel_url.query.get("sort", "downloads")
         direction = int(request.rel_url.query.get("direction", -1))
-        format = request.rel_url.query.get("format", "")
+        file_format = request.rel_url.query.get("format", "")
         tags_raw = request.rel_url.query.get("tags", "")
         tags = [t.strip() for t in tags_raw.split(",") if t.strip()]
         data = await huggingface.search(
-            q, model_type, p=p, sort=sort, direction=direction, format=format, tags=tags
+            q, model_type, p=p, sort=sort, direction=direction, format=file_format, tags=tags
         )
         return ok(data)
 

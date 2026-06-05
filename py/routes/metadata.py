@@ -139,7 +139,7 @@ def add_metadata_routes(routes):
                 old_base_model = (existing or {}).get("base_model", "")
                 if old_base_model != new_base_model:
                     try:
-                        new_path = await _move_to_subfolder(path, model_type, new_base_model)
+                        new_path = _move_to_subfolder(path, model_type, new_base_model)
                         if new_path != path:
                             await model_repo.update_model_filename(path, new_path)
                             path = new_path
