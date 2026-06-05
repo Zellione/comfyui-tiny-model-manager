@@ -20,6 +20,18 @@ def _compute_media_hash(platform: str, source_id: str, filename: str) -> str:
     return hashlib.sha1(key.encode()).hexdigest()
 
 
+def _media_subdir(media_hash: str) -> str:
+    """Return the per-model media directory, guarding against path traversal.
+
+    ``media_hash`` is a digest from ``_compute_media_hash``.  Restricting it to
+    a single path segment with no separators or dots keeps the join strictly
+    inside the media directory (no ``..`` or absolute-path escapes).
+    """
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", media_hash):
+        raise ValueError(f"Invalid media hash: {media_hash!r}")
+    return os.path.join(cfg.media_dir(), media_hash)
+
+
 async def fetch_metadata_only(platform: str, source_id: str) -> ProviderMetadata:
     """Fetch metadata from the upstream provider without persisting anything.
 
@@ -219,7 +231,7 @@ async def migrate_existing_media():
             media_hash = _compute_media_hash(
                 row["source_platform"] or "", row["source_id"] or "", row["filename"]
             )
-            new_dir = os.path.join(cfg.media_dir(), media_hash)
+            new_dir = _media_subdir(media_hash)
             os.makedirs(new_dir, exist_ok=True)
 
             media_rows = await (
@@ -286,7 +298,7 @@ async def _fetch_url_to_file(
 
 async def _iter_downloaded_urls(media_hash: str, urls: list[str]) -> list[tuple[str, str]]:
     """Download up to 5 URLs into the media hash dir; return (dest, ext) pairs."""
-    dest_dir = os.path.join(cfg.media_dir(), media_hash)
+    dest_dir = _media_subdir(media_hash)
     os.makedirs(dest_dir, exist_ok=True)
     results: list[tuple[str, str]] = []
     async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
