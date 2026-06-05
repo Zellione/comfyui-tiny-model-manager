@@ -124,7 +124,7 @@ const API = '/tiny-model-manager/api';
 
 @Injectable({ providedIn: 'root' })
 export class ModelService {
-  constructor(private http: HttpClient) {}
+  constructor(private readonly http: HttpClient) {}
 
   listModels(): Observable<Record<string, ModelFile[]>> {
     return this.http

@@ -67,7 +67,7 @@ export class TextDiffField {
   constructor() {
     effect(() => {
       const old = this.oldValue();
-      this.selected.set(!old?.trim() ? 'new' : 'old');
+      this.selected.set(old?.trim() ? 'old' : 'new');
     });
   }
 

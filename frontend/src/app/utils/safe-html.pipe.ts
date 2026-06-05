@@ -4,7 +4,7 @@ import DOMPurify from 'dompurify';
 
 @Pipe({ name: 'safeHtml', standalone: true })
 export class SafeHtmlPipe implements PipeTransform {
-  constructor(private sanitizer: DomSanitizer) {}
+  constructor(private readonly sanitizer: DomSanitizer) {}
 
   transform(value: string | null | undefined): SafeHtml {
     const clean = DOMPurify.sanitize(value ?? '', {

@@ -7,7 +7,7 @@ const API = '/tiny-model-manager/api';
 
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
-  private http = inject(HttpClient);
+  private readonly http = inject(HttpClient);
 
   getOrganizeEnabled(): Observable<boolean> {
     return this.http

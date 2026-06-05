@@ -10,7 +10,7 @@ const DURATIONS: Record<Toast['type'], number> = { success: 3000, error: 6000 };
 })
 export class ToastComponent implements OnDestroy {
   readonly notifService = inject(NotificationService);
-  private timers = new Map<number, ReturnType<typeof setTimeout>>();
+  private readonly timers = new Map<number, ReturnType<typeof setTimeout>>();
 
   constructor() {
     effect(() => {

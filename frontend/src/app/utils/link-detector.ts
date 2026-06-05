@@ -14,16 +14,24 @@ const CIVITAI_MDL_RE = /^https:\/\/civitai\.com\/models\/(\d+)/;
 export function detectLink(url: string): LinkKind {
   const s = url.trim();
   if (!s) return { type: 'empty' };
-  let m: RegExpMatchArray | null;
-  if ((m = s.match(HF_RESOLVE_RE)))
+
+  const hfResolve = HF_RESOLVE_RE.exec(s);
+  if (hfResolve)
     return {
       type: 'hf-resolve',
-      repo: m[1],
-      revision: m[2],
-      filename: decodeURIComponent(m[3].split('?')[0]),
+      repo: hfResolve[1],
+      revision: hfResolve[2],
+      filename: decodeURIComponent(hfResolve[3].split('?')[0]),
     };
-  if ((m = s.match(HF_REPO_RE))) return { type: 'hf-repo', repo: m[1] };
-  if ((m = s.match(CIVITAI_DL_RE))) return { type: 'civitai-download', versionId: +m[1] };
-  if ((m = s.match(CIVITAI_MDL_RE))) return { type: 'civitai-model', modelId: +m[1] };
+
+  const hfRepo = HF_REPO_RE.exec(s);
+  if (hfRepo) return { type: 'hf-repo', repo: hfRepo[1] };
+
+  const civitaiDl = CIVITAI_DL_RE.exec(s);
+  if (civitaiDl) return { type: 'civitai-download', versionId: +civitaiDl[1] };
+
+  const civitaiMdl = CIVITAI_MDL_RE.exec(s);
+  if (civitaiMdl) return { type: 'civitai-model', modelId: +civitaiMdl[1] };
+
   return { type: 'unknown' };
 }

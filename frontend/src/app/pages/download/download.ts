@@ -3,8 +3,16 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { toSignal, toObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Subject, skip } from 'rxjs';
-import { debounceTime, distinctUntilChanged, switchMap, of, catchError, map } from 'rxjs';
+import {
+  Subject,
+  skip,
+  debounceTime,
+  distinctUntilChanged,
+  switchMap,
+  of,
+  catchError,
+  map,
+} from 'rxjs';
 import { DownloadService, DownloadTask } from '../../services/download';
 import {
   CivitaiService,
@@ -33,13 +41,13 @@ type Platform = 'civitai' | 'huggingface';
   styleUrl: './download.scss',
 })
 export class Download {
-  private dlService = inject(DownloadService);
-  private civitaiService = inject(CivitaiService);
-  private hfService = inject(HuggingFaceService);
-  private modelService = inject(ModelService);
-  private notifService = inject(NotificationService);
-  private destroyRef = inject(DestroyRef);
-  private pasteUrl$ = new Subject<string>();
+  private readonly dlService = inject(DownloadService);
+  private readonly civitaiService = inject(CivitaiService);
+  private readonly hfService = inject(HuggingFaceService);
+  private readonly modelService = inject(ModelService);
+  private readonly notifService = inject(NotificationService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly pasteUrl$ = new Subject<string>();
 
   readonly civitaiSortOptions = [
     { label: 'Most Downloaded', value: 'Most Downloaded' },
@@ -204,9 +212,9 @@ export class Download {
   });
 
   // Intermediary so Angular stops propagating when the first tag value is unchanged (adding a 2nd+ tag).
-  private civitaiServerTag = computed(() => this.tagFilter()[0] ?? '');
+  private readonly civitaiServerTag = computed(() => this.tagFilter()[0] ?? '');
 
-  private filterParams = computed(() => ({
+  private readonly filterParams = computed(() => ({
     civitaiSort: this.civitaiSort(),
     civitaiPeriod: this.civitaiPeriod(),
     civitaiBaseModel: this.civitaiBaseModel(),
@@ -490,16 +498,16 @@ export class Download {
 
     if (this.platform() === 'civitai') {
       this.civitaiService
-        .search(
-          this.query(),
-          this.modelType(),
-          1,
-          '',
-          this.civitaiBaseModel(),
-          this.civitaiSort(),
-          this.civitaiPeriod(),
-          this.tagFilter(),
-        )
+        .search({
+          q: this.query(),
+          type: this.modelType(),
+          page: 1,
+          cursor: '',
+          baseModel: this.civitaiBaseModel(),
+          sort: this.civitaiSort(),
+          period: this.civitaiPeriod(),
+          tags: this.tagFilter(),
+        })
         .subscribe({
           next: (r) => {
             this.civitaiResults.set(r.items);
@@ -546,16 +554,16 @@ export class Download {
     this.loadingMore.set(true);
     if (this.platform() === 'civitai') {
       this.civitaiService
-        .search(
-          this.query(),
-          this.modelType(),
-          1,
-          this.civitaiCursor(),
-          this.civitaiBaseModel(),
-          this.civitaiSort(),
-          this.civitaiPeriod(),
-          this.tagFilter(),
-        )
+        .search({
+          q: this.query(),
+          type: this.modelType(),
+          page: 1,
+          cursor: this.civitaiCursor(),
+          baseModel: this.civitaiBaseModel(),
+          sort: this.civitaiSort(),
+          period: this.civitaiPeriod(),
+          tags: this.tagFilter(),
+        })
         .subscribe({
           next: (r) => {
             if (r.items.length === 0 && !wasError) {

@@ -15,17 +15,17 @@ import { BackendNotificationService } from './services/backend-notification';
 export class App implements OnInit {
   isDark = signal(true);
 
-  private notifService = inject(NotificationService);
-  private dlService = inject(DownloadService);
-  private backendNotif = inject(BackendNotificationService);
-  private destroyRef = inject(DestroyRef);
+  private readonly notifService = inject(NotificationService);
+  private readonly dlService = inject(DownloadService);
+  private readonly backendNotif = inject(BackendNotificationService);
+  private readonly destroyRef = inject(DestroyRef);
 
   ngOnInit() {
     this.backendNotif.start();
     const stored = localStorage.getItem('theme');
     const dark = stored !== 'light';
     this.isDark.set(dark);
-    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    document.documentElement.dataset['theme'] = dark ? 'dark' : 'light';
 
     this.dlService.completedTasks$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((task) => {
       if (task.status === 'done') {
@@ -42,7 +42,7 @@ export class App implements OnInit {
   toggleTheme() {
     const next = !this.isDark();
     this.isDark.set(next);
-    document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light');
+    document.documentElement.dataset['theme'] = next ? 'dark' : 'light';
     localStorage.setItem('theme', next ? 'dark' : 'light');
   }
 }
