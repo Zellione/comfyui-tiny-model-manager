@@ -85,7 +85,7 @@ Assumes ComfyUI was installed via [comfy-cli](https://comfyui-wiki.com/en/instal
 - [x] F-40 — Persistent Model Catalog Entry — catalog entries keyed to CivitAI/HuggingFace source pages; survive file deletion; show as empty until explicitly removed; enable re-download of any known file
 - [x] F-41 — Catalog Routes + HF base_model Fix — /models renamed to /catalog; detail URL uses platform+pageId (no model type); CatalogDetail enhanced to full ModelDetail layout; PUT /metadata returns new_path so frontend navigates after subfolder reorganization
 - [x] F-42 — Refetch Metadata — field-level before/after review modal with smart defaults, per-field diff, image comparison, and TTL-guarded apply
-- [ ] F-43 — Cancel Download — cancel an individual or all active downloads; stops transfer and deletes partial file
+- [x] F-43 — Cancel Download — cancel an individual or all active downloads; stops transfer and deletes partial file
 - [ ] F-44 — Copy Trigger Words — one-click copy of all trigger words (comma-separated) from the Model Detail header and the library card action menu
 - [ ] F-45 — Quick-access Dashboard Button — toolbar button (icon + "TMM") in ComfyUI's top-right that opens the dashboard in a new tab
 - [ ] F-46 — Confirmation Flyouts — replace all confirmation alerts with inline popovers anchored to the trigger button
