@@ -49,6 +49,27 @@ const mockNotifService = {
   show: vi.fn(),
 };
 
+async function configureTestBed() {
+  await TestBed.configureTestingModule({
+    imports: [Download],
+    providers: [
+      provideRouter([]),
+      { provide: CivitaiService, useValue: mockCivitaiService },
+      { provide: HuggingFaceService, useValue: mockHfService },
+      { provide: DownloadService, useValue: mockDownloadService },
+      { provide: ModelService, useValue: mockModelService },
+      { provide: NotificationService, useValue: mockNotifService },
+    ],
+  }).compileComponents();
+}
+
+async function createFixture() {
+  const fixture = TestBed.createComponent(Download);
+  fixture.detectChanges();
+  await fixture.whenStable();
+  return fixture;
+}
+
 describe('Download component — F-37 Load More', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -57,26 +78,8 @@ describe('Download component — F-37 Load More', () => {
       of({ items: [civitaiModel(1)], metadata: { nextCursor: 'cur1' } }),
     );
     mockHfService.search.mockReturnValue(of({ items: [], hasMore: false, nextPage: 1 }));
-
-    await TestBed.configureTestingModule({
-      imports: [Download],
-      providers: [
-        provideRouter([]),
-        { provide: CivitaiService, useValue: mockCivitaiService },
-        { provide: HuggingFaceService, useValue: mockHfService },
-        { provide: DownloadService, useValue: mockDownloadService },
-        { provide: ModelService, useValue: mockModelService },
-        { provide: NotificationService, useValue: mockNotifService },
-      ],
-    }).compileComponents();
+    await configureTestBed();
   });
-
-  async function createFixture() {
-    const fixture = TestBed.createComponent(Download);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    return fixture;
-  }
 
   describe('initial signal state', () => {
     it('loadMoreError starts empty', async () => {
@@ -373,26 +376,8 @@ describe('Download component — F-43 Cancel Download', () => {
     mockModelService.listModels.mockReturnValue(of({}));
     mockCivitaiService.search.mockReturnValue(of({ items: [], metadata: {} }));
     mockHfService.search.mockReturnValue(of({ items: [], hasMore: false, nextPage: 1 }));
-
-    await TestBed.configureTestingModule({
-      imports: [Download],
-      providers: [
-        provideRouter([]),
-        { provide: CivitaiService, useValue: mockCivitaiService },
-        { provide: HuggingFaceService, useValue: mockHfService },
-        { provide: DownloadService, useValue: mockDownloadService },
-        { provide: ModelService, useValue: mockModelService },
-        { provide: NotificationService, useValue: mockNotifService },
-      ],
-    }).compileComponents();
+    await configureTestBed();
   });
-
-  async function createFixture() {
-    const fixture = TestBed.createComponent(Download);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    return fixture;
-  }
 
   it('onCancelTask calls cancelDownload with the task id', async () => {
     const fixture = await createFixture();
