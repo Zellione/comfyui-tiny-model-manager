@@ -1,13 +1,10 @@
-<div
-  class="refetch-modal-overlay"
-  (click)="cancelled.emit()"
-  (keydown.escape)="cancelled.emit()"
-  tabindex="0"
->
+<div class="refetch-modal-overlay" (click)="cancelled.emit()">
   <div
     class="refetch-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Review fetched metadata"
     (click)="$event.stopPropagation()"
-    (keydown)="$event.stopPropagation()"
   >
     <div class="modal-header">
       <h3>Review fetched metadata</h3>
@@ -48,14 +45,7 @@
       <section class="diff-section">
         <h4>Base Model</h4>
         <div class="base-model-chips">
-          <span
-            class="chip"
-            [class.chip--active]="baseModelChoice() === 'old'"
-            (click)="baseModelChoice.set('old')"
-            (keydown.enter)="baseModelChoice.set('old')"
-            (keydown.space)="baseModelChoice.set('old')"
-            tabindex="0"
-          >
+          <label class="chip" [class.chip--active]="baseModelChoice() === 'old'">
             <input
               type="radio"
               [checked]="baseModelChoice() === 'old'"
@@ -65,22 +55,15 @@
             @if (data().old.last_edited_at.base_model) {
               <span class="edited-icon">✏</span>
             }
-          </span>
-          <span
-            class="chip"
-            [class.chip--active]="baseModelChoice() === 'new'"
-            (click)="baseModelChoice.set('new')"
-            (keydown.enter)="baseModelChoice.set('new')"
-            (keydown.space)="baseModelChoice.set('new')"
-            tabindex="0"
-          >
+          </label>
+          <label class="chip" [class.chip--active]="baseModelChoice() === 'new'">
             <input
               type="radio"
               [checked]="baseModelChoice() === 'new'"
               (change)="baseModelChoice.set('new')"
             />
             Incoming: {{ data().new.base_model || '(none)' }}
-          </span>
+          </label>
         </div>
       </section>
 
