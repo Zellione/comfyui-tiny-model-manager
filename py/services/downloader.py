@@ -30,6 +30,10 @@ SUPPORTED_TYPES = {
 }
 
 
+class _Cancelled(Exception):
+    pass
+
+
 @dataclass
 class DownloadTask:
     id: str
@@ -38,12 +42,13 @@ class DownloadTask:
     filename: str
     platform: str
     source_id: str = ""
-    status: str = "queued"  # queued | downloading | done | error
+    status: str = "queued"  # queued | downloading | done | error | cancelled
     progress: float = 0.0
     downloaded_bytes: int = 0
     total_bytes: int = 0
     error: str | None = None
     dest_path: str = ""
+    cancelled: bool = False
     on_complete: Callable[["DownloadTask"], Awaitable[None]] | None = field(
         default=None, repr=False
     )
@@ -96,7 +101,16 @@ def enqueue(
 
 
 def get_all_tasks() -> list[dict]:
-    return [_task_to_dict(t) for t in _tasks.values()]
+    return [_task_to_dict(t) for t in _tasks.values() if t.status != "cancelled"]
+
+
+def cancel_task(task_id: str) -> bool:
+    task = _tasks.get(task_id)
+    if task is None or task.status in ("done", "error", "cancelled"):
+        return False
+    task.cancelled = True
+    task.status = "cancelled"
+    return True
 
 
 def _task_to_dict(t: DownloadTask) -> dict:
@@ -125,7 +139,8 @@ def _ensure_worker():
 async def _worker():
     while True:
         task = await _queue.get()
-        await _run_download(task)
+        if not task.cancelled:
+            await _run_download(task)
         _queue.task_done()
 
 
@@ -143,6 +158,8 @@ async def _run_download(task: DownloadTask):
                 downloaded = 0
                 with open(task.dest_path, "wb") as f:
                     async for chunk in resp.aiter_bytes(65536):
+                        if task.cancelled:
+                            raise _Cancelled()
                         f.write(chunk)
                         downloaded += len(chunk)
                         task.downloaded_bytes = downloaded
@@ -156,6 +173,10 @@ async def _run_download(task: DownloadTask):
         asyncio.ensure_future(
             fetch_and_store(task.filename, task.model_type, task.platform, task.source_id)
         )
+    except _Cancelled:
+        task.status = "cancelled"
+        if os.path.isfile(task.dest_path):
+            os.remove(task.dest_path)
     except Exception as exc:
         task.status = "error"
         task.error = str(exc)

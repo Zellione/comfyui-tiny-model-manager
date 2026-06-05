@@ -1,3 +1,5 @@
+from aiohttp import web
+
 from ..services import downloader as dl
 from ..services.providers import civitai, huggingface
 from ._helpers import err, json_route, ok
@@ -106,3 +108,11 @@ def add_download_routes(routes):
     @json_route
     async def download_status(request):
         return ok(dl.get_all_tasks())
+
+    @routes.delete("/tiny-model-manager/api/downloads/{id}")
+    @json_route
+    async def cancel_download(request):
+        task_id = request.match_info["id"]
+        if not dl.cancel_task(task_id):
+            return err("Task not found", status=404)
+        return web.Response(status=204)
