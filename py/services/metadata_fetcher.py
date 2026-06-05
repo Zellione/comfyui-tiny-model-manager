@@ -51,51 +51,79 @@ async def fetch_metadata_only(platform: str, source_id: str) -> ProviderMetadata
     raise last_exc
 
 
+async def _fetch_provider_metadata(provider, source_id: str, filename: str) -> ProviderMetadata:
+    """Fetch metadata with up to 3 attempts; notify and return empty defaults on failure."""
+    for attempt in range(3):
+        try:
+            return await provider.fetch_metadata(source_id)
+        except Exception:
+            if attempt < 2:
+                await asyncio.sleep(1)
+
+    from .backend_notifier import push as notify
+
+    notify(
+        "error",
+        f"Metadata fetch failed for '{filename}'. "
+        "Open the model detail page and use 'Re-fetch metadata' to try again.",
+    )
+    return ProviderMetadata()
+
+
+def _derive_catalog_source(platform: str, civitai_model_id: str, source_id: str) -> tuple[str, str]:
+    """Return (source_page_id, source_page_url) for the catalog entry, or ('', '')."""
+    if platform == "civitai" and civitai_model_id:
+        return civitai_model_id, f"https://civitai.com/models/{civitai_model_id}"
+    if platform == "huggingface" and source_id:
+        return source_id, f"https://huggingface.co/{source_id}"
+    return "", ""
+
+
+async def _store_catalog_entry(
+    filename: str,
+    platform: str,
+    source_page_id: str,
+    source_page_url: str,
+    media_hash: str,
+    model_id: int,
+    meta: ProviderMetadata,
+) -> int:
+    """Upsert the catalog entry and link the model to it; return its id (0 on failure)."""
+    thumbnail_url = (await model_repo.get_first_image_path(model_id)) or ""
+    try:
+        catalog_entry_id = await model_repo.upsert_catalog_entry(
+            source_platform=platform,
+            source_page_id=source_page_id,
+            source_page_url=source_page_url,
+            display_name=meta.display_name,
+            thumbnail_url=thumbnail_url,
+            base_model=meta.base_model,
+            description=meta.description,
+            trigger_words=meta.trigger_words,
+            tags=meta.tags,
+            media_hash=media_hash,
+        )
+        await model_repo.set_model_catalog_entry(filename, catalog_entry_id)
+        return catalog_entry_id
+    except Exception:
+        return 0
+
+
 async def fetch_and_store(
     filename: str, model_type: str, platform: str, source_id: str, skip_media: bool = False
 ):
-    description = ""
-    trigger_words: list[str] = []
-    image_urls: list[str] = []
-    tags: list[str] = []
-    base_model = ""
-    civitai_model_id = ""
-    display_name = ""
-
     provider = get_provider(platform)
     if provider and source_id:
-        fetch_ok = False
-        for attempt in range(3):
-            try:
-                meta = await provider.fetch_metadata(source_id)
-                description = meta.description
-                trigger_words = meta.trigger_words
-                image_urls = meta.image_urls
-                tags = meta.tags
-                base_model = meta.base_model
-                civitai_model_id = meta.civitai_model_id
-                display_name = meta.display_name
-                fetch_ok = True
-                break
-            except Exception:
-                if attempt < 2:
-                    await asyncio.sleep(1)
-
-        if not fetch_ok:
-            from .backend_notifier import push as notify
-
-            notify(
-                "error",
-                f"Metadata fetch failed for '{filename}'. "
-                "Open the model detail page and use 'Re-fetch metadata' to try again.",
-            )
+        meta = await _fetch_provider_metadata(provider, source_id, filename)
+    else:
+        meta = ProviderMetadata()
 
     settings = cfg.load_settings()
     if settings.get("organize_into_subfolders"):
         try:
             from .reorganizer import _move_to_subfolder
 
-            filename = await _move_to_subfolder(filename, model_type, base_model)
+            filename = _move_to_subfolder(filename, model_type, meta.base_model)
         except Exception:
             pass
 
@@ -105,58 +133,76 @@ async def fetch_and_store(
         model_type,
         platform,
         source_id,
-        description,
-        trigger_words,
-        tags,
-        base_model=base_model,
-        civitai_model_id=civitai_model_id,
+        meta.description,
+        meta.trigger_words,
+        meta.tags,
+        base_model=meta.base_model,
+        civitai_model_id=meta.civitai_model_id,
         media_hash=media_hash,
     )
     if not skip_media:
-        await _download_images(model_id, media_hash, image_urls)
+        await _download_images(model_id, media_hash, meta.image_urls)
 
-    # Derive catalog entry fields
-    if platform == "civitai" and civitai_model_id:
-        source_page_id = civitai_model_id
-        source_page_url = f"https://civitai.com/models/{civitai_model_id}"
-    elif platform == "huggingface" and source_id:
-        source_page_id = source_id
-        source_page_url = f"https://huggingface.co/{source_id}"
-    else:
-        source_page_id = ""
-        source_page_url = ""
-
+    source_page_id, source_page_url = _derive_catalog_source(
+        platform, meta.civitai_model_id, source_id
+    )
+    catalog_entry_id = 0
     if source_page_id:
-        thumbnail_url = (await model_repo.get_first_image_path(model_id)) or ""
-        try:
-            catalog_entry_id = await model_repo.upsert_catalog_entry(
-                source_platform=platform,
-                source_page_id=source_page_id,
-                source_page_url=source_page_url,
-                display_name=display_name,
-                thumbnail_url=thumbnail_url,
-                base_model=base_model,
-                description=description,
-                trigger_words=trigger_words,
-                tags=tags,
-                media_hash=media_hash,
-            )
-            await model_repo.set_model_catalog_entry(filename, catalog_entry_id)
-        except Exception:
-            catalog_entry_id = 0
+        catalog_entry_id = await _store_catalog_entry(
+            filename, platform, source_page_id, source_page_url, media_hash, model_id, meta
+        )
 
-        await _fetch_and_store_repo_files(
-            filename,
-            model_type,
-            platform,
-            source_id,
-            civitai_model_id=civitai_model_id,
-            catalog_entry_id=catalog_entry_id if source_page_id else 0,
-        )
-    else:
-        await _fetch_and_store_repo_files(
-            filename, model_type, platform, source_id, civitai_model_id=civitai_model_id
-        )
+    await _fetch_and_store_repo_files(
+        filename,
+        model_type,
+        platform,
+        source_id,
+        civitai_model_id=meta.civitai_model_id,
+        catalog_entry_id=catalog_entry_id,
+    )
+
+
+def _civitai_repo_files(model_data: dict, source_base: str) -> list[dict]:
+    """Flatten a CivitAI model's versions into repo_file dicts (newest version first)."""
+    files: list[dict] = []
+    # Iterate newest-first so that when filenames collide across versions
+    # the UPSERT leaves the newest version's download_url in place.
+    for version in model_data.get("versions", []):
+        vid = version.get("id")
+        page_url = f"{source_base}?modelVersionId={vid}" if vid else source_base
+        for f in version.get("files", []):
+            if f.get("type") != "Model":
+                continue
+            files.append(
+                {
+                    "filename": f.get("name", ""),
+                    "size_bytes": int(f.get("sizeKB", 0) * 1024),
+                    "download_url": f.get("downloadUrl", ""),
+                    "source_page_url": page_url,
+                }
+            )
+    return files
+
+
+async def _fetch_repo_files(
+    platform: str, source_id: str, civitai_model_id: str
+) -> list[dict] | None:
+    """Fetch sibling files for the model from the upstream provider, or None if unsupported."""
+    if platform == "civitai":
+        from .providers.civitai_provider import CivitaiProvider
+
+        civitai = CivitaiProvider()
+        if civitai_model_id:
+            model_data = await civitai.get_model_versions(int(civitai_model_id))
+            return _civitai_repo_files(model_data, f"https://civitai.com/models/{civitai_model_id}")
+        return await civitai.get_version_files(int(source_id))
+    if platform == "huggingface":
+        from .providers.huggingface_provider import HuggingFaceProvider
+
+        hf = HuggingFaceProvider()
+        raw = await hf.get_model_files(source_id)
+        return hf._model_files_for_storage(source_id, raw)
+    return None
 
 
 async def _fetch_and_store_repo_files(
@@ -174,43 +220,53 @@ async def _fetch_and_store_repo_files(
     if not provider or not source_id:
         return
     try:
-        if platform == "civitai":
-            from .providers.civitai_provider import CivitaiProvider
-
-            civitai = CivitaiProvider()
-            if civitai_model_id:
-                model_data = await civitai.get_model_versions(int(civitai_model_id))
-                source_base = f"https://civitai.com/models/{civitai_model_id}"
-                files = []
-                # Iterate newest-first so that when filenames collide across versions
-                # the UPSERT leaves the newest version's download_url in place.
-                for version in model_data.get("versions", []):
-                    vid = version.get("id")
-                    page_url = f"{source_base}?modelVersionId={vid}" if vid else source_base
-                    for f in version.get("files", []):
-                        if f.get("type") != "Model":
-                            continue
-                        files.append(
-                            {
-                                "filename": f.get("name", ""),
-                                "size_bytes": int(f.get("sizeKB", 0) * 1024),
-                                "download_url": f.get("downloadUrl", ""),
-                                "source_page_url": page_url,
-                            }
-                        )
-            else:
-                files = await civitai.get_version_files(int(source_id))
-        elif platform == "huggingface":
-            from .providers.huggingface_provider import HuggingFaceProvider
-
-            hf = HuggingFaceProvider()
-            raw = await hf.get_model_files(source_id)
-            files = hf._model_files_for_storage(source_id, raw)
-        else:
+        files = await _fetch_repo_files(platform, source_id, civitai_model_id)
+        if files is None:
             return
         await model_repo.upsert_repo_files(catalog_entry_id, model_type, files)
     except Exception:
         pass
+
+
+def _remove_dir_if_empty(path: str | None) -> None:
+    """Remove ``path`` if it exists and is an empty directory; ignore errors."""
+    if not path or not os.path.isdir(path):
+        return
+    try:
+        if not os.listdir(path):
+            os.rmdir(path)
+    except Exception:
+        pass
+
+
+async def _migrate_model_media(db, row) -> None:
+    """Move one model's media files into its hash directory and update DB paths."""
+    media_hash = _compute_media_hash(
+        row["source_platform"] or "", row["source_id"] or "", row["filename"]
+    )
+    new_dir = _media_subdir(media_hash)
+    os.makedirs(new_dir, exist_ok=True)
+
+    media_rows = await (
+        await db.execute("SELECT id, local_path FROM model_media WHERE model_id = ?", (row["id"],))
+    ).fetchall()
+
+    old_dir = None
+    for media_row in media_rows:
+        old_path = media_row["local_path"]
+        new_path = os.path.join(new_dir, os.path.basename(old_path))
+        if os.path.isfile(old_path) and old_path != new_path:
+            try:
+                shutil.move(old_path, new_path)
+            except Exception:
+                pass
+            old_dir = os.path.dirname(old_path)
+        await db.execute(
+            "UPDATE model_media SET local_path = ? WHERE id = ?", (new_path, media_row["id"])
+        )
+
+    await db.execute("UPDATE models SET media_hash = ? WHERE id = ?", (media_hash, row["id"]))
+    _remove_dir_if_empty(old_dir)
 
 
 async def migrate_existing_media():
@@ -228,43 +284,7 @@ async def migrate_existing_media():
         ).fetchall()
 
         for row in rows:
-            media_hash = _compute_media_hash(
-                row["source_platform"] or "", row["source_id"] or "", row["filename"]
-            )
-            new_dir = _media_subdir(media_hash)
-            os.makedirs(new_dir, exist_ok=True)
-
-            media_rows = await (
-                await db.execute(
-                    "SELECT id, local_path FROM model_media WHERE model_id = ?", (row["id"],)
-                )
-            ).fetchall()
-
-            old_dir = None
-            for media_row in media_rows:
-                old_path = media_row["local_path"]
-                new_path = os.path.join(new_dir, os.path.basename(old_path))
-                if os.path.isfile(old_path) and old_path != new_path:
-                    try:
-                        shutil.move(old_path, new_path)
-                    except Exception:
-                        pass
-                    old_dir = os.path.dirname(old_path)
-                await db.execute(
-                    "UPDATE model_media SET local_path = ? WHERE id = ?",
-                    (new_path, media_row["id"]),
-                )
-
-            await db.execute(
-                "UPDATE models SET media_hash = ? WHERE id = ?", (media_hash, row["id"])
-            )
-
-            if old_dir and os.path.isdir(old_dir):
-                try:
-                    if not os.listdir(old_dir):
-                        os.rmdir(old_dir)
-                except Exception:
-                    pass
+            await _migrate_model_media(db, row)
 
         await db.commit()
 
