@@ -8,6 +8,17 @@
   border-radius: var(--radius-lg);
 }
 
+.active-downloads-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+
+  h3 {
+    margin: 0;
+  }
+}
+
 .task-row {
   display: flex;
   align-items: center;

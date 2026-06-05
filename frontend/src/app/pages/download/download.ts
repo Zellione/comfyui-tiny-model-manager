@@ -217,6 +217,14 @@ export class Download {
   }));
 
   activeTasks = toSignal(this.dlService.activeTasks$, { initialValue: [] as DownloadTask[] });
+  readonly cancelledIds = signal(new Set<string>());
+  readonly cancellingIds = signal(new Set<string>());
+  readonly displayTasks = computed(() =>
+    this.activeTasks().filter((t) => !this.cancelledIds().has(t.id)),
+  );
+  readonly hasCancellableTasks = computed(() =>
+    this.displayTasks().some((t) => t.status === 'queued' || t.status === 'downloading'),
+  );
 
   selectedModel = signal<CivitaiModel | null>(null);
   selectedHfModel = signal<HfModel | null>(null);
@@ -726,6 +734,28 @@ export class Download {
       'huggingface',
       this.selectedHfRepoId(),
     );
+  }
+
+  onCancelTask(taskId: string): void {
+    this.cancellingIds.update((s) => new Set([...s, taskId]));
+    this.dlService
+      .cancelDownload(taskId)
+      .pipe(
+        catchError(() => of(void 0)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(() => {
+        this.cancelledIds.update((s) => new Set([...s, taskId]));
+        this.cancellingIds.update((s) => {
+          const next = new Set(s);
+          next.delete(taskId);
+          return next;
+        });
+      });
+  }
+
+  onCancelAll(): void {
+    this.displayTasks().forEach((t) => this.onCancelTask(t.id));
   }
 
   formatSize = formatSize;

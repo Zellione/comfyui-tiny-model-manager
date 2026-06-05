@@ -10,7 +10,7 @@ export interface DownloadTask {
   filename: string;
   platform: string;
   source_id: string;
-  status: 'queued' | 'downloading' | 'done' | 'error';
+  status: 'queued' | 'downloading' | 'done' | 'error' | 'cancelled';
   progress: number;
   downloaded_bytes: number;
   total_bytes: number;
@@ -48,6 +48,10 @@ export class DownloadService {
         ),
       ),
     );
+  }
+
+  cancelDownload(taskId: string): Observable<void> {
+    return this.http.delete<void>(`${API}/downloads/${taskId}`);
   }
 
   startDownload(

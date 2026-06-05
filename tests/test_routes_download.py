@@ -121,6 +121,56 @@ class TestSearchHuggingFace:
         assert resp.status == 400
 
 
+class TestCancelDownload:
+    async def test_cancel_returns_204(self, client):
+        resp = await client.post(
+            "/tiny-model-manager/api/download",
+            json={
+                "url": "https://example.com/model.safetensors",
+                "model_type": "checkpoints",
+                "filename": "model.safetensors",
+                "platform": "civitai",
+            },
+        )
+        task_id = (await resp.json())["data"]["task_id"]
+        resp = await client.delete(f"/tiny-model-manager/api/downloads/{task_id}")
+        assert resp.status == 204
+
+    async def test_cancel_unknown_id_returns_404(self, client):
+        resp = await client.delete("/tiny-model-manager/api/downloads/no-such-id")
+        assert resp.status == 404
+
+    async def test_cancel_removes_task_from_status(self, client):
+        resp = await client.post(
+            "/tiny-model-manager/api/download",
+            json={
+                "url": "https://example.com/model.safetensors",
+                "model_type": "checkpoints",
+                "filename": "model.safetensors",
+                "platform": "civitai",
+            },
+        )
+        task_id = (await resp.json())["data"]["task_id"]
+        await client.delete(f"/tiny-model-manager/api/downloads/{task_id}")
+        tasks = (await (await client.get("/tiny-model-manager/api/download/status")).json())["data"]
+        assert not any(t["id"] == task_id for t in tasks)
+
+    async def test_cancel_second_call_returns_404(self, client):
+        resp = await client.post(
+            "/tiny-model-manager/api/download",
+            json={
+                "url": "https://example.com/model.safetensors",
+                "model_type": "checkpoints",
+                "filename": "model.safetensors",
+                "platform": "civitai",
+            },
+        )
+        task_id = (await resp.json())["data"]["task_id"]
+        await client.delete(f"/tiny-model-manager/api/downloads/{task_id}")
+        resp = await client.delete(f"/tiny-model-manager/api/downloads/{task_id}")
+        assert resp.status == 404
+
+
 class TestDownloaderEnqueueHuggingFaceFilename:
     """Test that HF filenames with subfolder paths are stripped to basename."""
 
