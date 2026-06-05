@@ -432,4 +432,21 @@ describe('Download component — F-43 Cancel Download', () => {
     expect(mockDownloadService.cancelDownload).toHaveBeenCalledWith('task-1');
     expect(mockDownloadService.cancelDownload).toHaveBeenCalledWith('task-2');
   });
+
+  it('hasCancellableTasks is false when all tasks are done', async () => {
+    mockDownloadService.activeTasks$ = of([{ ...activeTask(), status: 'done' }]);
+    const fixture = await createFixture();
+    expect(fixture.componentInstance.hasCancellableTasks()).toBe(false);
+  });
+
+  it('hasCancellableTasks is true when at least one task is downloading', async () => {
+    const fixture = await createFixture();
+    expect(fixture.componentInstance.hasCancellableTasks()).toBe(true);
+  });
+
+  it('hasCancellableTasks is false when all tasks are errors', async () => {
+    mockDownloadService.activeTasks$ = of([{ ...activeTask(), status: 'error' }]);
+    const fixture = await createFixture();
+    expect(fixture.componentInstance.hasCancellableTasks()).toBe(false);
+  });
 });

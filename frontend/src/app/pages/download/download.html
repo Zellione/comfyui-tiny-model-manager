@@ -5,7 +5,9 @@
   <section class="active-downloads">
     <div class="active-downloads-header">
       <h3>Active Downloads</h3>
-      <button class="btn-secondary" (click)="onCancelAll()">Cancel all</button>
+      @if (hasCancellableTasks()) {
+        <button class="btn-secondary" (click)="onCancelAll()">Cancel all</button>
+      }
     </div>
     @for (task of displayTasks(); track task.id) {
       <div class="task-row">
@@ -17,13 +19,15 @@
           <div class="progress-bar"><div class="fill" [style.width]="activePct(task)"></div></div>
           <span class="pct">{{ activePct(task) }}</span>
         }
-        <button
-          class="btn-secondary"
-          [disabled]="cancellingIds().has(task.id)"
-          (click)="onCancelTask(task.id)"
-        >
-          {{ cancellingIds().has(task.id) ? '…' : 'Cancel' }}
-        </button>
+        @if (task.status !== 'done' && task.status !== 'error') {
+          <button
+            class="btn-secondary"
+            [disabled]="cancellingIds().has(task.id)"
+            (click)="onCancelTask(task.id)"
+          >
+            {{ cancellingIds().has(task.id) ? '…' : 'Cancel' }}
+          </button>
+        }
       </div>
     }
   </section>

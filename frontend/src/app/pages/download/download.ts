@@ -222,6 +222,9 @@ export class Download {
   readonly displayTasks = computed(() =>
     this.activeTasks().filter((t) => !this.cancelledIds().has(t.id)),
   );
+  readonly hasCancellableTasks = computed(() =>
+    this.displayTasks().some((t) => t.status === 'queued' || t.status === 'downloading'),
+  );
 
   selectedModel = signal<CivitaiModel | null>(null);
   selectedHfModel = signal<HfModel | null>(null);
