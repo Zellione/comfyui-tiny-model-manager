@@ -78,11 +78,6 @@ a {
   color: inherit;
   text-decoration: none;
 }
-button {
-  font: inherit;
-  color: inherit;
-}
-
 h2 {
   font-size: 1.25rem;
   margin: 0 0 1rem;
@@ -97,6 +92,8 @@ h3 {
 // ── Buttons ───────────────────────────────────────────────────────────────────
 
 button {
+  font: inherit;
+  color: inherit;
   cursor: pointer;
   border: none;
   border-radius: var(--radius-sm);
