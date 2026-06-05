@@ -1,7 +1,7 @@
-import asyncio
 import os
 
 from .. import config as cfg
+from ..background import spawn
 from ._helpers import err, json_route, ok
 
 
@@ -62,7 +62,7 @@ def add_settings_routes(routes):
                     await model_repo.enqueue_reorganize(
                         fname, m.get("model_type") or "", "organize"
                     )
-            asyncio.ensure_future(reorganizer.process_pending_jobs())
+            spawn(reorganizer.process_pending_jobs())
         elif old_organize and not new_organize:
             from ..db import model_repo
             from ..services import reorganizer
@@ -75,5 +75,5 @@ def add_settings_routes(routes):
                     await model_repo.enqueue_reorganize(
                         fname, m.get("model_type") or "", "deorganize"
                     )
-            asyncio.ensure_future(reorganizer.process_pending_jobs())
+            spawn(reorganizer.process_pending_jobs())
         return ok()

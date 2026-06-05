@@ -1,6 +1,5 @@
-import asyncio
-
 from .. import config as cfg
+from ..background import spawn
 from ..db.database import init_db
 from .catalog import add_catalog_routes
 from .download import add_download_routes
@@ -33,4 +32,4 @@ def register_routes(routes, ext_dir: str):
         await prune_stale_models()
         await process_pending_jobs()
 
-    asyncio.ensure_future(_startup())
+    spawn(_startup())
