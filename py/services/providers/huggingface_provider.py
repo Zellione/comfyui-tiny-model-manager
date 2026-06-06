@@ -18,6 +18,10 @@ MODEL_EXTENSIONS = {".safetensors", ".ckpt", ".pt", ".bin", ".gguf"}
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 
 
+def _file_ext(name: str) -> str:
+    return ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
+
+
 def _build_search_params(
     query: str,
     model_type: str,
@@ -56,7 +60,7 @@ def _enrich_hf_model(model: dict) -> None:
     exts: set[str] = set()
     for sibling in model.get("siblings", []):
         name = sibling.get("rfilename", "")
-        ext = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
+        ext = _file_ext(name)
         if ext in IMAGE_EXTENSIONS:
             url = f"{_BASE}/{repo_id}/resolve/main/{name}"
             if not thumbnail:

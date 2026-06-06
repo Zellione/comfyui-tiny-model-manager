@@ -1,10 +1,13 @@
-<div class="refetch-modal-overlay" (click)="cancelled.emit()">
+<div
+  class="refetch-modal-overlay"
+  (click)="cancelled.emit()"
+  (keydown.escape)="cancelled.emit()"
+  tabindex="0"
+>
   <div
     class="refetch-modal"
-    role="dialog"
-    aria-modal="true"
-    aria-label="Review fetched metadata"
     (click)="$event.stopPropagation()"
+    (keydown)="$event.stopPropagation()"
   >
     <div class="modal-header">
       <h3>Review fetched metadata</h3>
