@@ -35,219 +35,215 @@ def _scan_dir(base_dir: str, extensions: set) -> list:
     return entries
 
 
-def add_model_routes(routes):
-
-    @routes.get("/tiny-model-manager/api/models")
-    @json_route
-    async def list_models(request):
-        result = {}
-        # Track every physical directory already covered so we don't double-count.
-        scanned: set[str] = set()
-
-        # 1. Registered ComfyUI folder types
-        for folder_type, (dirs, extensions) in folder_paths.folder_names_and_paths.items():
-            if folder_type in _SKIP_TYPES:
-                continue
-            models = []
-            for base_dir in dirs:
-                norm = os.path.normpath(base_dir)
-                scanned.add(norm)
-                models.extend(_scan_dir(base_dir, set(extensions) | _BROAD_EXTENSIONS))
-            if models:
-                result[folder_type] = models
-
-        # 2. Physical subfolders of models_dir not covered by any registered path.
-        #    Handles types like "unet"/"clip" that lost their folder_paths registration
-        #    across ComfyUI versions, and any future custom folder.
-        if os.path.isdir(folder_paths.models_dir):
-            for name in sorted(os.listdir(folder_paths.models_dir)):
-                if name in _SKIP_TYPES:
-                    continue
-                physical = os.path.normpath(os.path.join(folder_paths.models_dir, name))
-                if not os.path.isdir(physical) or physical in scanned:
-                    continue
-                scanned.add(physical)
-                models = _scan_dir(physical, _BROAD_EXTENSIONS)
-                if models:
-                    result.setdefault(name, []).extend(models)
-
-        # 3. Legacy fallback location (data_dir/models/<type>) used by older versions
-        #    of this plugin.  Surfaces already-downloaded files that ended up there.
-        legacy_root = os.path.join(cfg.data_dir(), "models")
-        if os.path.isdir(legacy_root):
-            for name in sorted(os.listdir(legacy_root)):
-                physical = os.path.normpath(os.path.join(legacy_root, name))
-                if not os.path.isdir(physical) or physical in scanned:
-                    continue
-                scanned.add(physical)
-                models = _scan_dir(physical, _BROAD_EXTENSIONS)
-                if models:
-                    result.setdefault(name, []).extend(models)
-        all_filenames = [f["filename"] for files in result.values() for f in files]
-        meta_map = await model_repo.get_metadata_by_filenames(all_filenames)
-        for files in result.values():
-            for f in files:
-                m = meta_map.get(f["filename"])
-                if m:
-                    source_url = _derive_source_url(
-                        m.get("source_platform", ""),
-                        m.get("source_id", ""),
-                        m.get("civitai_model_id", ""),
-                    )
-                    f["metadata"] = {
-                        "description": m.get("description", ""),
-                        "trigger_words": m.get("trigger_words", []),
-                        "tags": m.get("tags", []),
-                        "media": m.get("media", []),
-                        "base_model": m.get("base_model", ""),
-                        "source_platform": m.get("source_platform", ""),
-                        "source_url": source_url,
-                        "created_at": m.get("created_at", ""),
-                    }
-        return ok(result)
-
-    @routes.delete("/tiny-model-manager/api/models/{model_type}/{path:.*}")
-    @json_route
-    async def delete_model(request):
-        model_type = request.match_info["model_type"]
-        rel_path = request.match_info["path"]
-        dirs, _ = folder_paths.folder_names_and_paths.get(model_type, ([], set()))
+def _scan_registered_types(result: dict, scanned: set) -> None:
+    """Phase 1: scan every registered ComfyUI folder type into result."""
+    for folder_type, (dirs, extensions) in folder_paths.folder_names_and_paths.items():
+        if folder_type in _SKIP_TYPES:
+            continue
+        models = []
         for base_dir in dirs:
-            candidate = os.path.normpath(os.path.join(base_dir, rel_path))
-            # Guard against path traversal
-            if not candidate.startswith(os.path.normpath(base_dir)):
+            scanned.add(os.path.normpath(base_dir))
+            models.extend(_scan_dir(base_dir, set(extensions) | _BROAD_EXTENSIONS))
+        if models:
+            result[folder_type] = models
+
+
+def _scan_root_subdirs(result: dict, scanned: set, root: str, skip_types: bool) -> None:
+    """Scan each subfolder of ``root`` not already covered, grouping files by folder name."""
+    if not os.path.isdir(root):
+        return
+    for name in sorted(os.listdir(root)):
+        if skip_types and name in _SKIP_TYPES:
+            continue
+        physical = os.path.normpath(os.path.join(root, name))
+        if not os.path.isdir(physical) or physical in scanned:
+            continue
+        scanned.add(physical)
+        models = _scan_dir(physical, _BROAD_EXTENSIONS)
+        if models:
+            result.setdefault(name, []).extend(models)
+
+
+def _attach_model_metadata(result: dict, meta_map: dict) -> None:
+    """Attach a "metadata" block to each scanned file that has a stored DB record."""
+    for files in result.values():
+        for f in files:
+            m = meta_map.get(f["filename"])
+            if not m:
                 continue
-            if os.path.isfile(candidate):
-                os.remove(candidate)
-                await model_repo.delete_model_record(rel_path)
-                return ok()
+            f["metadata"] = {
+                "description": m.get("description", ""),
+                "trigger_words": m.get("trigger_words", []),
+                "tags": m.get("tags", []),
+                "media": m.get("media", []),
+                "base_model": m.get("base_model", ""),
+                "source_platform": m.get("source_platform", ""),
+                "source_url": _derive_source_url(
+                    m.get("source_platform", ""),
+                    m.get("source_id", ""),
+                    m.get("civitai_model_id", ""),
+                ),
+                "created_at": m.get("created_at", ""),
+            }
+
+
+async def _list_models(request):
+    result: dict = {}
+    # Track every physical directory already covered so we don't double-count.
+    scanned: set[str] = set()
+    _scan_registered_types(result, scanned)
+    # Physical subfolders of models_dir not covered by any registered path (e.g. "unet"/"clip"),
+    # then the legacy data_dir/models/<type> location used by older plugin versions.
+    _scan_root_subdirs(result, scanned, folder_paths.models_dir, skip_types=True)
+    _scan_root_subdirs(result, scanned, os.path.join(cfg.data_dir(), "models"), skip_types=False)
+
+    all_filenames = [f["filename"] for files in result.values() for f in files]
+    meta_map = await model_repo.get_metadata_by_filenames(all_filenames)
+    _attach_model_metadata(result, meta_map)
+    return ok(result)
+
+
+async def _delete_model(request):
+    model_type = request.match_info["model_type"]
+    rel_path = request.match_info["path"]
+    dirs, _ = folder_paths.folder_names_and_paths.get(model_type, ([], set()))
+    for base_dir in dirs:
+        candidate = os.path.normpath(os.path.join(base_dir, rel_path))
+        # Guard against path traversal
+        if not candidate.startswith(os.path.normpath(base_dir)):
+            continue
+        if os.path.isfile(candidate):
+            os.remove(candidate)
+            await model_repo.delete_model_record(rel_path)
+            return ok()
+    return err("File not found", status=404)
+
+
+async def _list_model_types(request):
+    models_dir = folder_paths.models_dir
+    types = []
+    if os.path.isdir(models_dir):
+        for name in os.listdir(models_dir):
+            if name == "configs":
+                continue
+            if os.path.isdir(os.path.join(models_dir, name)):
+                types.append(name)
+    return ok(sorted(types))
+
+
+def _resolve_move_source(models_dir: str, model_type: str, rel_path: str) -> str | None:
+    """Find the on-disk source file for a move, searching physical then registered dirs."""
+    # The type dropdown and the move destination both use physical folder names under
+    # models_dir, but some physical folders (e.g. "clip") are not registered folder_paths
+    # keys; search the physical folder first so physical-only files can still be relocated.
+    src_dirs = [os.path.join(models_dir, model_type)]
+    registered, _ = folder_paths.folder_names_and_paths.get(model_type, ([], set()))
+    src_dirs.extend(registered)
+    for base_dir in src_dirs:
+        base_norm = os.path.normpath(base_dir)
+        candidate = os.path.normpath(os.path.join(base_dir, rel_path))
+        if candidate.startswith(base_norm + os.sep) and os.path.isfile(candidate):
+            return candidate
+    return None
+
+
+async def _move_model(request):
+    model_type = request.match_info["model_type"]
+    rel_path = request.match_info["path"]
+    body = await request.json()
+    new_type = body.get("new_type", "")
+
+    # Validate new_type as a safe physical folder name under models_dir
+    models_dir = folder_paths.models_dir
+    dest_dir = os.path.normpath(os.path.join(models_dir, new_type))
+    if (
+        not new_type
+        or new_type in ("configs", "custom_nodes")
+        or not dest_dir.startswith(os.path.normpath(models_dir) + os.sep)
+    ):
+        return err("Unknown model type", status=400)
+
+    src = _resolve_move_source(models_dir, model_type, rel_path)
+    if not src:
         return err("File not found", status=404)
 
-    @routes.get("/tiny-model-manager/api/model-types")
-    @json_route
-    async def list_model_types(request):
-        models_dir = folder_paths.models_dir
-        types = []
-        if os.path.isdir(models_dir):
-            for name in os.listdir(models_dir):
-                if name == "configs":
-                    continue
-                if os.path.isdir(os.path.join(models_dir, name)):
-                    types.append(name)
-        return ok(sorted(types))
+    # Destination is the literal models/<new_type> folder
+    dest = os.path.normpath(os.path.join(dest_dir, rel_path))
+    if not dest.startswith(dest_dir + os.sep):
+        return err("Invalid destination path", status=400)
+    if os.path.normpath(src) == dest:
+        return ok()  # already in target folder
+    if os.path.exists(dest):
+        return err("Target file already exists", status=409)
 
-    @routes.post("/tiny-model-manager/api/models/{model_type}/{path:.*}/move")
-    @json_route
-    async def move_model(request):
-        model_type = request.match_info["model_type"]
-        rel_path = request.match_info["path"]
-        body = await request.json()
-        new_type = body.get("new_type", "")
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    shutil.move(src, dest)
 
-        # Validate new_type as a safe physical folder name under models_dir
-        models_dir = folder_paths.models_dir
-        dest_dir = os.path.normpath(os.path.join(models_dir, new_type))
-        if (
-            not new_type
-            or new_type in ("configs", "custom_nodes")
-            or not dest_dir.startswith(os.path.normpath(models_dir) + os.sep)
-        ):
-            return err("Unknown model type", status=400)
+    # filename column unchanged; only model_type is updated
+    await model_repo.update_model_type(rel_path, new_type)
+    return ok()
 
-        # Locate source file. The type dropdown and the move destination both use
-        # physical folder names under models_dir, but some physical folders (e.g.
-        # "clip") are not registered folder_paths keys. Search the physical folder
-        # first, then any registered dirs for the type, so a model previously moved
-        # into a physical-only folder can still be relocated.
-        src = None
-        src_dirs = [os.path.join(models_dir, model_type)]
-        registered, _ = folder_paths.folder_names_and_paths.get(model_type, ([], set()))
-        src_dirs.extend(registered)
-        for base_dir in src_dirs:
-            base_norm = os.path.normpath(base_dir)
-            candidate = os.path.normpath(os.path.join(base_dir, rel_path))
-            if not candidate.startswith(base_norm + os.sep):
-                continue
-            if os.path.isfile(candidate):
-                src = candidate
-                break
-        if not src:
-            return err("File not found", status=404)
 
-        # Destination is the literal models/<new_type> folder
-        dest = os.path.normpath(os.path.join(dest_dir, rel_path))
-        if not dest.startswith(dest_dir + os.sep):
-            return err("Invalid destination path", status=400)
-        if os.path.normpath(src) == dest:
-            return ok()  # already in target folder
-        if os.path.exists(dest):
-            return err("Target file already exists", status=409)
+def _resolve_organize_source(model_type: str, filename: str) -> tuple[str | None, str | None]:
+    """Return (src_path, src_base_dir) for the model file, or (None, None) if not found."""
+    try:
+        base_dirs = folder_paths.get_folder_paths(model_type)
+    except Exception:
+        base_dirs = [os.path.join(folder_paths.models_dir, model_type)]
+    for base_dir in base_dirs:
+        norm_base = os.path.normpath(base_dir)
+        candidate = os.path.normpath(os.path.join(base_dir, filename))
+        if candidate.startswith(norm_base) and os.path.isfile(candidate):
+            return candidate, base_dir
+    return None, None
 
-        os.makedirs(os.path.dirname(dest), exist_ok=True)
-        shutil.move(src, dest)
 
-        # filename column unchanged; only model_type is updated
-        await model_repo.update_model_type(rel_path, new_type)
-        return ok()
+async def _organize_one_model(model: dict) -> str:
+    """Move one model into its base-model subfolder; return 'moved', 'skipped' or 'errors'."""
+    filename = model["filename"]
+    src, src_base_dir = _resolve_organize_source(model.get("model_type") or "", filename)
+    if not src or not src_base_dir:
+        return "skipped"
 
-    @routes.post("/tiny-model-manager/api/models/organize")
-    @json_route
-    async def organize_models(request):
-        models = await model_repo.get_all_models_slim()
-        moved = skipped = errors = 0
+    subfolder = _sanitize_subfolder_name(model.get("base_model") or "")
+    target_rel = subfolder + "/" + os.path.basename(filename)
+    if filename == target_rel:
+        return "skipped"
 
-        for model in models:
-            filename: str = model["filename"]
-            model_type: str = model.get("model_type") or ""
-            base_model: str = model.get("base_model") or ""
+    target_abs = os.path.join(src_base_dir, target_rel)
+    if os.path.exists(target_abs):
+        return "skipped"
 
-            # Resolve source file on disk
-            try:
-                base_dirs = folder_paths.get_folder_paths(model_type)
-            except Exception:
-                base_dirs = [os.path.join(folder_paths.models_dir, model_type)]
+    try:
+        os.makedirs(os.path.dirname(target_abs), exist_ok=True)
+        shutil.move(src, target_abs)
+        await model_repo.update_model_filename(filename, target_rel)
+        return "moved"
+    except Exception:
+        return "errors"
 
-            src = None
-            src_base_dir = None
-            for base_dir in base_dirs:
-                norm_base = os.path.normpath(base_dir)
-                candidate = os.path.normpath(os.path.join(base_dir, filename))
-                if not candidate.startswith(norm_base):
-                    continue
-                if os.path.isfile(candidate):
-                    src = candidate
-                    src_base_dir = base_dir
-                    break
 
-            if not src or not src_base_dir:
-                skipped += 1
-                continue
+async def _organize_models(request):
+    models = await model_repo.get_all_models_slim()
+    counts = {"moved": 0, "skipped": 0, "errors": 0}
+    for model in models:
+        counts[await _organize_one_model(model)] += 1
+    return ok(counts)
 
-            basename = os.path.basename(filename)
-            subfolder = _sanitize_subfolder_name(base_model)
-            target_rel = subfolder + "/" + basename
 
-            if filename == target_rel:
-                skipped += 1
-                continue
+async def _get_pending_reorganize(request):
+    jobs = await model_repo.get_pending_jobs()
+    return ok([j["filename"] for j in jobs])
 
-            target_abs = os.path.join(src_base_dir, target_rel)
-            if os.path.exists(target_abs):
-                skipped += 1
-                continue
 
-            try:
-                os.makedirs(os.path.dirname(target_abs), exist_ok=True)
-                shutil.move(src, target_abs)
-                await model_repo.update_model_filename(filename, target_rel)
-                moved += 1
-            except Exception:
-                errors += 1
-
-        return ok({"moved": moved, "skipped": skipped, "errors": errors})
-
-    @routes.get("/tiny-model-manager/api/reorganize/pending")
-    @json_route
-    async def get_pending_reorganize(request):
-        jobs = await model_repo.get_pending_jobs()
-        return ok([j["filename"] for j in jobs])
+def add_model_routes(routes):
+    routes.get("/tiny-model-manager/api/models")(json_route(_list_models))
+    routes.delete("/tiny-model-manager/api/models/{model_type}/{path:.*}")(
+        json_route(_delete_model)
+    )
+    routes.get("/tiny-model-manager/api/model-types")(json_route(_list_model_types))
+    routes.post("/tiny-model-manager/api/models/{model_type}/{path:.*}/move")(
+        json_route(_move_model)
+    )
+    routes.post("/tiny-model-manager/api/models/organize")(json_route(_organize_models))
+    routes.get("/tiny-model-manager/api/reorganize/pending")(json_route(_get_pending_reorganize))
