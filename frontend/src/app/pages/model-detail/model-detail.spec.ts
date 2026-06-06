@@ -435,6 +435,42 @@ describe('ModelDetail', () => {
     });
   });
 
+  describe('copyTriggerWords()', () => {
+    let clipboardWriteText: ReturnType<typeof vi.fn>;
+    let originalNavigator: typeof navigator;
+
+    beforeEach(() => {
+      originalNavigator = globalThis.navigator;
+      clipboardWriteText = vi.fn();
+      vi.stubGlobal('navigator', {
+        clipboard: { writeText: clipboardWriteText },
+      });
+    });
+
+    afterEach(() => {
+      vi.stubGlobal('navigator', originalNavigator);
+    });
+
+    it('copies trigger words as comma-separated string', async () => {
+      clipboardWriteText.mockResolvedValue(undefined);
+      component.meta.set(makeMeta({ trigger_words: ['alpha', 'beta', 'gamma'] }));
+      await component.copyTriggerWords();
+      expect(clipboardWriteText).toHaveBeenCalledWith('alpha, beta, gamma');
+    });
+
+    it('shows success toast when clipboard write resolves', async () => {
+      clipboardWriteText.mockResolvedValue(undefined);
+      await component.copyTriggerWords();
+      expect(mockNotifService.show).toHaveBeenCalledWith('success', 'Trigger words copied');
+    });
+
+    it('shows error toast when clipboard write rejects', async () => {
+      clipboardWriteText.mockRejectedValue(new Error('denied'));
+      await component.copyTriggerWords();
+      expect(mockNotifService.show).toHaveBeenCalledWith('error', 'Could not copy trigger words');
+    });
+  });
+
   describe('downloadFile', () => {
     it('calls startDownload with correct arguments for root-level model', () => {
       component.modelPath = 'my-lora.safetensors';

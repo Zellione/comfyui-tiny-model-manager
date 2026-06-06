@@ -284,6 +284,16 @@ export class Models implements OnInit {
     });
   }
 
+  async copyTriggerWords(entry: CatalogEntry) {
+    const text = (entry.trigger_words ?? []).join(', ');
+    try {
+      await navigator.clipboard.writeText(text);
+      this.notifService.show('success', 'Trigger words copied');
+    } catch {
+      this.notifService.show('error', 'Could not copy trigger words');
+    }
+  }
+
   organizeIntoSubfolders() {
     if (!confirm('Reorganize all installed models into base-model subfolders?')) return;
     this.modelService.organizeIntoSubfolders().subscribe({

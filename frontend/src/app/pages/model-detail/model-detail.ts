@@ -383,13 +383,16 @@ export class ModelDetail implements OnInit {
       });
   }
 
-  copyTriggerWords() {
+  async copyTriggerWords() {
     const text = (this.meta()?.trigger_words ?? []).join(', ');
-    const done = () => {
+    try {
+      await navigator.clipboard.writeText(text);
       this.copied.set(true);
       setTimeout(() => this.copied.set(false), 1400);
-    };
-    navigator.clipboard.writeText(text).then(done).catch(done);
+      this.notifService.show('success', 'Trigger words copied');
+    } catch {
+      this.notifService.show('error', 'Could not copy trigger words');
+    }
   }
 
   formatBytes = formatBytes;
