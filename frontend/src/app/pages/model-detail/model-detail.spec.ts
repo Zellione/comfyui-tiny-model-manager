@@ -6,7 +6,6 @@ import { ModelDetail } from './model-detail';
 import {
   ModelService,
   RepoFile,
-  RefetchResult,
   CatalogEntryDetail,
   RefetchPreviewResponse,
 } from '../../services/model';
@@ -86,7 +85,7 @@ const mockModelService = {
   getMetadata: vi.fn(() => of(makeMeta())),
   updateMetadata: vi.fn(() => of(undefined)),
   updateMetadataWithPath: vi.fn(() => of({ new_path: 'my-lora.safetensors' })),
-  refetchMetadata: vi.fn(() => of({ removed: false, meta: makeMeta() } as RefetchResult)),
+  refetchMetadata: vi.fn(() => of({ removed: false, meta: makeMeta() })),
   refetchPreview: vi.fn(() => of(makePreviewData())),
   refetchApply: vi.fn(() => of({ removed: false, meta: makeMeta() })),
   deleteModel: vi.fn(() => of(undefined)),

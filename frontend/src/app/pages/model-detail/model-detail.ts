@@ -90,12 +90,12 @@ export class ModelDetail implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private modelService: ModelService,
-    private downloadService: DownloadService,
-    private workflowService: WorkflowService,
-    private notifService: NotificationService,
+    private readonly route: ActivatedRoute,
+    private readonly router: Router,
+    private readonly modelService: ModelService,
+    private readonly downloadService: DownloadService,
+    private readonly workflowService: WorkflowService,
+    private readonly notifService: NotificationService,
   ) {}
 
   ngOnInit() {
@@ -191,7 +191,7 @@ export class ModelDetail implements OnInit {
     const typeChanged = !!this.editType && this.editType !== this.modelType;
     const move$ = typeChanged
       ? this.modelService.moveModel(this.modelType, this.modelPath, this.editType)
-      : of(undefined as void);
+      : of<void>(undefined);
     move$
       .pipe(
         switchMap(() => {
@@ -389,20 +389,7 @@ export class ModelDetail implements OnInit {
       this.copied.set(true);
       setTimeout(() => this.copied.set(false), 1400);
     };
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(done).catch(done);
-    } else {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      try {
-        document.execCommand('copy');
-      } finally {
-        document.body.removeChild(ta);
-      }
-      done();
-    }
+    navigator.clipboard.writeText(text).then(done).catch(done);
   }
 
   formatBytes = formatBytes;

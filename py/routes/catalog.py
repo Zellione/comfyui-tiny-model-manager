@@ -75,6 +75,25 @@ _BROAD_EXTENSIONS = {".safetensors", ".ckpt", ".pt", ".bin", ".gguf", ".pth"}
 _SKIP_TYPES = {"configs", "custom_nodes"}
 
 
+def _collect_model_files(base_dir: str, allowed: set, key: str, result: dict) -> None:
+    """Walk ``base_dir`` and append every matching model file under ``result[key]``."""
+    for root, _, files in os.walk(base_dir):
+        for fname in files:
+            if os.path.splitext(fname)[1].lower() not in allowed:
+                continue
+            full = os.path.join(root, fname)
+            rel = os.path.relpath(full, base_dir).replace("\\", "/")
+            s = os.stat(full)
+            result.setdefault(key, []).append(
+                {
+                    "filename": rel,
+                    "base_dir": base_dir,
+                    "size_bytes": s.st_size,
+                    "modified_at": s.st_mtime,
+                }
+            )
+
+
 def _scan_registered_folders(result: dict, scanned: set) -> None:
     """Scan folders registered in folder_paths and populate result in-place."""
     for folder_type, (dirs, extensions) in folder_paths.folder_names_and_paths.items():
@@ -83,23 +102,8 @@ def _scan_registered_folders(result: dict, scanned: set) -> None:
         allowed = set(extensions) | _BROAD_EXTENSIONS
         for base_dir in dirs:
             scanned.add(os.path.normpath(base_dir))
-            if not os.path.isdir(base_dir):
-                continue
-            for root, _, files in os.walk(base_dir):
-                for fname in files:
-                    if os.path.splitext(fname)[1].lower() not in allowed:
-                        continue
-                    full = os.path.join(root, fname)
-                    rel = os.path.relpath(full, base_dir).replace("\\", "/")
-                    s = os.stat(full)
-                    result.setdefault(folder_type, []).append(
-                        {
-                            "filename": rel,
-                            "base_dir": base_dir,
-                            "size_bytes": s.st_size,
-                            "modified_at": s.st_mtime,
-                        }
-                    )
+            if os.path.isdir(base_dir):
+                _collect_model_files(base_dir, allowed, folder_type, result)
 
 
 def _scan_extra_models_dir(result: dict, scanned: set, models_dir: str) -> None:
@@ -111,21 +115,7 @@ def _scan_extra_models_dir(result: dict, scanned: set, models_dir: str) -> None:
         if not os.path.isdir(physical) or physical in scanned:
             continue
         scanned.add(physical)
-        for root, _, files in os.walk(physical):
-            for fname in files:
-                if os.path.splitext(fname)[1].lower() not in _BROAD_EXTENSIONS:
-                    continue
-                full = os.path.join(root, fname)
-                rel = os.path.relpath(full, physical).replace("\\", "/")
-                s = os.stat(full)
-                result.setdefault(name, []).append(
-                    {
-                        "filename": rel,
-                        "base_dir": physical,
-                        "size_bytes": s.st_size,
-                        "modified_at": s.st_mtime,
-                    }
-                )
+        _collect_model_files(physical, _BROAD_EXTENSIONS, name, result)
 
 
 def _scan_all_files() -> dict[str, list[dict]]:

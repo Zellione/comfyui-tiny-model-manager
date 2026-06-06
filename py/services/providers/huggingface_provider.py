@@ -18,6 +18,64 @@ MODEL_EXTENSIONS = {".safetensors", ".ckpt", ".pt", ".bin", ".gguf"}
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 
 
+def _file_ext(name: str) -> str:
+    return ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
+
+
+def _build_search_params(
+    query: str,
+    model_type: str,
+    limit: int,
+    p: int,
+    sort: str,
+    direction: int,
+    file_format: str,
+    tags: list[str] | None,
+) -> dict:
+    """Assemble the HuggingFace /models query params, honouring gguf and tag filters."""
+    params: dict = {
+        "search": query,
+        "limit": limit,
+        "sort": sort,
+        "direction": direction,
+        "p": p,
+        "full": "true",
+    }
+    extra_tags = list(tags) if tags else []
+    if file_format == ".gguf":
+        filter_values = ["gguf"] + extra_tags
+        params["filter"] = filter_values if len(filter_values) > 1 else filter_values[0]
+    else:
+        params["pipeline_tag"] = HF_TYPE_MAP.get(model_type, "text-to-image")
+        if extra_tags:
+            params["filter"] = extra_tags
+    return params
+
+
+def _enrich_hf_model(model: dict) -> None:
+    """Add thumbnail, images, formats and description fields to a raw HF model dict in place."""
+    repo_id = model.get("modelId") or model.get("id", "")
+    thumbnail = ""
+    images: list[str] = []
+    exts: set[str] = set()
+    for sibling in model.get("siblings", []):
+        name = sibling.get("rfilename", "")
+        ext = _file_ext(name)
+        if ext in IMAGE_EXTENSIONS:
+            url = f"{_BASE}/{repo_id}/resolve/main/{name}"
+            if not thumbnail:
+                thumbnail = url
+            if len(images) < 8:
+                images.append(url)
+        if ext in MODEL_EXTENSIONS:
+            exts.add(ext)
+    card_data = model.get("cardData") or {}
+    model["thumbnail"] = thumbnail
+    model["images"] = images
+    model["formats"] = list(exts)
+    model["description"] = card_data.get("description", "") or ""
+
+
 class HuggingFaceProvider(ModelProvider):
     name = "huggingface"
 
@@ -39,47 +97,13 @@ class HuggingFaceProvider(ModelProvider):
         tags: list[str] | None = None,
         **kwargs,
     ) -> dict:
-        params: dict = {
-            "search": query,
-            "limit": limit,
-            "sort": sort,
-            "direction": direction,
-            "p": p,
-            "full": "true",
-        }
-        extra_tags = list(tags) if tags else []
-        if format == ".gguf":
-            filter_values = ["gguf"] + extra_tags
-            params["filter"] = filter_values if len(filter_values) > 1 else filter_values[0]
-        else:
-            params["pipeline_tag"] = HF_TYPE_MAP.get(model_type, "text-to-image")
-            if extra_tags:
-                params["filter"] = extra_tags
+        params = _build_search_params(query, model_type, limit, p, sort, direction, format, tags)
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(f"{_API}/models", params=params, headers=self.auth_headers())
             resp.raise_for_status()
             data = resp.json()
         for model in data:
-            repo_id = model.get("modelId") or model.get("id", "")
-            thumbnail = ""
-            images: list[str] = []
-            exts: set[str] = set()
-            for sibling in model.get("siblings", []):
-                name = sibling.get("rfilename", "")
-                ext = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
-                if ext in IMAGE_EXTENSIONS:
-                    url = f"{_BASE}/{repo_id}/resolve/main/{name}"
-                    if not thumbnail:
-                        thumbnail = url
-                    if len(images) < 8:
-                        images.append(url)
-                if ext in MODEL_EXTENSIONS:
-                    exts.add(ext)
-            card_data = model.get("cardData") or {}
-            model["thumbnail"] = thumbnail
-            model["images"] = images
-            model["formats"] = list(exts)
-            model["description"] = card_data.get("description", "") or ""
+            _enrich_hf_model(model)
         return {"items": data, "hasMore": len(data) == limit, "nextPage": p + 1}
 
     async def get_model_files(self, repo_id: str) -> list[dict]:

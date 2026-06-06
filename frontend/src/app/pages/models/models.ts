@@ -58,7 +58,7 @@ export class Models implements OnInit {
     for (const e of this.catalogEntries()) {
       if (e.base_model) values.add(e.base_model);
     }
-    return [...values].sort();
+    return [...values].sort((a, b) => a.localeCompare(b));
   });
 
   filteredEntries = computed(() => {
@@ -127,14 +127,14 @@ export class Models implements OnInit {
   // Legacy: keep modelsByType for the organize feature
   modelsByType = signal<Record<string, ModelFile[]>>({});
 
-  private destroyRef = inject(DestroyRef);
-  private pollTrigger = new Subject<void>();
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly pollTrigger = new Subject<void>();
 
   constructor(
-    private modelService: ModelService,
-    private workflowService: WorkflowService,
-    private notifService: NotificationService,
-    private settingsService: SettingsService,
+    private readonly modelService: ModelService,
+    private readonly workflowService: WorkflowService,
+    private readonly notifService: NotificationService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   ngOnInit() {

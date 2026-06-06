@@ -24,7 +24,7 @@ export class DownloadService {
   readonly activeTasks$: Observable<DownloadTask[]>;
   readonly completedTasks$: Observable<DownloadTask>;
 
-  constructor(private http: HttpClient) {
+  constructor(private readonly http: HttpClient) {
     this.activeTasks$ = interval(2000).pipe(
       startWith(0),
       switchMap(() =>

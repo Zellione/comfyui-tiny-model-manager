@@ -53,22 +53,36 @@ export interface CivitaiVersionsResult {
   model_type: string;
 }
 
+export interface CivitaiSearchParams {
+  q: string;
+  type?: string;
+  page?: number;
+  cursor?: string;
+  baseModel?: string;
+  sort?: string;
+  period?: string;
+  tags?: string[];
+}
+
 const API = '/tiny-model-manager/api';
 
 @Injectable({ providedIn: 'root' })
 export class CivitaiService {
-  constructor(private http: HttpClient) {}
+  constructor(private readonly http: HttpClient) {}
 
   search(
-    q: string,
-    type = '',
-    page = 1,
-    cursor = '',
-    baseModel = '',
-    sort = '',
-    period = '',
-    tags: string[] = [],
+    opts: CivitaiSearchParams,
   ): Observable<{ items: CivitaiModel[]; metadata: CivitaiSearchMetadata }> {
+    const {
+      q,
+      type = '',
+      page = 1,
+      cursor = '',
+      baseModel = '',
+      sort = '',
+      period = '',
+      tags = [],
+    } = opts;
     const params: Record<string, string | number> = { q, type };
     if (cursor) {
       params['cursor'] = cursor;

@@ -14,8 +14,8 @@ const API = '/tiny-model-manager/api';
 
 @Injectable({ providedIn: 'root' })
 export class BackendNotificationService implements OnDestroy {
-  private http = inject(HttpClient);
-  private notif = inject(NotificationService);
+  private readonly http = inject(HttpClient);
+  private readonly notif = inject(NotificationService);
   private sub: Subscription | null = null;
 
   start(): void {

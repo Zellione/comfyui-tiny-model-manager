@@ -178,6 +178,7 @@
                       [checked]="isLinkCivitaiFileSelected(v.id, f)"
                       (change)="toggleLinkCivitaiFile(v.id, f)"
                       (click)="$event.stopPropagation()"
+                      (keydown)="$event.stopPropagation()"
                     />
                     <span>{{ f.name }}</span>
                   </div>
@@ -521,6 +522,7 @@
                               [checked]="isCivitaiFileSelected(v.id, f)"
                               (change)="toggleCivitaiFile(v.id, f)"
                               (click)="$event.stopPropagation()"
+                              (keydown)="$event.stopPropagation()"
                             />
                             <span>{{ f.name }}</span>
                           </div>

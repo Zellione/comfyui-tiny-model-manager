@@ -4,9 +4,11 @@ import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
+import aiofiles
 import folder_paths
 import httpx
 
+from ..background import spawn
 from .providers import get_provider
 
 SUPPORTED_TYPES = {
@@ -133,7 +135,7 @@ def _ensure_worker():
     global _worker_started
     if not _worker_started:
         _worker_started = True
-        asyncio.ensure_future(_worker())
+        spawn(_worker())
 
 
 async def _worker():
@@ -156,11 +158,11 @@ async def _run_download(task: DownloadTask):
                 total = int(resp.headers.get("content-length", 0))
                 task.total_bytes = total
                 downloaded = 0
-                with open(task.dest_path, "wb") as f:
+                async with aiofiles.open(task.dest_path, "wb") as f:
                     async for chunk in resp.aiter_bytes(65536):
                         if task.cancelled:
                             raise _Cancelled()
-                        f.write(chunk)
+                        await f.write(chunk)
                         downloaded += len(chunk)
                         task.downloaded_bytes = downloaded
                         task.progress = (downloaded / total * 100) if total else 0.0
@@ -170,9 +172,7 @@ async def _run_download(task: DownloadTask):
             await task.on_complete(task)
         from .metadata_fetcher import fetch_and_store
 
-        asyncio.ensure_future(
-            fetch_and_store(task.filename, task.model_type, task.platform, task.source_id)
-        )
+        spawn(fetch_and_store(task.filename, task.model_type, task.platform, task.source_id))
     except _Cancelled:
         task.status = "cancelled"
         if os.path.isfile(task.dest_path):

@@ -620,15 +620,15 @@ class TestRefetchPreview:
 
         from py.services.providers.base import ProviderMetadata
 
-        defaults = dict(
-            description="New desc",
-            trigger_words=["new_word"],
-            tags=["new_tag"],
-            base_model="Flux.1 D",
-            image_urls=["https://example.com/img.jpg"],
-            civitai_model_id="",
-            display_name="Model",
-        )
+        defaults = {
+            "description": "New desc",
+            "trigger_words": ["new_word"],
+            "tags": ["new_tag"],
+            "base_model": "Flux.1 D",
+            "image_urls": ["https://example.com/img.jpg"],
+            "civitai_model_id": "",
+            "display_name": "Model",
+        }
         defaults.update(kwargs)
         return AsyncMock(return_value=ProviderMetadata(**defaults))
 

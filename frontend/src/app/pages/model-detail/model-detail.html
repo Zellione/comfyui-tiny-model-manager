@@ -126,12 +126,9 @@
           @if (meta()!.trigger_words && meta()!.trigger_words.length > 0) {
             <div class="keywords-row">
               <div class="keywords-label">Trigger keywords</div>
-              <div class="keywords-line" (click)="copyTriggerWords()">
+              <div class="keywords-line">
                 <code>{{ meta()!.trigger_words.join(', ') }}</code>
-                <button
-                  class="btn small ghost keywords-copy"
-                  (click)="$event.stopPropagation(); copyTriggerWords()"
-                >
+                <button class="btn small ghost keywords-copy" (click)="copyTriggerWords()">
                   {{ copied() ? '✓ Copied' : 'Copy' }}
                 </button>
               </div>

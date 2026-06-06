@@ -37,7 +37,7 @@ def _remove_empty_dir(path: str) -> None:
         pass
 
 
-async def _move_to_subfolder(filename: str, model_type: str, base_model: str) -> str:
+def _move_to_subfolder(filename: str, model_type: str, base_model: str) -> str:
     """Move the model file into a base-model subfolder; return the new relative filename."""
     try:
         base_dirs = folder_paths.get_folder_paths(model_type)
@@ -89,7 +89,7 @@ async def _process_organize_job(job: dict) -> None:
             base_model = await model_repo.get_effective_base_model(filename)
             if base_model:
                 await model_repo.update_model_base_model(filename, base_model)
-        new_fn = await _move_to_subfolder(filename, model_type, base_model)
+        new_fn = _move_to_subfolder(filename, model_type, base_model)
         if new_fn != filename:
             await model_repo.update_model_filename(filename, new_fn)
     except Exception:

@@ -24,7 +24,7 @@ const API = '/tiny-model-manager/api';
 
 @Injectable({ providedIn: 'root' })
 export class HuggingFaceService {
-  constructor(private http: HttpClient) {}
+  constructor(private readonly http: HttpClient) {}
 
   search(
     q: string,

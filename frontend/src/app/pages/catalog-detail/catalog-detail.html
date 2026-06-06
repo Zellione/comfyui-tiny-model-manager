@@ -97,18 +97,9 @@
           @if (displayTriggerWords().length > 0) {
             <div class="keywords-row">
               <div class="keywords-label">Trigger keywords</div>
-              <div
-                class="keywords-line"
-                role="button"
-                tabindex="0"
-                (click)="copyTriggerWords()"
-                (keydown.enter)="copyTriggerWords()"
-              >
+              <div class="keywords-line">
                 <code>{{ displayTriggerWords().join(', ') }}</code>
-                <button
-                  class="btn small ghost keywords-copy"
-                  (click)="$event.stopPropagation(); copyTriggerWords()"
-                >
+                <button class="btn small ghost keywords-copy" (click)="copyTriggerWords()">
                   {{ copied() ? '✓ Copied' : 'Copy' }}
                 </button>
               </div>

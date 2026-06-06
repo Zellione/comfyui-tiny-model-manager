@@ -47,6 +47,21 @@ function findOrganizeButton(el: HTMLElement): HTMLButtonElement | undefined {
   );
 }
 
+async function createFixture() {
+  const fixture = TestBed.createComponent(Models);
+  fixture.detectChanges();
+  await fixture.whenStable();
+  return fixture;
+}
+
+async function getComponent() {
+  return (await createFixture()).componentInstance;
+}
+
+function triggerMessage() {
+  capturedChannel?.onmessage?.(new MessageEvent('message'));
+}
+
 describe('Models component', () => {
   beforeEach(async () => {
     capturedChannel = null;
@@ -65,17 +80,6 @@ describe('Models component', () => {
       ],
     }).compileComponents();
   });
-
-  async function createFixture() {
-    const fixture = TestBed.createComponent(Models);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    return fixture;
-  }
-
-  async function getComponent() {
-    return (await createFixture()).componentInstance;
-  }
 
   it('creates successfully', async () => {
     const fixture = await createFixture();
@@ -332,10 +336,6 @@ describe('Models component', () => {
   });
 
   describe('BroadcastChannel tmm message', () => {
-    function triggerMessage() {
-      capturedChannel?.onmessage?.(new MessageEvent('message'));
-    }
-
     it('checks pending queue immediately when message arrives', async () => {
       await createFixture();
       const prevCalls = mockModelService.getPendingQueue.mock.calls.length;

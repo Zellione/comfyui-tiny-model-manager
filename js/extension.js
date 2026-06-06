@@ -159,7 +159,11 @@ app.registerExtension({
         }
 
         const result = await putSetting("organize_into_subfolders", value);
-        if (!result.ok) {
+        if (result.ok) {
+          const ch = new BroadcastChannel("tmm");
+          ch.postMessage({ key: "organize_into_subfolders", value });
+          ch.close();
+        } else {
           alert(`Could not change setting:\n${result.error}`);
           _revertingOrganize = true;
           const data = await fetchSettings();
@@ -168,10 +172,6 @@ app.registerExtension({
             data.organize_into_subfolders ?? false,
           );
           _revertingOrganize = false;
-        } else {
-          const ch = new BroadcastChannel("tmm");
-          ch.postMessage({ key: "organize_into_subfolders", value });
-          ch.close();
         }
       },
     },
@@ -187,22 +187,23 @@ const NODE_TYPE_MAP = {
   upscale_models: { node: "TMMUpscaleModelLoader",  widget: "model_name" },
 };
 
+// Strip ComfyUI's " (N)" disambiguation suffix from a filename's stem.
+function stripSuffix(s) {
+  const slash = Math.max(s.lastIndexOf('/'), s.lastIndexOf('\\'));
+  const dir   = slash >= 0 ? s.slice(0, slash + 1) : '';
+  const base  = slash >= 0 ? s.slice(slash + 1) : s;
+  const dot   = base.lastIndexOf('.');
+  const stem  = dot >= 0 ? base.slice(0, dot) : base;
+  const ext   = dot >= 0 ? base.slice(dot) : '';
+  return dir + stem.replace(/\s*\(\d+\)$/, '') + ext;
+}
+
 // Resolve the best matching option in a COMBO widget for a given filename.
 // ComfyUI appends " (N)" to disambiguate files with the same relative path
 // across multiple model directories. This function handles that mismatch.
 function findWidgetOption(widget, filename) {
   const options = widget.options?.values ?? [];
   if (options.includes(filename)) return filename;
-
-  function stripSuffix(s) {
-    const slash = Math.max(s.lastIndexOf('/'), s.lastIndexOf('\\'));
-    const dir   = slash >= 0 ? s.slice(0, slash + 1) : '';
-    const base  = slash >= 0 ? s.slice(slash + 1) : s;
-    const dot   = base.lastIndexOf('.');
-    const stem  = dot >= 0 ? base.slice(0, dot) : base;
-    const ext   = dot >= 0 ? base.slice(dot) : '';
-    return dir + stem.replace(/\s*\(\d+\)$/, '') + ext;
-  }
 
   const cleanFile = stripSuffix(filename);
   return (
