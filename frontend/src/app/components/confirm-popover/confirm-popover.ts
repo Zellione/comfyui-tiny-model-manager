@@ -36,7 +36,11 @@ export class ConfirmPopover {
 
   @HostListener('document:click', ['$event'])
   onDocClick(ev: MouseEvent) {
-    if (this.isOpen() && ev.target instanceof Node && !this.host.nativeElement.contains(ev.target)) {
+    if (
+      this.isOpen() &&
+      ev.target instanceof Node &&
+      !this.host.nativeElement.contains(ev.target)
+    ) {
       this.service.deactivate(this.id);
     }
   }
