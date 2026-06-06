@@ -353,6 +353,100 @@ class TestRedownload:
         assert resp.status == 400
 
 
+class TestHfFilesRoute:
+    async def test_returns_files_list(self, client, monkeypatch):
+        from py.services.providers import huggingface as hf_provider
+
+        async def mock_get_files(repo_id):
+            return [{"filename": "model.safetensors", "size": 1000}]
+
+        monkeypatch.setattr(hf_provider, "get_model_files", mock_get_files)
+        resp = await client.get(
+            "/tiny-model-manager/api/search/huggingface/files", params={"repo": "user/myrepo"}
+        )
+        assert resp.status == 200
+        data = await resp.json()
+        assert data["success"] is True
+        assert len(data["data"]) == 1
+        assert data["data"][0]["filename"] == "model.safetensors"
+
+    async def test_missing_repo_returns_400(self, client):
+        resp = await client.get("/tiny-model-manager/api/search/huggingface/files")
+        assert resp.status == 400
+
+
+class TestCivitaiVersionsRoute:
+    async def test_returns_versions_list(self, client, monkeypatch):
+        from py.services.providers import civitai as civitai_provider
+
+        async def mock_get_versions(model_id):
+            return [{"id": 1, "name": "v1"}]
+
+        monkeypatch.setattr(civitai_provider, "get_model_versions", mock_get_versions)
+        resp = await client.get("/tiny-model-manager/api/civitai/versions/42")
+        assert resp.status == 200
+        data = await resp.json()
+        assert data["success"] is True
+        assert data["data"][0]["id"] == 1
+
+
+class TestHfReadmeRoute:
+    async def test_returns_readme_text(self, client, monkeypatch):
+        from py.services.providers import huggingface as hf_provider
+
+        async def mock_get_readme(repo_id):
+            return "# My Model\nGreat model."
+
+        monkeypatch.setattr(hf_provider, "get_readme", mock_get_readme)
+        resp = await client.get(
+            "/tiny-model-manager/api/huggingface/readme", params={"repo": "user/myrepo"}
+        )
+        assert resp.status == 200
+        data = await resp.json()
+        assert data["success"] is True
+        assert "Great model" in data["data"]["description"]
+
+    async def test_missing_repo_returns_400(self, client):
+        resp = await client.get("/tiny-model-manager/api/huggingface/readme")
+        assert resp.status == 400
+
+
+class TestHfResolveRoute:
+    async def test_returns_resolved_link(self, client, monkeypatch):
+        from py.services.providers import huggingface as hf_provider
+
+        async def mock_resolve(repo_id):
+            return {"url": "https://huggingface.co/user/repo/resolve/main/model.safetensors"}
+
+        monkeypatch.setattr(hf_provider, "resolve_direct_link", mock_resolve)
+        resp = await client.get(
+            "/tiny-model-manager/api/huggingface/resolve", params={"repo": "user/myrepo"}
+        )
+        assert resp.status == 200
+        data = await resp.json()
+        assert data["success"] is True
+        assert "url" in data["data"]
+
+    async def test_missing_repo_returns_400(self, client):
+        resp = await client.get("/tiny-model-manager/api/huggingface/resolve")
+        assert resp.status == 400
+
+
+class TestCivitaiResolveVersionRoute:
+    async def test_returns_resolved_version(self, client, monkeypatch):
+        from py.services.providers import civitai as civitai_provider
+
+        async def mock_resolve(version_id):
+            return {"url": "https://civitai.com/download/99", "filename": "model.safetensors"}
+
+        monkeypatch.setattr(civitai_provider, "resolve_direct_link", mock_resolve)
+        resp = await client.get("/tiny-model-manager/api/civitai/resolve/99")
+        assert resp.status == 200
+        data = await resp.json()
+        assert data["success"] is True
+        assert data["data"]["filename"] == "model.safetensors"
+
+
 class TestDownloaderEnqueueHuggingFaceFilename:
     """Test that HF filenames with subfolder paths are stripped to basename."""
 
