@@ -681,13 +681,9 @@
                   }
                   <div class="gallery-main">
                     @if (isVideo(currentHfGalleryUrl(model))) {
-                      <video
-                        [src]="currentHfGalleryUrl(model)"
-                        controls
-                        loop
-                        muted
-                        autoplay
-                      ></video>
+                      <video [src]="currentHfGalleryUrl(model)" controls loop muted autoplay>
+                        <track kind="captions" />
+                      </video>
                     } @else {
                       <img [src]="currentHfGalleryUrl(model)" alt="" (error)="onImgError($event)" />
                     }

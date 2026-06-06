@@ -159,26 +159,30 @@ async def _worker():
         _queue.task_done()
 
 
+async def _stream_file(task: DownloadTask, headers: dict) -> None:
+    async with httpx.AsyncClient(timeout=None, follow_redirects=True) as client:
+        async with client.stream("GET", task.url, headers=headers) as resp:
+            resp.raise_for_status()
+            total = int(resp.headers.get("content-length", 0))
+            task.total_bytes = total
+            downloaded = 0
+            async with aiofiles.open(task.dest_path, "wb") as f:
+                async for chunk in resp.aiter_bytes(65536):
+                    if task.cancelled:
+                        raise _Cancelled()
+                    await f.write(chunk)
+                    downloaded += len(chunk)
+                    task.downloaded_bytes = downloaded
+                    task.progress = (downloaded / total * 100) if total else 0.0
+
+
 async def _run_download(task: DownloadTask):
     task.status = "downloading"
     provider = get_provider(task.platform)
     headers = provider.auth_headers() if provider else {}
 
     try:
-        async with httpx.AsyncClient(timeout=None, follow_redirects=True) as client:
-            async with client.stream("GET", task.url, headers=headers) as resp:
-                resp.raise_for_status()
-                total = int(resp.headers.get("content-length", 0))
-                task.total_bytes = total
-                downloaded = 0
-                async with aiofiles.open(task.dest_path, "wb") as f:
-                    async for chunk in resp.aiter_bytes(65536):
-                        if task.cancelled:
-                            raise _Cancelled()
-                        await f.write(chunk)
-                        downloaded += len(chunk)
-                        task.downloaded_bytes = downloaded
-                        task.progress = (downloaded / total * 100) if total else 0.0
+        await _stream_file(task, headers)
         task.status = "done"
         task.progress = 100.0
         task.completed_at = time.time()
