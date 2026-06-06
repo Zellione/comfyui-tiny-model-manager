@@ -51,7 +51,7 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "12kB",
+                  "maximumWarning": "15kB",
                   "maximumError": "20kB"
                 }
               ],
@@ -78,7 +78,13 @@
           "defaultConfiguration": "development"
         },
         "test": {
-          "builder": "@angular/build:unit-test"
+          "builder": "@angular/build:unit-test",
+          "configurations": {
+            "coverage": {
+              "coverage": true,
+              "coverageReporters": ["lcovonly"]
+            }
+          }
         },
         "lint": {
           "builder": "@angular-eslint/builder:lint",

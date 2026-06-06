@@ -78,6 +78,20 @@ CREATE TABLE IF NOT EXISTS repo_files (
     source_page_url  TEXT,
     UNIQUE (catalog_entry_id, filename)
 );
+
+CREATE TABLE IF NOT EXISTS download_history (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    model_name TEXT    NOT NULL,
+    source     TEXT    NOT NULL DEFAULT '',
+    model_id   TEXT    NOT NULL DEFAULT '',
+    version_id TEXT    NOT NULL DEFAULT '',
+    file_url   TEXT    NOT NULL DEFAULT '',
+    dest_path  TEXT    NOT NULL DEFAULT '',
+    model_type TEXT    NOT NULL DEFAULT '',
+    status     TEXT    NOT NULL DEFAULT 'downloading',
+    created_at TEXT    DEFAULT (datetime('now')),
+    updated_at TEXT    DEFAULT (datetime('now'))
+);
 """
 
 
@@ -326,6 +340,26 @@ async def _migrate_db():
                 await db.execute("ALTER TABLE repo_files_f40 RENAME TO repo_files")
         except Exception as exc:
             print(f"[tiny-model-manager] F-40 catalog migration failed: {exc}")
+
+        # F-47: download_history table (fresh installs already have it from _SCHEMA)
+        try:
+            await db.execute(
+                "CREATE TABLE IF NOT EXISTS download_history ("
+                "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "  model_name TEXT NOT NULL,"
+                "  source TEXT NOT NULL DEFAULT '',"
+                "  model_id TEXT NOT NULL DEFAULT '',"
+                "  version_id TEXT NOT NULL DEFAULT '',"
+                "  file_url TEXT NOT NULL DEFAULT '',"
+                "  dest_path TEXT NOT NULL DEFAULT '',"
+                "  model_type TEXT NOT NULL DEFAULT '',"
+                "  status TEXT NOT NULL DEFAULT 'downloading',"
+                "  created_at TEXT DEFAULT (datetime('now')),"
+                "  updated_at TEXT DEFAULT (datetime('now'))"
+                ")"
+            )
+        except Exception as exc:
+            print(f"[tiny-model-manager] download_history migration failed: {exc}")
 
         await db.commit()
 

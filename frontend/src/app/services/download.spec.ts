@@ -16,6 +16,7 @@ function makeTask(overrides: Partial<DownloadTask> = {}): DownloadTask {
     downloaded_bytes: 0,
     total_bytes: 0,
     error: null,
+    history_id: null,
     ...overrides,
   };
 }

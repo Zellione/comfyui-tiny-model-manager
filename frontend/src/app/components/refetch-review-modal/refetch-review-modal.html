@@ -1,9 +1,4 @@
-<div
-  class="refetch-modal-overlay"
-  (click)="cancelled.emit()"
-  (keydown.escape)="cancelled.emit()"
-  tabindex="0"
->
+<div class="refetch-modal-overlay" (click)="cancelled.emit()" (keydown.escape)="cancelled.emit()">
   <div
     class="refetch-modal"
     (click)="$event.stopPropagation()"

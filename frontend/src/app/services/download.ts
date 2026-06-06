@@ -15,6 +15,7 @@ export interface DownloadTask {
   downloaded_bytes: number;
   total_bytes: number;
   error: string | null;
+  history_id: number | null;
 }
 
 const API = '/tiny-model-manager/api';
@@ -68,4 +69,41 @@ export class DownloadService {
       }>(`${API}/download`, { url, model_type, filename, platform, source_id })
       .pipe(map((r) => r.data));
   }
+
+  getHistory(
+    status = '',
+    q = '',
+    page = 1,
+    pageSize = 20,
+  ): Observable<{ entries: DownloadHistoryEntry[]; total: number }> {
+    return this.http
+      .get<{
+        success: boolean;
+        data: { entries: DownloadHistoryEntry[]; total: number };
+      }>(`${API}/download/history`, { params: { status, q, page, page_size: pageSize } })
+      .pipe(map((r) => r.data));
+  }
+
+  redownload(id: number): Observable<{ task_id: string }> {
+    return this.http
+      .post<{
+        success: boolean;
+        data: { task_id: string };
+      }>(`${API}/download/history/${id}/redownload`, {})
+      .pipe(map((r) => r.data));
+  }
+}
+
+export interface DownloadHistoryEntry {
+  id: number;
+  model_name: string;
+  source: string;
+  model_id: string;
+  version_id: string;
+  file_url: string;
+  dest_path: string;
+  model_type: string;
+  status: 'downloading' | 'done' | 'error' | 'cancelled' | 'deleted';
+  created_at: string;
+  updated_at: string;
 }
