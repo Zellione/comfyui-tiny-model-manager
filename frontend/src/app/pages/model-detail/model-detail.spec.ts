@@ -166,12 +166,10 @@ describe('ModelDetail', () => {
       );
     });
 
-    it('shows notification and dismisses banner on error', () => {
+    it('shows notification on error', () => {
       mockModelService.deleteModel.mockReturnValueOnce(throwError(() => new Error('disk full')));
-      component.showUninstallConfirm.set(true);
       component.uninstall();
       expect(mockNotifService.show).toHaveBeenCalledWith('error', 'disk full');
-      expect(component.showUninstallConfirm()).toBe(false);
       expect(component.deleting()).toBe(false);
     });
   });
@@ -418,13 +416,6 @@ describe('ModelDetail', () => {
       expect(mockModelService.deleteModel).toHaveBeenCalledWith('loras', 'companion.safetensors');
       expect(mockNotifService.show).toHaveBeenCalledWith('success', expect.any(String));
       expect(mockModelService.getRepoFiles).toHaveBeenCalled();
-    });
-
-    it('clears pendingDeleteFile after successful delete', () => {
-      const file = makeRepoFile({ is_downloaded: true, installed_path: 'companion.safetensors' });
-      component.pendingDeleteFile.set(file);
-      component.deleteFile(file);
-      expect(component.pendingDeleteFile()).toBeNull();
     });
 
     it('does not navigate away even when deleting the currently viewed file', () => {

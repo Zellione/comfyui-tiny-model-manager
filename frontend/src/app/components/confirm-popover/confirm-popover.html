@@ -1,0 +1,11 @@
+<ng-content />
+
+@if (isOpen()) {
+  <div class="cp-panel" (click)="$event.stopPropagation()">
+    <span class="cp-question">{{ question() }}</span>
+    <div class="cp-actions">
+      <button class="btn-secondary btn-small" (click)="onCancel($event)">Cancel</button>
+      <button class="btn-danger btn-small" (click)="onConfirm($event)">Confirm</button>
+    </div>
+  </div>
+}

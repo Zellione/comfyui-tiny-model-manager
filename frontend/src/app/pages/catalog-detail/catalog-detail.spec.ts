@@ -160,11 +160,6 @@ describe('CatalogDetail component', () => {
     expect(fixture.componentInstance.sourceName()).toBe('HuggingFace');
   });
 
-  it('showRemoveConfirm starts false', async () => {
-    const fixture = await createFixture();
-    expect(fixture.componentInstance.showRemoveConfirm()).toBe(false);
-  });
-
   it('removeFromCatalog calls service and navigates to /catalog', async () => {
     mockModelService.removeCatalogEntry.mockReturnValue(of(undefined));
     const fixture = await createFixture();

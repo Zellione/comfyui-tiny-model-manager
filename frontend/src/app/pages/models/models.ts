@@ -16,12 +16,13 @@ import { NotificationService } from '../../services/notification';
 import { SettingsService } from '../../services/settings';
 import { formatSize } from '../../utils/format';
 import { mediaUrl } from '../../utils/media';
+import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover';
 const UNKNOWN_BASE_MODEL = '__unknown__';
 const UNKNOWN_SOURCE = '__unknown_source__';
 
 @Component({
   selector: 'app-models',
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, ConfirmPopover],
   templateUrl: './models.html',
   styleUrl: './models.scss',
 })
@@ -262,7 +263,6 @@ export class Models implements OnInit {
   }
 
   deleteUnknownModel(type: string, file: ModelFile) {
-    if (!confirm(`Delete ${file.filename}?`)) return;
     this.modelService.deleteModel(type, file.filename).subscribe({
       next: () => {
         this.notifService.show('success', `Deleted: ${file.filename}`);
@@ -295,7 +295,6 @@ export class Models implements OnInit {
   }
 
   organizeIntoSubfolders() {
-    if (!confirm('Reorganize all installed models into base-model subfolders?')) return;
     this.modelService.organizeIntoSubfolders().subscribe({
       next: (r) => {
         this.notifService.show(

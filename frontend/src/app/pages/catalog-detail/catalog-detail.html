@@ -10,17 +10,22 @@
       <span class="crumb-active">{{ entry()?.display_name || pageId }}</span>
     </span>
     <span class="spacer"></span>
-    @if (entry() && !editMode() && !showRemoveConfirm()) {
-      <button class="btn ghost" (click)="refetch()" [disabled]="refetching()">
-        {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
-      </button>
+    @if (entry() && !editMode()) {
+      <app-confirm-popover question="Re-fetch metadata from source?" (confirmed)="refetch()">
+        <button class="btn ghost" [disabled]="refetching()">
+          {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
+        </button>
+      </app-confirm-popover>
       <button class="btn ghost" (click)="enterEdit()">Edit</button>
     }
-    @if (!showRemoveConfirm()) {
-      <button class="btn danger-ghost" (click)="showRemoveConfirm.set(true)">
-        Remove from Catalog
+    <app-confirm-popover
+      question="Remove from catalog? Stored media will be deleted but downloaded files are kept."
+      (confirmed)="removeFromCatalog()"
+    >
+      <button class="btn danger-ghost" [disabled]="removing()">
+        {{ removing() ? 'Removing…' : 'Remove from Catalog' }}
       </button>
-    }
+    </app-confirm-popover>
   </div>
 
   @if (loading()) {
@@ -30,22 +35,6 @@
       <p class="error-msg">{{ error() }}</p>
     </div>
   } @else if (entry()) {
-    <!-- Remove confirmation banner -->
-    @if (showRemoveConfirm()) {
-      <div class="uninstall-banner">
-        <span>
-          Remove <strong>{{ entry()!.display_name || pageId }}</strong> from catalog? This will also
-          delete stored media but will <em>not</em> delete downloaded files.
-        </span>
-        <div class="uninstall-actions">
-          <button class="btn small ghost" (click)="showRemoveConfirm.set(false)">Cancel</button>
-          <button class="btn small danger" (click)="removeFromCatalog()" [disabled]="removing()">
-            {{ removing() ? 'Removing…' : 'Yes, remove' }}
-          </button>
-        </div>
-      </div>
-    }
-
     <div class="detail-card">
       <!-- Card header -->
       <div class="dl-detail-head">
@@ -153,41 +142,25 @@
                   }
                 </div>
                 @if (f.is_downloaded) {
-                  @if (pendingUninstallRepoFile()?.filename === f.filename) {
-                    <div class="iv-row-confirm">
-                      <span class="iv-confirm-text"
-                        >Uninstall from disk? This cannot be undone.</span
-                      >
-                      <button class="btn small ghost" (click)="pendingUninstallRepoFile.set(null)">
-                        Cancel
-                      </button>
-                      <button
-                        class="btn small danger"
-                        (click)="uninstallRepoFile()"
-                        [disabled]="deleting()"
-                      >
-                        {{ deleting() ? 'Removing…' : 'Yes, uninstall' }}
-                      </button>
-                    </div>
-                  } @else {
-                    <div class="iv-row-actions">
-                      <button class="btn small ghost" (click)="addRepoFileToWorkflow(f)">
-                        Add to Workflow
-                      </button>
-                      <a
-                        class="btn small ghost"
-                        [routerLink]="modelDetailUrl(f.model_type, f.installed_path || f.filename)"
-                      >
-                        Details
-                      </a>
-                      <button
-                        class="btn small danger-ghost"
-                        (click)="pendingUninstallRepoFile.set(f)"
-                      >
+                  <div class="iv-row-actions">
+                    <button class="btn small ghost" (click)="addRepoFileToWorkflow(f)">
+                      Add to Workflow
+                    </button>
+                    <a
+                      class="btn small ghost"
+                      [routerLink]="modelDetailUrl(f.model_type, f.installed_path || f.filename)"
+                    >
+                      Details
+                    </a>
+                    <app-confirm-popover
+                      question="Uninstall from disk? This cannot be undone."
+                      (confirmed)="uninstallRepoFile(f)"
+                    >
+                      <button class="btn small danger-ghost" [disabled]="deleting()">
                         Uninstall
                       </button>
-                    </div>
-                  }
+                    </app-confirm-popover>
+                  </div>
                 } @else {
                   @if (activeTaskForFile(f); as task) {
                     <div class="iv-download-progress">

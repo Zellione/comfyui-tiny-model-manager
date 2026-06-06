@@ -29,6 +29,7 @@ import { ModelType } from '../../utils/model-types';
 import { formatSize } from '../../utils/format';
 import { isVideo } from '../../utils/media';
 import { ModelTypeSelect } from '../../components/model-type-select/model-type-select';
+import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover';
 
 type HfFileItem = { filename: string; size: number; url: string };
 
@@ -36,7 +37,7 @@ type Platform = 'civitai' | 'huggingface';
 
 @Component({
   selector: 'app-download',
-  imports: [CommonModule, FormsModule, ModelTypeSelect],
+  imports: [CommonModule, FormsModule, ModelTypeSelect, ConfirmPopover],
   templateUrl: './download.html',
   styleUrl: './download.scss',
 })
