@@ -254,15 +254,31 @@ app.registerExtension({
 app.registerExtension({
   name: "TinyModelManager.DashboardButton",
   async setup() {
-    const btn = document.createElement("button");
-    btn.className = "comfyui-button";
-    btn.title = "Open Tiny Model Manager";
-    btn.textContent = "TMM";
-    btn.style.cssText = "padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer";
-    btn.addEventListener("click", () => window.open("/tiny-model-manager", "_blank"));
-    const target =
-      document.querySelector(".comfyui-menu-right") ??
-      document.querySelector(".comfyui-menu");
-    target?.prepend(btn);
+    const insert = () => {
+      if (document.getElementById("tmm-dashboard-btn")) return true;
+      // ComfyUI ≥0.22 (Vue frontend): inject into the legacy-topbar slot.
+      // Older ComfyUI (LiteGraph menu): fall back to .comfyui-menu-right / .comfyui-menu.
+      const target =
+        document.querySelector('[data-testid="legacy-topbar-container"]') ??
+        document.querySelector(".comfyui-menu-right") ??
+        document.querySelector(".comfyui-menu");
+      if (!target) return false;
+      const btn = document.createElement("button");
+      btn.id = "tmm-dashboard-btn";
+      btn.className = "comfyui-button";
+      btn.title = "Open Tiny Model Manager";
+      btn.textContent = "TMM";
+      btn.style.cssText = "padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer";
+      btn.addEventListener("click", () => window.open("/tiny-model-manager", "_blank"));
+      target.prepend(btn);
+      return true;
+    };
+    // setup() runs before Vue mounts, so the topbar element may not exist yet.
+    if (!insert()) {
+      const observer = new MutationObserver(() => {
+        if (insert()) observer.disconnect();
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
   },
 });
