@@ -12,6 +12,7 @@ import {
   of,
   catchError,
   map,
+  pairwise,
 } from 'rxjs';
 import { DownloadService, DownloadTask, DownloadHistoryEntry } from '../../services/download';
 import {
@@ -251,6 +252,13 @@ export class Download {
   readonly historySearch = signal('');
   readonly historyHasMore = computed(() => this.historyEntries().length < this.historyTotal());
   readonly historyRedownloadingIds = signal(new Set<number>());
+  readonly historyTaskMap = computed(() => {
+    const m = new Map<number, DownloadTask>();
+    for (const t of this.activeTasks()) {
+      if (t.history_id != null) m.set(t.history_id, t);
+    }
+    return m;
+  });
 
   selectedModel = signal<CivitaiModel | null>(null);
   selectedHfModel = signal<HfModel | null>(null);
@@ -394,6 +402,26 @@ export class Download {
             done.forEach((f) => next.add(f));
             return next;
           });
+        }
+      });
+
+    toObservable(this.activeTasks)
+      .pipe(pairwise(), takeUntilDestroyed(this.destroyRef))
+      .subscribe(([prev, curr]) => {
+        if (this.activeTab() !== 'history') return;
+        for (const task of curr) {
+          if (task.history_id == null) continue;
+          const prevStatus = prev.find((p) => p.id === task.id)?.status;
+          if (prevStatus === task.status) continue;
+          if (task.status === 'done' || task.status === 'error' || task.status === 'cancelled') {
+            this.historyEntries.update((entries) =>
+              entries.map((e) =>
+                e.id === task.history_id
+                  ? { ...e, status: task.status as DownloadHistoryEntry['status'] }
+                  : e,
+              ),
+            );
+          }
         }
       });
 

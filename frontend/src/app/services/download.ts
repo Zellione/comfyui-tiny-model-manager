@@ -15,6 +15,7 @@ export interface DownloadTask {
   downloaded_bytes: number;
   total_bytes: number;
   error: string | null;
+  history_id: number | null;
 }
 
 const API = '/tiny-model-manager/api';

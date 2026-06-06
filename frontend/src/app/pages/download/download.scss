@@ -874,7 +874,7 @@
   display: flex;
   gap: 0.75rem;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .history-status-chips {
@@ -936,6 +936,27 @@
   align-items: center;
   gap: 0.5rem;
   flex-shrink: 0;
+}
+
+.history-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+  margin-top: 0.25rem;
+}
+
+.history-progress-bar {
+  height: 100%;
+  background: var(--accent, #7c6af7);
+  border-radius: 2px;
+  transition: width 0.3s linear;
+}
+
+.history-progress-pct {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.125rem;
 }
 
 .history-loading,

@@ -313,9 +313,7 @@ class TestRedownload:
             dest_path="my_model.safetensors",
             model_type="checkpoints",
         )
-        resp = await client.post(
-            f"/tiny-model-manager/api/download/history/{entry_id}/redownload"
-        )
+        resp = await client.post(f"/tiny-model-manager/api/download/history/{entry_id}/redownload")
         assert resp.status == 200
         data = await resp.json()
         assert data["success"] is True
@@ -351,9 +349,7 @@ class TestRedownload:
             await db.commit()
             entry_id = cursor.lastrowid
 
-        resp = await client.post(
-            f"/tiny-model-manager/api/download/history/{entry_id}/redownload"
-        )
+        resp = await client.post(f"/tiny-model-manager/api/download/history/{entry_id}/redownload")
         assert resp.status == 400
 
 

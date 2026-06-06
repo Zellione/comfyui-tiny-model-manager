@@ -814,6 +814,13 @@
                 {{ entry.model_type }} &middot; {{ entry.source }} &middot;
                 {{ entry.updated_at | date: 'short' }}
               </span>
+              @if (entry.status === 'downloading' && historyTaskMap().has(entry.id)) {
+                @let liveTask = historyTaskMap().get(entry.id)!;
+                <div class="history-progress">
+                  <div class="history-progress-bar" [style.width.%]="liveTask.progress"></div>
+                </div>
+                <span class="history-progress-pct">{{ liveTask.progress.toFixed(0) }}%</span>
+              }
             </div>
             <div class="history-row-actions">
               <span class="badge badge--{{ entry.status }}">

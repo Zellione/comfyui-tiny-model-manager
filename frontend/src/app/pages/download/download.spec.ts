@@ -367,6 +367,7 @@ describe('Download component — F-43 Cancel Download', () => {
     downloaded_bytes: 512,
     total_bytes: 1024,
     error: null,
+    history_id: null,
   });
 
   beforeEach(async () => {

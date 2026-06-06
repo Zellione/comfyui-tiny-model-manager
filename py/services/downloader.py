@@ -140,6 +140,7 @@ def _task_to_dict(t: DownloadTask) -> dict:
         "downloaded_bytes": t.downloaded_bytes,
         "total_bytes": t.total_bytes,
         "error": t.error,
+        "history_id": t.history_id,
     }
 
 
