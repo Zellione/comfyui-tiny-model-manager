@@ -171,6 +171,192 @@ class TestCancelDownload:
         assert resp.status == 404
 
 
+class TestDownloadHistory:
+    async def test_history_empty_initially(self, client, ext_dir):
+        resp = await client.get("/tiny-model-manager/api/download/history")
+        assert resp.status == 200
+        data = await resp.json()
+        assert data["success"] is True
+        assert data["data"]["entries"] == []
+        assert data["data"]["total"] == 0
+
+    async def test_history_populated_after_enqueue(self, client, ext_dir):
+        await client.post(
+            "/tiny-model-manager/api/download",
+            json={
+                "url": "https://example.com/model.safetensors",
+                "model_type": "checkpoints",
+                "filename": "model.safetensors",
+                "platform": "civitai",
+                "source_id": "999",
+            },
+        )
+        resp = await client.get("/tiny-model-manager/api/download/history")
+        data = await resp.json()
+        assert data["data"]["total"] == 1
+        entry = data["data"]["entries"][0]
+        assert entry["model_name"] == "model.safetensors"
+        assert entry["status"] == "downloading"
+        assert entry["source"] == "civitai"
+
+    async def test_history_filter_by_status(self, client, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.insert_download_history(
+            model_name="done_model.safetensors",
+            source="civitai",
+            model_id="",
+            version_id="1",
+            file_url="https://example.com/done.safetensors",
+            dest_path="done.safetensors",
+            model_type="checkpoints",
+        )
+        await model_repo.insert_download_history(
+            model_name="error_model.safetensors",
+            source="huggingface",
+            model_id="user/repo",
+            version_id="",
+            file_url="https://example.com/err.safetensors",
+            dest_path="err.safetensors",
+            model_type="loras",
+        )
+        # Update one to 'done', leave other as 'downloading' (acts as 'error' stand-in)
+        from py.db.database import get_db
+
+        async with get_db() as db:
+            await db.execute(
+                "UPDATE download_history SET status='done' WHERE model_name='done_model.safetensors'"
+            )
+            await db.execute(
+                "UPDATE download_history SET status='error' WHERE model_name='error_model.safetensors'"
+            )
+            await db.commit()
+
+        resp = await client.get(
+            "/tiny-model-manager/api/download/history", params={"status": "done"}
+        )
+        data = await resp.json()
+        assert data["data"]["total"] == 1
+        assert data["data"]["entries"][0]["status"] == "done"
+
+    async def test_history_filter_by_query(self, client, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.insert_download_history(
+            model_name="realistic_vision.safetensors",
+            source="civitai",
+            model_id="",
+            version_id="42",
+            file_url="https://example.com/rv.safetensors",
+            dest_path="rv.safetensors",
+            model_type="checkpoints",
+        )
+        await model_repo.insert_download_history(
+            model_name="anime_lora.safetensors",
+            source="civitai",
+            model_id="",
+            version_id="7",
+            file_url="https://example.com/al.safetensors",
+            dest_path="al.safetensors",
+            model_type="loras",
+        )
+
+        resp = await client.get(
+            "/tiny-model-manager/api/download/history", params={"q": "realistic"}
+        )
+        data = await resp.json()
+        assert data["data"]["total"] == 1
+        assert "realistic" in data["data"]["entries"][0]["model_name"]
+
+    async def test_history_pagination(self, client, ext_dir):
+        from py.db import model_repo
+
+        for i in range(5):
+            await model_repo.insert_download_history(
+                model_name=f"model_{i}.safetensors",
+                source="civitai",
+                model_id="",
+                version_id=str(i),
+                file_url=f"https://example.com/{i}.safetensors",
+                dest_path=f"model_{i}.safetensors",
+                model_type="checkpoints",
+            )
+
+        resp = await client.get(
+            "/tiny-model-manager/api/download/history", params={"page": 1, "page_size": 3}
+        )
+        data = await resp.json()
+        assert data["data"]["total"] == 5
+        assert len(data["data"]["entries"]) == 3
+
+        resp2 = await client.get(
+            "/tiny-model-manager/api/download/history", params={"page": 2, "page_size": 3}
+        )
+        data2 = await resp2.json()
+        assert len(data2["data"]["entries"]) == 2
+
+
+class TestRedownload:
+    async def test_redownload_unknown_id_returns_404(self, client, ext_dir):
+        resp = await client.post("/tiny-model-manager/api/download/history/9999/redownload")
+        assert resp.status == 404
+
+    async def test_redownload_returns_task_id(self, client, ext_dir):
+        from py.db import model_repo
+
+        entry_id = await model_repo.insert_download_history(
+            model_name="my_model.safetensors",
+            source="civitai",
+            model_id="",
+            version_id="55",
+            file_url="https://example.com/my_model.safetensors",
+            dest_path="my_model.safetensors",
+            model_type="checkpoints",
+        )
+        resp = await client.post(
+            f"/tiny-model-manager/api/download/history/{entry_id}/redownload"
+        )
+        assert resp.status == 200
+        data = await resp.json()
+        assert data["success"] is True
+        assert "task_id" in data["data"]
+
+    async def test_redownload_creates_new_history_row(self, client, ext_dir):
+        from py.db import model_repo
+
+        entry_id = await model_repo.insert_download_history(
+            model_name="redo.safetensors",
+            source="huggingface",
+            model_id="user/repo",
+            version_id="",
+            file_url="https://example.com/redo.safetensors",
+            dest_path="redo.safetensors",
+            model_type="loras",
+        )
+        await client.post(f"/tiny-model-manager/api/download/history/{entry_id}/redownload")
+        entries, total = await model_repo.get_download_history()
+        assert total == 2
+        names = [e["model_name"] for e in entries]
+        assert names.count("redo.safetensors") == 2
+
+    async def test_redownload_no_url_returns_400(self, client, ext_dir):
+        from py.db.database import get_db
+
+        async with get_db() as db:
+            cursor = await db.execute(
+                "INSERT INTO download_history"
+                " (model_name, source, model_id, version_id, file_url, dest_path, model_type, status)"
+                " VALUES ('nourl.safetensors', 'civitai', '', '1', '', 'nourl.safetensors', 'checkpoints', 'error')"
+            )
+            await db.commit()
+            entry_id = cursor.lastrowid
+
+        resp = await client.post(
+            f"/tiny-model-manager/api/download/history/{entry_id}/redownload"
+        )
+        assert resp.status == 400
+
+
 class TestDownloaderEnqueueHuggingFaceFilename:
     """Test that HF filenames with subfolder paths are stripped to basename."""
 

@@ -115,6 +115,7 @@ async def _delete_model(request):
         if os.path.isfile(candidate):
             os.remove(candidate)
             await model_repo.delete_model_record(rel_path)
+            await model_repo.update_download_history_status_by_path(model_type, rel_path, "deleted")
             return ok()
     return err("File not found", status=404)
 

@@ -829,6 +829,164 @@
   }
 }
 
+// ── Download tabs ─────────────────────────────────────────────────────────────
+
+.download-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.download-tab {
+  padding: 0.5rem 1.25rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: -1px;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+
+  &:hover {
+    color: var(--text);
+  }
+
+  &--active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+}
+
+// ── History tab ───────────────────────────────────────────────────────────────
+
+.history-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.history-filters {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.history-status-chips {
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.history-search {
+  flex: 1;
+  min-width: 160px;
+  max-width: 280px;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--input-bg, var(--surface));
+  color: var(--text);
+  font-size: 0.875rem;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.history-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.history-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  overflow: hidden;
+}
+
+.history-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.history-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.history-loading,
+.history-empty {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.history-load-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+}
+
+.load-more-error {
+  color: var(--error, #e55);
+  font-size: 0.85rem;
+}
+
+.badge--done {
+  background: var(--success-bg, #1a3a1a);
+  color: var(--success, #4caf50);
+}
+
+.badge--error {
+  background: var(--error-bg, #3a1a1a);
+  color: var(--error, #e55);
+}
+
+.badge--cancelled {
+  background: var(--surface-2, #2a2a2a);
+  color: var(--text-muted);
+}
+
+.badge--deleted {
+  background: var(--surface-2, #2a2a2a);
+  color: var(--text-muted);
+}
+
+.badge--downloading {
+  background: var(--accent-bg, #1a2a3a);
+  color: var(--accent, #58a6ff);
+}
+
+.btn-sm {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+}
+
 // ── Page container ────────────────────────────────────────────────────────────
 
 // Download page wraps its content in a page-level container

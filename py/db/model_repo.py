@@ -758,3 +758,94 @@ async def delete_media_row(media_id: int) -> None:
     async with get_db() as db:
         await db.execute("DELETE FROM model_media WHERE id = ?", (media_id,))
         await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# F-47 Download History
+# ---------------------------------------------------------------------------
+
+
+async def insert_download_history(
+    model_name: str,
+    source: str,
+    model_id: str,
+    version_id: str,
+    file_url: str,
+    dest_path: str,
+    model_type: str,
+) -> int:
+    async with get_db() as db:
+        cursor = await db.execute(
+            "INSERT INTO download_history"
+            " (model_name, source, model_id, version_id, file_url, dest_path, model_type, status)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, 'downloading')",
+            (model_name, source, model_id, version_id, file_url, dest_path, model_type),
+        )
+        await db.commit()
+        assert cursor.lastrowid is not None
+        return cursor.lastrowid
+
+
+async def update_download_history_status(history_id: int, status: str) -> None:
+    async with get_db() as db:
+        await db.execute(
+            "UPDATE download_history SET status = ?, updated_at = datetime('now') WHERE id = ?",
+            (status, history_id),
+        )
+        await db.commit()
+
+
+async def update_download_history_status_by_path(
+    model_type: str, dest_path: str, new_status: str
+) -> None:
+    async with get_db() as db:
+        await db.execute(
+            "UPDATE download_history SET status = ?, updated_at = datetime('now')"
+            " WHERE model_type = ? AND dest_path = ?",
+            (new_status, model_type, dest_path),
+        )
+        await db.commit()
+
+
+async def get_download_history(
+    status: str = "", q: str = "", page: int = 1, page_size: int = 20
+) -> tuple[list[dict], int]:
+    conditions: list[str] = []
+    params: list[object] = []
+    if status:
+        conditions.append("status = ?")
+        params.append(status)
+    if q:
+        conditions.append("model_name LIKE ?")
+        params.append(f"%{q}%")
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    offset = (page - 1) * page_size
+    async with get_db() as db:
+        total_row = await (
+            await db.execute(f"SELECT COUNT(*) AS cnt FROM download_history {where}", params)
+        ).fetchone()
+        total = total_row["cnt"] if total_row else 0
+        rows = await (
+            await db.execute(
+                f"SELECT * FROM download_history {where}"
+                " ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?",
+                [*params, page_size, offset],
+            )
+        ).fetchall()
+        return [dict(r) for r in rows], total
+
+
+async def get_download_history_entry(entry_id: int) -> dict | None:
+    async with get_db() as db:
+        row = await (
+            await db.execute("SELECT * FROM download_history WHERE id = ?", (entry_id,))
+        ).fetchone()
+        return dict(row) if row else None
+
+
+async def get_interrupted_downloads() -> list[dict]:
+    async with get_db() as db:
+        rows = await (
+            await db.execute("SELECT * FROM download_history WHERE status = 'downloading'")
+        ).fetchall()
+        return [dict(r) for r in rows]

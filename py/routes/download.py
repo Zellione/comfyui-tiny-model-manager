@@ -1,5 +1,8 @@
+import os
+
 from aiohttp import web
 
+from ..db import model_repo
 from ..services import downloader as dl
 from ..services.providers import civitai, huggingface
 from ._helpers import err, json_route, ok
@@ -101,7 +104,19 @@ def add_download_routes(routes):
         source_id = body.get("source_id", "")
         if not url or not filename:
             return err("url and filename required", status=400)
-        task = dl.enqueue(url, model_type, filename, platform, source_id)
+        model_name = os.path.basename(filename)
+        version_id = source_id if platform == "civitai" else ""
+        model_id = source_id if platform == "huggingface" else ""
+        history_id = await model_repo.insert_download_history(
+            model_name=model_name,
+            source=platform,
+            model_id=model_id,
+            version_id=version_id,
+            file_url=url,
+            dest_path=filename,
+            model_type=model_type,
+        )
+        task = dl.enqueue(url, model_type, filename, platform, source_id, history_id=history_id)
         return ok({"task_id": task.id})
 
     @routes.get("/tiny-model-manager/api/download/status")
@@ -116,3 +131,49 @@ def add_download_routes(routes):
         if not dl.cancel_task(task_id):
             return err("Task not found", status=404)
         return web.Response(status=204)
+
+    @routes.get("/tiny-model-manager/api/download/history")
+    @json_route
+    async def get_history(request):
+        status = request.rel_url.query.get("status", "")
+        q = request.rel_url.query.get("q", "")
+        page = int(request.rel_url.query.get("page", 1))
+        page_size = int(request.rel_url.query.get("page_size", 20))
+        entries, total = await model_repo.get_download_history(
+            status=status, q=q, page=page, page_size=page_size
+        )
+        return ok({"entries": entries, "total": total})
+
+    @routes.post("/tiny-model-manager/api/download/history/{id}/redownload")
+    @json_route
+    async def redownload(request):
+        entry_id = int(request.match_info["id"])
+        entry = await model_repo.get_download_history_entry(entry_id)
+        if not entry:
+            return err("History entry not found", status=404)
+        url = entry["file_url"]
+        if not url:
+            return err("No download URL stored for this entry", status=400)
+        platform = entry["source"]
+        source_id = entry["version_id"] or entry["model_id"]
+        model_type = entry["model_type"]
+        dest_path = entry["dest_path"]
+        model_name = entry["model_name"]
+        new_history_id = await model_repo.insert_download_history(
+            model_name=model_name,
+            source=platform,
+            model_id=entry["model_id"],
+            version_id=entry["version_id"],
+            file_url=url,
+            dest_path=dest_path,
+            model_type=model_type,
+        )
+        task = dl.enqueue(
+            url=url,
+            model_type=model_type,
+            filename=dest_path,
+            platform=platform,
+            source_id=source_id,
+            history_id=new_history_id,
+        )
+        return ok({"task_id": task.id})

@@ -13,7 +13,7 @@ import {
   catchError,
   map,
 } from 'rxjs';
-import { DownloadService, DownloadTask } from '../../services/download';
+import { DownloadService, DownloadTask, DownloadHistoryEntry } from '../../services/download';
 import {
   CivitaiService,
   CivitaiModel,
@@ -225,15 +225,32 @@ export class Download {
     serverTag: this.platform() === 'civitai' ? this.civitaiServerTag() : this.tagFilter().join(','),
   }));
 
+  activeTab = signal<'active' | 'history'>('active');
+
   activeTasks = toSignal(this.dlService.activeTasks$, { initialValue: [] as DownloadTask[] });
   readonly cancelledIds = signal(new Set<string>());
   readonly cancellingIds = signal(new Set<string>());
-  readonly displayTasks = computed(() =>
-    this.activeTasks().filter((t) => !this.cancelledIds().has(t.id)),
-  );
+  readonly displayTasks = computed(() => {
+    const all = this.activeTasks().filter((t) => !this.cancelledIds().has(t.id));
+    const active = all.filter((t) => t.status === 'queued' || t.status === 'downloading');
+    const terminal = all.filter((t) => t.status === 'done' || t.status === 'error');
+    const remaining = Math.max(0, 5 - active.length);
+    return [...active, ...terminal.slice(0, remaining)];
+  });
   readonly hasCancellableTasks = computed(() =>
     this.displayTasks().some((t) => t.status === 'queued' || t.status === 'downloading'),
   );
+
+  // History tab state
+  readonly historyEntries = signal<DownloadHistoryEntry[]>([]);
+  readonly historyTotal = signal(0);
+  readonly historyPage = signal(1);
+  readonly historyLoading = signal(false);
+  readonly historyLoadMoreError = signal('');
+  readonly historyStatusFilter = signal('');
+  readonly historySearch = signal('');
+  readonly historyHasMore = computed(() => this.historyEntries().length < this.historyTotal());
+  readonly historyRedownloadingIds = signal(new Set<number>());
 
   selectedModel = signal<CivitaiModel | null>(null);
   selectedHfModel = signal<HfModel | null>(null);
@@ -384,6 +401,18 @@ export class Download {
       .pipe(skip(1), debounceTime(300), takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         if (this.hasSearched()) this.search();
+      });
+
+    toObservable(this.activeTab)
+      .pipe(skip(1), takeUntilDestroyed(this.destroyRef))
+      .subscribe((tab) => {
+        if (tab === 'history') this.loadHistory(true);
+      });
+
+    toObservable(computed(() => ({ status: this.historyStatusFilter(), q: this.historySearch() })))
+      .pipe(skip(1), debounceTime(300), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        if (this.activeTab() === 'history') this.loadHistory(true);
       });
   }
 
@@ -821,5 +850,78 @@ export class Download {
 
   onImgError(event: Event) {
     (event.target as HTMLImageElement).style.display = 'none';
+  }
+
+  loadHistory(reset = true): void {
+    if (reset) {
+      this.historyPage.set(1);
+      this.historyEntries.set([]);
+    }
+    this.historyLoading.set(true);
+    this.historyLoadMoreError.set('');
+    this.dlService
+      .getHistory(this.historyStatusFilter(), this.historySearch(), this.historyPage(), 20)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => {
+          if (reset) {
+            this.historyEntries.set(r.entries);
+          } else {
+            this.historyEntries.update((prev) => [...prev, ...r.entries]);
+          }
+          this.historyTotal.set(r.total);
+          this.historyLoading.set(false);
+        },
+        error: () => {
+          this.historyLoadMoreError.set('Failed to load history');
+          this.historyLoading.set(false);
+        },
+      });
+  }
+
+  historyLoadMore(): void {
+    this.historyPage.update((p) => p + 1);
+    this.loadHistory(false);
+  }
+
+  redownload(entry: DownloadHistoryEntry): void {
+    this.historyRedownloadingIds.update((s) => new Set([...s, entry.id]));
+    this.dlService
+      .redownload(entry.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.historyRedownloadingIds.update((s) => {
+            const next = new Set(s);
+            next.delete(entry.id);
+            return next;
+          });
+          this.notifService.show('success', `Redownload enqueued: ${entry.model_name}`);
+          this.activeTab.set('active');
+        },
+        error: () => {
+          this.historyRedownloadingIds.update((s) => {
+            const next = new Set(s);
+            next.delete(entry.id);
+            return next;
+          });
+          this.notifService.show('error', `Failed to redownload: ${entry.model_name}`);
+        },
+      });
+  }
+
+  historyStatusLabel(status: DownloadHistoryEntry['status']): string {
+    const map: Record<string, string> = {
+      downloading: 'Downloading',
+      done: 'Done',
+      error: 'Error',
+      cancelled: 'Cancelled',
+      deleted: 'Deleted',
+    };
+    return map[status] ?? status;
+  }
+
+  canRedownload(status: DownloadHistoryEntry['status']): boolean {
+    return status === 'error' || status === 'cancelled' || status === 'deleted';
   }
 }
