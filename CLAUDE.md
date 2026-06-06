@@ -145,6 +145,24 @@ Dev dependencies are in `requirements-dev.txt`; install once with:
   only `max-height`) collapses to 0 and hides overflow content. Fix: give the scrollable
   child its own `max-height` directly instead of relying on flex grow.
 
+### ComfyUI JS extension gotchas
+
+- **`legacy-topbar-container` is hidden by a CSS guard**: In ComfyUI ≥0.22 (Vue frontend)
+  the element `[data-testid="legacy-topbar-container"]` carries the Tailwind class
+  `[&:not(:has(*>*:not(:empty)))]:hidden`. It stays `display:none` unless it holds an
+  element with non-empty element children (grandchildren of the container). A plain
+  `<button>text</button>` only has a text node, not element children, so the guard is
+  never satisfied and the container — and anything inside it — remains invisible.
+  **Pattern**: use `legacy-topbar-container` only as a landmark. Insert your element into
+  its parent (`legacy?.parentElement`) which is the always-visible action-bar row, using
+  `insertBefore(btn, legacy)` to place it before the legacy slot.
+
+- **`setup()` runs before Vue mounts**: `app.registerExtension({ setup() })` is called
+  during ComfyUI initialisation, before the Vue-based topbar has been added to the DOM.
+  Any `document.querySelector` for Vue-rendered elements will return `null`. Use a
+  `MutationObserver` on `document.body` and call your insertion function inside it;
+  disconnect once the element is found and the button inserted.
+
 ### Feature branch rule (MANDATORY)
 
 **Any time the user asks to implement a feature — whether by saying "implement F-36", "add F-12", or any request whose subject matches the pattern `F-\d+` — Claude MUST, before touching any file:**
