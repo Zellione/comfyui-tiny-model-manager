@@ -46,7 +46,14 @@ Cover these topics — adapt the wording to what the user already told you:
 
 5. **Backend / DB changes** — New tables, new columns, new service logic, new external API calls?
 
-6. **Edge cases & failure modes** — What should happen when inputs are invalid, the network is
+6. **Related issues** — Does this feature depend on, block, or relate to any existing GitHub issues?
+   Search with `gh issue list --label enhancement --limit 60 --json number,title` and present
+   candidates if any look relevant. For each relationship, identify the type:
+   - `BLOCKED_BY` — this feature cannot be built until the other is done
+   - `BLOCKS` — the other feature cannot be built until this is done
+   - `RELATED_TO` — shares scope, data, or UI surface without a hard ordering dependency
+
+7. **Edge cases & failure modes** — What should happen when inputs are invalid, the network is
    down, or the external API returns an error?
 
 ### Guidelines for asking
@@ -72,6 +79,7 @@ Requirements I'll capture:
 
 API changes: <none | list of endpoints>
 DB changes: <none | description>
+Related issues: <none | #NN (blocked by) | #NN (blocks) | #NN (related to)>
 
 Shall I create the GitHub issue?
 ```
@@ -112,6 +120,25 @@ gh project item-edit \
   --project-id PVT_kwHOAQaKGc4BZ7ME \
   --field-id PVTSSF_lAHOAQaKGc4BZ7MEzhU2a7U \
   --single-select-option-id f75ad846
+```
+
+If there are related issues, link them via the GraphQL API. Supported types: `BLOCKS`, `BLOCKED_BY`,
+`RELATED_TO`. Resolve the node IDs first, then add each relationship:
+
+```bash
+# Resolve node IDs
+NEW_ID=$(gh api repos/{owner}/{repo}/issues/<new-number> --jq '.node_id')
+OTHER_ID=$(gh api repos/{owner}/{repo}/issues/<other-number> --jq '.node_id')
+
+# Add relationship (repeat for each related issue)
+gh api graphql -f query='
+mutation($issueId: ID!, $linkedIssueId: ID!, $type: LinkedIssueRelationshipType!) {
+  addLinkedIssue(input: {
+    issueId: $issueId
+    linkedIssueId: $linkedIssueId
+    type: $type
+  }) { source { url } target { url } }
+}' -f issueId="$NEW_ID" -f linkedIssueId="$OTHER_ID" -f type="BLOCKED_BY"
 ```
 
 ## Step 4 — Report completion
