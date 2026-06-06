@@ -945,12 +945,21 @@
   flex-shrink: 0;
 }
 
+.history-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow: hidden;
+}
+
 .history-progress {
+  flex: 1;
   height: 4px;
   border-radius: 2px;
   background: var(--border);
   overflow: hidden;
-  margin-top: 0.25rem;
+  flex-shrink: 0;
+  min-width: 3rem;
 }
 
 .history-progress-bar {
@@ -963,7 +972,8 @@
 .history-progress-pct {
   font-size: 0.75rem;
   color: var(--text-muted);
-  margin-top: 0.125rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .history-loading,
