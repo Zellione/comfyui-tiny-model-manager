@@ -279,7 +279,7 @@ app.registerExtension({
       btn.addEventListener("click", () => window.open("/tiny-model-manager", "_blank"));
 
       // Place just before the legacy slot so we don't displace the queue button.
-      legacy ? target.insertBefore(btn, legacy) : target.prepend(btn);
+      legacy ? legacy.before(btn) : target.prepend(btn);
       return true;
     };
 
