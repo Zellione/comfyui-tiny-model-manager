@@ -809,21 +809,19 @@
         @for (entry of historyEntries(); track entry.id) {
           <div class="history-row">
             <div class="history-row-info">
-              <div class="history-name-row">
-                <span class="history-name">{{ entry.model_name }}</span>
-                @if (entry.status === 'downloading' && historyTaskMap().has(entry.id)) {
-                  @let liveTask = historyTaskMap().get(entry.id)!;
-                  <div class="history-progress">
-                    <div class="history-progress-bar" [style.width.%]="liveTask.progress"></div>
-                  </div>
-                  <span class="history-progress-pct">{{ liveTask.progress.toFixed(0) }}%</span>
-                }
-              </div>
+              <span class="history-name">{{ entry.model_name }}</span>
               <span class="history-meta">
                 {{ entry.model_type }} &middot; {{ entry.source }} &middot;
                 {{ entry.updated_at | date: 'short' }}
               </span>
             </div>
+            @if (entry.status === 'downloading' && historyTaskMap().has(entry.id)) {
+              @let liveTask = historyTaskMap().get(entry.id)!;
+              <div class="history-progress">
+                <div class="history-progress-bar" [style.width.%]="liveTask.progress"></div>
+              </div>
+              <span class="history-progress-pct">{{ liveTask.progress.toFixed(0) }}%</span>
+            }
             <div class="history-row-actions">
               <span class="badge badge--{{ entry.status }}">
                 {{ historyStatusLabel(entry.status) }}
