@@ -34,8 +34,14 @@ jobs:
       - name: Ruff format check
         run: python -m ruff format --check py tests conftest.py
 
-      - name: Pytest
-        run: python -m pytest
+      - name: Pytest with coverage
+        run: python -m pytest --cov=py --cov-report=xml:coverage.xml
+
+      - name: Upload Python coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-coverage
+          path: coverage.xml
 
   frontend:
     name: Frontend — tests, lint & build
@@ -63,11 +69,17 @@ jobs:
       - name: ESLint
         run: npm run lint
 
-      - name: Vitest (unit tests)
-        run: npm run test:ci
+      - name: Vitest with coverage
+        run: npm run test:coverage
 
       - name: Angular build
         run: npx ng build
+
+      - name: Upload frontend coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/frontend/lcov.info
 
   sonarcloud:
     name: SonarCloud analysis
@@ -77,6 +89,17 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
+      - name: Download Python coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: python-coverage
+
+      - name: Download frontend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@ffc3010689be73b8e5ae0c57ce35968afd7909e8 # v5.0.0

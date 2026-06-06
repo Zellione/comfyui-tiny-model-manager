@@ -8,6 +8,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "test:ci": "ng test --watch=false",
+    "test:coverage": "ng test --watch=false --configuration=coverage",
     "lint": "ng lint",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
@@ -40,6 +41,7 @@
     "prettier": "^3.8.1",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.60.0",
-    "vitest": "^4.0.8"
+    "vitest": "^4.0.8",
+    "@vitest/coverage-v8": "^4.0.8"
   }
 }
