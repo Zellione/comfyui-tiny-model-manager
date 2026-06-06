@@ -4,8 +4,7 @@ description: >
   Plan a new feature for the comfyui-tiny-model-manager project. Use this skill whenever the user
   has a feature idea or says something like "I want to add X", "let's plan a feature for Y", or
   "new idea: Z". The skill interviews the user with structured questions until the requirements are
-  unambiguous, then writes a YAML spec file into specs/features/ (with the next free F-number) and
-  adds an unchecked entry to the README.md features checklist. Invoke this skill even for vague
+  unambiguous, then creates a GitHub issue in the project backlog. Invoke this skill even for vague
   ideas — the interview process exists precisely to sharpen them.
 ---
 
@@ -18,15 +17,7 @@ downloaded from CivitAI and HuggingFace. The UI has three main pages: Models (li
 Download (search + paste-a-link), and Model Detail. Settings live in ComfyUI's native settings
 panel. The backend uses SQLite via aiosqlite and httpx for external API calls.
 
-## Step 1 — Determine the next feature number
-
-Run:
-```bash
-ls specs/features/ | sort | tail -1
-```
-Parse the highest `fNN` prefix and add 1. That is the new feature ID (e.g. `F-38`).
-
-## Step 2 — Interview the user
+## Step 1 — Interview the user
 
 Use the `AskUserQuestion` tool to run **one round** of structured questions. Aim to cover all the
 dimensions below in a single round; follow up with a second round only if a critical ambiguity
@@ -55,8 +46,12 @@ Cover these topics — adapt the wording to what the user already told you:
 
 5. **Backend / DB changes** — New tables, new columns, new service logic, new external API calls?
 
-6. **Dependencies** — Does this build on an existing feature? (Reference the README checklist for
-   known F-numbers.)
+6. **Related issues** — Does this feature depend on, block, or relate to any existing GitHub issues?
+   Search with `gh issue list --label enhancement --limit 60 --json number,title` and present
+   candidates if any look relevant. For each relationship, identify the type:
+   - `BLOCKED_BY` — this feature cannot be built until the other is done
+   - `BLOCKS` — the other feature cannot be built until this is done
+   - `RELATED_TO` — shares scope, data, or UI surface without a hard ordering dependency
 
 7. **Edge cases & failure modes** — What should happen when inputs are invalid, the network is
    down, or the external API returns an error?
@@ -68,12 +63,12 @@ Cover these topics — adapt the wording to what the user already told you:
 - Where a choice is a pick-one from a known set (e.g. which pages), use multiSelect.
 - It is fine to pre-fill a reasonable guess as the first option and let the user correct it.
 
-## Step 3 — Confirm your understanding
+## Step 2 — Confirm your understanding
 
 Before writing anything, post a brief plain-text summary of your understanding back to the user:
 
 ```
-Feature F-NN — <Title>
+Feature — <Title>
 
 Summary: <2-3 sentences on what the feature does>
 
@@ -84,48 +79,70 @@ Requirements I'll capture:
 
 API changes: <none | list of endpoints>
 DB changes: <none | description>
-Depends on: <none | F-XX, F-YY>
+Related issues: <none | #NN (blocked by) | #NN (blocks) | #NN (related to)>
 
-Shall I write the spec?
+Shall I create the GitHub issue?
 ```
 
 Wait for the user to confirm (or correct) before proceeding.
 
-## Step 4 — Write the YAML spec
+## Step 3 — Create the GitHub issue and add to project backlog
 
-Create `specs/features/fNN-<kebab-title>.yaml` following the existing format exactly:
-
-```yaml
-feature_id: F-NN
-title: "Human-readable title"
-requirements:
-  - "Requirement phrased as an observable behaviour, not an implementation detail"
-  - "Use present tense: 'The button shows…', 'When the user…', 'The backend returns…'"
-  - "Quote strings that contain colons, pipes, or markdown — YAML is picky"
-api:                          # omit section if no API changes
-  - "METHOD /path → description of request/response"
-depends_on:                   # omit section if no dependencies
-  - F-XX
-```
-
-**Requirement writing rules:**
-- Describe *what* the system does, not *how* to implement it.
-- One requirement = one observable behaviour or invariant.
-- Include failure / edge-case handling as explicit requirements.
-- Keep each bullet to 1-2 sentences; split if longer.
-
-## Step 5 — Update README.md
-
-Add an **unchecked** entry at the end of the features checklist (before the `---` separator after
-the list):
+Build the issue body from the confirmed requirements:
 
 ```markdown
-- [ ] F-NN — <Title> — <one-line description matching the spec title>
+## Summary
+<2-3 sentence description>
+
+## Requirements
+- <requirement 1>
+- <requirement 2>
+
+## API changes
+<none | endpoint descriptions>
+
+## DB changes
+<none | description>
 ```
 
-## Step 6 — Report completion
+Then run:
+
+```bash
+# Create the issue
+gh issue create --title "<title>" --body "<body above>" --label enhancement
+
+# Add to the GitHub project
+gh project item-add 1 --owner @me --url <issue-url>
+
+# Set status to Backlog
+gh project item-edit \
+  --id <item-id> \
+  --project-id PVT_kwHOAQaKGc4BZ7ME \
+  --field-id PVTSSF_lAHOAQaKGc4BZ7MEzhU2a7U \
+  --single-select-option-id f75ad846
+```
+
+If there are related issues, link them via the GraphQL API. Supported types: `BLOCKS`, `BLOCKED_BY`,
+`RELATED_TO`. Resolve the node IDs first, then add each relationship:
+
+```bash
+# Resolve node IDs
+NEW_ID=$(gh api repos/{owner}/{repo}/issues/<new-number> --jq '.node_id')
+OTHER_ID=$(gh api repos/{owner}/{repo}/issues/<other-number> --jq '.node_id')
+
+# Add relationship (repeat for each related issue)
+gh api graphql -f query='
+mutation($issueId: ID!, $linkedIssueId: ID!, $type: LinkedIssueRelationshipType!) {
+  addLinkedIssue(input: {
+    issueId: $issueId
+    linkedIssueId: $linkedIssueId
+    type: $type
+  }) { source { url } target { url } }
+}' -f issueId="$NEW_ID" -f linkedIssueId="$OTHER_ID" -f type="BLOCKED_BY"
+```
+
+## Step 4 — Report completion
 
 Tell the user:
-- The path to the new spec file
-- The README.md line that was added
-- A reminder that the feature can now be implemented by saying "implement F-NN"
+- The GitHub issue URL
+- A reminder that the feature can now be implemented by saying "implement <title>"

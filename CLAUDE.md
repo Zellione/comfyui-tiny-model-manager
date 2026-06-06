@@ -163,23 +163,36 @@ Dev dependencies are in `requirements-dev.txt`; install once with:
   `MutationObserver` on `document.body` and call your insertion function inside it;
   disconnect once the element is found and the button inserted.
 
+### GitHub Project
+
+- Project: "ComfyUI Tiny Model Manager", number `1`, ID `PVT_kwHOAQaKGc4BZ7ME`
+- Status field ID: `PVTSSF_lAHOAQaKGc4BZ7MEzhU2a7U`
+- Status option IDs: Backlog `f75ad846` | Ready `61e4505c` | In progress `47fc9ee4` | In review `df73e18b` | Done `98236657`
+- Requires `project` scope — if missing: `gh auth refresh -s project`
+- Issues use `enhancement` label (personal repo has no issue types)
+
 ### Feature branch rule (MANDATORY)
 
-**Any time the user asks to implement a feature — whether by saying "implement F-36", "add F-12", or any request whose subject matches the pattern `F-\d+` — Claude MUST, before touching any file:**
+**Any time the user asks to implement a feature, Claude MUST, before touching any file:**
 
 1. Check the current branch with `git branch`
-2. If not already on a correctly named feature branch (`F-<number>-<short-name>`):
+2. If not already on a correctly named feature branch:
    a. `git checkout main`
    b. `git fetch origin && git pull origin main`
-   c. `git checkout -b F-<number>-<short-name>`
+   c. Find the GitHub issue: `gh issue list --search "<feature title>" --json number,title`
+   d. Create and link the branch to the issue: `gh issue develop <issue-number> --name <short-name> --checkout`
 3. Only then proceed with exploration and implementation.
 
-If there are already uncommitted changes on the wrong branch, stash them (`git stash`), perform steps 2a–2c, then restore (`git stash pop`).
+If there are already uncommitted changes on the wrong branch, stash them (`git stash`), perform steps 2a–2d, then restore (`git stash pop`).
 
 ### Feature
 
-If planning and working on a new feature already specified in @PRD.md the following steps have to be executed, if not already happened:
+If planning and working on a new feature the following steps have to be executed, if not already happened:
 
+0. **Create a GitHub issue and add it to the project in Backlog** (skip if issue already exists):
+   - `gh issue create --title "<title>" --body "<description>" --label enhancement`
+   - `gh project item-add 1 --owner @me --url <issue-url>`
+   - `gh project item-edit --id <item-id> --project-id PVT_kwHOAQaKGc4BZ7ME --field-id PVTSSF_lAHOAQaKGc4BZ7MEzhU2a7U --single-select-option-id f75ad846`
 1. **Ensure you are on a correctly named feature branch (see Feature branch rule above)**
 2. Enter plan mode and plan feature
 3. Wait for approval of plan
@@ -187,7 +200,7 @@ If planning and working on a new feature already specified in @PRD.md the follow
 5. **Run all tests and lint for both backend and frontend — only proceed when every check passes with zero failures**
 6. **If any file under `frontend/` or `js/` was changed: run `npx ng build` from `frontend/` and confirm it succeeds**
 7. If there are no bugs reported: commit changes locally and present the commit to the user
-8. **Mark the feature as done (`[x]`) in `README.md` features checklist**
+8. **Move the GitHub project item to Done**: `gh project item-edit --id <item-id> --project-id PVT_kwHOAQaKGc4BZ7ME --field-id PVTSSF_lAHOAQaKGc4BZ7MEzhU2a7U --single-select-option-id 98236657`
 9. **Wait for explicit user approval before pushing to github (origin)**
 10. **Wait for explicit user approval before opening a pull request**
 

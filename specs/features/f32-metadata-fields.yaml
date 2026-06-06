@@ -1,9 +1,0 @@
-feature_id: F-32
-title: First-Class Metadata Fields (not tags)
-requirements:
-  - "Base model is stored in its own `models.base_model` column (F-23), never as a tag"
-  - Trigger words remain in the dedicated `trigger_words` table (already the case) and are never mixed into `tags`
-  - The generic `tags` table holds only descriptive tags fetched from the source platform
-  - "Metadata responses expose `base_model`, `trigger_words`, and `tags` as distinct fields"
-depends_on:
-  - F-23

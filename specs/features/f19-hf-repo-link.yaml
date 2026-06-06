@@ -1,5 +1,0 @@
-feature_id: F-19
-title: Model Repository Link (HuggingFace)
-requirements:
-  - "Accepts `https://huggingface.co/<repo>`; parses repo id"
-  - "Calls existing `GET /api/search/huggingface/files?repo=` to list files; user selects file + model type, then downloads"
