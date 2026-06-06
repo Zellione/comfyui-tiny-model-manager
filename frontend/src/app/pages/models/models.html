@@ -6,9 +6,12 @@
     <div class="page-head-actions">
       <button class="btn-secondary btn-small" (click)="load()">Rescan</button>
       @if (organizeEnabled()) {
-        <button class="btn-secondary btn-small" (click)="organizeIntoSubfolders()">
-          Organize into subfolders
-        </button>
+        <app-confirm-popover
+          question="Reorganize all installed models into base-model subfolders?"
+          (confirmed)="organizeIntoSubfolders()"
+        >
+          <button class="btn-secondary btn-small">Organize into subfolders</button>
+        </app-confirm-popover>
       }
     </div>
   </div>
@@ -240,26 +243,27 @@
                         <path d="M12 8h.01M11 12h1v4h1" />
                       </svg>
                     </a>
-                    <button
-                      class="card-action danger"
-                      (click)="deleteUnknownModel(type, file)"
-                      title="Delete"
+                    <app-confirm-popover
+                      [question]="'Delete ' + file.filename + '?'"
+                      (confirmed)="deleteUnknownModel(type, file)"
                     >
-                      <svg
-                        width="13"
-                        height="13"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.75"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <path d="M3 6h18" />
-                        <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
-                        <path d="M19 6 18 20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6" />
-                      </svg>
-                    </button>
+                      <button class="card-action danger" title="Delete">
+                        <svg
+                          width="13"
+                          height="13"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.75"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path d="M3 6h18" />
+                          <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+                          <path d="M19 6 18 20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6" />
+                        </svg>
+                      </button>
+                    </app-confirm-popover>
                   </div>
                 </div>
               </div>

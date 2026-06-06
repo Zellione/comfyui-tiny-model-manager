@@ -10,15 +10,25 @@
       <span class="crumb-active">{{ modelBasename }}</span>
     </span>
     <span class="spacer"></span>
-    @if (!editMode() && !showUninstallConfirm()) {
-      <button class="btn ghost" (click)="triggerRefetchPreview()" [disabled]="refetching()">
-        {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
-      </button>
+    @if (!editMode()) {
+      <app-confirm-popover
+        question="Re-fetch metadata from source?"
+        (confirmed)="triggerRefetchPreview()"
+      >
+        <button class="btn ghost" [disabled]="refetching()">
+          {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
+        </button>
+      </app-confirm-popover>
       <button class="btn ghost" (click)="enterEdit()">Edit</button>
     }
-    @if (!showUninstallConfirm()) {
-      <button class="btn danger-ghost" (click)="showUninstallConfirm.set(true)">Uninstall</button>
-    }
+    <app-confirm-popover
+      question="Remove this model from disk? This cannot be undone."
+      (confirmed)="uninstall()"
+    >
+      <button class="btn danger-ghost" [disabled]="deleting()">
+        {{ deleting() ? 'Removing…' : 'Uninstall' }}
+      </button>
+    </app-confirm-popover>
   </div>
 
   <!-- Loading / error states -->
@@ -29,21 +39,6 @@
       <p class="error-msg">{{ error() }}</p>
     </div>
   } @else if (meta()) {
-    <!-- Uninstall confirmation banner -->
-    @if (showUninstallConfirm()) {
-      <div class="uninstall-banner">
-        <span
-          >Remove <strong>{{ modelBasename }}</strong> from disk? This cannot be undone.</span
-        >
-        <div class="uninstall-actions">
-          <button class="btn small ghost" (click)="showUninstallConfirm.set(false)">Cancel</button>
-          <button class="btn small danger" (click)="uninstall()" [disabled]="deleting()">
-            {{ deleting() ? 'Removing…' : 'Yes, uninstall' }}
-          </button>
-        </div>
-      </div>
-    }
-
     <div class="detail-card">
       <!-- Card header -->
       <div class="dl-detail-head">

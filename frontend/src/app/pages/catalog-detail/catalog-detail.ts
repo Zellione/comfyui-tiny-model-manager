@@ -1,7 +1,6 @@
 import {
   Component,
   DestroyRef,
-  HostListener,
   OnInit,
   Signal,
   WritableSignal,
@@ -29,6 +28,7 @@ import { mediaUrl } from '../../utils/media';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
 import { EditMetaForm } from '../../components/edit-meta-form/edit-meta-form';
 import { MediaGallery } from '../../components/media-gallery/media-gallery';
+import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover';
 
 @Component({
   selector: 'app-catalog-detail',
@@ -40,6 +40,7 @@ import { MediaGallery } from '../../components/media-gallery/media-gallery';
     BaseModelSelect,
     EditMetaForm,
     MediaGallery,
+    ConfirmPopover,
   ],
   templateUrl: './catalog-detail.html',
   styleUrl: './catalog-detail.scss',
@@ -52,7 +53,6 @@ export class CatalogDetail implements OnInit {
   loading = signal(true);
   error = signal('');
   removing = signal(false);
-  showRemoveConfirm = signal(false);
   downloadingFiles = signal<Set<string>>(new Set());
 
   // The currently-installed file used to load the per-file base-model editor (repoFiles).
@@ -69,7 +69,6 @@ export class CatalogDetail implements OnInit {
   fileBaseModels = signal<Record<string, string>>({});
   copied = signal(false);
 
-  pendingUninstallRepoFile = signal<RepoFile | null>(null);
   deleting = signal(false);
 
   // Files whose download has completed but whose backend post-processing (metadata
@@ -117,11 +116,6 @@ export class CatalogDetail implements OnInit {
   readonly displayTriggerWords = computed(() => this.entry()?.trigger_words ?? []);
   readonly displayTags = computed(() => this.entry()?.tags ?? []);
   readonly displayMedia = computed(() => this.entry()?.media ?? []);
-
-  @HostListener('document:keydown.escape')
-  onEscapeKey() {
-    if (this.pendingUninstallRepoFile()) this.pendingUninstallRepoFile.set(null);
-  }
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -335,21 +329,17 @@ export class CatalogDetail implements OnInit {
     return '/models/' + type + '/' + encodeURIComponent(path);
   }
 
-  uninstallRepoFile() {
-    const rf = this.pendingUninstallRepoFile();
-    if (!rf) return;
+  uninstallRepoFile(rf: RepoFile) {
     const path = rf.installed_path || rf.filename;
     this.deleting.set(true);
     this.modelService.deleteModel(rf.model_type, path).subscribe({
       next: () => {
         this.deleting.set(false);
-        this.pendingUninstallRepoFile.set(null);
         this.notifService.show('success', 'File uninstalled.');
         this.load();
       },
       error: (err) => {
         this.deleting.set(false);
-        this.pendingUninstallRepoFile.set(null);
         this.notifService.show('error', (err as Error).message);
       },
     });
@@ -411,7 +401,6 @@ export class CatalogDetail implements OnInit {
       },
       error: (err) => {
         this.removing.set(false);
-        this.showRemoveConfirm.set(false);
         this.notifService.show('error', 'Failed to remove from catalog: ' + (err as Error).message);
       },
     });

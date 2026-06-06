@@ -88,7 +88,7 @@ Assumes ComfyUI was installed via [comfy-cli](https://comfyui-wiki.com/en/instal
 - [x] F-43 — Cancel Download — cancel an individual or all active downloads; stops transfer and deletes partial file
 - [x] F-44 — Copy Trigger Words — one-click copy of all trigger words (comma-separated) from the Model Detail header and the library card action menu
 - [x] F-45 — Quick-access Dashboard Button — toolbar button (icon + "TMM") in ComfyUI's top-right that opens the dashboard in a new tab
-- [ ] F-46 — Confirmation Flyouts — replace all confirmation alerts with inline popovers anchored to the trigger button
+- [x] F-46 — Confirmation Flyouts — replace all confirmation alerts with inline popovers anchored to the trigger button
 - [ ] F-47 — Download Activity & History Log — active panel capped to 5 recent items with 60 s auto-dismiss; full persistent download history in a new History tab with status filters, name search, and redownload action
 
 ---

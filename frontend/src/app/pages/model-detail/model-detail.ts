@@ -21,6 +21,7 @@ import { BaseModelSelect } from '../../components/base-model-select/base-model-s
 import { EditMetaForm } from '../../components/edit-meta-form/edit-meta-form';
 import { RefetchReviewModal } from '../../components/refetch-review-modal/refetch-review-modal';
 import { MediaGallery } from '../../components/media-gallery/media-gallery';
+import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover';
 
 @Component({
   selector: 'app-model-detail',
@@ -33,6 +34,7 @@ import { MediaGallery } from '../../components/media-gallery/media-gallery';
     EditMetaForm,
     RefetchReviewModal,
     MediaGallery,
+    ConfirmPopover,
   ],
   templateUrl: './model-detail.html',
   styleUrl: './model-detail.scss',
@@ -53,11 +55,9 @@ export class ModelDetail implements OnInit {
   deleting = signal(false);
   error = signal('');
   editMode = signal(false);
-  showUninstallConfirm = signal(false);
   copied = signal(false);
   repoFiles = signal<RepoFile[]>([]);
   fileBaseModels = signal<Record<string, string>>({});
-  pendingDeleteFile = signal<RepoFile | null>(null);
   downloadingFiles = signal<Set<string>>(new Set());
   catalogEntry = signal<CatalogEntryDetail | null>(null);
   linkSourceUrl = signal('');
@@ -307,7 +307,6 @@ export class ModelDetail implements OnInit {
       },
       error: (err) => {
         this.deleting.set(false);
-        this.showUninstallConfirm.set(false);
         this.notifService.show('error', (err as Error).message);
       },
     });
@@ -343,7 +342,6 @@ export class ModelDetail implements OnInit {
     const path = file.installed_path || file.filename;
     this.modelService.deleteModel(this.modelType, path).subscribe({
       next: () => {
-        this.pendingDeleteFile.set(null);
         this.notifService.show('success', `${file.filename} deleted.`);
         this.loadRepoFiles();
       },

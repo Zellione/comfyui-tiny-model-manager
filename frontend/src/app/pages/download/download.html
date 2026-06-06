@@ -6,7 +6,12 @@
     <div class="active-downloads-header">
       <h3>Active Downloads</h3>
       @if (hasCancellableTasks()) {
-        <button class="btn-secondary" (click)="onCancelAll()">Cancel all</button>
+        <app-confirm-popover
+          [question]="'Cancel all ' + displayTasks().length + ' downloads?'"
+          (confirmed)="onCancelAll()"
+        >
+          <button class="btn-secondary">Cancel all</button>
+        </app-confirm-popover>
       }
     </div>
     @for (task of displayTasks(); track task.id) {
@@ -20,13 +25,11 @@
           <span class="pct">{{ activePct(task) }}</span>
         }
         @if (task.status !== 'done' && task.status !== 'error') {
-          <button
-            class="btn-secondary"
-            [disabled]="cancellingIds().has(task.id)"
-            (click)="onCancelTask(task.id)"
-          >
-            {{ cancellingIds().has(task.id) ? '…' : 'Cancel' }}
-          </button>
+          <app-confirm-popover question="Cancel this download?" (confirmed)="onCancelTask(task.id)">
+            <button class="btn-secondary" [disabled]="cancellingIds().has(task.id)">
+              {{ cancellingIds().has(task.id) ? '…' : 'Cancel' }}
+            </button>
+          </app-confirm-popover>
         }
       </div>
     }
