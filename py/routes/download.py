@@ -10,8 +10,7 @@ from ._helpers import err, json_route, ok
 _MISSING_REPO = "Missing repo"
 
 
-def add_download_routes(routes):
-
+def _register_search_routes(routes):
     @routes.get("/tiny-model-manager/api/search/civitai")
     @json_route
     async def search_civitai(request):
@@ -93,6 +92,8 @@ def add_download_routes(routes):
         result = await civitai.resolve_direct_link(version_id)
         return ok(result)
 
+
+def _register_download_mgmt_routes(routes):
     @routes.post("/tiny-model-manager/api/download")
     @json_route
     async def start_download(request):
@@ -177,3 +178,8 @@ def add_download_routes(routes):
             history_id=new_history_id,
         )
         return ok({"task_id": task.id})
+
+
+def add_download_routes(routes):
+    _register_search_routes(routes)
+    _register_download_mgmt_routes(routes)
