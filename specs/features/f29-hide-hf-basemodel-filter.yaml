@@ -1,8 +1,0 @@
-feature_id: F-29
-title: Hide Base-Model Filter for HuggingFace
-requirements:
-  - The base-model filter control (F-24) is shown for CivitAI and hidden whenever the active search platform is HuggingFace
-  - The model-type search dropdown is also hidden for HuggingFace because it does not affect HF search results (all HuggingFace results map to the text-to-image pipeline regardless of type)
-  - "The remaining controls (keyword, sort, file format) stay available"
-depends_on:
-  - F-24

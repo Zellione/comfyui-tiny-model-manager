@@ -1,9 +1,0 @@
-feature_id: F-44
-title: "Quick-access Dashboard Button"
-requirements:
-  - "The ComfyUI JS extension registers a button in ComfyUI's native top-right toolbar, positioned next to the Extensions button"
-  - "The button displays a small icon and the text label 'TMM'"
-  - "Clicking the button opens the model manager dashboard at '/tiny-model-manager' in a new browser tab"
-  - "The button is registered exactly once during extension load and does not duplicate on re-render or hot-reload"
-depends_on:
-  - F-12

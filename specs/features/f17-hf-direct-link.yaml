@@ -1,5 +1,0 @@
-feature_id: F-17
-title: Direct Download Link (HuggingFace)
-requirements:
-  - "Paste-a-link section on the Download page accepts a `https://huggingface.co/<repo>/resolve/<rev>/<file>` URL"
-  - "Frontend parses repo, revision, and filename; user picks the target model type; submit calls `POST /api/download` with `platform=\"huggingface\"` and `source_id=<repo>`"

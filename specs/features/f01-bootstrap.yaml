@@ -1,7 +1,0 @@
-feature_id: F-01
-title: Custom Node Bootstrap
-requirements:
-  - "`__init__.py` exports `NODE_CLASS_MAPPINGS`, `NODE_DISPLAY_NAME_MAPPINGS`, and `WEB_DIRECTORY`"
-  - Routes are registered into `PromptServer.instance.routes` at import time
-  - SQLite database schema is created on first run if it does not exist
-  - `data/` directory (DB + settings + media) is created automatically

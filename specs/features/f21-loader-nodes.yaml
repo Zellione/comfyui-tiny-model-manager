@@ -1,8 +1,0 @@
-feature_id: F-21
-title: Loader Nodes for Other Model Types
-requirements:
-  - "New nodes in category `tiny-model-manager`, registered in `NODE_CLASS_MAPPINGS` with `TMM` prefix to avoid conflicts with ComfyUI built-ins: - **`TMMCheckpointLoader`** (display: \"Checkpoint Loader\") → outputs `MODEL`, `CLIP`, `VAE` - **`TMMVaeLoader`** (display: \"VAE Loader\") → outputs `VAE` - **`TMMControlNetLoader`** (display: \"ControlNet Loader\") → outputs `CONTROL_NET` - **`TMMEmbeddingHelper`** (display: \"Embedding Helper\") → outputs `embedding_ref` (STRING formatted as `embedding:<stem>`) - **`TMMUpscaleModelLoader`** (display: \"Upscale Model Loader\") → outputs `UPSCALE_MODEL`"
-  - "model-name dropdown is populated from `folder_paths.get_filename_list(<type>)`"
-  - "Trigger words are **not** exposed on these nodes; only `LoraLoaderWithTriggers` (F-11) retains a trigger_words output"
-depends_on:
-  - F-11

@@ -1,7 +1,0 @@
-feature_id: F-15
-title: Import Tags from HuggingFace
-requirements:
-  - `metadata_fetcher` stores `huggingface.get_model_card()` tags in the new `tags` table (see F-08)
-  - Tags surface in metadata responses and on the model detail page
-depends_on:
-  - F-08
