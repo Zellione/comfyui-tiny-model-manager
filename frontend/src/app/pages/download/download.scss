@@ -25,6 +25,11 @@
   gap: 0.75rem;
   margin-bottom: 0.5rem;
 
+  .badge {
+    min-width: 6.5rem;
+    text-align: center;
+    flex-shrink: 0;
+  }
   .task-name {
     flex: 1;
     overflow: hidden;
