@@ -3,9 +3,10 @@ import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { Models } from './models';
-import { ModelService, CatalogListResponse } from '../../services/model';
+import { ModelService, CatalogEntry, CatalogListResponse } from '../../services/model';
 import { WorkflowService } from '../../services/workflow';
 import { SettingsService } from '../../services/settings';
+import { NotificationService } from '../../services/notification';
 
 // BroadcastChannel is not available in jsdom — stub it so `new` works correctly.
 type MockChannel = {
@@ -40,6 +41,8 @@ const mockWorkflowService = {
 const mockSettingsService = {
   getOrganizeEnabled: vi.fn(),
 };
+
+const mockNotifService = { show: vi.fn() };
 
 function findOrganizeButton(el: HTMLElement): HTMLButtonElement | undefined {
   return Array.from(el.querySelectorAll<HTMLButtonElement>('button')).find((b) =>
@@ -77,6 +80,7 @@ describe('Models component', () => {
         { provide: ModelService, useValue: mockModelService },
         { provide: WorkflowService, useValue: mockWorkflowService },
         { provide: SettingsService, useValue: mockSettingsService },
+        { provide: NotificationService, useValue: mockNotifService },
       ],
     }).compileComponents();
   });
@@ -332,6 +336,62 @@ describe('Models component', () => {
       };
       expect(c.cardDetailRoute(entry)).toEqual(['/catalog', 'huggingface']);
       expect(c.cardDetailQuery(entry)).toEqual({ pageId: 'user/repo' });
+    });
+  });
+
+  describe('copyTriggerWords()', () => {
+    let clipboardWriteText: ReturnType<typeof vi.fn>;
+    let originalNavigator: typeof navigator;
+
+    const makeEntry = (overrides: Partial<CatalogEntry> = {}): CatalogEntry => ({
+      id: 1,
+      source_platform: 'civitai',
+      source_page_id: '1',
+      source_page_url: '',
+      display_name: 'Test',
+      thumbnail_url: '',
+      base_model: '',
+      created_at: '',
+      model_type: 'loras',
+      is_empty: false,
+      installed_files: [],
+      trigger_words: ['word1', 'word2'],
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      originalNavigator = globalThis.navigator;
+      clipboardWriteText = vi.fn().mockResolvedValue(undefined);
+      vi.stubGlobal('navigator', { clipboard: { writeText: clipboardWriteText } });
+    });
+
+    afterEach(() => {
+      vi.stubGlobal('navigator', originalNavigator);
+    });
+
+    it('copies trigger words as comma-separated string', async () => {
+      const c = await getComponent();
+      await c.copyTriggerWords(makeEntry({ trigger_words: ['word1', 'word2'] }));
+      expect(clipboardWriteText).toHaveBeenCalledWith('word1, word2');
+    });
+
+    it('shows success toast after copying', async () => {
+      const c = await getComponent();
+      await c.copyTriggerWords(makeEntry());
+      expect(mockNotifService.show).toHaveBeenCalledWith('success', 'Trigger words copied');
+    });
+
+    it('shows error toast when clipboard rejects', async () => {
+      clipboardWriteText.mockRejectedValue(new Error('denied'));
+      const c = await getComponent();
+      await c.copyTriggerWords(makeEntry());
+      expect(mockNotifService.show).toHaveBeenCalledWith('error', 'Could not copy trigger words');
+    });
+
+    it('copies empty string when trigger_words is undefined', async () => {
+      const c = await getComponent();
+      await c.copyTriggerWords(makeEntry({ trigger_words: undefined }));
+      expect(clipboardWriteText).toHaveBeenCalledWith('');
     });
   });
 

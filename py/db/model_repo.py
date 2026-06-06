@@ -468,13 +468,14 @@ async def list_catalog_entries() -> list[dict]:
         entries = await (
             await db.execute(
                 "SELECT id, source_platform, source_page_id, source_page_url,"
-                "       display_name, thumbnail_url, base_model, created_at"
+                "       display_name, thumbnail_url, base_model, trigger_words, created_at"
                 " FROM catalog_entries ORDER BY created_at DESC"
             )
         ).fetchall()
         result = []
         for entry in entries:
             e = dict(entry)
+            e["trigger_words"] = _parse_json_list(e.get("trigger_words", ""))
             installed = list(
                 await (
                     await db.execute(

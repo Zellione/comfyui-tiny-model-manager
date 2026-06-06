@@ -81,6 +81,33 @@ class TestListCatalog:
         entry = (await resp.json())["data"]["entries"][0]
         assert entry["is_empty"] is False
 
+    async def test_catalog_list_includes_trigger_words(self, client, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id="tw_test",
+            source_page_url="https://civitai.com/models/tw_test",
+            display_name="TW Model",
+            thumbnail_url="",
+            base_model="SDXL",
+            trigger_words=["alpha", "beta"],
+        )
+        resp = await client.get("/tiny-model-manager/api/catalog")
+        assert resp.status == 200
+        entries = (await resp.json())["data"]["entries"]
+        entry = next(e for e in entries if e["source_page_id"] == "tw_test")
+        assert entry["trigger_words"] == ["alpha", "beta"]
+
+    async def test_catalog_list_trigger_words_empty_when_none(self, client, ext_dir):
+        await _make_entry()
+        resp = await client.get("/tiny-model-manager/api/catalog")
+        assert resp.status == 200
+        entries = (await resp.json())["data"]["entries"]
+        for entry in entries:
+            assert "trigger_words" in entry
+            assert isinstance(entry["trigger_words"], list)
+
     async def test_file_without_catalog_entry_is_unknown(self, client, ext_dir):
         import folder_paths
 

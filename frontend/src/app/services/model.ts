@@ -104,6 +104,7 @@ export interface CatalogEntry {
   model_type: string;
   is_empty: boolean;
   installed_files: InstalledFile[];
+  trigger_words?: string[];
 }
 
 export interface CatalogEntryDetail extends CatalogEntry {

@@ -250,3 +250,19 @@ app.registerExtension({
     }, 500);
   },
 });
+
+app.registerExtension({
+  name: "TinyModelManager.DashboardButton",
+  async setup() {
+    const btn = document.createElement("button");
+    btn.className = "comfyui-button";
+    btn.title = "Open Tiny Model Manager";
+    btn.textContent = "TMM";
+    btn.style.cssText = "padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer";
+    btn.addEventListener("click", () => window.open("/tiny-model-manager", "_blank"));
+    const target =
+      document.querySelector(".comfyui-menu-right") ??
+      document.querySelector(".comfyui-menu");
+    target?.prepend(btn);
+  },
+});
