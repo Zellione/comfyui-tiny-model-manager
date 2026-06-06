@@ -826,6 +826,20 @@
               <span class="badge badge--{{ entry.status }}">
                 {{ historyStatusLabel(entry.status) }}
               </span>
+              @if (entry.status === 'downloading' && historyTaskMap().has(entry.id)) {
+                @let activeTask = historyTaskMap().get(entry.id)!;
+                <app-confirm-popover
+                  question="Cancel this download?"
+                  (confirmed)="onCancelTask(activeTask.id)"
+                >
+                  <button
+                    class="btn-secondary btn-sm"
+                    [disabled]="cancellingIds().has(activeTask.id)"
+                  >
+                    {{ cancellingIds().has(activeTask.id) ? '…' : 'Cancel' }}
+                  </button>
+                </app-confirm-popover>
+              }
               @if (canRedownload(entry.status)) {
                 <app-confirm-popover
                   question="Re-download {{ entry.model_name }}?"
