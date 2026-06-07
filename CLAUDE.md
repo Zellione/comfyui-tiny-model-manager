@@ -168,8 +168,11 @@ Dev dependencies are in `requirements-dev.txt`; install once with:
 - Project: "ComfyUI Tiny Model Manager", number `1`, ID `PVT_kwHOAQaKGc4BZ7ME`
 - Status field ID: `PVTSSF_lAHOAQaKGc4BZ7MEzhU2a7U`
 - Status option IDs: Backlog `f75ad846` | Ready `61e4505c` | In progress `47fc9ee4` | In review `df73e18b` | Done `98236657`
+- Size field ID: `PVTSSF_lAHOAQaKGc4BZ7MEzhU2bF8`
+- Size option IDs: XS `6c6483d2` | S `f784b110` | M `7515a9f1` | L `817d0097` | XL `db339eb2`
 - Requires `project` scope — if missing: `gh auth refresh -s project`
 - Issues use `enhancement` label (personal repo has no issue types)
+- All issues must be assigned to a milestone. Fetch existing milestones with `gh api repos/Zellione/comfyui-tiny-model-manager/milestones --jq '.[] | {number: .number, title: .title}'`, present them to the user, and offer a "Create new milestone" option if none fit.
 
 ### Feature branch rule (MANDATORY)
 
