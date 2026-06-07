@@ -17,11 +17,35 @@ downloaded from CivitAI and HuggingFace. The UI has three main pages: Models (li
 Download (search + paste-a-link), and Model Detail. Settings live in ComfyUI's native settings
 panel. The backend uses SQLite via aiosqlite and httpx for external API calls.
 
-## Step 1 — Interview the user
+## Step 1 — Pre-interview research (do this BEFORE asking questions)
+
+Run both commands in parallel before opening the `AskUserQuestion` dialog:
+
+```bash
+# Fetch all open enhancement issues to find candidates for related issues
+gh issue list --label enhancement --limit 60 --json number,title,body
+
+# Fetch existing milestones
+gh api repos/Zellione/comfyui-tiny-model-manager/milestones \
+  --jq '.[] | {number: .number, title: .title}'
+```
+
+Use the issue list to:
+- **Pre-select a size suggestion** — reason about affected areas and complexity from the user's
+  description and propose the most likely size as the first option in the size question.
+- **Pre-select related issue candidates** — compare the feature idea against every open issue's
+  title and body; include any issue that shares pages, data models, or API surface as an option
+  in the related-issues question. Always propose at least one candidate if any exists; never show
+  an empty related-issues question.
+
+## Step 2 — Interview the user
 
 Use the `AskUserQuestion` tool to run **one round** of structured questions. Aim to cover all the
 dimensions below in a single round; follow up with a second round only if a critical ambiguity
 remains after the first answers.
+
+**`AskUserQuestion` accepts at most 4 questions per call.** Merge or drop lower-priority questions
+to stay within the limit.
 
 ### Round 1 questions to ask
 
@@ -46,9 +70,9 @@ Cover these topics — adapt the wording to what the user already told you:
 
 5. **Backend / DB changes** — New tables, new columns, new service logic, new external API calls?
 
-6. **Related issues** — Does this feature depend on, block, or relate to any existing GitHub issues?
-   Search with `gh issue list --label enhancement --limit 60 --json number,title` and present
-   candidates if any look relevant. For each relationship, identify the type:
+6. **Related issues** — Present the candidates you identified in Step 1. For each candidate, label
+   it with your suggested relationship type and a one-sentence rationale so the user can accept or
+   correct it. Always include a "None" option. Relationship types:
    - `BLOCKED_BY` — this feature cannot be built until the other is done
    - `BLOCKS` — the other feature cannot be built until this is done
    - `RELATED_TO` — shares scope, data, or UI surface without a hard ordering dependency
@@ -56,7 +80,9 @@ Cover these topics — adapt the wording to what the user already told you:
 7. **Edge cases & failure modes** — What should happen when inputs are invalid, the network is
    down, or the external API returns an error?
 
-8. **Size estimate** — How big is this feature?
+8. **Size estimate** — How big is this feature? Lead with your suggested size (derived from the
+   number of affected areas, whether backend/DB changes are needed, and overall scope) as the first
+   option, labelled "(Recommended)". Include a one-sentence rationale for your suggestion.
    - XS — a single small change (< 1 hour)
    - S — a focused change touching 1–2 files (half a day)
    - M — moderate scope, a few components or endpoints (1–2 days)
@@ -68,9 +94,10 @@ Cover these topics — adapt the wording to what the user already told you:
 - Keep each question short and concrete — avoid open-ended "tell me everything" prompts.
 - Where a choice is binary (yes/no), offer it as a two-option select.
 - Where a choice is a pick-one from a known set (e.g. which pages), use multiSelect.
-- It is fine to pre-fill a reasonable guess as the first option and let the user correct it.
+- **Always pre-fill your best guess as the first option** — for size and related issues especially,
+  never present a blank slate. Reason from what the user told you and lead with a recommendation.
 
-## Step 2 — Confirm your understanding
+## Step 3 — Confirm your understanding
 
 Before writing anything, post a brief plain-text summary of your understanding back to the user:
 
@@ -94,7 +121,7 @@ Shall I create the GitHub issue?
 
 Wait for the user to confirm (or correct) before proceeding.
 
-## Step 3 — Create the GitHub issue and add to project backlog
+## Step 4 — Create the GitHub issue and add to project backlog
 
 Build the issue body from the confirmed requirements:
 
@@ -147,26 +174,53 @@ gh project item-edit \
   --single-select-option-id <size-option-id>
 ```
 
-If there are related issues, link them via the GraphQL API. Supported types: `BLOCKS`, `BLOCKED_BY`,
-`RELATED_TO`. Resolve the node IDs first, then add each relationship:
+If there are related issues, link them using the approach that matches the relationship type.
+
+**GitHub GraphQL API only exposes two programmable dependency types — `BLOCKED_BY` and `BLOCKS`.**
+`RELATED_TO` has no dedicated mutation and can only be set via the GitHub web UI.
+
+### BLOCKED_BY — new issue is blocked by an existing issue
 
 ```bash
-# Resolve node IDs
-NEW_ID=$(gh api repos/{owner}/{repo}/issues/<new-number> --jq '.node_id')
-OTHER_ID=$(gh api repos/{owner}/{repo}/issues/<other-number> --jq '.node_id')
+NEW_ID=$(gh api repos/Zellione/comfyui-tiny-model-manager/issues/<new-number> --jq '.node_id')
+OTHER_ID=$(gh api repos/Zellione/comfyui-tiny-model-manager/issues/<other-number> --jq '.node_id')
 
-# Add relationship (repeat for each related issue)
 gh api graphql -f query='
-mutation($issueId: ID!, $linkedIssueId: ID!, $type: LinkedIssueRelationshipType!) {
-  addLinkedIssue(input: {
-    issueId: $issueId
-    linkedIssueId: $linkedIssueId
-    type: $type
-  }) { source { url } target { url } }
-}' -f issueId="$NEW_ID" -f linkedIssueId="$OTHER_ID" -f type="BLOCKED_BY"
+mutation($issueId: ID!, $blockingIssueId: ID!) {
+  addBlockedBy(input: { issueId: $issueId, blockingIssueId: $blockingIssueId }) {
+    issue { url }
+    blockingIssue { url }
+  }
+}' -f issueId="$NEW_ID" -f blockingIssueId="$OTHER_ID"
 ```
 
-## Step 4 — Report completion
+### BLOCKS — new issue blocks an existing issue
+
+Swap the roles: the existing issue is blocked by the new issue.
+
+```bash
+gh api graphql -f query='
+mutation($issueId: ID!, $blockingIssueId: ID!) {
+  addBlockedBy(input: { issueId: $issueId, blockingIssueId: $blockingIssueId }) {
+    issue { url }
+    blockingIssue { url }
+  }
+}' -f issueId="$OTHER_ID" -f blockingIssueId="$NEW_ID"
+```
+
+### RELATED_TO — no API mutation available
+
+Add a cross-reference comment (creates a visible timeline link) and tell the user to set the
+"Related to" relationship manually via the GitHub web UI:
+
+```bash
+gh issue comment <new-number> --body "Related to #<other-number>."
+```
+
+Then inform the user: "The 'Related to' relationship must be set manually in the GitHub web UI —
+open issue #<new-number>, find the relationship section, and add #<other-number> as 'Related to'."
+
+## Step 5 — Report completion
 
 Tell the user:
 - The GitHub issue URL
