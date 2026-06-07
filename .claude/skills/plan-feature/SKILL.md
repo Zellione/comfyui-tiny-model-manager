@@ -56,6 +56,13 @@ Cover these topics — adapt the wording to what the user already told you:
 7. **Edge cases & failure modes** — What should happen when inputs are invalid, the network is
    down, or the external API returns an error?
 
+8. **Size estimate** — How big is this feature?
+   - XS — a single small change (< 1 hour)
+   - S — a focused change touching 1–2 files (half a day)
+   - M — moderate scope, a few components or endpoints (1–2 days)
+   - L — significant scope, multiple areas or complex logic (3–5 days)
+   - XL — large feature, major new subsystem (> 1 week)
+
 ### Guidelines for asking
 
 - Keep each question short and concrete — avoid open-ended "tell me everything" prompts.
@@ -79,6 +86,7 @@ Requirements I'll capture:
 
 API changes: <none | list of endpoints>
 DB changes: <none | description>
+Size: <XS | S | M | L | XL> — <one-sentence rationale>
 Related issues: <none | #NN (blocked by) | #NN (blocks) | #NN (related to)>
 
 Shall I create the GitHub issue?
@@ -111,6 +119,16 @@ Then run:
 # Create the issue
 gh issue create --title "<title>" --body "<body above>" --label enhancement
 
+# Assign to a milestone
+# 1. List existing milestones:
+#    gh api repos/Zellione/comfyui-tiny-model-manager/milestones --jq '.[] | {number: .number, title: .title}'
+# 2. Present them to the user via AskUserQuestion (include "Create new milestone" as an option).
+# 3. If the user picks an existing one, use its number directly.
+#    If the user wants a new one, create it first:
+#    gh api repos/Zellione/comfyui-tiny-model-manager/milestones --method POST --field title="<name>" --jq '.number'
+# 4. Assign the issue:
+gh api repos/Zellione/comfyui-tiny-model-manager/issues/<number> --method PATCH --field milestone=<milestone-number>
+
 # Add to the GitHub project
 gh project item-add 1 --owner @me --url <issue-url>
 
@@ -120,6 +138,13 @@ gh project item-edit \
   --project-id PVT_kwHOAQaKGc4BZ7ME \
   --field-id PVTSSF_lAHOAQaKGc4BZ7MEzhU2a7U \
   --single-select-option-id f75ad846
+
+# Set size (XS=6c6483d2 | S=f784b110 | M=7515a9f1 | L=817d0097 | XL=db339eb2)
+gh project item-edit \
+  --id <item-id> \
+  --project-id PVT_kwHOAQaKGc4BZ7ME \
+  --field-id PVTSSF_lAHOAQaKGc4BZ7MEzhU2bF8 \
+  --single-select-option-id <size-option-id>
 ```
 
 If there are related issues, link them via the GraphQL API. Supported types: `BLOCKS`, `BLOCKED_BY`,
