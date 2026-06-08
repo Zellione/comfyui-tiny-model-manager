@@ -768,6 +768,7 @@ export class Download {
     const repoId = model.modelId ?? model.id;
     this.selectedHfModel.set(model);
     this.selectedHfRepoId.set(repoId);
+    this.galleryIndex.set(0);
     this.hfFiles.set([]);
     this.hfDescription.set('');
     this.hfService.getFiles(repoId).subscribe({
