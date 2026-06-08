@@ -148,7 +148,7 @@ class HuggingFaceProvider(ModelProvider):
             resp = await client.get(url, headers=self.auth_headers())
             if resp.status_code != 200:
                 return ""
-            text = resp.text
+            text = resp.text.replace("\r\n", "\n")
         if text.startswith("---"):
             end = text.find("\n---", 3)
             if end != -1:

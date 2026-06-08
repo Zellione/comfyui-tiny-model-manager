@@ -107,6 +107,18 @@ class TestGetReadme:
         assert "<h1>" in html
         assert "Plain README" in html
 
+    async def test_strips_yaml_front_matter_with_crlf_line_endings(self, provider, monkeypatch):
+        readme = "---\r\nlicense: mit\r\n---\r\n\r\n# My Model\r\n\r\nGreat model."
+
+        def handler(r: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, text=readme)
+
+        _patch_client(monkeypatch, httpx.MockTransport(handler))
+        html = await provider.get_readme("user/repo")
+        assert "<h1>" in html
+        assert "My Model" in html
+        assert "license: mit" not in html
+
     async def test_returns_empty_on_404(self, provider, monkeypatch):
         _patch_client(monkeypatch, _mock({}, 404))
         assert await provider.get_readme("user/repo") == ""
