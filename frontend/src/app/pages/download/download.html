@@ -751,7 +751,7 @@
           @if (hfDescriptionLoading()) {
             <p class="detail-loading">Loading description…</p>
           } @else if (hfDescription()) {
-            <div class="detail-desc">{{ hfDescription() }}</div>
+            <div class="detail-desc" [innerHTML]="hfDescription() | safeHtml"></div>
           }
         }
       </div>
