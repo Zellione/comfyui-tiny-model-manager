@@ -1,6 +1,5 @@
-import re
-
 import httpx
+import mistune
 
 from ... import config as cfg
 from .base import ModelProvider, ProviderMetadata
@@ -143,7 +142,7 @@ class HuggingFaceProvider(ModelProvider):
         ]
 
     async def get_readme(self, repo_id: str) -> str:
-        """Fetches README.md and returns its body with YAML front matter stripped."""
+        """Fetches README.md and returns its body as HTML with YAML front matter stripped."""
         url = f"{_BASE}/{repo_id}/resolve/main/README.md"
         async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
             resp = await client.get(url, headers=self.auth_headers())
@@ -154,9 +153,7 @@ class HuggingFaceProvider(ModelProvider):
             end = text.find("\n---", 3)
             if end != -1:
                 text = text[end + 4 :].lstrip("\n")
-        # Strip all HTML/MDX/JSX tags — description is shown as plain text in the UI
-        text = re.sub(r"<[^>]+>", "", text)
-        return text.strip()
+        return mistune.html(text)
 
     async def resolve_direct_link(self, repo_id: str) -> dict:
         """Returns preview image URLs for a HuggingFace repo for direct link preview."""
@@ -175,7 +172,7 @@ class HuggingFaceProvider(ModelProvider):
         return {"image_urls": image_urls}
 
     async def fetch_metadata(self, source_id: str) -> ProviderMetadata:
-        """Returns description, tags, and preview image URLs from a HuggingFace model card."""
+        """Returns description, readme HTML, tags, and preview image URLs from a HuggingFace model card."""
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(f"{_API}/models/{source_id}", headers=self.auth_headers())
             resp.raise_for_status()
@@ -190,8 +187,7 @@ class HuggingFaceProvider(ModelProvider):
                 break
         card_data = data.get("cardData") or {}
         description = card_data.get("description", "") or ""
-        if not description:
-            description = await self.get_readme(source_id)
+        readme_html = await self.get_readme(source_id)
         display_name = source_id.split("/")[-1] if source_id else ""
         return ProviderMetadata(
             description=description,
@@ -199,4 +195,5 @@ class HuggingFaceProvider(ModelProvider):
             image_urls=image_urls,
             tags=data.get("tags", []),
             display_name=display_name,
+            readme_html=readme_html,
         )

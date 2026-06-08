@@ -11,6 +11,7 @@ class ProviderMetadata:
     base_model: str = ""
     civitai_model_id: str = ""
     display_name: str = ""
+    readme_html: str = ""
 
 
 class ModelProvider(ABC):

@@ -102,6 +102,7 @@ async def _store_catalog_entry(
             trigger_words=meta.trigger_words,
             tags=meta.tags,
             media_hash=media_hash,
+            readme_html=meta.readme_html,
         )
         await model_repo.set_model_catalog_entry(filename, catalog_entry_id)
         return catalog_entry_id
@@ -139,6 +140,7 @@ async def fetch_and_store(
         base_model=meta.base_model,
         civitai_model_id=meta.civitai_model_id,
         media_hash=media_hash,
+        readme_html=meta.readme_html,
     )
     if not skip_media:
         await _download_images(model_id, media_hash, meta.image_urls)
@@ -389,5 +391,6 @@ async def refetch_catalog_metadata(platform: str, page_id: str) -> dict | None:
         trigger_words=meta.trigger_words,
         tags=meta.tags,
         media_hash=media_hash,
+        readme_html=meta.readme_html,
     )
     return await model_repo.get_catalog_entry(platform, page_id)

@@ -45,12 +45,13 @@ async def _upsert_model_row(
     base_model: str,
     civitai_model_id: str,
     media_hash: str,
+    readme_html: str = "",
 ) -> int:
     """Insert/update the models row and return its id (does not commit)."""
     cursor = await db.execute(
         """
-        INSERT INTO models (filename, model_type, source_platform, source_id, description, base_model, civitai_model_id, media_hash)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO models (filename, model_type, source_platform, source_id, description, base_model, civitai_model_id, media_hash, readme_html)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(filename) DO UPDATE SET
             model_type = excluded.model_type,
             source_platform = excluded.source_platform,
@@ -58,7 +59,8 @@ async def _upsert_model_row(
             description = excluded.description,
             base_model = CASE WHEN excluded.base_model != '' THEN excluded.base_model ELSE base_model END,
             civitai_model_id = excluded.civitai_model_id,
-            media_hash = excluded.media_hash
+            media_hash = excluded.media_hash,
+            readme_html = excluded.readme_html
         """,
         (
             filename,
@@ -69,6 +71,7 @@ async def _upsert_model_row(
             base_model,
             civitai_model_id,
             media_hash,
+            readme_html[:_MAX_DESCRIPTION],
         ),
     )
     if cursor.lastrowid:
@@ -88,6 +91,7 @@ async def upsert_model(
     base_model: str = "",
     civitai_model_id: str = "",
     media_hash: str = "",
+    readme_html: str = "",
 ) -> int:
     async with get_db() as db:
         model_id = await _upsert_model_row(
@@ -100,6 +104,7 @@ async def upsert_model(
             base_model,
             civitai_model_id,
             media_hash,
+            readme_html,
         )
         await db.commit()
         return model_id
@@ -116,6 +121,7 @@ async def upsert_model_with_meta(
     base_model: str = "",
     civitai_model_id: str = "",
     media_hash: str = "",
+    readme_html: str = "",
 ) -> int:
     async with get_db() as db:
         model_id = await _upsert_model_row(
@@ -128,6 +134,7 @@ async def upsert_model_with_meta(
             base_model,
             civitai_model_id,
             media_hash,
+            readme_html,
         )
         await db.execute(_DELETE_TRIGGER_WORDS, (model_id,))
         await db.executemany(
@@ -226,6 +233,7 @@ async def update_model_meta(
     tags: list[str] | None = None,
     base_model: str | None = None,
     model_type: str = "",
+    readme_html: str | None = None,
 ):
     now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     async with get_db() as db:
@@ -244,6 +252,9 @@ async def update_model_meta(
             sets.append("base_model = ?, base_model_edited_at = ?")
             vals.append(base_model)
             vals.append(now)
+        if readme_html is not None:
+            sets.append("readme_html = ?")
+            vals.append(readme_html[:_MAX_DESCRIPTION])
         if sets:
             await db.execute(
                 f"UPDATE models SET {', '.join(sets)} WHERE filename = ?",
@@ -353,6 +364,7 @@ async def upsert_catalog_entry(
     trigger_words: list[str] | None = None,
     tags: list[str] | None = None,
     media_hash: str = "",
+    readme_html: str = "",
 ) -> int:
     # Source-page metadata is stored on the catalog entry so it survives even when no
     # model file is installed. Empty values never overwrite existing data (so a partial
@@ -364,17 +376,18 @@ async def upsert_catalog_entry(
             """
             INSERT INTO catalog_entries
                 (source_platform, source_page_id, source_page_url, display_name, thumbnail_url,
-                 base_model, description, trigger_words, tags, media_hash)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 base_model, description, trigger_words, tags, media_hash, readme_html)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(source_platform, source_page_id) DO UPDATE SET
                 source_page_url = CASE WHEN excluded.source_page_url != '' THEN excluded.source_page_url ELSE source_page_url END,
                 display_name    = CASE WHEN excluded.display_name != ''    THEN excluded.display_name    ELSE display_name    END,
                 thumbnail_url   = CASE WHEN excluded.thumbnail_url != ''   THEN excluded.thumbnail_url   ELSE thumbnail_url   END,
                 base_model      = CASE WHEN excluded.base_model != ''      THEN excluded.base_model      ELSE base_model      END,
-                description     = CASE WHEN excluded.description != ''      THEN excluded.description     ELSE description     END,
+                description     = CASE WHEN excluded.description != ''     THEN excluded.description     ELSE description     END,
                 trigger_words   = CASE WHEN excluded.trigger_words != ''   THEN excluded.trigger_words   ELSE trigger_words   END,
                 tags            = CASE WHEN excluded.tags != ''            THEN excluded.tags            ELSE tags            END,
-                media_hash      = CASE WHEN excluded.media_hash != ''      THEN excluded.media_hash      ELSE media_hash      END
+                media_hash      = CASE WHEN excluded.media_hash != ''      THEN excluded.media_hash      ELSE media_hash      END,
+                readme_html     = CASE WHEN excluded.readme_html != ''     THEN excluded.readme_html     ELSE readme_html     END
             """,
             (
                 source_platform,
@@ -387,6 +400,7 @@ async def upsert_catalog_entry(
                 trigger_json,
                 tags_json,
                 media_hash,
+                readme_html[:_MAX_DESCRIPTION],
             ),
         )
         await db.commit()
@@ -516,7 +530,7 @@ async def get_catalog_entry(source_platform: str, source_page_id: str) -> dict |
             await db.execute(
                 "SELECT id, source_platform, source_page_id, source_page_url,"
                 "       display_name, thumbnail_url, base_model, description,"
-                "       trigger_words, tags, media_hash, created_at"
+                "       trigger_words, tags, media_hash, readme_html, created_at"
                 " FROM catalog_entries WHERE source_platform = ? AND source_page_id = ?",
                 (source_platform, source_page_id),
             )

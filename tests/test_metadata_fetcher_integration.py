@@ -25,6 +25,8 @@ def _make_meta(base_model: str = "SDXL 1.0") -> MagicMock:
     meta.tags = []
     meta.base_model = base_model
     meta.civitai_model_id = ""
+    meta.readme_html = ""
+    meta.display_name = ""
     return meta
 
 

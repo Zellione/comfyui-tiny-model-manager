@@ -95,6 +95,24 @@ class TestGetMetadata:
         assert "SDXL 1.0" not in data["tags"]
         assert "tw1" not in data["tags"]
 
+    async def test_readme_html_in_response(self, client, ext_dir):
+        """F-80: readme_html is included in the metadata response."""
+        from py.db import model_repo
+
+        await model_repo.upsert_model_with_meta(
+            "readme.safetensors",
+            "loras",
+            "huggingface",
+            "user/repo",
+            "",
+            trigger_words=[],
+            tags=[],
+            readme_html="<h1>Hello</h1>",
+        )
+        resp = await client.get("/tiny-model-manager/api/models/loras/readme.safetensors/metadata")
+        data = (await resp.json())["data"]
+        assert data["readme_html"] == "<h1>Hello</h1>"
+
 
 class TestPutMetadata:
     async def test_update_description_and_trigger_words(self, client, ext_dir):

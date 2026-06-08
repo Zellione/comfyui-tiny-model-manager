@@ -148,6 +148,14 @@
             <div class="description-body" [innerHTML]="meta()!.description | safeHtml"></div>
           </div>
         }
+
+        <!-- README -->
+        @if (meta()!.readme_html) {
+          <div class="description">
+            <h3>README</h3>
+            <div class="description-body" [innerHTML]="meta()!.readme_html | safeHtml"></div>
+          </div>
+        }
       } @else {
         <!-- ── Edit view ── -->
         <div class="edit-panel">
