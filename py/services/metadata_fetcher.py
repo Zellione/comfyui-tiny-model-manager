@@ -304,25 +304,32 @@ async def migrate_existing_media():
         await db.commit()
 
 
-_ALLOWED_MEDIA_EXT = frozenset({"jpg", "jpeg", "png", "webp", "gif", "mp4", "webm", "mov", "avif"})
+_CONTENT_TYPE_EXT: dict[str, str] = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+    "image/avif": "avif",
+    "video/mp4": "mp4",
+    "video/webm": "webm",
+    "video/quicktime": "mov",
+}
 
 
 async def _fetch_url_to_file(
     client: httpx.AsyncClient, url: str, dest_dir: str, index: int
 ) -> tuple[str, str] | None:
-    """Download url to dest_dir/{index}.{ext}. Returns (dest, ext) or None on failure.
-
-    The extension is restricted to a whitelist of known safe media types to prevent
-    crafted URLs from injecting path separators or other unsafe characters.
-    """
+    """Download url to dest_dir/{index}.{ext}. Returns (dest, ext) or None on failure."""
     try:
-        raw = url.rsplit(".", 1)[-1].split("?")[0].lower()
-        ext = raw if raw in _ALLOWED_MEDIA_EXT else "jpg"
+        existing = next(Path(dest_dir).glob(f"{index}.*"), None)
+        if existing:
+            return str(existing), existing.suffix.lstrip(".")
+        resp = await client.get(url)
+        resp.raise_for_status()
+        content_type = resp.headers.get("content-type", "").split(";")[0].strip().lower()
+        ext = _CONTENT_TYPE_EXT.get(content_type, "jpg")
         dest = os.path.join(dest_dir, f"{index}.{ext}")
-        if not os.path.isfile(dest):
-            resp = await client.get(url)
-            resp.raise_for_status()
-            await asyncio.to_thread(Path(dest).write_bytes, resp.content)
+        await asyncio.to_thread(Path(dest).write_bytes, resp.content)
         return dest, ext
     except Exception:
         return None
