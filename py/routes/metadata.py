@@ -102,6 +102,7 @@ def _meta_response_data(meta: dict) -> dict:
             meta.get("source_id", ""),
             meta.get("civitai_model_id", ""),
         ),
+        "readme_html": meta.get("readme_html", ""),
     }
 
 
@@ -196,6 +197,7 @@ def _build_refetch_old(existing: dict) -> dict:
         "tags": existing.get("tags", []),
         "base_model": existing.get("base_model", ""),
         "media": existing.get("media", []),
+        "readme_html": existing.get("readme_html", ""),
         "last_edited_at": {
             "description": existing.get("description_edited_at"),
             "trigger_words": existing.get("trigger_words_edited_at"),
@@ -211,6 +213,7 @@ def _refetch_has_no_changes(old: dict, new_data: dict) -> bool:
         and sorted(old["trigger_words"]) == sorted(new_data["trigger_words"])
         and sorted(old["tags"]) == sorted(new_data["tags"])
         and old["base_model"] == new_data["base_model"]
+        and old["readme_html"] == new_data["readme_html"]
     )
 
 
@@ -244,6 +247,7 @@ async def _refetch_preview(request):
         "tags": meta.tags,
         "base_model": meta.base_model,
         "media_urls": meta.image_urls,
+        "readme_html": meta.readme_html,
     }
     entry = _RefetchEntry(datetime.now(UTC), old, new_data)
     _refetch_cache[path] = entry
@@ -294,6 +298,7 @@ async def _refetch_apply(request):
         tags=body.get("tags"),
         base_model=body.get("base_model"),
         model_type=model_type,
+        readme_html=entry.new_data.get("readme_html"),
     )
 
     if body.get("replace_media"):

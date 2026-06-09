@@ -31,6 +31,7 @@ import { formatSize } from '../../utils/format';
 import { isVideo } from '../../utils/media';
 import { ModelTypeSelect } from '../../components/model-type-select/model-type-select';
 import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover';
+import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
 
 type HfFileItem = { filename: string; size: number; url: string };
 
@@ -38,7 +39,7 @@ type Platform = 'civitai' | 'huggingface';
 
 @Component({
   selector: 'app-download',
-  imports: [CommonModule, FormsModule, ModelTypeSelect, ConfirmPopover],
+  imports: [CommonModule, FormsModule, ModelTypeSelect, ConfirmPopover, SafeHtmlPipe],
   templateUrl: './download.html',
   styleUrl: './download.scss',
 })
@@ -767,6 +768,7 @@ export class Download {
     const repoId = model.modelId ?? model.id;
     this.selectedHfModel.set(model);
     this.selectedHfRepoId.set(repoId);
+    this.galleryIndex.set(0);
     this.hfFiles.set([]);
     this.hfDescription.set('');
     this.hfService.getFiles(repoId).subscribe({

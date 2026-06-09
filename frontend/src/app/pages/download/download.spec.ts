@@ -5,7 +5,7 @@ import { vi } from 'vitest';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Download } from './download';
 import { CivitaiService } from '../../services/civitai';
-import { HuggingFaceService } from '../../services/huggingface';
+import { HuggingFaceService, HfModel } from '../../services/huggingface';
 import { DownloadService, DownloadTask, DownloadHistoryEntry } from '../../services/download';
 import { ModelService } from '../../services/model';
 import { NotificationService } from '../../services/notification';
@@ -857,5 +857,32 @@ describe('Download component — fileStatus', () => {
     const c = fixture.componentInstance;
     c.installedFilenames.set(new Set(['model.safetensors']));
     expect(c.fileStatus('split_files/model.safetensors')).toBe('installed');
+  });
+});
+
+describe('Download component — F-80 HuggingFace model selection', () => {
+  const hfModel = (): HfModel => ({
+    id: 'user/repo',
+    modelId: 'user/repo',
+    downloads: 0,
+    tags: [],
+    description: 'desc',
+  });
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mockModelService.listModels.mockReturnValue(of({}));
+    mockCivitaiService.search.mockReturnValue(of({ items: [], metadata: {} }));
+    mockHfService.search.mockReturnValue(of({ items: [], hasMore: false, nextPage: 1 }));
+    mockHfService.getFiles.mockReturnValue(EMPTY);
+    await configureTestBed();
+  });
+
+  it('selectHf resets galleryIndex to 0', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    c.galleryIndex.set(3);
+    c.selectHf(hfModel());
+    expect(c.galleryIndex()).toBe(0);
   });
 });

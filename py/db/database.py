@@ -162,6 +162,8 @@ async def _migrate_db():
         "ALTER TABLE models ADD COLUMN trigger_words_edited_at TEXT DEFAULT NULL",
         "ALTER TABLE models ADD COLUMN tags_edited_at TEXT DEFAULT NULL",
         "ALTER TABLE models ADD COLUMN base_model_edited_at TEXT DEFAULT NULL",
+        "ALTER TABLE models ADD COLUMN readme_html TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE catalog_entries ADD COLUMN readme_html TEXT NOT NULL DEFAULT ''",
     ]
     async with aiosqlite.connect(cfg.db_path()) as db:
         for sql in migrations:

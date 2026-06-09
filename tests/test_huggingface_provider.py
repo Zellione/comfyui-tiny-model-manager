@@ -84,26 +84,40 @@ class TestGetModelFiles:
 
 
 class TestGetReadme:
-    async def test_strips_yaml_front_matter(self, provider, monkeypatch):
+    async def test_strips_yaml_front_matter_and_returns_html(self, provider, monkeypatch):
         readme = "---\nlicense: mit\ntags:\n  - lora\n---\n\n# My Model\n\nGreat model."
 
         def handler(r: httpx.Request) -> httpx.Response:
             return httpx.Response(200, text=readme)
 
         _patch_client(monkeypatch, httpx.MockTransport(handler))
-        text = await provider.get_readme("user/repo")
-        assert text.startswith("# My Model")
-        assert "license: mit" not in text
+        html = await provider.get_readme("user/repo")
+        assert "<h1>" in html
+        assert "My Model" in html
+        assert "license: mit" not in html
 
-    async def test_no_front_matter_returned_as_is(self, provider, monkeypatch):
+    async def test_no_front_matter_converted_to_html(self, provider, monkeypatch):
         readme = "# Plain README\n\nNo YAML here."
 
         def handler(r: httpx.Request) -> httpx.Response:
             return httpx.Response(200, text=readme)
 
         _patch_client(monkeypatch, httpx.MockTransport(handler))
-        text = await provider.get_readme("user/repo")
-        assert "# Plain README" in text
+        html = await provider.get_readme("user/repo")
+        assert "<h1>" in html
+        assert "Plain README" in html
+
+    async def test_strips_yaml_front_matter_with_crlf_line_endings(self, provider, monkeypatch):
+        readme = "---\r\nlicense: mit\r\n---\r\n\r\n# My Model\r\n\r\nGreat model."
+
+        def handler(r: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, text=readme)
+
+        _patch_client(monkeypatch, httpx.MockTransport(handler))
+        html = await provider.get_readme("user/repo")
+        assert "<h1>" in html
+        assert "My Model" in html
+        assert "license: mit" not in html
 
     async def test_returns_empty_on_404(self, provider, monkeypatch):
         _patch_client(monkeypatch, _mock({}, 404))
@@ -159,6 +173,22 @@ class TestFetchMetadata:
         _patch_client(monkeypatch, _mock(repo_data))
         meta = await provider.fetch_metadata("user/repo")
         assert meta.base_model == ""
+
+    async def test_readme_html_populated_from_readme(self, provider, monkeypatch):
+        """F-80: fetch_metadata always fetches README and converts it to HTML."""
+        api_data = {"tags": [], "cardData": {"description": "desc"}, "siblings": []}
+        readme_md = "# Model Title\n\nSome content."
+
+        def handler(r: httpx.Request) -> httpx.Response:
+            if "README.md" in str(r.url):
+                return httpx.Response(200, text=readme_md)
+            return httpx.Response(200, json=api_data)
+
+        _patch_client(monkeypatch, httpx.MockTransport(handler))
+        meta = await provider.fetch_metadata("user/repo")
+        assert meta.readme_html != ""
+        assert "<h1>" in meta.readme_html
+        assert "Model Title" in meta.readme_html
 
 
 # ---------------------------------------------------------------------------

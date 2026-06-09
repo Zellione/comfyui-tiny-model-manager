@@ -21,6 +21,7 @@ export interface ModelMeta {
   source_url: string;
   size_bytes: number;
   created_at?: string;
+  readme_html?: string;
 }
 
 export interface MediaItem {
@@ -114,6 +115,7 @@ export interface CatalogEntryDetail extends CatalogEntry {
   trigger_words: string[];
   tags: string[];
   media: MediaItem[];
+  readme_html?: string;
 }
 
 export interface CatalogListResponse {

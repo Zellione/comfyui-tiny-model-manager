@@ -25,6 +25,8 @@ def _make_meta(base_model: str = "SDXL 1.0") -> MagicMock:
     meta.tags = []
     meta.base_model = base_model
     meta.civitai_model_id = ""
+    meta.readme_html = ""
+    meta.display_name = ""
     return meta
 
 
@@ -327,3 +329,43 @@ class TestFetchRepoFilesAllVersions:
 
         files = await model_repo.get_repo_files_by_catalog(catalog_entry_id)
         assert any(f["filename"] == "fallback.safetensors" for f in files)
+
+
+class TestRefetchCatalogMetadata:
+    async def test_hf_updates_readme_html(self, ext_dir):
+        """F-80: refetch_catalog_metadata persists readme_html from provider."""
+        from py.db import model_repo
+        from py.services.metadata_fetcher import refetch_catalog_metadata
+        from py.services.providers.base import ProviderMetadata
+
+        await model_repo.upsert_catalog_entry(
+            source_platform="huggingface",
+            source_page_id="user/repo",
+            source_page_url="https://huggingface.co/user/repo",
+            display_name="Test",
+            thumbnail_url="",
+            base_model="",
+        )
+
+        mock_meta = ProviderMetadata(
+            description="desc",
+            trigger_words=[],
+            image_urls=[],
+            tags=[],
+            display_name="Test",
+            readme_html="<h1>Hello</h1>",
+        )
+        mock_provider = AsyncMock()
+        mock_provider.fetch_metadata = AsyncMock(return_value=mock_meta)
+
+        with patch("py.services.metadata_fetcher.get_provider", return_value=mock_provider):
+            result = await refetch_catalog_metadata("huggingface", "user/repo")
+
+        assert result is not None
+        assert result["readme_html"] == "<h1>Hello</h1>"
+
+    async def test_unknown_platform_returns_none(self, ext_dir):
+        from py.services.metadata_fetcher import refetch_catalog_metadata
+
+        result = await refetch_catalog_metadata("unknown", "some/id")
+        assert result is None

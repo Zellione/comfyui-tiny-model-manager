@@ -215,6 +215,14 @@
             <div class="description-body" [innerHTML]="displayDescription() | safeHtml"></div>
           </div>
         }
+
+        <!-- README -->
+        @if (entry()!.readme_html) {
+          <div class="description">
+            <h3>README</h3>
+            <div class="description-body" [innerHTML]="entry()!.readme_html | safeHtml"></div>
+          </div>
+        }
       } @else {
         <!-- Edit panel -->
         <div class="edit-panel">
