@@ -179,6 +179,28 @@ async def _migrate_tags_schema(db) -> None:
     await db.execute("DROP TABLE tags_old")
 
 
+async def _migrate_filename_keywords(db) -> None:
+    """Migrate filename_keywords table with default seed data."""
+    try:
+        await db.execute(
+            "CREATE TABLE IF NOT EXISTS filename_keywords ("
+            "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "  keyword TEXT NOT NULL UNIQUE,"
+            "  base_model TEXT,"
+            "  model_type TEXT,"
+            "  sort_order INTEGER NOT NULL DEFAULT 0"
+            ")"
+        )
+        for keyword, base_model, model_type, sort_order in _KEYWORD_DEFAULTS:
+            await db.execute(
+                "INSERT OR IGNORE INTO filename_keywords (keyword, base_model, model_type, sort_order)"
+                " VALUES (?, ?, ?, ?)",
+                (keyword, base_model, model_type, sort_order),
+            )
+    except Exception as exc:
+        print(f"[tiny-model-manager] filename_keywords migration failed: {exc}")
+
+
 async def _migrate_db():
     """Add columns introduced after the initial schema; safe to re-run (ignores existing columns)."""
     migrations = [
@@ -396,24 +418,7 @@ async def _migrate_db():
             print(f"[tiny-model-manager] download_history migration failed: {exc}")
 
         # F-82: filename_keywords table with default seed data
-        try:
-            await db.execute(
-                "CREATE TABLE IF NOT EXISTS filename_keywords ("
-                "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                "  keyword TEXT NOT NULL UNIQUE,"
-                "  base_model TEXT,"
-                "  model_type TEXT,"
-                "  sort_order INTEGER NOT NULL DEFAULT 0"
-                ")"
-            )
-            for keyword, base_model, model_type, sort_order in _KEYWORD_DEFAULTS:
-                await db.execute(
-                    "INSERT OR IGNORE INTO filename_keywords (keyword, base_model, model_type, sort_order)"
-                    " VALUES (?, ?, ?, ?)",
-                    (keyword, base_model, model_type, sort_order),
-                )
-        except Exception as exc:
-            print(f"[tiny-model-manager] filename_keywords migration failed: {exc}")
+        await _migrate_filename_keywords(db)
 
         await db.commit()
 

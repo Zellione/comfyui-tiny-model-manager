@@ -59,33 +59,8 @@ async def _enqueue_reorganize(direction: str) -> None:
     spawn(reorganizer.process_pending_jobs())
 
 
-def add_settings_routes(routes):
-
-    @routes.get("/tiny-model-manager/api/settings")
-    @json_route
-    async def get_settings(request):
-        return ok(_masked_settings(cfg.load_settings()))
-
-    @routes.put("/tiny-model-manager/api/settings")
-    @json_route
-    async def update_settings(request):
-        body = await request.json()
-        existing = cfg.load_settings()
-        old_organize = existing.get("organize_into_subfolders", False)
-        _apply_masked_updates(existing, body)
-        if "organize_into_subfolders" in body:
-            new_val = bool(body["organize_into_subfolders"])
-            conflict = await _organize_conflict(new_val and not old_organize)
-            if conflict:
-                return err(conflict, status=409)
-            existing["organize_into_subfolders"] = new_val
-        new_organize = existing.get("organize_into_subfolders", False)
-        cfg.save_settings(existing)
-        if not old_organize and new_organize:
-            await _enqueue_reorganize("organize")
-        elif old_organize and not new_organize:
-            await _enqueue_reorganize("deorganize")
-        return ok()
+def _add_keyword_routes(routes):
+    """Register keyword API routes."""
 
     @routes.get("/tiny-model-manager/api/filename-keywords")
     @json_route
@@ -127,3 +102,34 @@ def add_settings_routes(routes):
         if not deleted:
             return err("Not found", status=404)
         return ok()
+
+
+def add_settings_routes(routes):
+
+    @routes.get("/tiny-model-manager/api/settings")
+    @json_route
+    async def get_settings(request):
+        return ok(_masked_settings(cfg.load_settings()))
+
+    @routes.put("/tiny-model-manager/api/settings")
+    @json_route
+    async def update_settings(request):
+        body = await request.json()
+        existing = cfg.load_settings()
+        old_organize = existing.get("organize_into_subfolders", False)
+        _apply_masked_updates(existing, body)
+        if "organize_into_subfolders" in body:
+            new_val = bool(body["organize_into_subfolders"])
+            conflict = await _organize_conflict(new_val and not old_organize)
+            if conflict:
+                return err(conflict, status=409)
+            existing["organize_into_subfolders"] = new_val
+        new_organize = existing.get("organize_into_subfolders", False)
+        cfg.save_settings(existing)
+        if not old_organize and new_organize:
+            await _enqueue_reorganize("organize")
+        elif old_organize and not new_organize:
+            await _enqueue_reorganize("deorganize")
+        return ok()
+
+    _add_keyword_routes(routes)

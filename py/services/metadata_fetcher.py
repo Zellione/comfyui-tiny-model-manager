@@ -263,7 +263,13 @@ async def _migrate_model_media(db, row) -> None:
     old_dir = None
     for media_row in media_rows:
         old_path = media_row["local_path"]
-        new_path = os.path.join(new_dir, os.path.basename(old_path))
+        filename = Path(old_path).name
+        if not filename:
+            continue
+        new_path_candidate = os.path.realpath(os.path.join(new_dir, filename))
+        if not new_path_candidate.startswith(os.path.realpath(new_dir) + os.sep):
+            continue
+        new_path = new_path_candidate
         if os.path.isfile(old_path) and old_path != new_path:
             try:
                 shutil.move(old_path, new_path)
@@ -298,7 +304,7 @@ async def migrate_existing_media():
         await db.commit()
 
 
-_SAFE_EXT = re.compile(r"[^a-z0-9]")
+_ALLOWED_MEDIA_EXT = frozenset({"jpg", "jpeg", "png", "webp", "gif", "mp4", "webm", "mov", "avif"})
 
 
 async def _fetch_url_to_file(
@@ -306,16 +312,13 @@ async def _fetch_url_to_file(
 ) -> tuple[str, str] | None:
     """Download url to dest_dir/{index}.{ext}. Returns (dest, ext) or None on failure.
 
-    The extension is sanitised to alphanumeric characters only so that a
-    crafted URL cannot inject path separators into dest_dir.
+    The extension is restricted to a whitelist of known safe media types to prevent
+    crafted URLs from injecting path separators or other unsafe characters.
     """
     try:
         raw = url.rsplit(".", 1)[-1].split("?")[0].lower()
-        ext = _SAFE_EXT.sub("", raw)[:10] or "jpg"
-        base_real = os.path.realpath(dest_dir)
-        dest = os.path.realpath(os.path.join(dest_dir, f"{index}.{ext}"))
-        if not dest.startswith(base_real + os.sep):
-            return None
+        ext = raw if raw in _ALLOWED_MEDIA_EXT else "jpg"
+        dest = os.path.join(dest_dir, f"{index}.{ext}")
         if not os.path.isfile(dest):
             resp = await client.get(url)
             resp.raise_for_status()
