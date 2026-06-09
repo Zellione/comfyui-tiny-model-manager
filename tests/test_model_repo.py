@@ -257,6 +257,14 @@ class TestUpdateModelMeta:
         assert "kw1" in row["trigger_words"]
         assert row["base_model"] == "Flux.1 D"
 
+    async def test_updates_readme_html_when_provided(self, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_model("readme.safetensors", "loras", "", "", "")
+        await model_repo.update_model_meta("readme.safetensors", readme_html="<h1>Hello</h1>")
+        row = await model_repo.get_model_by_filename("readme.safetensors")
+        assert row["readme_html"] == "<h1>Hello</h1>"
+
 
 class TestUpsertPreservesBaseModel:
     async def test_upsert_does_not_overwrite_existing_base_model_with_empty(self, ext_dir):
