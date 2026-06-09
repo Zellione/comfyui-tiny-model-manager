@@ -12,6 +12,7 @@ import {
 import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
+import { KeywordsService } from '../../services/keywords';
 
 const makeCatalogEntry = (overrides: Partial<CatalogEntryDetail> = {}): CatalogEntryDetail => ({
   id: 1,
@@ -104,6 +105,7 @@ const mockDownloadService = {
 
 const mockWorkflowService = { addToWorkflow: vi.fn(() => of(undefined)) };
 const mockNotifService = { show: vi.fn() };
+const mockKeywordsService = { getKeywords: vi.fn(() => of([])) };
 
 describe('ModelDetail', () => {
   let component: ModelDetail;
@@ -119,6 +121,7 @@ describe('ModelDetail', () => {
         { provide: DownloadService, useValue: mockDownloadService },
         { provide: WorkflowService, useValue: mockWorkflowService },
         { provide: NotificationService, useValue: mockNotifService },
+        { provide: KeywordsService, useValue: mockKeywordsService },
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(ModelDetail);
@@ -473,6 +476,7 @@ describe('ModelDetail', () => {
         'companion.safetensors',
         'civitai',
         '99999',
+        '',
       );
     });
 
@@ -487,6 +491,7 @@ describe('ModelDetail', () => {
         'companion.safetensors',
         'civitai',
         '12345',
+        '',
       );
     });
 
@@ -526,6 +531,7 @@ describe('ModelDetail', () => {
         'companion.safetensors',
         'huggingface',
         'user/repo',
+        '',
       );
     });
 
@@ -539,6 +545,7 @@ describe('ModelDetail', () => {
         'sdxl/companion.safetensors',
         'civitai',
         '99999',
+        '',
       );
     });
 

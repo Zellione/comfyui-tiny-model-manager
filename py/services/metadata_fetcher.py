@@ -111,13 +111,20 @@ async def _store_catalog_entry(
 
 
 async def fetch_and_store(
-    filename: str, model_type: str, platform: str, source_id: str, skip_media: bool = False
+    filename: str,
+    model_type: str,
+    platform: str,
+    source_id: str,
+    skip_media: bool = False,
+    hint_base_model: str = "",
 ):
     provider = get_provider(platform)
     if provider and source_id:
         meta = await _fetch_provider_metadata(provider, source_id, filename)
     else:
         meta = ProviderMetadata()
+    if not meta.base_model and hint_base_model:
+        meta.base_model = hint_base_model
 
     settings = cfg.load_settings()
     if settings.get("organize_into_subfolders"):

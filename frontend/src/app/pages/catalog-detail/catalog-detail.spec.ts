@@ -7,6 +7,7 @@ import { ModelService, CatalogEntryDetail, InstalledFile } from '../../services/
 import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
+import { KeywordsService } from '../../services/keywords';
 
 const mockInstalledFile: InstalledFile = {
   filename: 'test.safetensors',
@@ -72,6 +73,10 @@ const mockNotifService = {
   show: vi.fn(),
 };
 
+const mockKeywordsService = {
+  getKeywords: vi.fn(() => of([])),
+};
+
 function makeRoute(platform: string, pageId: string) {
   return {
     snapshot: {
@@ -91,6 +96,7 @@ async function createFixture(platform = 'civitai', pageId = '123') {
       { provide: DownloadService, useValue: mockDownloadService },
       { provide: WorkflowService, useValue: mockWorkflowService },
       { provide: NotificationService, useValue: mockNotifService },
+      { provide: KeywordsService, useValue: mockKeywordsService },
     ],
   }).compileComponents();
 

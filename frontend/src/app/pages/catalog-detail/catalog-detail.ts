@@ -5,6 +5,7 @@ import {
   Signal,
   WritableSignal,
   computed,
+  inject,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -25,6 +26,8 @@ import { NotificationService } from '../../services/notification';
 import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
 import { formatBytes } from '../../utils/format';
 import { mediaUrl } from '../../utils/media';
+import { KeywordsService } from '../../services/keywords';
+import { detectFromFilename, FilenameKeyword } from '../../utils/filename-detector';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
 import { EditMetaForm } from '../../components/edit-meta-form/edit-meta-form';
 import { MediaGallery } from '../../components/media-gallery/media-gallery';
@@ -116,6 +119,11 @@ export class CatalogDetail implements OnInit {
   readonly displayTriggerWords = computed(() => this.entry()?.trigger_words ?? []);
   readonly displayTags = computed(() => this.entry()?.tags ?? []);
   readonly displayMedia = computed(() => this.entry()?.media ?? []);
+
+  private readonly keywordsService = inject(KeywordsService);
+  private readonly keywords = toSignal(this.keywordsService.getKeywords(), {
+    initialValue: [] as FilenameKeyword[],
+  });
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -412,9 +420,10 @@ export class CatalogDetail implements OnInit {
     const platform = e?.source_platform ?? '';
     const modelType = file.model_type || 'checkpoints';
     const sourceId = this.repoFileSourceId(file, platform);
+    const baseModel = this.detect(file.filename).baseModel;
     this.downloadingFiles.update((s) => new Set(s).add(file.filename));
     this.downloadService
-      .startDownload(file.download_url, modelType, file.filename, platform, sourceId)
+      .startDownload(file.download_url, modelType, file.filename, platform, sourceId, baseModel)
       .subscribe({
         next: () => this.notifService.show('success', `Downloading ${file.filename}…`),
         error: () => {
@@ -430,6 +439,10 @@ export class CatalogDetail implements OnInit {
       next.delete(value);
       return next;
     });
+  }
+
+  private detect(filename: string) {
+    return detectFromFilename(filename, this.keywords());
   }
 
   mediaUrl = mediaUrl;

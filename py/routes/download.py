@@ -103,6 +103,7 @@ def _register_download_mgmt_routes(routes):
         filename = body.get("filename", "")
         platform = body.get("platform", "")
         source_id = body.get("source_id", "")
+        hint_base_model = body.get("base_model", "")
         if not url or not filename:
             return err("url and filename required", status=400)
         model_name = os.path.basename(filename)
@@ -117,7 +118,15 @@ def _register_download_mgmt_routes(routes):
             dest_path=filename,
             model_type=model_type,
         )
-        task = dl.enqueue(url, model_type, filename, platform, source_id, history_id=history_id)
+        task = dl.enqueue(
+            url,
+            model_type,
+            filename,
+            platform,
+            source_id,
+            history_id=history_id,
+            hint_base_model=hint_base_model,
+        )
         return ok({"task_id": task.id})
 
     @routes.get("/tiny-model-manager/api/download/status")

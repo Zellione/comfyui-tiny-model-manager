@@ -9,6 +9,7 @@ import { HuggingFaceService, HfModel } from '../../services/huggingface';
 import { DownloadService, DownloadTask, DownloadHistoryEntry } from '../../services/download';
 import { ModelService } from '../../services/model';
 import { NotificationService } from '../../services/notification';
+import { KeywordsService } from '../../services/keywords';
 
 const civitaiModel = (id: number) => ({
   id,
@@ -51,6 +52,10 @@ const mockNotifService = {
   show: vi.fn(),
 };
 
+const mockKeywordsService = {
+  getKeywords: vi.fn(() => of([])),
+};
+
 async function configureTestBed() {
   await TestBed.configureTestingModule({
     imports: [Download],
@@ -61,6 +66,7 @@ async function configureTestBed() {
       { provide: DownloadService, useValue: mockDownloadService },
       { provide: ModelService, useValue: mockModelService },
       { provide: NotificationService, useValue: mockNotifService },
+      { provide: KeywordsService, useValue: mockKeywordsService },
     ],
   }).compileComponents();
 }

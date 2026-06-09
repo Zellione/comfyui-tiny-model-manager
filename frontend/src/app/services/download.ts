@@ -61,12 +61,13 @@ export class DownloadService {
     filename: string,
     platform: string,
     source_id = '',
+    base_model = '',
   ): Observable<{ task_id: string }> {
     return this.http
       .post<{
         success: boolean;
         data: { task_id: string };
-      }>(`${API}/download`, { url, model_type, filename, platform, source_id })
+      }>(`${API}/download`, { url, model_type, filename, platform, source_id, base_model })
       .pipe(map((r) => r.data));
   }
 
