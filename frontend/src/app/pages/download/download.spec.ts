@@ -4,11 +4,13 @@ import { of, throwError, EMPTY, Subject } from 'rxjs';
 import { vi } from 'vitest';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Download } from './download';
-import { CivitaiService } from '../../services/civitai';
+import { CivitaiService, CivitaiFile, CivitaiVersion } from '../../services/civitai';
 import { HuggingFaceService, HfModel } from '../../services/huggingface';
 import { DownloadService, DownloadTask, DownloadHistoryEntry } from '../../services/download';
 import { ModelService } from '../../services/model';
 import { NotificationService } from '../../services/notification';
+import { KeywordsService } from '../../services/keywords';
+import { FilenameKeyword } from '../../utils/filename-detector';
 
 const civitaiModel = (id: number) => ({
   id,
@@ -51,6 +53,10 @@ const mockNotifService = {
   show: vi.fn(),
 };
 
+const mockKeywordsService = {
+  getKeywords: vi.fn(() => of([] as FilenameKeyword[])),
+};
+
 async function configureTestBed() {
   await TestBed.configureTestingModule({
     imports: [Download],
@@ -61,6 +67,7 @@ async function configureTestBed() {
       { provide: DownloadService, useValue: mockDownloadService },
       { provide: ModelService, useValue: mockModelService },
       { provide: NotificationService, useValue: mockNotifService },
+      { provide: KeywordsService, useValue: mockKeywordsService },
     ],
   }).compileComponents();
 }
@@ -884,5 +891,248 @@ describe('Download component — F-80 HuggingFace model selection', () => {
     c.galleryIndex.set(3);
     c.selectHf(hfModel());
     expect(c.galleryIndex()).toBe(0);
+  });
+});
+
+const mockCivitaiFile: CivitaiFile = {
+  id: 101,
+  name: 'model.safetensors',
+  type: 'Model',
+  sizeKB: 1024,
+  downloadUrl: 'https://example.com/model.safetensors',
+  primary: true,
+  metadata: { format: 'SafeTensor', size: 'full', fp: 'fp16' },
+};
+
+describe('Download component — F-82 base model signals', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mockKeywordsService.getKeywords.mockReturnValue(of([]));
+    mockModelService.listModels.mockReturnValue(of({}));
+    mockCivitaiService.search.mockReturnValue(of({ items: [], metadata: {} }));
+    mockHfService.search.mockReturnValue(of({ items: [], hasMore: false, nextPage: 1 }));
+    mockDownloadService.activeTasks$ = of([]);
+    await configureTestBed();
+  });
+
+  it('hfRowBaseModel returns empty string for unknown key', async () => {
+    const fixture = await createFixture();
+    expect(fixture.componentInstance.hfRowBaseModel('unknown.safetensors')).toBe('');
+  });
+
+  it('setHfRowBaseModel stores a value retrievable by hfRowBaseModel', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    c.setHfRowBaseModel('model.safetensors', 'SDXL 1.0');
+    expect(c.hfRowBaseModel('model.safetensors')).toBe('SDXL 1.0');
+  });
+
+  it('linkHfRowBaseModel returns empty string for unknown key', async () => {
+    const fixture = await createFixture();
+    expect(fixture.componentInstance.linkHfRowBaseModel('unknown.safetensors')).toBe('');
+  });
+
+  it('setLinkHfRowBaseModel stores a value retrievable by linkHfRowBaseModel', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    c.setLinkHfRowBaseModel('model.safetensors', 'Flux.1 D');
+    expect(c.linkHfRowBaseModel('model.safetensors')).toBe('Flux.1 D');
+  });
+
+  it('civitaiFileBaseModel returns empty string for unknown key', async () => {
+    const fixture = await createFixture();
+    expect(fixture.componentInstance.civitaiFileBaseModel(1, mockCivitaiFile)).toBe('');
+  });
+
+  it('setCivitaiFileBaseModel stores a value retrievable by civitaiFileBaseModel', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    c.setCivitaiFileBaseModel(1, mockCivitaiFile, 'Pony');
+    expect(c.civitaiFileBaseModel(1, mockCivitaiFile)).toBe('Pony');
+  });
+
+  it('linkCivitaiFileBaseModel returns empty string for unknown key', async () => {
+    const fixture = await createFixture();
+    expect(fixture.componentInstance.linkCivitaiFileBaseModel(1, mockCivitaiFile)).toBe('');
+  });
+
+  it('setLinkCivitaiFileBaseModel stores a value retrievable by linkCivitaiFileBaseModel', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    c.setLinkCivitaiFileBaseModel(1, mockCivitaiFile, 'SD 1.5');
+    expect(c.linkCivitaiFileBaseModel(1, mockCivitaiFile)).toBe('SD 1.5');
+  });
+});
+
+describe('Download component — F-82 applyLinkResolution', () => {
+  const sdxlKeyword = {
+    id: 1,
+    keyword: 'sdxl',
+    base_model: 'SDXL 1.0',
+    model_type: null,
+    sort_order: 10,
+  };
+  const loraKeyword = {
+    id: 2,
+    keyword: 'lora',
+    base_model: null,
+    model_type: 'loras',
+    sort_order: 20,
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mockKeywordsService.getKeywords.mockReturnValue(of([sdxlKeyword, loraKeyword]));
+    mockModelService.listModels.mockReturnValue(of({}));
+    mockCivitaiService.search.mockReturnValue(of({ items: [], metadata: {} }));
+    mockHfService.search.mockReturnValue(of({ items: [], hasMore: false, nextPage: 1 }));
+    mockDownloadService.activeTasks$ = of([]);
+    await configureTestBed();
+  });
+
+  it('hf-resolve: sets linkBaseModel and linkImages from resolved data', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    c.linkResolving.set(true);
+    (c as any).applyLinkResolution({
+      tag: 'hf-resolve',
+      filename: 'sdxl_lora.safetensors',
+      image_urls: ['https://example.com/img.jpg'],
+    });
+    expect(c.linkBaseModel()).toBe('SDXL 1.0');
+    expect(c.linkImages()).toEqual(['https://example.com/img.jpg']);
+    expect(c.linkResolving()).toBe(false);
+  });
+
+  it('hf-resolve: sets linkModelType when keyword provides model_type', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    (c as any).applyLinkResolution({ tag: 'hf-resolve', filename: 'sdxl_lora.safetensors' });
+    expect(c.linkModelType()).toBe('loras');
+  });
+
+  it('hf-resolve: does not change linkModelType when no model_type keyword matches', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    c.linkModelType.set('vae');
+    (c as any).applyLinkResolution({ tag: 'hf-resolve', filename: 'sdxl_checkpoint.safetensors' });
+    expect(c.linkModelType()).toBe('vae');
+    expect(c.linkBaseModel()).toBe('SDXL 1.0');
+  });
+
+  it('civitai-download: sets linkResolved, linkModelType, linkImages, and linkBaseModel', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    c.linkResolving.set(true);
+    const result = {
+      tag: 'civitai-download' as const,
+      filename: 'sdxl_model.safetensors',
+      model_type: 'checkpoints',
+      size_kb: 1024,
+      image_urls: ['https://example.com/img1.jpg'],
+    };
+    (c as any).applyLinkResolution(result);
+    expect(c.linkBaseModel()).toBe('SDXL 1.0');
+    expect(c.linkModelType()).toBe('checkpoints');
+    expect(c.linkImages()).toEqual(['https://example.com/img1.jpg']);
+    expect(c.linkResolved()).toBe(result);
+    expect(c.linkResolving()).toBe(false);
+  });
+
+  it('hf-repo: populates linkHfFiles and sets base models for matching filenames', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    c.linkResolving.set(true);
+    const files = [
+      { filename: 'sdxl_model.safetensors', size: 1024, url: 'https://example.com/a.safetensors' },
+      { filename: 'plain_model.safetensors', size: 512, url: 'https://example.com/b.safetensors' },
+    ];
+    (c as any).applyLinkResolution({ tag: 'hf-repo', files });
+    expect(c.linkHfFiles()).toEqual(files);
+    expect(c.linkHfRowBaseModels()['sdxl_model.safetensors']).toBe('SDXL 1.0');
+    expect(c.linkHfRowBaseModels()['plain_model.safetensors']).toBeUndefined();
+    expect(c.linkResolving()).toBe(false);
+  });
+
+  it('hf-repo: sets linkHfRowTypes for matching model_type keywords', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    (c as any).applyLinkResolution({
+      tag: 'hf-repo',
+      files: [
+        { filename: 'my_lora.safetensors', size: 512, url: 'https://example.com/c.safetensors' },
+      ],
+    });
+    expect(c.linkHfRowTypes()['my_lora.safetensors']).toBe('loras');
+  });
+
+  it('civitai-model: sets linkVersions and detects base model from filename when version lacks one', async () => {
+    const versions: CivitaiVersion[] = [
+      {
+        id: 10,
+        name: 'v1',
+        baseModel: '',
+        downloadUrl: 'https://example.com',
+        trainedWords: [],
+        images: [],
+        files: [
+          {
+            id: 200,
+            name: 'sdxl_checkpoint.safetensors',
+            type: 'Model',
+            sizeKB: 2048,
+            downloadUrl: 'https://example.com/d.safetensors',
+            primary: true,
+            metadata: { format: 'SafeTensor', size: 'full', fp: 'fp16' },
+          },
+        ],
+      },
+    ];
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    c.linkResolving.set(true);
+    (c as any).applyLinkResolution({ tag: 'civitai-model', versions, model_type: 'checkpoints' });
+    expect(c.linkVersions()).toEqual(versions);
+    expect(c.linkModelType()).toBe('checkpoints');
+    expect(c.linkCivitaiFileBaseModels()['10_200']).toBe('SDXL 1.0');
+    expect(c.linkResolving()).toBe(false);
+  });
+
+  it('civitai-model: uses version.baseModel when set, ignoring filename detection', async () => {
+    const versions: CivitaiVersion[] = [
+      {
+        id: 11,
+        name: 'v2',
+        baseModel: 'Pony',
+        downloadUrl: 'https://example.com',
+        trainedWords: [],
+        images: [],
+        files: [
+          {
+            id: 201,
+            name: 'sdxl_checkpoint.safetensors',
+            type: 'Model',
+            sizeKB: 2048,
+            downloadUrl: 'https://example.com/e.safetensors',
+            primary: true,
+            metadata: { format: 'SafeTensor', size: 'full', fp: 'fp16' },
+          },
+        ],
+      },
+    ];
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    (c as any).applyLinkResolution({ tag: 'civitai-model', versions });
+    expect(c.linkCivitaiFileBaseModels()['11_201']).toBe('Pony');
+  });
+
+  it('null result: sets linkResolving to false without touching other state', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    c.linkResolving.set(true);
+    c.linkBaseModel.set('existing');
+    (c as any).applyLinkResolution(null);
+    expect(c.linkResolving()).toBe(false);
+    expect(c.linkBaseModel()).toBe('existing');
   });
 });

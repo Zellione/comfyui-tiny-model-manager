@@ -1,0 +1,135 @@
+<div class="page">
+  <div class="page-head">
+    <h1 class="page-title">Settings</h1>
+  </div>
+
+  <section class="settings-section">
+    <h2 class="section-title">Filename Detection Keywords</h2>
+    <p class="section-desc">
+      Keywords are matched (case-insensitive) against downloaded filenames. The first matching
+      keyword per field wins. Drag to reorder, or adjust sort order values.
+    </p>
+
+    @if (loading()) {
+      <p class="settings-loading">Loading…</p>
+    } @else if (error()) {
+      <p class="settings-error">{{ error() }}</p>
+    } @else {
+      <table class="kw-table">
+        <thead>
+          <tr>
+            <th>Keyword</th>
+            <th>Base model</th>
+            <th>Model type</th>
+            <th>Sort order</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (kw of keywords(); track kw.id) {
+            @if (editingId() === kw.id) {
+              <tr class="kw-row kw-row--editing">
+                <td>
+                  <input
+                    class="kw-input"
+                    [ngModel]="editKeyword()"
+                    (ngModelChange)="editKeyword.set($event)"
+                    placeholder="keyword"
+                    (keydown.enter)="saveEdit()"
+                    (keydown.escape)="cancelEdit()"
+                  />
+                </td>
+                <td>
+                  <input
+                    class="kw-input"
+                    [ngModel]="editBaseModel()"
+                    (ngModelChange)="editBaseModel.set($event)"
+                    placeholder="e.g. SDXL 1.0"
+                    (keydown.enter)="saveEdit()"
+                    (keydown.escape)="cancelEdit()"
+                  />
+                </td>
+                <td>
+                  <select
+                    class="kw-select"
+                    [ngModel]="editModelType()"
+                    (ngModelChange)="editModelType.set($event)"
+                  >
+                    <option value="">— none —</option>
+                    @for (t of modelTypes; track t) {
+                      <option [value]="t">{{ t }}</option>
+                    }
+                  </select>
+                </td>
+                <td class="kw-sort">{{ kw.sort_order }}</td>
+                <td class="kw-actions">
+                  <button class="btn-primary btn-small" [disabled]="saving()" (click)="saveEdit()">
+                    Save
+                  </button>
+                  <button class="btn-secondary btn-small" (click)="cancelEdit()">Cancel</button>
+                </td>
+              </tr>
+            } @else {
+              <tr class="kw-row">
+                <td class="kw-keyword">{{ kw.keyword }}</td>
+                <td class="kw-cell">{{ kw.base_model ?? '—' }}</td>
+                <td class="kw-cell">{{ kw.model_type ?? '—' }}</td>
+                <td class="kw-sort">{{ kw.sort_order }}</td>
+                <td class="kw-actions">
+                  <button class="btn-secondary btn-small" (click)="startEdit(kw)">Edit</button>
+                  <button class="btn-danger btn-small" (click)="deleteKeyword(kw.id)">
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+        <tfoot>
+          <tr class="kw-row kw-row--add">
+            <td>
+              <input
+                class="kw-input"
+                [ngModel]="newKeyword()"
+                (ngModelChange)="newKeyword.set($event)"
+                placeholder="new keyword…"
+                (keydown.enter)="addKeyword()"
+              />
+            </td>
+            <td>
+              <input
+                class="kw-input"
+                [ngModel]="newBaseModel()"
+                (ngModelChange)="newBaseModel.set($event)"
+                placeholder="e.g. SDXL 1.0"
+                (keydown.enter)="addKeyword()"
+              />
+            </td>
+            <td>
+              <select
+                class="kw-select"
+                [ngModel]="newModelType()"
+                (ngModelChange)="newModelType.set($event)"
+              >
+                <option value="">— none —</option>
+                @for (t of modelTypes; track t) {
+                  <option [value]="t">{{ t }}</option>
+                }
+              </select>
+            </td>
+            <td class="kw-sort">auto</td>
+            <td class="kw-actions">
+              <button
+                class="btn-primary btn-small"
+                [disabled]="adding() || !newKeyword().trim()"
+                (click)="addKeyword()"
+              >
+                Add
+              </button>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    }
+  </section>
+</div>

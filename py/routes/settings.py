@@ -2,6 +2,7 @@ import os
 
 from .. import config as cfg
 from ..background import spawn
+from ..db import keyword_repo
 from ._helpers import err, json_route, ok
 
 
@@ -58,6 +59,51 @@ async def _enqueue_reorganize(direction: str) -> None:
     spawn(reorganizer.process_pending_jobs())
 
 
+def _add_keyword_routes(routes):
+    """Register keyword API routes."""
+
+    @routes.get("/tiny-model-manager/api/filename-keywords")
+    @json_route
+    async def get_keywords(request):
+        return ok(await keyword_repo.list_keywords())
+
+    @routes.post("/tiny-model-manager/api/filename-keywords")
+    @json_route
+    async def create_keyword(request):
+        body = await request.json()
+        kw = body.get("keyword", "").strip()
+        if not kw:
+            return err("keyword is required", status=400)
+        new_id = await keyword_repo.create_keyword(
+            kw, body.get("base_model"), body.get("model_type")
+        )
+        return ok({"id": new_id})
+
+    @routes.put("/tiny-model-manager/api/filename-keywords/{id}")
+    @json_route
+    async def update_keyword(request):
+        keyword_id = int(request.match_info["id"])
+        body = await request.json()
+        kw = body.get("keyword", "").strip()
+        if not kw:
+            return err("keyword is required", status=400)
+        updated = await keyword_repo.update_keyword(
+            keyword_id, kw, body.get("base_model"), body.get("model_type")
+        )
+        if not updated:
+            return err("Not found", status=404)
+        return ok()
+
+    @routes.delete("/tiny-model-manager/api/filename-keywords/{id}")
+    @json_route
+    async def delete_keyword(request):
+        keyword_id = int(request.match_info["id"])
+        deleted = await keyword_repo.delete_keyword(keyword_id)
+        if not deleted:
+            return err("Not found", status=404)
+        return ok()
+
+
 def add_settings_routes(routes):
 
     @routes.get("/tiny-model-manager/api/settings")
@@ -85,3 +131,5 @@ def add_settings_routes(routes):
         elif old_organize and not new_organize:
             await _enqueue_reorganize("deorganize")
         return ok()
+
+    _add_keyword_routes(routes)

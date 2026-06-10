@@ -1,5 +1,5 @@
 import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -15,6 +15,8 @@ import {
 import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
+import { KeywordsService } from '../../services/keywords';
+import { detectFromFilename, FilenameKeyword } from '../../utils/filename-detector';
 import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
 import { formatBytes } from '../../utils/format';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
@@ -88,6 +90,10 @@ export class ModelDetail implements OnInit {
   });
 
   private readonly destroyRef = inject(DestroyRef);
+  private readonly keywordsService = inject(KeywordsService);
+  private readonly keywords = toSignal(this.keywordsService.getKeywords(), {
+    initialValue: [] as FilenameKeyword[],
+  });
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -97,6 +103,10 @@ export class ModelDetail implements OnInit {
     private readonly workflowService: WorkflowService,
     private readonly notifService: NotificationService,
   ) {}
+
+  private detect(filename: string) {
+    return detectFromFilename(filename, this.keywords());
+  }
 
   ngOnInit() {
     this.modelType = this.route.snapshot.paramMap.get('type') ?? '';
@@ -246,7 +256,14 @@ export class ModelDetail implements OnInit {
           this.router.navigate(['/models']);
           return;
         }
-        this.refetchPreviewData.set(res);
+        let resolvedRes = res;
+        if (!res.new.base_model && !this.meta()?.base_model) {
+          const detectedBaseModel = this.detect(this.modelBasename).baseModel;
+          if (detectedBaseModel) {
+            resolvedRes = { ...res, new: { ...res.new, base_model: detectedBaseModel } };
+          }
+        }
+        this.refetchPreviewData.set(resolvedRes);
         if (res.no_changes) {
           this.refetchNoChanges.set(true);
         } else {
@@ -363,9 +380,10 @@ export class ModelDetail implements OnInit {
     } else if (platform === 'huggingface') {
       sourceId = this.catalogEntry()?.source_page_id ?? '';
     }
+    const baseModel = this.detect(file.filename).baseModel;
     this.downloadingFiles.update((s) => new Set(s).add(file.filename));
     this.downloadService
-      .startDownload(file.download_url, this.modelType, destFilename, platform, sourceId)
+      .startDownload(file.download_url, this.modelType, destFilename, platform, sourceId, baseModel)
       .subscribe({
         next: () => {
           this.notifService.show('success', `Downloading ${file.filename}…`);

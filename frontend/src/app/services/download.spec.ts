@@ -63,6 +63,7 @@ describe('DownloadService', () => {
       filename: 'my.safetensors',
       platform: 'huggingface',
       source_id: 'user/repo',
+      base_model: '',
     });
     req.flush({ success: true, data: { task_id: 'x' } });
   });

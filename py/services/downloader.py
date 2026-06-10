@@ -54,6 +54,7 @@ class DownloadTask:
     dest_path: str = ""
     cancelled: bool = False
     history_id: int | None = None
+    hint_base_model: str = ""
     completed_at: float | None = None
     on_complete: Callable[["DownloadTask"], Awaitable[None]] | None = field(
         default=None, repr=False
@@ -84,6 +85,7 @@ def enqueue(
     source_id: str = "",
     on_complete: Callable[[DownloadTask], Awaitable[None]] | None = None,
     history_id: int | None = None,
+    hint_base_model: str = "",
 ) -> DownloadTask:
     # Strip subfolder prefixes from HuggingFace filenames (e.g. "split_files/model.safetensors"
     # → "model.safetensors"). The download URL is a separate field and remains untouched.
@@ -98,6 +100,7 @@ def enqueue(
         source_id=source_id,
         on_complete=on_complete,
         history_id=history_id,
+        hint_base_model=hint_base_model,
     )
     dest_dir = _get_dest_dir(model_type)
     task.dest_path = os.path.join(dest_dir, filename)
@@ -192,7 +195,15 @@ async def _run_download(task: DownloadTask):
             await task.on_complete(task)
         from .metadata_fetcher import fetch_and_store
 
-        spawn(fetch_and_store(task.filename, task.model_type, task.platform, task.source_id))
+        spawn(
+            fetch_and_store(
+                task.filename,
+                task.model_type,
+                task.platform,
+                task.source_id,
+                hint_base_model=task.hint_base_model,
+            )
+        )
     except _Cancelled:
         task.status = "cancelled"
         task.completed_at = time.time()

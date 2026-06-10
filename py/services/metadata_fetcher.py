@@ -111,13 +111,20 @@ async def _store_catalog_entry(
 
 
 async def fetch_and_store(
-    filename: str, model_type: str, platform: str, source_id: str, skip_media: bool = False
+    filename: str,
+    model_type: str,
+    platform: str,
+    source_id: str,
+    skip_media: bool = False,
+    hint_base_model: str = "",
 ):
     provider = get_provider(platform)
     if provider and source_id:
         meta = await _fetch_provider_metadata(provider, source_id, filename)
     else:
         meta = ProviderMetadata()
+    if not meta.base_model and hint_base_model:
+        meta.base_model = hint_base_model
 
     settings = cfg.load_settings()
     if settings.get("organize_into_subfolders"):
@@ -256,7 +263,13 @@ async def _migrate_model_media(db, row) -> None:
     old_dir = None
     for media_row in media_rows:
         old_path = media_row["local_path"]
-        new_path = os.path.join(new_dir, os.path.basename(old_path))
+        filename = Path(old_path).name
+        if not filename:
+            continue
+        new_path_candidate = os.path.realpath(os.path.join(new_dir, filename))
+        if not new_path_candidate.startswith(os.path.realpath(new_dir) + os.sep):
+            continue
+        new_path = new_path_candidate
         if os.path.isfile(old_path) and old_path != new_path:
             try:
                 shutil.move(old_path, new_path)
@@ -291,28 +304,32 @@ async def migrate_existing_media():
         await db.commit()
 
 
-_SAFE_EXT = re.compile(r"[^a-z0-9]")
+_CONTENT_TYPE_EXT: dict[str, str] = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+    "image/avif": "avif",
+    "video/mp4": "mp4",
+    "video/webm": "webm",
+    "video/quicktime": "mov",
+}
 
 
 async def _fetch_url_to_file(
     client: httpx.AsyncClient, url: str, dest_dir: str, index: int
 ) -> tuple[str, str] | None:
-    """Download url to dest_dir/{index}.{ext}. Returns (dest, ext) or None on failure.
-
-    The extension is sanitised to alphanumeric characters only so that a
-    crafted URL cannot inject path separators into dest_dir.
-    """
+    """Download url to dest_dir/{index}.{ext}. Returns (dest, ext) or None on failure."""
     try:
-        raw = url.rsplit(".", 1)[-1].split("?")[0].lower()
-        ext = _SAFE_EXT.sub("", raw)[:10] or "jpg"
-        base_real = os.path.realpath(dest_dir)
-        dest = os.path.realpath(os.path.join(dest_dir, f"{index}.{ext}"))
-        if not dest.startswith(base_real + os.sep):
-            return None
-        if not os.path.isfile(dest):
-            resp = await client.get(url)
-            resp.raise_for_status()
-            await asyncio.to_thread(Path(dest).write_bytes, resp.content)
+        existing = next(Path(dest_dir).glob(f"{index}.*"), None)
+        if existing:
+            return str(existing), existing.suffix.lstrip(".")
+        resp = await client.get(url)
+        resp.raise_for_status()
+        content_type = resp.headers.get("content-type", "").split(";")[0].strip().lower()
+        ext = _CONTENT_TYPE_EXT.get(content_type, "jpg")
+        dest = os.path.join(dest_dir, f"{index}.{ext}")
+        await asyncio.to_thread(Path(dest).write_bytes, resp.content)
         return dest, ext
     except Exception:
         return None

@@ -4,6 +4,30 @@ import aiosqlite
 
 from .. import config as cfg
 
+_KEYWORD_DEFAULTS = [
+    # keyword, base_model, model_type, sort_order
+    ("lora", None, "loras", 10),
+    ("vae", None, "vae", 20),
+    ("controlnet", None, "controlnet", 30),
+    ("upscale", None, "upscale_models", 40),
+    ("embedding", None, "embeddings", 50),
+    ("diffusion_model", None, "diffusion_models", 60),
+    ("text_encoder", None, "text_encoders", 70),
+    ("hypernetwork", None, "hypernetworks", 80),
+    ("sdxl", "SDXL 1.0", None, 100),
+    ("sd15", "SD 1.5", None, 110),
+    ("sd_15", "SD 1.5", None, 120),
+    ("sd21", "SD 2.1", None, 130),
+    ("sd_21", "SD 2.1", None, 140),
+    ("flux", "Flux.1 D", None, 150),
+    ("pony", "Pony", None, 160),
+    ("illustrious", "Illustrious XL", None, 170),
+    ("noob", "NoobAI XL", None, 180),
+    ("hunyuan", "Hunyuan Video", None, 190),
+    ("sd3", "SD 3.5", None, 200),
+    ("cascade", "Stable Cascade", None, 210),
+]
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS catalog_entries (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -92,6 +116,14 @@ CREATE TABLE IF NOT EXISTS download_history (
     created_at TEXT    DEFAULT (datetime('now')),
     updated_at TEXT    DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS filename_keywords (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    keyword    TEXT    NOT NULL UNIQUE,
+    base_model TEXT,
+    model_type TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0
+);
 """
 
 
@@ -145,6 +177,28 @@ async def _migrate_tags_schema(db) -> None:
         "SELECT o.model_id, t.id FROM tags_old o JOIN tags t ON t.name = o.tag"
     )
     await db.execute("DROP TABLE tags_old")
+
+
+async def _migrate_filename_keywords(db) -> None:
+    """Migrate filename_keywords table with default seed data."""
+    try:
+        await db.execute(
+            "CREATE TABLE IF NOT EXISTS filename_keywords ("
+            "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "  keyword TEXT NOT NULL UNIQUE,"
+            "  base_model TEXT,"
+            "  model_type TEXT,"
+            "  sort_order INTEGER NOT NULL DEFAULT 0"
+            ")"
+        )
+        for keyword, base_model, model_type, sort_order in _KEYWORD_DEFAULTS:
+            await db.execute(
+                "INSERT OR IGNORE INTO filename_keywords (keyword, base_model, model_type, sort_order)"
+                " VALUES (?, ?, ?, ?)",
+                (keyword, base_model, model_type, sort_order),
+            )
+    except Exception as exc:
+        print(f"[tiny-model-manager] filename_keywords migration failed: {exc}")
 
 
 async def _migrate_db():
@@ -362,6 +416,9 @@ async def _migrate_db():
             )
         except Exception as exc:
             print(f"[tiny-model-manager] download_history migration failed: {exc}")
+
+        # F-82: filename_keywords table with default seed data
+        await _migrate_filename_keywords(db)
 
         await db.commit()
 

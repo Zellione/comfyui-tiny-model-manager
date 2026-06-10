@@ -116,6 +116,10 @@
           [value]="linkModelType()"
           (valueChange)="linkModelType.set($event)"
         />
+        <app-base-model-select
+          [value]="linkBaseModel()"
+          (valueChange)="linkBaseModel.set($event)"
+        />
         @switch (fileStatus(linkFilename())) {
           @case ('installed') {
             <button class="btn-library">In library</button>
@@ -152,6 +156,10 @@
                 <app-model-type-select
                   [value]="linkHfRowType(f.filename)"
                   (valueChange)="setLinkHfRowType(f.filename, $event)"
+                />
+                <app-base-model-select
+                  [value]="linkHfRowBaseModel(f.filename)"
+                  (valueChange)="setLinkHfRowBaseModel(f.filename, $event)"
                 />
                 @switch (fileStatus(f.filename)) {
                   @case ('installed') {
@@ -223,6 +231,10 @@
                       <app-model-type-select
                         [value]="linkCivitaiFileType(v.id, f)"
                         (valueChange)="setLinkCivitaiFileType(v.id, f, $event)"
+                      />
+                      <app-base-model-select
+                        [value]="linkCivitaiFileBaseModel(v.id, f)"
+                        (valueChange)="setLinkCivitaiFileBaseModel(v.id, f, $event)"
                       />
                       @switch (fileStatus(f.name)) {
                         @case ('installed') {
@@ -582,6 +594,10 @@
                                 [value]="civitaiFileType(v.id, f)"
                                 (valueChange)="setCivitaiFileType(v.id, f, $event)"
                               />
+                              <app-base-model-select
+                                [value]="civitaiFileBaseModel(v.id, f)"
+                                (valueChange)="setCivitaiFileBaseModel(v.id, f, $event)"
+                              />
                               @switch (fileStatus(f.name)) {
                                 @case ('installed') {
                                   <button class="btn-library">In library</button>
@@ -713,6 +729,10 @@
                         <app-model-type-select
                           [value]="hfRowType(f.filename)"
                           (valueChange)="setHfRowType(f.filename, $event)"
+                        />
+                        <app-base-model-select
+                          [value]="hfRowBaseModel(f.filename)"
+                          (valueChange)="setHfRowBaseModel(f.filename, $event)"
                         />
                         @switch (fileStatus(f.filename)) {
                           @case ('installed') {

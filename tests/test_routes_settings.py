@@ -191,3 +191,99 @@ class TestPutSettings:
             )
         assert resp.status == 200
         assert (await resp.json())["success"] is True
+
+
+class TestKeywords:
+    async def test_list_returns_list(self, client, ext_dir):
+        resp = await client.get("/tiny-model-manager/api/filename-keywords")
+        assert resp.status == 200
+        data = await resp.json()
+        assert data["success"] is True
+        assert isinstance(data["data"], list)
+
+    async def test_create_returns_id(self, client, ext_dir):
+        resp = await client.post(
+            "/tiny-model-manager/api/filename-keywords",
+            json={
+                "keyword": "xl-turbo",
+                "base_model": "SDXL Turbo",
+                "model_type": "checkpoints",
+            },
+        )
+        assert resp.status == 200
+        data = await resp.json()
+        assert data["success"] is True
+        assert isinstance(data["data"]["id"], int)
+
+    async def test_create_requires_keyword(self, client, ext_dir):
+        resp = await client.post(
+            "/tiny-model-manager/api/filename-keywords",
+            json={"base_model": "SDXL 1.0"},
+        )
+        assert resp.status == 400
+
+    async def test_created_keyword_appears_in_list(self, client, ext_dir):
+        await client.post(
+            "/tiny-model-manager/api/filename-keywords",
+            json={"keyword": "animatediff"},
+        )
+        resp = await client.get("/tiny-model-manager/api/filename-keywords")
+        keywords = [kw["keyword"] for kw in (await resp.json())["data"]]
+        assert "animatediff" in keywords
+
+    async def test_update_keyword(self, client, ext_dir):
+        create = await client.post(
+            "/tiny-model-manager/api/filename-keywords",
+            json={"keyword": "test-update-kw", "base_model": "SD 1.5"},
+        )
+        kw_id = (await create.json())["data"]["id"]
+        resp = await client.put(
+            f"/tiny-model-manager/api/filename-keywords/{kw_id}",
+            json={"keyword": "test-update-kw", "base_model": "SD 1.5", "model_type": "loras"},
+        )
+        assert resp.status == 200
+        assert (await resp.json())["success"] is True
+
+    async def test_update_nonexistent_returns_404(self, client, ext_dir):
+        resp = await client.put(
+            "/tiny-model-manager/api/filename-keywords/99999",
+            json={"keyword": "x"},
+        )
+        assert resp.status == 404
+
+    async def test_update_requires_keyword(self, client, ext_dir):
+        create = await client.post(
+            "/tiny-model-manager/api/filename-keywords",
+            json={"keyword": "sd15v2"},
+        )
+        kw_id = (await create.json())["data"]["id"]
+        resp = await client.put(
+            f"/tiny-model-manager/api/filename-keywords/{kw_id}",
+            json={"base_model": "SD 1.5"},
+        )
+        assert resp.status == 400
+
+    async def test_delete_keyword(self, client, ext_dir):
+        create = await client.post(
+            "/tiny-model-manager/api/filename-keywords",
+            json={"keyword": "toremove"},
+        )
+        kw_id = (await create.json())["data"]["id"]
+        resp = await client.delete(f"/tiny-model-manager/api/filename-keywords/{kw_id}")
+        assert resp.status == 200
+        assert (await resp.json())["success"] is True
+
+    async def test_delete_nonexistent_returns_404(self, client, ext_dir):
+        resp = await client.delete("/tiny-model-manager/api/filename-keywords/99999")
+        assert resp.status == 404
+
+    async def test_deleted_keyword_absent_from_list(self, client, ext_dir):
+        create = await client.post(
+            "/tiny-model-manager/api/filename-keywords",
+            json={"keyword": "gone"},
+        )
+        kw_id = (await create.json())["data"]["id"]
+        await client.delete(f"/tiny-model-manager/api/filename-keywords/{kw_id}")
+        resp = await client.get("/tiny-model-manager/api/filename-keywords")
+        keywords = [kw["keyword"] for kw in (await resp.json())["data"]]
+        assert "gone" not in keywords
