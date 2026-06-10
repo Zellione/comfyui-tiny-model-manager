@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { EMPTY, of, throwError } from 'rxjs';
@@ -13,6 +14,7 @@ import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
 import { KeywordsService } from '../../services/keywords';
+import { FilenameKeyword } from '../../utils/filename-detector';
 
 const makeCatalogEntry = (overrides: Partial<CatalogEntryDetail> = {}): CatalogEntryDetail => ({
   id: 1,
@@ -105,7 +107,7 @@ const mockDownloadService = {
 
 const mockWorkflowService = { addToWorkflow: vi.fn(() => of(undefined)) };
 const mockNotifService = { show: vi.fn() };
-const mockKeywordsService = { getKeywords: vi.fn(() => of([])) };
+const mockKeywordsService = { getKeywords: vi.fn(() => of([] as FilenameKeyword[])) };
 
 describe('ModelDetail', () => {
   let component: ModelDetail;
@@ -211,6 +213,65 @@ describe('ModelDetail', () => {
         expect.stringContaining('no longer on disk'),
       );
       expect(router.navigate).toHaveBeenCalledWith(['/models']);
+    });
+
+    describe('F-82 base model detection', () => {
+      const sdxlKeyword: FilenameKeyword = {
+        id: 1,
+        keyword: 'sdxl',
+        base_model: 'SDXL 1.0',
+        model_type: null,
+        sort_order: 10,
+      };
+
+      beforeEach(() => {
+        component.modelPath = 'sdxl_my-lora.safetensors';
+        component.meta.set(makeMeta({ base_model: '' }));
+        (component as any).keywords = signal([sdxlKeyword]);
+      });
+
+      it('injects detected base model into refetchPreviewData when both meta and response lack one', () => {
+        mockModelService.refetchPreview.mockReturnValueOnce(
+          of(
+            makePreviewData({
+              new: { description: '', trigger_words: [], tags: [], base_model: '', media_urls: [] },
+            }),
+          ),
+        );
+        component.triggerRefetchPreview();
+        expect(component.refetchPreviewData()?.new.base_model).toBe('SDXL 1.0');
+      });
+
+      it('does not override base_model already provided in the refetch response', () => {
+        mockModelService.refetchPreview.mockReturnValueOnce(
+          of(
+            makePreviewData({
+              new: {
+                description: '',
+                trigger_words: [],
+                tags: [],
+                base_model: 'Pony',
+                media_urls: [],
+              },
+            }),
+          ),
+        );
+        component.triggerRefetchPreview();
+        expect(component.refetchPreviewData()?.new.base_model).toBe('Pony');
+      });
+
+      it('does not inject when meta already has a base_model', () => {
+        component.meta.set(makeMeta({ base_model: 'Flux.1 D' }));
+        mockModelService.refetchPreview.mockReturnValueOnce(
+          of(
+            makePreviewData({
+              new: { description: '', trigger_words: [], tags: [], base_model: '', media_urls: [] },
+            }),
+          ),
+        );
+        component.triggerRefetchPreview();
+        expect(component.refetchPreviewData()?.new.base_model).toBe('');
+      });
     });
   });
 
@@ -477,6 +538,30 @@ describe('ModelDetail', () => {
         'civitai',
         '99999',
         '',
+      );
+    });
+
+    it('passes detected base model when a keyword matches the repo file filename', () => {
+      const sdxlKeyword: FilenameKeyword = {
+        id: 1,
+        keyword: 'sdxl',
+        base_model: 'SDXL 1.0',
+        model_type: null,
+        sort_order: 10,
+      };
+      (component as any).keywords = signal([sdxlKeyword]);
+      const file = makeRepoFile({
+        filename: 'sdxl_companion.safetensors',
+        download_url: 'https://civitai.com/api/download/models/99999',
+      });
+      component.downloadFile(file);
+      expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
+        expect.any(String),
+        'loras',
+        'sdxl_companion.safetensors',
+        'civitai',
+        '99999',
+        'SDXL 1.0',
       );
     });
 

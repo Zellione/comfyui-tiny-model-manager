@@ -8,6 +8,7 @@ import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
 import { KeywordsService } from '../../services/keywords';
+import { FilenameKeyword } from '../../utils/filename-detector';
 
 const mockInstalledFile: InstalledFile = {
   filename: 'test.safetensors',
@@ -74,7 +75,7 @@ const mockNotifService = {
 };
 
 const mockKeywordsService = {
-  getKeywords: vi.fn(() => of([])),
+  getKeywords: vi.fn(() => of([] as FilenameKeyword[])),
 };
 
 function makeRoute(platform: string, pageId: string) {
@@ -304,5 +305,64 @@ describe('CatalogDetail component', () => {
     fixture.componentInstance.enterEdit();
     fixture.componentInstance.save();
     expect(mockModelService.updateMetadata).not.toHaveBeenCalled();
+  });
+});
+
+describe('CatalogDetail — F-82 downloadFile base model detection', () => {
+  const sdxlKeyword = {
+    id: 1,
+    keyword: 'sdxl',
+    base_model: 'SDXL 1.0',
+    model_type: null,
+    sort_order: 10,
+  };
+
+  const sdxlRepoFile = {
+    filename: 'sdxl_model.safetensors',
+    model_type: 'checkpoints' as const,
+    size_bytes: 1024,
+    download_url: 'https://example.com/sdxl_model.safetensors',
+    source_page_url: '',
+    is_downloaded: false,
+    added_at: null,
+    installed_path: '',
+    base_model: '',
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockModelService.getCatalogEntry.mockReturnValue(of(mockEntry));
+    mockModelService.getRepoFiles.mockReturnValue(of([]));
+    mockKeywordsService.getKeywords.mockReturnValue(of([]));
+    mockDownloadService.startDownload.mockReturnValue(of(undefined));
+  });
+
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('passes detected base model to startDownload when a keyword matches the filename', async () => {
+    mockKeywordsService.getKeywords.mockReturnValue(of([sdxlKeyword]));
+    const fixture = await createFixture();
+    fixture.componentInstance.downloadFile(sdxlRepoFile);
+    expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
+      'https://example.com/sdxl_model.safetensors',
+      'checkpoints',
+      'sdxl_model.safetensors',
+      'civitai',
+      expect.any(String),
+      'SDXL 1.0',
+    );
+  });
+
+  it('passes empty base model to startDownload when no keyword matches the filename', async () => {
+    const fixture = await createFixture();
+    fixture.componentInstance.downloadFile(sdxlRepoFile);
+    expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.any(String),
+      expect.any(String),
+      expect.any(String),
+      '',
+    );
   });
 });
