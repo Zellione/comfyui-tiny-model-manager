@@ -1,3 +1,28 @@
+// ── Page layout ───────────────────────────────────────────────────────────────
+
+.page {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 28px 28px 100px;
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--text);
+}
+
+// ── Section ───────────────────────────────────────────────────────────────────
+
 .settings-section {
   margin-top: 1.5rem;
 }
