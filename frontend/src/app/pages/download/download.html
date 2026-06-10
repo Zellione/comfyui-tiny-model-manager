@@ -20,43 +20,7 @@
 
 @if (activeTab() === 'active') {
   <!-- Active downloads -->
-  @if (displayTasks().length > 0) {
-    <section class="active-downloads">
-      <div class="active-downloads-header">
-        <h3>Active Downloads</h3>
-        @if (hasCancellableTasks()) {
-          <app-confirm-popover
-            [question]="'Cancel all ' + displayTasks().length + ' downloads?'"
-            (confirmed)="onCancelAll()"
-          >
-            <button class="btn-secondary">Cancel all</button>
-          </app-confirm-popover>
-        }
-      </div>
-      @for (task of displayTasks(); track task.id) {
-        <div class="task-row">
-          <span class="task-name">{{ task.filename }}</span>
-          <span class="badge">{{ task.status }}</span>
-          @if (task.status === 'error' && task.error) {
-            <span class="task-error">{{ task.error }}</span>
-          } @else {
-            <div class="progress-bar"><div class="fill" [style.width]="activePct(task)"></div></div>
-            <span class="pct">{{ activePct(task) }}</span>
-          }
-          @if (task.status !== 'done' && task.status !== 'error') {
-            <app-confirm-popover
-              question="Cancel this download?"
-              (confirmed)="onCancelTask(task.id)"
-            >
-              <button class="btn-secondary" [disabled]="cancellingIds().has(task.id)">
-                {{ cancellingIds().has(task.id) ? '…' : 'Cancel' }}
-              </button>
-            </app-confirm-popover>
-          }
-        </div>
-      }
-    </section>
-  }
+  <app-download-queue />
 
   <!-- Paste a link -->
   <div class="paste-link-section">

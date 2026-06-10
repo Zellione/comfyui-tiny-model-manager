@@ -32,9 +32,9 @@ import { formatSize } from '../../utils/format';
 import { isVideo } from '../../utils/media';
 import { ModelTypeSelect } from '../../components/model-type-select/model-type-select';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
-import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover';
 import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
 import { DownloadHistory } from './download-history';
+import { DownloadQueue } from './download-queue';
 
 type HfFileItem = { filename: string; size: number; url: string };
 
@@ -53,9 +53,9 @@ type LinkResolution =
     FormsModule,
     ModelTypeSelect,
     BaseModelSelect,
-    ConfirmPopover,
     SafeHtmlPipe,
     DownloadHistory,
+    DownloadQueue,
   ],
   templateUrl: './download.html',
   styleUrl: './download.scss',
@@ -306,19 +306,11 @@ export class Download {
 
   activeTab = signal<'active' | 'history'>('active');
 
-  activeTasks = toSignal(this.dlService.activeTasks$, { initialValue: [] as DownloadTask[] });
-  readonly cancelledIds = signal(new Set<string>());
-  readonly cancellingIds = signal(new Set<string>());
-  readonly displayTasks = computed(() => {
-    const all = this.activeTasks().filter((t) => !this.cancelledIds().has(t.id));
-    const active = all.filter((t) => t.status === 'queued' || t.status === 'downloading');
-    const terminal = all.filter((t) => t.status === 'done' || t.status === 'error');
-    const remaining = Math.max(0, 5 - active.length);
-    return [...active, ...terminal.slice(0, remaining)];
+  // Live download tasks — used here only to flag search results as already installed.
+  // The Active-downloads queue UI lives in the DownloadQueue child component.
+  readonly activeTasks = toSignal(this.dlService.activeTasks$, {
+    initialValue: [] as DownloadTask[],
   });
-  readonly hasCancellableTasks = computed(() =>
-    this.displayTasks().some((t) => t.status === 'queued' || t.status === 'downloading'),
-  );
 
   selectedModel = signal<CivitaiModel | null>(null);
   selectedHfModel = signal<HfModel | null>(null);
@@ -914,33 +906,7 @@ export class Download {
     );
   }
 
-  onCancelTask(taskId: string): void {
-    this.cancellingIds.update((s) => new Set([...s, taskId]));
-    this.dlService
-      .cancelDownload(taskId)
-      .pipe(
-        catchError(() => of(void 0)),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe(() => {
-        this.cancelledIds.update((s) => new Set([...s, taskId]));
-        this.cancellingIds.update((s) => {
-          const next = new Set(s);
-          next.delete(taskId);
-          return next;
-        });
-      });
-  }
-
-  onCancelAll(): void {
-    this.displayTasks().forEach((t) => this.onCancelTask(t.id));
-  }
-
   formatSize = formatSize;
-
-  activePct(t: DownloadTask): string {
-    return t.progress.toFixed(0) + '%';
-  }
 
   civitaiThumb(model: CivitaiModel): string {
     return model.modelVersions?.[0]?.images?.[0]?.url ?? '';
