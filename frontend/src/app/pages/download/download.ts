@@ -493,45 +493,64 @@ export class Download {
       });
   }
 
+  private applyHfResolve(result: {
+    tag: 'hf-resolve';
+    image_urls?: string[];
+    filename: string;
+  }): void {
+    this.linkImages.set(result.image_urls ?? []);
+    const det = this.detect(result.filename);
+    if (det.modelType) this.linkModelType.set(det.modelType);
+    this.linkBaseModel.set(det.baseModel);
+  }
+
+  private applyCivitaiDownload(result: CivitaiDirectLinkInfo & { tag: 'civitai-download' }): void {
+    this.linkResolved.set(result);
+    this.linkModelType.set((result.model_type as ModelType) ?? 'checkpoints');
+    this.linkImages.set(result.image_urls ?? []);
+    this.linkBaseModel.set(this.detect(result.filename).baseModel);
+  }
+
+  private applyHfRepo(result: { tag: 'hf-repo'; files: HfFileItem[] }): void {
+    this.linkHfFiles.set(result.files);
+    const types: Record<string, ModelType> = {};
+    const baseModels: Record<string, string> = {};
+    for (const f of result.files) {
+      const det = this.detect(f.filename);
+      if (det.modelType) types[f.filename] = det.modelType;
+      if (det.baseModel) baseModels[f.filename] = det.baseModel;
+    }
+    this.linkHfRowTypes.set(types);
+    this.linkHfRowBaseModels.set(baseModels);
+  }
+
+  private applyCivitaiModel(result: {
+    tag: 'civitai-model';
+    versions: CivitaiVersion[];
+    model_type?: string;
+  }): void {
+    this.linkVersions.set(result.versions);
+    const detectedType = (result.model_type as ModelType) ?? 'checkpoints';
+    this.linkModelType.set(detectedType);
+    const types: Record<string, ModelType> = {};
+    const baseModels: Record<string, string> = {};
+    for (const v of result.versions) {
+      for (const f of v.files) {
+        const key = `${v.id}_${f.id}`;
+        types[key] = detectedType;
+        baseModels[key] = v.baseModel || this.detect(f.name).baseModel;
+      }
+    }
+    this.linkCivitaiFileTypes.set(types);
+    this.linkCivitaiFileBaseModels.set(baseModels);
+  }
+
   private applyLinkResolution(result: LinkResolution | null): void {
     if (result) {
-      if (result.tag === 'hf-resolve') {
-        this.linkImages.set(result.image_urls ?? []);
-        const hfResolveDet = this.detect(result.filename);
-        if (hfResolveDet.modelType) this.linkModelType.set(hfResolveDet.modelType);
-        this.linkBaseModel.set(hfResolveDet.baseModel);
-      } else if (result.tag === 'civitai-download') {
-        this.linkResolved.set(result);
-        this.linkModelType.set((result.model_type as ModelType) ?? 'checkpoints');
-        this.linkImages.set(result.image_urls ?? []);
-        this.linkBaseModel.set(this.detect(result.filename).baseModel);
-      } else if (result.tag === 'hf-repo') {
-        this.linkHfFiles.set(result.files);
-        const hfTypes: Record<string, ModelType> = {};
-        const hfBaseModels: Record<string, string> = {};
-        for (const f of result.files) {
-          const det = this.detect(f.filename);
-          if (det.modelType) hfTypes[f.filename] = det.modelType;
-          if (det.baseModel) hfBaseModels[f.filename] = det.baseModel;
-        }
-        this.linkHfRowTypes.set(hfTypes);
-        this.linkHfRowBaseModels.set(hfBaseModels);
-      } else if (result.tag === 'civitai-model') {
-        this.linkVersions.set(result.versions);
-        this.linkModelType.set((result.model_type as ModelType) ?? 'checkpoints');
-        const detected = (result.model_type as ModelType) ?? 'checkpoints';
-        const types: Record<string, ModelType> = {};
-        const baseModels: Record<string, string> = {};
-        for (const v of result.versions) {
-          for (const f of v.files) {
-            const key = `${v.id}_${f.id}`;
-            types[key] = detected;
-            baseModels[key] = v.baseModel || this.detect(f.name).baseModel;
-          }
-        }
-        this.linkCivitaiFileTypes.set(types);
-        this.linkCivitaiFileBaseModels.set(baseModels);
-      }
+      if (result.tag === 'hf-resolve') this.applyHfResolve(result);
+      else if (result.tag === 'civitai-download') this.applyCivitaiDownload(result);
+      else if (result.tag === 'hf-repo') this.applyHfRepo(result);
+      else if (result.tag === 'civitai-model') this.applyCivitaiModel(result);
     }
     this.linkResolving.set(false);
   }
