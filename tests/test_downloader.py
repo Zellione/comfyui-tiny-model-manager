@@ -81,6 +81,38 @@ class TestStreamFile:
                 with pytest.raises(_Cancelled):
                     await _stream_file(task, {})
 
+    async def test_uses_bounded_timeout(self, tmp_path):
+        import httpx
+
+        task = _task(dest_path=str(tmp_path / "model.safetensors"))
+        captured: dict = {}
+
+        async def fake_aiter_bytes(_chunk_size):
+            yield b"data"
+
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.headers = {}
+        mock_resp.aiter_bytes = fake_aiter_bytes
+
+        mock_file = AsyncMock()
+        mock_client = MagicMock()
+        mock_client.stream = MagicMock(return_value=_AsyncCM(mock_resp))
+
+        def fake_client(**kwargs):
+            captured.update(kwargs)
+            return _AsyncCM(mock_client)
+
+        with patch("py.services.downloader.httpx.AsyncClient", fake_client):
+            with patch("py.services.downloader.aiofiles.open", return_value=_AsyncCM(mock_file)):
+                await _stream_file(task, {})
+
+        # A stalled connection must eventually abort rather than hang the worker forever.
+        timeout = captured.get("timeout")
+        assert timeout is not None
+        assert isinstance(timeout, httpx.Timeout)
+        assert timeout.read is not None
+
     async def test_progress_zero_when_no_content_length(self, tmp_path):
         data = b"X" * 50
         task = _task(dest_path=str(tmp_path / "model.safetensors"))
@@ -259,6 +291,61 @@ class TestRunDownload:
         await _run_download(task)
 
         assert called_with == [task]
+
+
+class TestValidateTarget:
+    def test_rejects_traversing_filename(self):
+        import py.services.downloader as dl
+
+        with pytest.raises(ValueError):
+            dl.validate_target("checkpoints", "../../../../etc/passwd", "civitai")
+
+    def test_rejects_traversing_model_type(self):
+        import py.services.downloader as dl
+
+        with pytest.raises(ValueError):
+            dl.validate_target("../../evil", "model.safetensors", "civitai")
+
+    def test_huggingface_strips_subfolder_and_contains(self):
+        import os
+
+        import folder_paths
+
+        import py.services.downloader as dl
+
+        dest = dl.validate_target("checkpoints", "split_files/model.safetensors", "huggingface")
+        expected_dir = folder_paths.get_folder_paths("checkpoints")[0]
+        assert os.path.basename(dest) == "model.safetensors"
+        assert os.path.realpath(dest).startswith(os.path.realpath(expected_dir) + os.sep)
+
+    def test_normal_civitai_filename_resolves_under_dest_dir(self):
+        import os
+
+        import folder_paths
+
+        import py.services.downloader as dl
+
+        dest = dl.validate_target("checkpoints", "model.safetensors", "civitai")
+        expected_dir = folder_paths.get_folder_paths("checkpoints")[0]
+        assert os.path.realpath(dest).startswith(os.path.realpath(expected_dir) + os.sep)
+
+
+class TestEnqueueTraversalGuard:
+    def test_enqueue_rejects_traversal_without_creating_task(self, monkeypatch):
+        import py.services.downloader as dl
+
+        monkeypatch.setattr(dl, "_ensure_worker", lambda: None)
+        dl._tasks.clear()
+
+        with pytest.raises(ValueError):
+            dl.enqueue(
+                url="https://civitai.com/api/download/models/1",
+                model_type="checkpoints",
+                filename="../../../../tmp/evil.txt",
+                platform="civitai",
+            )
+
+        assert dl._tasks == {}
 
 
 class TestResumeInterruptedDownloads:

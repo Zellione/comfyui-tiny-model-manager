@@ -5,6 +5,7 @@ import folder_paths
 
 from .. import config as cfg
 from ..db import model_repo
+from ..services import model_paths
 from ..services.reorganizer import _sanitize_subfolder_name
 from ._helpers import err, json_route, ok
 from .metadata import _derive_source_url
@@ -108,9 +109,9 @@ async def _delete_model(request):
     rel_path = request.match_info["path"]
     dirs, _ = folder_paths.folder_names_and_paths.get(model_type, ([], set()))
     for base_dir in dirs:
-        candidate = os.path.normpath(os.path.join(base_dir, rel_path))
-        # Guard against path traversal
-        if not candidate.startswith(os.path.normpath(base_dir)):
+        # Confine to base_dir (rejects ../ and sibling-prefix escapes).
+        candidate = model_paths.contained_path(base_dir, rel_path)
+        if candidate is None:
             continue
         if os.path.isfile(candidate):
             os.remove(candidate)
@@ -141,9 +142,8 @@ def _resolve_move_source(models_dir: str, model_type: str, rel_path: str) -> str
     registered, _ = folder_paths.folder_names_and_paths.get(model_type, ([], set()))
     src_dirs.extend(registered)
     for base_dir in src_dirs:
-        base_norm = os.path.normpath(base_dir)
-        candidate = os.path.normpath(os.path.join(base_dir, rel_path))
-        if candidate.startswith(base_norm + os.sep) and os.path.isfile(candidate):
+        candidate = model_paths.contained_path(base_dir, rel_path)
+        if candidate is not None and os.path.isfile(candidate):
             return candidate
     return None
 
@@ -192,9 +192,8 @@ def _resolve_organize_source(model_type: str, filename: str) -> tuple[str | None
     except Exception:
         base_dirs = [os.path.join(folder_paths.models_dir, model_type)]
     for base_dir in base_dirs:
-        norm_base = os.path.normpath(base_dir)
-        candidate = os.path.normpath(os.path.join(base_dir, filename))
-        if candidate.startswith(norm_base) and os.path.isfile(candidate):
+        candidate = model_paths.contained_path(base_dir, filename)
+        if candidate is not None and os.path.isfile(candidate):
             return candidate, base_dir
     return None, None
 

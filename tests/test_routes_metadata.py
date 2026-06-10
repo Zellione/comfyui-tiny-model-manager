@@ -643,7 +643,7 @@ class TestRefetchPreview:
             "trigger_words": ["new_word"],
             "tags": ["new_tag"],
             "base_model": "Flux.1 D",
-            "image_urls": ["https://example.com/img.jpg"],
+            "image_urls": ["https://image.civitai.com/abc/img.jpg"],
             "civitai_model_id": "",
             "display_name": "Model",
         }
@@ -1002,3 +1002,22 @@ class TestServeMedia:
     async def test_path_traversal_returns_403(self, client, ext_dir):
         resp = await client.get("/tiny-model-manager/api/media/../../etc/passwd")
         assert resp.status in (403, 404)
+
+    async def test_sibling_directory_escape_blocked(self, ext_dir):
+        import types
+
+        from py import config as cfg
+        from py.routes.metadata import _serve_media
+
+        # A sibling of the media dir that shares its name prefix must not be reachable
+        # (a plain str.startswith guard would wrongly allow "<media>_evil").
+        media_dir = cfg.media_dir()
+        sibling = media_dir + "_evil"
+        os.makedirs(sibling, exist_ok=True)
+        with open(os.path.join(sibling, "secret.txt"), "wb") as f:
+            f.write(b"top secret")
+
+        rel = os.path.join("..", os.path.basename(sibling), "secret.txt")
+        req = types.SimpleNamespace(match_info={"path": rel})
+        resp = await _serve_media(req)
+        assert resp.status == 403

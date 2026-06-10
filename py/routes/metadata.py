@@ -376,9 +376,9 @@ async def _serve_media(request):
     path = request.match_info["path"]
     from .. import config as cfg
 
-    full_path = os.path.normpath(os.path.join(cfg.media_dir(), path))
-    # Guard against path traversal
-    if not full_path.startswith(os.path.normpath(cfg.media_dir())):
+    # Confine the resolved path to the media dir (rejects ../ and sibling-prefix escapes).
+    full_path = model_paths.contained_path(cfg.media_dir(), path)
+    if full_path is None:
         return web.Response(status=403)
     if not os.path.isfile(full_path):
         return web.Response(status=404)

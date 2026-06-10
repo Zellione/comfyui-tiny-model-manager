@@ -5,6 +5,7 @@ from aiohttp import web
 from ..db import model_repo
 from ..services import downloader as dl
 from ..services.providers import civitai, huggingface
+from ..services.url_guard import is_allowed_url
 from ._helpers import err, json_route, ok
 
 _MISSING_REPO = "Missing repo"
@@ -106,6 +107,14 @@ def _register_download_mgmt_routes(routes):
         hint_base_model = body.get("base_model", "")
         if not url or not filename:
             return err("url and filename required", status=400)
+        if not is_allowed_url(url):
+            return err("Download URL host is not allowed", status=400)
+        # Confine the destination before any DB write so a rejected request leaves no
+        # dangling history row.
+        try:
+            dl.validate_target(model_type, filename, platform)
+        except ValueError as exc:
+            return err(str(exc), status=400)
         model_name = os.path.basename(filename)
         version_id = source_id if platform == "civitai" else ""
         model_id = source_id if platform == "huggingface" else ""
@@ -164,11 +173,17 @@ def _register_download_mgmt_routes(routes):
         url = entry["file_url"]
         if not url:
             return err("No download URL stored for this entry", status=400)
+        if not is_allowed_url(url):
+            return err("Download URL host is not allowed", status=400)
         platform = entry["source"]
         source_id = entry["version_id"] or entry["model_id"]
         model_type = entry["model_type"]
         dest_path = entry["dest_path"]
         model_name = entry["model_name"]
+        try:
+            dl.validate_target(model_type, dest_path, platform)
+        except ValueError as exc:
+            return err(str(exc), status=400)
         new_history_id = await model_repo.insert_download_history(
             model_name=model_name,
             source=platform,

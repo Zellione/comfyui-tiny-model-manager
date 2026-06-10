@@ -168,7 +168,7 @@ class TestDownloadImagesIdempotency:
             tags=[],
         )
         media_hash = "testhash_idem"
-        urls = ["https://example.com/image.jpg"]
+        urls = ["https://image.civitai.com/abc/image.jpg"]
 
         request_count = 0
 

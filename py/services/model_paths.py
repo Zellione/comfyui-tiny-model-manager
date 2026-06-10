@@ -16,7 +16,7 @@ import folder_paths
 from .. import config as cfg
 
 
-def _is_safe_segment(segment: str) -> bool:
+def is_safe_segment(segment: str) -> bool:
     """True if ``segment`` is a single, non-traversing path component.
 
     ``model_type`` reaches these helpers straight from a URL route parameter; a value
@@ -33,7 +33,7 @@ def candidate_dirs(model_type: str) -> list[str]:
     dirs: list[str] = []
     registered, _ = folder_paths.folder_names_and_paths.get(model_type, ([], {}))
     dirs.extend(registered)
-    if _is_safe_segment(model_type):
+    if is_safe_segment(model_type):
         models_dir = getattr(folder_paths, "models_dir", None)
         if models_dir:
             dirs.append(os.path.join(models_dir, model_type))
@@ -41,7 +41,7 @@ def candidate_dirs(model_type: str) -> list[str]:
     return dirs
 
 
-def _contained_path(base: str, *parts: str) -> str | None:
+def contained_path(base: str, *parts: str) -> str | None:
     """Resolve ``parts`` under ``base``; return the real path only if it stays inside ``base``.
 
     ``parts`` is built from untrusted request data (filenames, relative model paths). A
@@ -59,7 +59,7 @@ def candidate_paths(model_type: str, *parts: str) -> list[str]:
     """Candidate real paths for ``parts`` under each base dir, excluding any that escape it."""
     resolved: list[str] = []
     for base in candidate_dirs(model_type):
-        full = _contained_path(base, *parts)
+        full = contained_path(base, *parts)
         if full is not None:
             resolved.append(full)
     return resolved

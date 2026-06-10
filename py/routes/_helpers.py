@@ -7,10 +7,12 @@ almost every route body.
 """
 
 import functools
+import logging
 
 from aiohttp import web
 
 _UNSET = object()
+_log = logging.getLogger("tiny-model-manager")
 
 
 def ok(data=_UNSET, **extra) -> web.Response:
@@ -37,13 +39,17 @@ def json_route(handler):
 
     Handlers can still ``return err(..., status=400)`` for expected client errors;
     only unexpected exceptions are translated into ``{"success": False, "error": ...}``.
+
+    The exception detail is logged server-side but never sent to the client: raw
+    messages can carry filesystem paths or other internals (information disclosure).
     """
 
     @functools.wraps(handler)
     async def wrapper(request):
         try:
             return await handler(request)
-        except Exception as exc:
-            return err(str(exc))
+        except Exception:
+            _log.exception("Unhandled error in %s", getattr(handler, "__name__", "route"))
+            return err("Internal server error")
 
     return wrapper
