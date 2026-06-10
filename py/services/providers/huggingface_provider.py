@@ -51,6 +51,18 @@ def _build_search_params(
     return params
 
 
+def _image_urls_from_siblings(repo_id: str, data: dict, limit: int = 5) -> list[str]:
+    """Collect up to ``limit`` ``resolve/main`` image URLs from a repo's siblings list."""
+    image_urls: list[str] = []
+    for sibling in data.get("siblings", []):
+        name = sibling.get("rfilename", "")
+        if _file_ext(name) in IMAGE_EXTENSIONS:
+            image_urls.append(f"{_BASE}/{repo_id}/resolve/main/{name}")
+        if len(image_urls) >= limit:
+            break
+    return image_urls
+
+
 def _enrich_hf_model(model: dict) -> None:
     """Add thumbnail, images, formats and description fields to a raw HF model dict in place."""
     repo_id = model.get("modelId") or model.get("id", "")
@@ -161,15 +173,7 @@ class HuggingFaceProvider(ModelProvider):
             resp = await client.get(f"{_API}/models/{repo_id}", headers=self.auth_headers())
             resp.raise_for_status()
             data = resp.json()
-        image_urls = []
-        for sibling in data.get("siblings", []):
-            name = sibling.get("rfilename", "")
-            ext = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
-            if ext in IMAGE_EXTENSIONS:
-                image_urls.append(f"{_BASE}/{repo_id}/resolve/main/{name}")
-            if len(image_urls) >= 5:
-                break
-        return {"image_urls": image_urls}
+        return {"image_urls": _image_urls_from_siblings(repo_id, data)}
 
     async def fetch_metadata(self, source_id: str) -> ProviderMetadata:
         """Returns description, readme HTML, tags, and preview image URLs from a HuggingFace model card."""
@@ -177,14 +181,7 @@ class HuggingFaceProvider(ModelProvider):
             resp = await client.get(f"{_API}/models/{source_id}", headers=self.auth_headers())
             resp.raise_for_status()
             data = resp.json()
-        image_urls = []
-        for sibling in data.get("siblings", []):
-            name = sibling.get("rfilename", "")
-            ext = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
-            if ext in IMAGE_EXTENSIONS:
-                image_urls.append(f"{_BASE}/{source_id}/resolve/main/{name}")
-            if len(image_urls) >= 5:
-                break
+        image_urls = _image_urls_from_siblings(source_id, data)
         card_data = data.get("cardData") or {}
         description = card_data.get("description", "") or ""
         readme_html = await self.get_readme(source_id)
