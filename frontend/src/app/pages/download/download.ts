@@ -1,4 +1,4 @@
-import { Component, signal, inject, computed, DestroyRef } from '@angular/core';
+import { Component, signal, inject, computed, DestroyRef, WritableSignal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -129,60 +129,77 @@ export class Download {
   linkCivitaiFileBaseModels = signal<Record<string, string>>({});
   linkBaseModel = signal('');
 
+  // All per-row "type"/"base-model" overrides are keyed maps with a default; these two
+  // helpers carry the read/update logic so each accessor below stays a one-line binding.
+  private readOverride<T>(map: WritableSignal<Record<string, T>>, key: string, fallback: T): T {
+    return map()[key] ?? fallback;
+  }
+  private writeOverride<T>(map: WritableSignal<Record<string, T>>, key: string, value: T): void {
+    map.update((m) => ({ ...m, [key]: value }));
+  }
+
+  private fileKey(versionId: number, file: CivitaiFile): string {
+    return `${versionId}_${file.id}`;
+  }
+
   hfRowType(name: string): ModelType {
-    return this.hfRowTypes()[name] ?? 'checkpoints';
+    return this.readOverride(this.hfRowTypes, name, 'checkpoints');
   }
   setHfRowType(name: string, t: ModelType) {
-    this.hfRowTypes.update((m) => ({ ...m, [name]: t }));
+    this.writeOverride(this.hfRowTypes, name, t);
   }
 
   linkHfRowType(name: string): ModelType {
-    return this.linkHfRowTypes()[name] ?? 'checkpoints';
+    return this.readOverride(this.linkHfRowTypes, name, 'checkpoints');
   }
   setLinkHfRowType(name: string, t: ModelType) {
-    this.linkHfRowTypes.update((m) => ({ ...m, [name]: t }));
+    this.writeOverride(this.linkHfRowTypes, name, t);
   }
 
   civitaiFileType(versionId: number, file: CivitaiFile): ModelType {
-    return this.civitaiFileTypes()[`${versionId}_${file.id}`] ?? 'checkpoints';
+    return this.readOverride(this.civitaiFileTypes, this.fileKey(versionId, file), 'checkpoints');
   }
   setCivitaiFileType(versionId: number, file: CivitaiFile, t: ModelType) {
-    this.civitaiFileTypes.update((m) => ({ ...m, [`${versionId}_${file.id}`]: t }));
+    this.writeOverride(this.civitaiFileTypes, this.fileKey(versionId, file), t);
   }
 
   linkCivitaiFileType(versionId: number, file: CivitaiFile): ModelType {
-    return this.linkCivitaiFileTypes()[`${versionId}_${file.id}`] ?? 'checkpoints';
+    return this.readOverride(
+      this.linkCivitaiFileTypes,
+      this.fileKey(versionId, file),
+      'checkpoints',
+    );
   }
   setLinkCivitaiFileType(versionId: number, file: CivitaiFile, t: ModelType) {
-    this.linkCivitaiFileTypes.update((m) => ({ ...m, [`${versionId}_${file.id}`]: t }));
+    this.writeOverride(this.linkCivitaiFileTypes, this.fileKey(versionId, file), t);
   }
 
   hfRowBaseModel(name: string): string {
-    return this.hfRowBaseModels()[name] ?? '';
+    return this.readOverride(this.hfRowBaseModels, name, '');
   }
   setHfRowBaseModel(name: string, v: string) {
-    this.hfRowBaseModels.update((m) => ({ ...m, [name]: v }));
+    this.writeOverride(this.hfRowBaseModels, name, v);
   }
 
   linkHfRowBaseModel(name: string): string {
-    return this.linkHfRowBaseModels()[name] ?? '';
+    return this.readOverride(this.linkHfRowBaseModels, name, '');
   }
   setLinkHfRowBaseModel(name: string, v: string) {
-    this.linkHfRowBaseModels.update((m) => ({ ...m, [name]: v }));
+    this.writeOverride(this.linkHfRowBaseModels, name, v);
   }
 
   civitaiFileBaseModel(versionId: number, file: CivitaiFile): string {
-    return this.civitaiFileBaseModels()[`${versionId}_${file.id}`] ?? '';
+    return this.readOverride(this.civitaiFileBaseModels, this.fileKey(versionId, file), '');
   }
   setCivitaiFileBaseModel(versionId: number, file: CivitaiFile, v: string) {
-    this.civitaiFileBaseModels.update((m) => ({ ...m, [`${versionId}_${file.id}`]: v }));
+    this.writeOverride(this.civitaiFileBaseModels, this.fileKey(versionId, file), v);
   }
 
   linkCivitaiFileBaseModel(versionId: number, file: CivitaiFile): string {
-    return this.linkCivitaiFileBaseModels()[`${versionId}_${file.id}`] ?? '';
+    return this.readOverride(this.linkCivitaiFileBaseModels, this.fileKey(versionId, file), '');
   }
   setLinkCivitaiFileBaseModel(versionId: number, file: CivitaiFile, v: string) {
-    this.linkCivitaiFileBaseModels.update((m) => ({ ...m, [`${versionId}_${file.id}`]: v }));
+    this.writeOverride(this.linkCivitaiFileBaseModels, this.fileKey(versionId, file), v);
   }
 
   private detect(filename: string) {
