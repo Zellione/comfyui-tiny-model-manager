@@ -5,7 +5,7 @@ import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { CatalogDetail } from './catalog-detail';
 import { ModelService, CatalogEntryDetail, InstalledFile } from '../../services/model';
-import { DownloadService } from '../../services/download';
+import { DownloadService, DownloadTask } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
 import { KeywordsService } from '../../services/keywords';
@@ -307,6 +307,126 @@ describe('CatalogDetail component', () => {
     fixture.componentInstance.enterEdit();
     fixture.componentInstance.save();
     expect(mockModelService.updateMetadata).not.toHaveBeenCalled();
+  });
+
+  it('save() shows error notification on failure', async () => {
+    mockModelService.updateCatalogMetadata.mockReturnValue(
+      throwError(() => new Error('save failed')),
+    );
+    const fixture = await createFixture();
+    fixture.componentInstance.enterEdit();
+    fixture.componentInstance.save();
+    expect(mockNotifService.show).toHaveBeenCalledWith('error', 'save failed');
+  });
+
+  it('sourceName returns generic source for unknown platform', async () => {
+    const fixture = await createFixture('unknown_platform', '999');
+    expect(fixture.componentInstance.sourceName()).toBe('source');
+  });
+
+  it('refetch() shows error notification on failure', async () => {
+    mockModelService.refetchCatalog.mockReturnValue(throwError(() => new Error('network error')));
+    const fixture = await createFixture();
+    fixture.componentInstance.refetch();
+    expect(mockNotifService.show).toHaveBeenCalledWith('error', 'network error');
+    expect(fixture.componentInstance.refetching()).toBe(false);
+  });
+
+  it('removeFromCatalog() shows error notification on failure', async () => {
+    mockModelService.removeCatalogEntry.mockReturnValue(
+      throwError(() => new Error('remove failed')),
+    );
+    const fixture = await createFixture();
+    fixture.componentInstance.removeFromCatalog();
+    expect(mockNotifService.show).toHaveBeenCalledWith('error', expect.any(String));
+    expect(fixture.componentInstance.removing()).toBe(false);
+  });
+
+  it('uninstallRepoFile() shows success and reloads on success', async () => {
+    mockModelService.deleteModel.mockReturnValue(of(undefined));
+    const fixture = await createFixture();
+    fixture.componentInstance.uninstallRepoFile(mockEntry.repo_files[0]);
+    expect(mockModelService.deleteModel).toHaveBeenCalled();
+    expect(mockNotifService.show).toHaveBeenCalledWith('success', expect.any(String));
+  });
+
+  it('uninstallRepoFile() shows error on failure', async () => {
+    mockModelService.deleteModel.mockReturnValue(throwError(() => new Error('locked')));
+    const fixture = await createFixture();
+    fixture.componentInstance.uninstallRepoFile(mockEntry.repo_files[0]);
+    expect(mockNotifService.show).toHaveBeenCalledWith('error', 'locked');
+    expect(fixture.componentInstance.deleting()).toBe(false);
+  });
+
+  it('addRepoFileToWorkflow() shows success notification', async () => {
+    mockWorkflowService.addToWorkflow.mockReturnValue(of(undefined));
+    const fixture = await createFixture();
+    fixture.componentInstance.addRepoFileToWorkflow(mockEntry.repo_files[0]);
+    expect(mockNotifService.show).toHaveBeenCalledWith('success', expect.any(String));
+  });
+
+  it('addRepoFileToWorkflow() shows error notification on failure', async () => {
+    mockWorkflowService.addToWorkflow.mockReturnValue(throwError(() => new Error('fail')));
+    const fixture = await createFixture();
+    fixture.componentInstance.addRepoFileToWorkflow(mockEntry.repo_files[0]);
+    expect(mockNotifService.show).toHaveBeenCalledWith('error', expect.any(String));
+  });
+
+  it('downloadFile() shows success notification when download starts', async () => {
+    mockDownloadService.startDownload.mockReturnValue(of({}));
+    const fixture = await createFixture();
+    fixture.componentInstance.downloadFile(mockEntry.repo_files[0]);
+    expect(mockDownloadService.startDownload).toHaveBeenCalled();
+    expect(mockNotifService.show).toHaveBeenCalledWith('success', expect.any(String));
+  });
+
+  it('downloadFile() shows error notification on failure', async () => {
+    mockDownloadService.startDownload.mockReturnValue(throwError(() => new Error('dl failed')));
+    const fixture = await createFixture();
+    fixture.componentInstance.downloadFile(mockEntry.repo_files[0]);
+    expect(mockNotifService.show).toHaveBeenCalledWith('error', expect.any(String));
+  });
+
+  it('downloadFile() does nothing when file has no download_url', async () => {
+    const fixture = await createFixture();
+    fixture.componentInstance.downloadFile({ ...mockEntry.repo_files[0], download_url: '' });
+    expect(mockDownloadService.startDownload).not.toHaveBeenCalled();
+  });
+
+  it('activeTaskMap() maps task by filename', async () => {
+    const task: DownloadTask = {
+      id: 'task-1',
+      url: 'https://example.com/test.safetensors',
+      model_type: 'loras',
+      filename: 'test.safetensors',
+      platform: 'civitai',
+      source_id: '123',
+      status: 'downloading',
+      progress: 50,
+      downloaded_bytes: 512,
+      total_bytes: 1024,
+      error: null,
+      history_id: null,
+    };
+    mockDownloadService.activeTasks$ = of([
+      task,
+    ]) as unknown as typeof mockDownloadService.activeTasks$;
+    const fixture = await createFixture();
+    expect(fixture.componentInstance.activeTaskMap().get('test.safetensors')).toEqual(task);
+  });
+
+  it('loadRepoFiles() populates fileBaseModels for downloaded files', async () => {
+    const downloadedFile = {
+      ...mockEntry.repo_files[0],
+      is_downloaded: true,
+      base_model: 'SDXL 1.0',
+    };
+    mockModelService.getCatalogEntry.mockReturnValue(
+      of({ ...mockEntry, installed_files: [mockInstalledFile] }),
+    );
+    mockModelService.getRepoFiles.mockReturnValue(of([downloadedFile]));
+    const fixture = await createFixture();
+    expect(fixture.componentInstance.fileBaseModels()['test.safetensors']).toBe('SDXL 1.0');
   });
 });
 

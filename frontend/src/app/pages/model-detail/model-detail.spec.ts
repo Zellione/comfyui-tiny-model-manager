@@ -132,6 +132,7 @@ describe('ModelDetail', () => {
     component = fixture.componentInstance;
     router = TestBed.inject(Router);
     vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
     component.modelType = 'loras';
     component.modelPath = 'my-lora.safetensors';
     component.editType = 'loras';
@@ -655,6 +656,89 @@ describe('ModelDetail', () => {
       component.downloadFile(file);
       expect(component.downloadingFiles().has(file.filename)).toBe(false);
       expect(mockNotifService.show).toHaveBeenCalledWith('error', expect.any(String));
+    });
+  });
+
+  describe('addToWorkflow()', () => {
+    it('shows success notification on success', () => {
+      mockWorkflowService.addToWorkflow.mockReturnValueOnce(of(undefined));
+      component.addToWorkflow();
+      expect(mockNotifService.show).toHaveBeenCalledWith('success', expect.any(String));
+    });
+
+    it('shows error notification on failure', () => {
+      mockWorkflowService.addToWorkflow.mockReturnValueOnce(throwError(() => new Error('fail')));
+      component.addToWorkflow();
+      expect(mockNotifService.show).toHaveBeenCalledWith('error', expect.any(String));
+    });
+  });
+
+  describe('onModalCancelled()', () => {
+    it('closes the refetch modal', () => {
+      component.showRefetchModal.set(true);
+      component.onModalCancelled();
+      expect(component.showRefetchModal()).toBe(false);
+    });
+  });
+
+  describe('save() — error path', () => {
+    it('shows error notification and sets error signal on failure', () => {
+      mockModelService.updateMetadataWithPath.mockReturnValueOnce(
+        throwError(() => new Error('write failed')),
+      );
+      component.enterEdit();
+      component.save();
+      expect(mockNotifService.show).toHaveBeenCalledWith('error', 'write failed');
+      expect(component.error()).toBe('write failed');
+      expect(component.saving()).toBe(false);
+    });
+  });
+
+  describe('save() — type change', () => {
+    it('navigates to new URL when model type changes', () => {
+      mockModelService.moveModel.mockReturnValueOnce(of(undefined));
+      mockModelService.updateMetadataWithPath.mockReturnValueOnce(
+        of({ new_path: 'my-lora.safetensors' }),
+      );
+      component.editType = 'checkpoints';
+      component.enterEdit();
+      component.save();
+      expect(mockModelService.moveModel).toHaveBeenCalledWith(
+        'loras',
+        'my-lora.safetensors',
+        'checkpoints',
+      );
+      expect(router.navigateByUrl).toHaveBeenCalled();
+    });
+  });
+
+  describe('triggerRefetchPreview() — error path', () => {
+    it('shows error notification and sets error signal on failure', () => {
+      mockModelService.refetchPreview.mockReturnValueOnce(
+        throwError(() => new Error('fetch failed')),
+      );
+      component.triggerRefetchPreview();
+      expect(mockNotifService.show).toHaveBeenCalledWith('error', 'fetch failed');
+      expect(component.error()).toBe('fetch failed');
+      expect(component.refetching()).toBe(false);
+    });
+  });
+
+  describe('addFileToWorkflow() — error path', () => {
+    it('shows error notification on failure', () => {
+      mockWorkflowService.addToWorkflow.mockReturnValueOnce(throwError(() => new Error('fail')));
+      component.addFileToWorkflow(makeRepoFile({ is_downloaded: true }));
+      expect(mockNotifService.show).toHaveBeenCalledWith('error', expect.any(String));
+    });
+  });
+
+  describe('deleteFile() — error path', () => {
+    it('shows error notification on failure', () => {
+      mockModelService.deleteModel.mockReturnValueOnce(throwError(() => new Error('locked')));
+      component.deleteFile(
+        makeRepoFile({ is_downloaded: true, installed_path: 'companion.safetensors' }),
+      );
+      expect(mockNotifService.show).toHaveBeenCalledWith('error', 'locked');
     });
   });
 });

@@ -4,7 +4,7 @@ import { provideTranslateServiceForTests } from '../../../test-helpers/translate
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { Models } from './models';
-import { ModelService, CatalogEntry, CatalogListResponse } from '../../services/model';
+import { ModelFile, ModelService, CatalogEntry, CatalogListResponse } from '../../services/model';
 import { WorkflowService } from '../../services/workflow';
 import { SettingsService } from '../../services/settings';
 import { NotificationService } from '../../services/notification';
@@ -394,6 +394,360 @@ describe('Models component', () => {
       const c = await getComponent();
       await c.copyTriggerWords(makeEntry({ trigger_words: undefined }));
       expect(clipboardWriteText).toHaveBeenCalledWith('');
+    });
+  });
+
+  describe('filteredEntries() — base model filter', () => {
+    const makeEntry = (overrides: Partial<CatalogEntry>): CatalogEntry => ({
+      id: 1,
+      source_platform: 'civitai',
+      source_page_id: '1',
+      source_page_url: '',
+      display_name: 'A',
+      thumbnail_url: '',
+      base_model: 'SDXL',
+      created_at: '2024-01-01',
+      model_type: 'loras',
+      is_empty: false,
+      installed_files: [],
+      ...overrides,
+    });
+
+    it('filters out entries without a base_model when UNKNOWN_BASE_MODEL is selected', async () => {
+      const entries: CatalogEntry[] = [
+        makeEntry({ id: 1, base_model: 'SDXL' }),
+        makeEntry({ id: 2, base_model: '' }),
+      ];
+      mockModelService.listCatalog.mockReturnValue(of({ entries, unknown_files: {} }));
+      const fixture = await createFixture();
+      fixture.componentInstance.baseModelFilter.set('__unknown__');
+      expect(fixture.componentInstance.filteredEntries().length).toBe(1);
+      expect(fixture.componentInstance.filteredEntries()[0].id).toBe(2);
+    });
+
+    it('filters by specific base model', async () => {
+      const entries: CatalogEntry[] = [
+        makeEntry({ id: 1, base_model: 'SDXL' }),
+        makeEntry({ id: 2, base_model: 'Pony' }),
+      ];
+      mockModelService.listCatalog.mockReturnValue(of({ entries, unknown_files: {} }));
+      const fixture = await createFixture();
+      fixture.componentInstance.baseModelFilter.set('Pony');
+      expect(fixture.componentInstance.filteredEntries().length).toBe(1);
+      expect(fixture.componentInstance.filteredEntries()[0].id).toBe(2);
+    });
+
+    it('filters out entries without a source_platform when UNKNOWN_SOURCE is selected', async () => {
+      const entries: CatalogEntry[] = [
+        makeEntry({ id: 1, source_platform: 'civitai' }),
+        makeEntry({ id: 2, source_platform: '' }),
+      ];
+      mockModelService.listCatalog.mockReturnValue(of({ entries, unknown_files: {} }));
+      const fixture = await createFixture();
+      fixture.componentInstance.sourceFilter.set('__unknown_source__');
+      expect(fixture.componentInstance.filteredEntries().length).toBe(1);
+      expect(fixture.componentInstance.filteredEntries()[0].id).toBe(2);
+    });
+
+    it('filters by specific source platform', async () => {
+      const entries: CatalogEntry[] = [
+        makeEntry({ id: 1, source_platform: 'civitai' }),
+        makeEntry({ id: 2, source_platform: 'huggingface' }),
+      ];
+      mockModelService.listCatalog.mockReturnValue(of({ entries, unknown_files: {} }));
+      const fixture = await createFixture();
+      fixture.componentInstance.sourceFilter.set('huggingface');
+      expect(fixture.componentInstance.filteredEntries().length).toBe(1);
+      expect(fixture.componentInstance.filteredEntries()[0].id).toBe(2);
+    });
+
+    it('sorts by name-asc', async () => {
+      const entries: CatalogEntry[] = [
+        makeEntry({ id: 1, display_name: 'Zebra' }),
+        makeEntry({ id: 2, display_name: 'Alpha' }),
+      ];
+      mockModelService.listCatalog.mockReturnValue(of({ entries, unknown_files: {} }));
+      const fixture = await createFixture();
+      fixture.componentInstance.sortBy.set('name-asc');
+      const result = fixture.componentInstance.filteredEntries();
+      expect(result[0].display_name).toBe('Alpha');
+      expect(result[1].display_name).toBe('Zebra');
+    });
+
+    it('sorts by name-desc', async () => {
+      const entries: CatalogEntry[] = [
+        makeEntry({ id: 1, display_name: 'Alpha' }),
+        makeEntry({ id: 2, display_name: 'Zebra' }),
+      ];
+      mockModelService.listCatalog.mockReturnValue(of({ entries, unknown_files: {} }));
+      const fixture = await createFixture();
+      fixture.componentInstance.sortBy.set('name-desc');
+      const result = fixture.componentInstance.filteredEntries();
+      expect(result[0].display_name).toBe('Zebra');
+      expect(result[1].display_name).toBe('Alpha');
+    });
+
+    it('sorts by created-desc (newest first)', async () => {
+      const entries: CatalogEntry[] = [
+        makeEntry({ id: 1, display_name: 'Old', created_at: '2020-01-01' }),
+        makeEntry({ id: 2, display_name: 'New', created_at: '2024-01-01' }),
+      ];
+      mockModelService.listCatalog.mockReturnValue(of({ entries, unknown_files: {} }));
+      const fixture = await createFixture();
+      fixture.componentInstance.sortBy.set('created-desc');
+      const result = fixture.componentInstance.filteredEntries();
+      expect(result[0].display_name).toBe('New');
+    });
+
+    it('sorts by created-asc (oldest first)', async () => {
+      const entries: CatalogEntry[] = [
+        makeEntry({ id: 1, display_name: 'New', created_at: '2024-01-01' }),
+        makeEntry({ id: 2, display_name: 'Old', created_at: '2020-01-01' }),
+      ];
+      mockModelService.listCatalog.mockReturnValue(of({ entries, unknown_files: {} }));
+      const fixture = await createFixture();
+      fixture.componentInstance.sortBy.set('created-asc');
+      const result = fixture.componentInstance.filteredEntries();
+      expect(result[0].display_name).toBe('Old');
+    });
+  });
+
+  describe('clearAllFilters()', () => {
+    it('resets all filter signals to defaults', async () => {
+      const c = await getComponent();
+      c.baseModelFilter.set('SDXL');
+      c.formatFilter.set('safetensors');
+      c.sourceFilter.set('civitai');
+      c.tagFilter.set(['anime']);
+      c.tagInput.set('searching');
+      c.clearAllFilters();
+      expect(c.baseModelFilter()).toBe('');
+      expect(c.formatFilter()).toBe('');
+      expect(c.sourceFilter()).toBe('');
+      expect(c.tagFilter()).toEqual([]);
+      expect(c.tagInput()).toBe('');
+    });
+  });
+
+  describe('isPending()', () => {
+    it('returns true when filename is in pendingFilenames', async () => {
+      const c = await getComponent();
+      c.pendingFilenames.set(new Set(['models/my-lora.safetensors']));
+      expect(c.isPending('models/my-lora.safetensors')).toBe(true);
+    });
+
+    it('returns false when filename is not in pendingFilenames', async () => {
+      const c = await getComponent();
+      c.pendingFilenames.set(new Set());
+      expect(c.isPending('models/my-lora.safetensors')).toBe(false);
+    });
+  });
+
+  describe('basename()', () => {
+    it('extracts last path segment', async () => {
+      const c = await getComponent();
+      expect(c.basename('loras/sub/my-model.safetensors')).toBe('my-model.safetensors');
+    });
+
+    it('returns whole string for no-slash path', async () => {
+      const c = await getComponent();
+      expect(c.basename('model.safetensors')).toBe('model.safetensors');
+    });
+  });
+
+  describe('cardDetailRoute() fallback branches', () => {
+    it('routes to model-type page when entry has no source but has installed file', async () => {
+      const c = await getComponent();
+      const entry: CatalogEntry = {
+        id: 5,
+        source_platform: '',
+        source_page_id: '',
+        source_page_url: '',
+        display_name: 'Local Model',
+        thumbnail_url: '',
+        base_model: '',
+        created_at: '',
+        model_type: 'loras',
+        is_empty: false,
+        installed_files: [
+          {
+            filename: 'loras/local.safetensors',
+            model_type: 'loras',
+            size_bytes: 0,
+            modified_at: 0,
+          },
+        ],
+      };
+      expect(c.cardDetailRoute(entry)).toEqual(['/models', 'loras', 'loras/local.safetensors']);
+    });
+
+    it('falls back to /catalog when entry has no source and no installed files', async () => {
+      const c = await getComponent();
+      const entry: CatalogEntry = {
+        id: 6,
+        source_platform: '',
+        source_page_id: '',
+        source_page_url: '',
+        display_name: '',
+        thumbnail_url: '',
+        base_model: '',
+        created_at: '',
+        model_type: 'loras',
+        is_empty: true,
+        installed_files: [],
+      };
+      expect(c.cardDetailRoute(entry)).toEqual(['/catalog']);
+    });
+  });
+
+  describe('cardDetailQuery() null case', () => {
+    it('returns null when entry has no source platform', async () => {
+      const c = await getComponent();
+      const entry: CatalogEntry = {
+        id: 7,
+        source_platform: '',
+        source_page_id: '',
+        source_page_url: '',
+        display_name: '',
+        thumbnail_url: '',
+        base_model: '',
+        created_at: '',
+        model_type: 'loras',
+        is_empty: true,
+        installed_files: [],
+      };
+      expect(c.cardDetailQuery(entry)).toBeNull();
+    });
+  });
+
+  describe('catalogThumbnailUrl()', () => {
+    it('returns null for empty thumbnail_url', async () => {
+      const c = await getComponent();
+      const entry: CatalogEntry = {
+        id: 1,
+        source_platform: 'civitai',
+        source_page_id: '1',
+        source_page_url: '',
+        display_name: '',
+        thumbnail_url: '',
+        base_model: '',
+        created_at: '',
+        model_type: 'loras',
+        is_empty: false,
+        installed_files: [],
+      };
+      expect(c.catalogThumbnailUrl(entry)).toBeNull();
+    });
+
+    it('returns mediaUrl result for non-empty thumbnail_url', async () => {
+      const c = await getComponent();
+      const entry: CatalogEntry = {
+        id: 1,
+        source_platform: 'civitai',
+        source_page_id: '1',
+        source_page_url: '',
+        display_name: '',
+        thumbnail_url: '/media/thumb.jpg',
+        base_model: '',
+        created_at: '',
+        model_type: 'loras',
+        is_empty: false,
+        installed_files: [],
+      };
+      expect(c.catalogThumbnailUrl(entry)).toContain('thumb.jpg');
+    });
+  });
+
+  describe('unknownThumbnailUrl()', () => {
+    it('returns null when meta has no media', async () => {
+      const c = await getComponent();
+      expect(
+        c.unknownThumbnailUrl({
+          description: '',
+          trigger_words: [],
+          tags: [],
+          media: [],
+          base_model: '',
+          source_platform: '',
+          source_url: '',
+          size_bytes: 0,
+        }),
+      ).toBeNull();
+    });
+
+    it('returns mediaUrl for first image media item', async () => {
+      const c = await getComponent();
+      const meta = {
+        description: '',
+        trigger_words: [],
+        tags: [],
+        media: [{ id: 1, media_type: 'image', local_path: '/m/preview.jpg' }],
+        base_model: '',
+        source_platform: '',
+        source_url: '',
+        size_bytes: 0,
+      };
+      expect(c.unknownThumbnailUrl(meta)).toContain('preview.jpg');
+    });
+
+    it('returns null when meta is undefined', async () => {
+      const c = await getComponent();
+      expect(c.unknownThumbnailUrl(undefined)).toBeNull();
+    });
+  });
+
+  describe('addToWorkflow()', () => {
+    it('shows success notification after enqueueing', async () => {
+      mockWorkflowService.addToWorkflow.mockReturnValue(of({}));
+      const c = await getComponent();
+      c.addToWorkflow('loras', 'my-lora.safetensors');
+      expect(mockNotifService.show).toHaveBeenCalledWith(
+        'success',
+        expect.stringContaining('queued'),
+      );
+    });
+
+    it('adds filename to queuedForWorkflow on success', async () => {
+      mockWorkflowService.addToWorkflow.mockReturnValue(of({}));
+      const c = await getComponent();
+      c.addToWorkflow('loras', 'my-lora.safetensors');
+      expect(c.queuedForWorkflow().has('my-lora.safetensors')).toBe(true);
+    });
+
+    it('shows error notification when enqueueing fails', async () => {
+      mockWorkflowService.addToWorkflow.mockReturnValue(throwError(() => new Error('fail')));
+      const c = await getComponent();
+      c.addToWorkflow('loras', 'my-lora.safetensors');
+      expect(mockNotifService.show).toHaveBeenCalledWith('error', expect.any(String));
+    });
+  });
+
+  describe('deleteUnknownModel()', () => {
+    const makeModelFile = (overrides: Partial<ModelFile> = {}): ModelFile => ({
+      filename: 'loras/my-lora.safetensors',
+      base_dir: 'loras',
+      size_bytes: 1024,
+      modified_at: 0,
+      ...overrides,
+    });
+
+    it('shows success notification and reloads after delete', async () => {
+      mockModelService.deleteModel.mockReturnValue(of(undefined));
+      const c = await getComponent();
+      const callsBefore = mockModelService.listCatalog.mock.calls.length;
+      c.deleteUnknownModel('loras', makeModelFile());
+      expect(mockNotifService.show).toHaveBeenCalledWith('success', expect.any(String));
+      expect(mockModelService.listCatalog.mock.calls.length).toBeGreaterThan(callsBefore);
+    });
+
+    it('shows error notification on delete failure', async () => {
+      mockModelService.deleteModel.mockReturnValue(throwError(() => new Error('disk full')));
+      const c = await getComponent();
+      c.deleteUnknownModel('loras', makeModelFile());
+      expect(mockNotifService.show).toHaveBeenCalledWith(
+        'error',
+        expect.stringContaining('disk full'),
+      );
     });
   });
 
