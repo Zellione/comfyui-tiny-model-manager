@@ -552,4 +552,34 @@ describe('PasteLink — link resolution pipe', () => {
     expect(c.linkError()).toBe('gone');
     expect(c.linkResolving()).toBe(false);
   });
+
+  it('pre-selects primary files and leaves non-primary files unselected when resolving a CivitAI model URL', async () => {
+    const optionalFile: CivitaiFile = {
+      ...mockCivitaiFile,
+      id: 2,
+      name: 'vae.safetensors',
+      primary: false,
+    };
+    const versions: CivitaiVersion[] = [
+      {
+        id: 10,
+        name: 'v1',
+        baseModel: 'SDXL 1.0',
+        downloadUrl: 'https://civitai.com/v1',
+        trainedWords: [],
+        images: [],
+        files: [mockCivitaiFile, optionalFile],
+      },
+    ];
+    mockCivitaiService.getVersions.mockReturnValue(of({ versions, model_type: 'checkpoints' }));
+    const fixture = await pipeFixture();
+    const c = fixture.componentInstance;
+
+    c.onPasteUrlChange('https://civitai.com/models/456');
+    vi.advanceTimersByTime(300);
+
+    expect(c.isLinkCivitaiFileSelected(10, mockCivitaiFile)).toBe(true);
+    expect(c.isLinkCivitaiFileSelected(10, optionalFile)).toBe(false);
+    expect(c.linkCivitaiSelectedCount()).toBe(1);
+  });
 });

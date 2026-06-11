@@ -640,6 +640,28 @@ describe('DownloadSearch — CivitAI selection and downloads', () => {
     expect(c.loadingVersions()).toBe(false);
   });
 
+  it('selectCivitai pre-selects primary files and leaves non-primary files unselected', async () => {
+    const nonPrimaryFile: CivitaiFile = {
+      ...mockCivitaiFile,
+      id: 102,
+      name: 'vae.safetensors',
+      primary: false,
+    };
+    const versions: CivitaiVersion[] = [
+      { ...richCivitaiModel().modelVersions[0], files: [mockCivitaiFile, nonPrimaryFile] },
+    ];
+    mockCivitaiService.getVersions.mockReturnValue(of({ versions, model_type: 'checkpoints' }));
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+
+    c.selectCivitai(richCivitaiModel());
+    await fixture.whenStable();
+
+    expect(c.isCivitaiFileSelected(70, mockCivitaiFile)).toBe(true);
+    expect(c.isCivitaiFileSelected(70, nonPrimaryFile)).toBe(false);
+    expect(c.selectedCivitaiCount()).toBe(1);
+  });
+
   it('toggleCivitaiFile selects then deselects a file', async () => {
     const c = (await createFixture()).componentInstance;
     expect(c.isCivitaiFileSelected(5, mockCivitaiFile)).toBe(false);

@@ -209,6 +209,10 @@ textarea {
   font-size: 0.75rem;
   background: var(--surface-hi);
   color: var(--text-2);
+
+  &--optional {
+    color: var(--text-3);
+  }
 }
 
 .progress-bar {

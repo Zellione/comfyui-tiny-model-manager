@@ -277,6 +277,15 @@ export class PasteLink {
     }
     this.linkCivitaiFileTypes.set(types);
     this.linkCivitaiFileBaseModels.set(baseModels);
+    const selection = new Map<string, { file: CivitaiFile; versionId: number }>();
+    for (const v of result.versions) {
+      for (const f of v.files) {
+        if (f.primary) {
+          selection.set(`${v.id}_${f.id}`, { file: f, versionId: v.id });
+        }
+      }
+    }
+    this.linkCivitaiSelected.set(selection);
   }
 
   private applyLinkResolution(result: LinkResolution | null): void {

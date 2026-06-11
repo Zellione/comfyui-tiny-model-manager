@@ -147,56 +147,59 @@
               }
             </div>
             @for (f of v.files; track f.id) {
-              @if (f.type === 'Model') {
-                <div class="version-row">
-                  <div class="version-row-top">
-                    <input
-                      type="checkbox"
-                      [checked]="isLinkCivitaiFileSelected(v.id, f)"
-                      (change)="toggleLinkCivitaiFile(v.id, f)"
-                      (click)="$event.stopPropagation()"
-                      (keydown)="$event.stopPropagation()"
-                    />
-                    <span>{{ f.name }}</span>
-                  </div>
-                  <div class="version-row-bottom">
-                    <div class="row-format">
-                      @if (f.metadata.format) {
-                        <span class="badge"
-                          >{{ f.metadata.format
-                          }}{{ f.metadata.fp ? ' · ' + f.metadata.fp : '' }}</span
-                        >
-                      }
-                    </div>
-                    <small>{{ formatSize(f.sizeKB * 1024) }}</small>
-                    <app-model-type-select
-                      [value]="linkCivitaiFileType(v.id, f)"
-                      (valueChange)="setLinkCivitaiFileType(v.id, f, $event)"
-                    />
-                    <app-base-model-select
-                      [value]="linkCivitaiFileBaseModel(v.id, f)"
-                      (valueChange)="setLinkCivitaiFileBaseModel(v.id, f, $event)"
-                    />
-                    @switch (fileStatus(f.name)) {
-                      @case ('installed') {
-                        <button class="btn-library">
-                          {{ 'paste_link.in_library' | translate }}
-                        </button>
-                      }
-                      @case ('downloading') {
-                        <button class="btn-primary" disabled>
-                          {{ 'paste_link.downloading' | translate }}
-                        </button>
-                      }
-                      @default {
-                        <button class="btn-primary" (click)="downloadLinkFile(f, v.id)">
-                          {{ 'paste_link.download' | translate }}
-                        </button>
-                      }
+              <div class="version-row">
+                <div class="version-row-top">
+                  <input
+                    type="checkbox"
+                    [checked]="isLinkCivitaiFileSelected(v.id, f)"
+                    (change)="toggleLinkCivitaiFile(v.id, f)"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="$event.stopPropagation()"
+                  />
+                  <span>{{ f.name }}</span>
+                  @if (!f.primary) {
+                    <span class="badge badge--optional">{{
+                      'paste_link.optional' | translate
+                    }}</span>
+                  }
+                </div>
+                <div class="version-row-bottom">
+                  <div class="row-format">
+                    @if (f.metadata?.format) {
+                      <span class="badge"
+                        >{{ f.metadata?.format
+                        }}{{ f.metadata?.fp ? ' · ' + f.metadata?.fp : '' }}</span
+                      >
                     }
                   </div>
+                  <small>{{ formatSize(f.sizeKB * 1024) }}</small>
+                  <app-model-type-select
+                    [value]="linkCivitaiFileType(v.id, f)"
+                    (valueChange)="setLinkCivitaiFileType(v.id, f, $event)"
+                  />
+                  <app-base-model-select
+                    [value]="linkCivitaiFileBaseModel(v.id, f)"
+                    (valueChange)="setLinkCivitaiFileBaseModel(v.id, f, $event)"
+                  />
+                  @switch (fileStatus(f.name)) {
+                    @case ('installed') {
+                      <button class="btn-library">
+                        {{ 'paste_link.in_library' | translate }}
+                      </button>
+                    }
+                    @case ('downloading') {
+                      <button class="btn-primary" disabled>
+                        {{ 'paste_link.downloading' | translate }}
+                      </button>
+                    }
+                    @default {
+                      <button class="btn-primary" (click)="downloadLinkFile(f, v.id)">
+                        {{ 'paste_link.download' | translate }}
+                      </button>
+                    }
+                  }
                 </div>
-              }
+              </div>
             }
           </div>
         }
