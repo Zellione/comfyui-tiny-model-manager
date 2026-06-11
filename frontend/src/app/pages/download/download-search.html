@@ -12,48 +12,52 @@
   <input
     [ngModel]="query()"
     (ngModelChange)="query.set($event)"
-    placeholder="Search models…"
+    [placeholder]="'download_search.placeholder' | translate"
     (keyup.enter)="search()"
   />
   @if (platform() === 'civitai') {
     <app-model-type-select [value]="modelType()" (valueChange)="modelType.set($event)" />
   }
   <button class="btn-primary" (click)="search()" [disabled]="searching()">
-    {{ searching() ? 'Searching…' : 'Search' }}
+    {{
+      searching()
+        ? ('download_search.searching' | translate)
+        : ('download_search.search' | translate)
+    }}
   </button>
 
   <div class="filter-row">
     @if (platform() === 'civitai') {
       <select [ngModel]="civitaiBaseModel()" (ngModelChange)="civitaiBaseModel.set($event)">
-        <option value="">All base models</option>
+        <option value="">{{ 'download_search.filter.all_base_models' | translate }}</option>
         @for (bm of civitaiBaseModelOptions; track bm) {
           <option [value]="bm">{{ bm }}</option>
         }
       </select>
       <select [ngModel]="civitaiSort()" (ngModelChange)="civitaiSort.set($event)">
-        <option value="">Default sort</option>
+        <option value="">{{ 'download_search.filter.default_sort' | translate }}</option>
         @for (o of civitaiSortOptions; track o.value) {
-          <option [value]="o.value">{{ o.label }}</option>
+          <option [value]="o.value">{{ o.label | translate }}</option>
         }
       </select>
       @if (civitaiSort()) {
         <select [ngModel]="civitaiPeriod()" (ngModelChange)="civitaiPeriod.set($event)">
           @for (o of civitaiPeriodOptions; track o.value) {
-            <option [value]="o.value">{{ o.label }}</option>
+            <option [value]="o.value">{{ o.label | translate }}</option>
           }
         </select>
       }
     } @else {
       <select [ngModel]="hfSort()" (ngModelChange)="hfSort.set($event)">
         @for (o of hfSortOptions; track o.value) {
-          <option [value]="o.value">{{ o.label }}</option>
+          <option [value]="o.value">{{ o.label | translate }}</option>
         }
       </select>
     }
 
     <select [ngModel]="formatFilter()" (ngModelChange)="formatFilter.set($event)">
       @for (o of formatOptions; track o.value) {
-        <option [value]="o.value">{{ o.label }}</option>
+        <option [value]="o.value">{{ o.label | translate }}</option>
       }
     </select>
   </div>
@@ -63,7 +67,7 @@
       <div class="search-input">
         <input
           type="text"
-          placeholder="Filter by tag…"
+          [placeholder]="'download_search.filter.tag_placeholder' | translate"
           [value]="tagInput()"
           (input)="tagInput.set($any($event.target).value)"
           (keydown.enter)="addTagFromInput()"
@@ -79,8 +83,7 @@
   </div>
   @if (platform() === 'civitai' && tagFilter().length > 1) {
     <p class="tag-limit-hint">
-      CivitAI only supports one server-side tag filter. The first tag narrows the API results;
-      additional tags are applied locally.
+      {{ 'download_search.filter.tag_limit_hint' | translate }}
     </p>
   }
 </div>
@@ -89,27 +92,27 @@
 @if (searching()) {
   <div class="detail-empty">
     <div class="empty-icon">⟳</div>
-    <p>Searching…</p>
+    <p>{{ 'download_search.empty.searching' | translate }}</p>
   </div>
 } @else if (!hasSearched()) {
   <div class="detail-empty">
     <div class="empty-icon">🔍</div>
-    <p>Search for models above to get started.</p>
+    <p>{{ 'download_search.empty.get_started' | translate }}</p>
   </div>
 } @else if (searchError()) {
   <div class="detail-empty">
     <div class="empty-icon">⚠</div>
-    <p>Search failed: {{ searchError() }}</p>
+    <p>{{ 'download_search.error.search_failed' | translate: { error: searchError() } }}</p>
   </div>
 } @else if (platform() === 'civitai' && filteredCivitaiResults().length === 0) {
   <div class="detail-empty">
     <div class="empty-icon">∅</div>
-    <p>No results found. Try a different query or adjust your filters.</p>
+    <p>{{ 'download_search.empty.no_results' | translate }}</p>
   </div>
 } @else if (platform() === 'huggingface' && filteredHfResults().length === 0) {
   <div class="detail-empty">
     <div class="empty-icon">∅</div>
-    <p>No results found. Try a different query or adjust your filters.</p>
+    <p>{{ 'download_search.empty.no_results' | translate }}</p>
   </div>
 } @else {
   <div class="split-view">
@@ -196,13 +199,13 @@
         (click)="loadMore()"
       >
         @if (loadingMore()) {
-          Loading…
+          {{ 'download_search.load_more.loading' | translate }}
         } @else if (loadMoreError()) {
-          Failed
+          {{ 'download_search.load_more.failed' | translate }}
         } @else if (activeHasMore()) {
-          Load more
+          {{ 'download_search.load_more.load_more' | translate }}
         } @else {
-          No more results
+          {{ 'download_search.load_more.no_more' | translate }}
         }
       </button>
     </div>
@@ -229,7 +232,10 @@
               <span class="meta-author">by {{ model.creator.username }}</span>
             }
             @if (model.stats.downloadCount) {
-              <span class="meta-stat">{{ model.stats.downloadCount | number }} downloads</span>
+              <span class="meta-stat">{{
+                'download_search.detail.downloads_count'
+                  | translate: { count: model.stats.downloadCount }
+              }}</span>
             }
           </div>
         </div>
@@ -276,15 +282,20 @@
           <div class="detail-downloads">
             <div class="versions-section">
               <div class="versions-section-header">
-                <h3>Versions</h3>
+                <h3>{{ 'download_search.detail.versions' | translate }}</h3>
                 @if (selectedCivitaiCount() > 0) {
                   <button class="btn-primary" (click)="downloadSelectedCivitai()">
-                    Download selected ({{ selectedCivitaiCount() }})
+                    {{
+                      'download_search.detail.download_selected'
+                        | translate: { count: selectedCivitaiCount() }
+                    }}
                   </button>
                 }
               </div>
               @if (loadingVersions()) {
-                <p class="detail-loading">Loading versions…</p>
+                <p class="detail-loading">
+                  {{ 'download_search.detail.loading_versions' | translate }}
+                </p>
               } @else if (versionsError()) {
                 <p class="detail-error">{{ versionsError() }}</p>
               } @else {
@@ -329,14 +340,18 @@
                             />
                             @switch (fileStatus(f.name)) {
                               @case ('installed') {
-                                <button class="btn-library">In library</button>
+                                <button class="btn-library">
+                                  {{ 'download_search.detail.in_library' | translate }}
+                                </button>
                               }
                               @case ('downloading') {
-                                <button class="btn-primary" disabled>Downloading…</button>
+                                <button class="btn-primary" disabled>
+                                  {{ 'download_search.detail.downloading' | translate }}
+                                </button>
                               }
                               @default {
                                 <button class="btn-primary" (click)="downloadFile(f, v.id)">
-                                  Download
+                                  {{ 'download_search.detail.download' | translate }}
                                 </button>
                               }
                             }
@@ -356,7 +371,7 @@
         <!-- Full-width: tags, trigger words, description -->
         @if ((model.tags ?? []).length > 0) {
           <div class="chip-section">
-            <span class="chip-label">Tags</span>
+            <span class="chip-label">{{ 'download_search.detail.tags' | translate }}</span>
             <div class="chip-list">
               @for (tag of model.tags ?? []; track tag) {
                 <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
@@ -369,7 +384,7 @@
 
         @if (civitaiTriggerWords(model).length > 0) {
           <div class="chip-section">
-            <span class="chip-label">Trigger words</span>
+            <span class="chip-label">{{ 'download_search.detail.trigger_words' | translate }}</span>
             <div class="chip-list">
               @for (w of civitaiTriggerWords(model); track w) {
                 <span class="trigger-chip">{{ w }}</span>
@@ -394,7 +409,9 @@
             </a>
           </div>
           <div class="detail-meta-row">
-            <span class="meta-stat">{{ model.downloads | number }} downloads</span>
+            <span class="meta-stat">{{
+              'download_search.detail.downloads_count' | translate: { count: model.downloads }
+            }}</span>
             @for (fmt of model.formats ?? []; track fmt) {
               <span class="badge">{{ fmt }}</span>
             }
@@ -443,10 +460,12 @@
           <div class="detail-downloads">
             <div class="versions-section">
               <div class="versions-section-header">
-                <h3>Files</h3>
+                <h3>{{ 'download_search.detail.files' | translate }}</h3>
               </div>
               @if (hfFiles().length === 0) {
-                <p class="detail-loading">Loading files…</p>
+                <p class="detail-loading">
+                  {{ 'download_search.detail.loading_files' | translate }}
+                </p>
               } @else {
                 @for (f of hfFiles(); track f.filename) {
                   <div class="version-row">
@@ -466,13 +485,19 @@
                       />
                       @switch (fileStatus(f.filename)) {
                         @case ('installed') {
-                          <button class="btn-library">In library</button>
+                          <button class="btn-library">
+                            {{ 'download_search.detail.in_library' | translate }}
+                          </button>
                         }
                         @case ('downloading') {
-                          <button class="btn-primary" disabled>Downloading…</button>
+                          <button class="btn-primary" disabled>
+                            {{ 'download_search.detail.downloading' | translate }}
+                          </button>
                         }
                         @default {
-                          <button class="btn-primary" (click)="downloadHf(f)">Download</button>
+                          <button class="btn-primary" (click)="downloadHf(f)">
+                            {{ 'download_search.detail.download' | translate }}
+                          </button>
                         }
                       }
                     </div>
@@ -487,7 +512,7 @@
 
         @if (model.tags.length > 0) {
           <div class="chip-section">
-            <span class="chip-label">Tags</span>
+            <span class="chip-label">{{ 'download_search.detail.tags' | translate }}</span>
             <div class="chip-list">
               @for (tag of model.tags; track tag) {
                 <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
@@ -499,7 +524,9 @@
         }
 
         @if (hfDescriptionLoading()) {
-          <p class="detail-loading">Loading description…</p>
+          <p class="detail-loading">
+            {{ 'download_search.detail.loading_description' | translate }}
+          </p>
         } @else if (hfDescription()) {
           <div class="detail-desc" [innerHTML]="hfDescription() | safeHtml"></div>
         }

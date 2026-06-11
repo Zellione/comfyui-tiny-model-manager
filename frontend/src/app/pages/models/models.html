@@ -1,16 +1,20 @@
 <div class="page">
   <div class="page-head">
     <div>
-      <h1 class="page-title">Installed Models</h1>
+      <h1 class="page-title">{{ 'models.title' | translate }}</h1>
     </div>
     <div class="page-head-actions">
-      <button class="btn-secondary btn-small" (click)="load()">Rescan</button>
+      <button class="btn-secondary btn-small" (click)="load()">
+        {{ 'models.rescan' | translate }}
+      </button>
       @if (organizeEnabled()) {
         <app-confirm-popover
-          question="Reorganize all installed models into base-model subfolders?"
+          [question]="'models.reorganize_question' | translate"
           (confirmed)="organizeIntoSubfolders()"
         >
-          <button class="btn-secondary btn-small">Organize into subfolders</button>
+          <button class="btn-secondary btn-small">
+            {{ 'models.organize_subfolders' | translate }}
+          </button>
         </app-confirm-popover>
       }
     </div>
@@ -20,13 +24,13 @@
     <div class="filterbar">
       <!-- Filter chips -->
       <div class="filter">
-        <span class="filter-label">Base</span>
+        <span class="filter-label">{{ 'models.filter_base' | translate }}</span>
         <select
           [value]="baseModelFilter()"
           (change)="baseModelFilter.set($any($event.target).value)"
         >
-          <option value="">All</option>
-          <option value="__unknown__">Unknown</option>
+          <option value="">{{ 'models.filter_all' | translate }}</option>
+          <option value="__unknown__">{{ 'models.filter_unknown' | translate }}</option>
           @for (bm of availableBaseModels(); track bm) {
             <option [value]="bm">{{ bm }}</option>
           }
@@ -35,20 +39,20 @@
       </div>
 
       <div class="filter">
-        <span class="filter-label">Source</span>
+        <span class="filter-label">{{ 'models.filter_source' | translate }}</span>
         <select [value]="sourceFilter()" (change)="sourceFilter.set($any($event.target).value)">
           @for (opt of sourceOptions; track opt.value) {
-            <option [value]="opt.value">{{ opt.label }}</option>
+            <option [value]="opt.value">{{ opt.label | translate }}</option>
           }
         </select>
         <span class="filter-chev">▾</span>
       </div>
 
       <div class="filter">
-        <span class="filter-label">Sort</span>
+        <span class="filter-label">{{ 'models.filter_sort' | translate }}</span>
         <select [value]="sortBy()" (change)="sortBy.set($any($event.target).value)">
           @for (opt of sortOptions; track opt.value) {
-            <option [value]="opt.value">{{ opt.label }}</option>
+            <option [value]="opt.value">{{ opt.label | translate }}</option>
           }
         </select>
         <span class="filter-chev">▾</span>
@@ -61,25 +65,27 @@
           [checked]="showEmpty()"
           (change)="showEmpty.set($any($event.target).checked)"
         />
-        <span>Show empty</span>
+        <span>{{ 'models.filter_show_empty' | translate }}</span>
       </label>
 
       <button class="btn-clear" [disabled]="!hasActiveFilters()" (click)="clearAllFilters()">
-        Reset
+        {{ 'models.filter_reset' | translate }}
       </button>
     </div>
   }
 
   @if (loading()) {
-    <p class="state-msg">Loading…</p>
+    <p class="state-msg">{{ 'models.loading' | translate }}</p>
   } @else if (error()) {
     <p class="state-msg error">{{ error() }}</p>
   } @else if (!hasAnyContent()) {
-    <p class="state-msg">No models found.</p>
+    <p class="state-msg">{{ 'models.no_models' | translate }}</p>
   } @else if (filteredTypeKeys().length === 0 && unknownTypeKeys().length === 0) {
     <p class="state-msg">
-      No models match the current filters.
-      <button class="btn-link" (click)="clearAllFilters()">Reset filters</button>
+      {{ 'models.no_match' | translate }}
+      <button class="btn-link" (click)="clearAllFilters()">
+        {{ 'models.reset_filters' | translate }}
+      </button>
     </p>
   } @else {
     <!-- Catalog entry cards by type -->
@@ -111,7 +117,7 @@
                   </div>
                 }
                 @if (entry.is_empty) {
-                  <div class="card-empty-badge">No files</div>
+                  <div class="card-empty-badge">{{ 'models.no_files_badge' | translate }}</div>
                 }
               </div>
 
@@ -121,9 +127,11 @@
                 </div>
                 <div class="card-meta">
                   @if (entry.is_empty) {
-                    <span class="empty-label">Not downloaded</span>
+                    <span class="empty-label">{{ 'models.not_downloaded' | translate }}</span>
                   } @else {
-                    <span>{{ entryFileCount(entry) }} file(s)</span>
+                    <span>{{
+                      'models.files_count' | translate: { count: entryFileCount(entry) }
+                    }}</span>
                   }
                   @if (entry.base_model) {
                     <span class="dot"></span>
@@ -137,7 +145,7 @@
                       class="card-action"
                       [routerLink]="cardDetailRoute(entry)"
                       [queryParams]="cardDetailQuery(entry)"
-                      title="View details"
+                      [title]="'models.view_details' | translate"
                     >
                       <svg
                         width="13"
@@ -158,7 +166,7 @@
                     <button
                       class="card-action"
                       (click)="copyTriggerWords(entry)"
-                      title="Copy trigger words"
+                      [title]="'models.copy_trigger_words' | translate"
                     >
                       <svg
                         width="13"
@@ -188,7 +196,9 @@
       @for (type of unknownTypeKeys(); track type) {
         <section class="type-section">
           <div class="section-head">
-            <h2>{{ type }} <span class="unknown-badge">Unknown</span></h2>
+            <h2>
+              {{ type }} <span class="unknown-badge">{{ 'models.unknown_badge' | translate }}</span>
+            </h2>
             <span class="section-count">{{ unknownFiles()[type].length }}</span>
             <div class="rule"></div>
           </div>
@@ -198,7 +208,7 @@
               <div class="model-card" [class.queued]="isPending(file.filename)">
                 <div class="card-media">
                   @if (isPending(file.filename)) {
-                    <div class="queue-overlay" aria-label="Processing…">
+                    <div class="queue-overlay" [attr.aria-label]="'models.processing' | translate">
                       <span class="queue-spinner"></span>
                     </div>
                   }
@@ -227,7 +237,7 @@
                     <a
                       class="card-action"
                       [routerLink]="['/models', type, file.filename]"
-                      title="View details"
+                      [title]="'models.view_details' | translate"
                     >
                       <svg
                         width="13"
@@ -244,7 +254,7 @@
                       </svg>
                     </a>
                     <app-confirm-popover
-                      [question]="'Delete ' + file.filename + '?'"
+                      [question]="'models.delete_question' | translate: { filename: file.filename }"
                       (confirmed)="deleteUnknownModel(type, file)"
                     >
                       <button class="card-action danger" title="Delete">

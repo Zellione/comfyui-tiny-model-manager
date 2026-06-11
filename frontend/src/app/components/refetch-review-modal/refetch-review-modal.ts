@@ -12,6 +12,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
+import { TranslatePipe } from '@ngx-translate/core';
 import { interval } from 'rxjs';
 import {
   ModelMeta,
@@ -25,7 +26,7 @@ import { ImageGalleryCompare } from '../image-gallery-compare/image-gallery-comp
 
 @Component({
   selector: 'app-refetch-review-modal',
-  imports: [CommonModule, TextDiffField, ArrayFieldMerge, ImageGalleryCompare],
+  imports: [CommonModule, TextDiffField, ArrayFieldMerge, ImageGalleryCompare, TranslatePipe],
   templateUrl: './refetch-review-modal.html',
   styleUrl: './refetch-review-modal.scss',
 })

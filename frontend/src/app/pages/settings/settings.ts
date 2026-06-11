@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { KeywordsService } from '../../services/keywords';
 import { FilenameKeyword } from '../../utils/filename-detector';
 import { MODEL_TYPES, ModelType } from '../../utils/model-types';
@@ -8,13 +9,14 @@ import { NotificationService } from '../../services/notification';
 
 @Component({
   selector: 'app-settings',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslatePipe],
   templateUrl: './settings.html',
   styleUrl: './settings.scss',
 })
 export class Settings implements OnInit {
   private readonly keywordsService = inject(KeywordsService);
   private readonly notifService = inject(NotificationService);
+  private readonly translate = inject(TranslateService);
 
   readonly modelTypes = MODEL_TYPES;
 
@@ -46,7 +48,7 @@ export class Settings implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.error.set('Failed to load keywords');
+        this.error.set(this.translate.instant('settings.keywords.error_load'));
         this.loading.set(false);
       },
     });
@@ -83,7 +85,7 @@ export class Settings implements OnInit {
         },
         error: () => {
           this.saving.set(false);
-          this.notifService.show('error', 'Failed to save keyword');
+          this.notifService.show('error', this.translate.instant('settings.keywords.error_save'));
         },
       });
   }
@@ -108,7 +110,7 @@ export class Settings implements OnInit {
         },
         error: () => {
           this.adding.set(false);
-          this.notifService.show('error', 'Failed to add keyword');
+          this.notifService.show('error', this.translate.instant('settings.keywords.error_add'));
         },
       });
   }
@@ -116,7 +118,8 @@ export class Settings implements OnInit {
   deleteKeyword(id: number) {
     this.keywordsService.deleteKeyword(id).subscribe({
       next: () => this.load(),
-      error: () => this.notifService.show('error', 'Failed to delete keyword'),
+      error: () =>
+        this.notifService.show('error', this.translate.instant('settings.keywords.error_delete')),
     });
   }
 }

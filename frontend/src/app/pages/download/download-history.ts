@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { toSignal, toObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { skip, debounceTime, pairwise, catchError, of } from 'rxjs';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { DownloadService, DownloadTask, DownloadHistoryEntry } from '../../services/download';
 import { NotificationService } from '../../services/notification';
 import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover';
@@ -15,7 +16,7 @@ import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover
  */
 @Component({
   selector: 'app-download-history',
-  imports: [CommonModule, FormsModule, ConfirmPopover],
+  imports: [CommonModule, FormsModule, ConfirmPopover, TranslatePipe],
   templateUrl: './download-history.html',
   styleUrl: './download-history.scss',
 })
@@ -23,6 +24,15 @@ export class DownloadHistory {
   private readonly dlService = inject(DownloadService);
   private readonly notifService = inject(NotificationService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly translate = inject(TranslateService);
+
+  readonly historyStatusOptions = [
+    { label: 'download_history.status.all', value: '' },
+    { label: 'download_history.status.done', value: 'done' },
+    { label: 'download_history.status.error', value: 'error' },
+    { label: 'download_history.status.cancelled', value: 'cancelled' },
+    { label: 'download_history.status.deleted', value: 'deleted' },
+  ];
 
   /** Emitted when a redownload is enqueued so the parent can switch to the Active tab. */
   readonly switchToActive = output<void>();
@@ -100,7 +110,7 @@ export class DownloadHistory {
           this.historyLoading.set(false);
         },
         error: () => {
-          this.historyLoadMoreError.set('Failed to load history');
+          this.historyLoadMoreError.set(this.translate.instant('download_history.error.load_more'));
           this.historyLoading.set(false);
         },
       });
@@ -123,7 +133,12 @@ export class DownloadHistory {
             next.delete(entry.id);
             return next;
           });
-          this.notifService.show('success', `Redownload enqueued: ${entry.model_name}`);
+          this.notifService.show(
+            'success',
+            this.translate.instant('download_history.notify.redownload_queued', {
+              name: entry.model_name,
+            }),
+          );
           this.switchToActive.emit();
         },
         error: () => {
@@ -132,7 +147,12 @@ export class DownloadHistory {
             next.delete(entry.id);
             return next;
           });
-          this.notifService.show('error', `Failed to redownload: ${entry.model_name}`);
+          this.notifService.show(
+            'error',
+            this.translate.instant('download_history.notify.redownload_failed', {
+              name: entry.model_name,
+            }),
+          );
         },
       });
   }
@@ -155,14 +175,9 @@ export class DownloadHistory {
   }
 
   historyStatusLabel(status: DownloadHistoryEntry['status']): string {
-    const map: Record<string, string> = {
-      downloading: 'Downloading',
-      done: 'Done',
-      error: 'Error',
-      cancelled: 'Cancelled',
-      deleted: 'Deleted',
-    };
-    return map[status] ?? status;
+    const key = 'download_history.status.' + status;
+    const translated = this.translate.instant(key);
+    return translated === key ? status : translated;
   }
 
   canRedownload(status: DownloadHistoryEntry['status']): boolean {

@@ -1,9 +1,9 @@
 <div class="page">
   <!-- Header bar -->
   <div class="detail-back">
-    <a routerLink="/catalog" class="btn ghost">← Back to Catalog</a>
+    <a routerLink="/catalog" class="btn ghost">{{ 'catalog_detail.back' | translate }}</a>
     <span class="crumbs">
-      <span>Catalog</span>
+      <span>{{ 'catalog_detail.catalog' | translate }}</span>
       <span class="crumb-sep">/</span>
       <span>{{ sourceName() }}</span>
       <span class="crumb-sep">/</span>
@@ -11,25 +11,40 @@
     </span>
     <span class="spacer"></span>
     @if (entry() && !editMode()) {
-      <app-confirm-popover question="Re-fetch metadata from source?" (confirmed)="refetch()">
+      <app-confirm-popover
+        [question]="'catalog_detail.refetch_question' | translate"
+        (confirmed)="refetch()"
+      >
         <button class="btn ghost" [disabled]="refetching()">
-          {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
+          {{
+            refetching()
+              ? ('catalog_detail.refetching' | translate)
+              : ('catalog_detail.refetch' | translate)
+          }}
         </button>
       </app-confirm-popover>
-      <button class="btn ghost" (click)="enterEdit()">Edit</button>
+      <button class="btn ghost" (click)="enterEdit()">
+        {{ 'catalog_detail.edit' | translate }}
+      </button>
     }
     <app-confirm-popover
-      question="Remove from catalog? Stored media will be deleted but downloaded files are kept."
+      [question]="'catalog_detail.remove_question' | translate"
       (confirmed)="removeFromCatalog()"
     >
       <button class="btn danger-ghost" [disabled]="removing()">
-        {{ removing() ? 'Removing…' : 'Remove from Catalog' }}
+        {{
+          removing()
+            ? ('catalog_detail.removing' | translate)
+            : ('catalog_detail.remove' | translate)
+        }}
       </button>
     </app-confirm-popover>
   </div>
 
   @if (loading()) {
-    <div class="detail-card state-card"><p>Loading…</p></div>
+    <div class="detail-card state-card">
+      <p>{{ 'catalog_detail.loading' | translate }}</p>
+    </div>
   } @else if (error()) {
     <div class="detail-card state-card">
       <p class="error-msg">{{ error() }}</p>
@@ -54,7 +69,7 @@
             rel="noopener"
             class="dl-detail-source"
           >
-            View on {{ sourceName() }} ↗
+            {{ 'catalog_detail.view_on' | translate: { source: sourceName() } }}
           </a>
         }
       </div>
@@ -74,7 +89,7 @@
         <!-- Tags -->
         @if (displayTags().length > 0) {
           <div class="dl-tags">
-            <span class="dl-tags-label">Tags</span>
+            <span class="dl-tags-label">{{ 'catalog_detail.tags' | translate }}</span>
             @for (t of displayTags(); track t) {
               <span class="tag">{{ t }}</span>
             }
@@ -85,11 +100,15 @@
         <div class="detail-section">
           @if (displayTriggerWords().length > 0) {
             <div class="keywords-row">
-              <div class="keywords-label">Trigger keywords</div>
+              <div class="keywords-label">{{ 'catalog_detail.trigger_keywords' | translate }}</div>
               <div class="keywords-line">
                 <code>{{ displayTriggerWords().join(', ') }}</code>
                 <button class="btn small ghost keywords-copy" (click)="copyTriggerWords()">
-                  {{ copied() ? '✓ Copied' : 'Copy' }}
+                  {{
+                    copied()
+                      ? ('catalog_detail.copied' | translate)
+                      : ('catalog_detail.copy' | translate)
+                  }}
                 </button>
               </div>
               <div class="keywords-chips">
@@ -100,8 +119,8 @@
             </div>
           } @else {
             <div class="keywords-row empty">
-              <div class="keywords-label">Trigger keywords</div>
-              <div class="keywords-empty">No trigger words for this model</div>
+              <div class="keywords-label">{{ 'catalog_detail.trigger_keywords' | translate }}</div>
+              <div class="keywords-empty">{{ 'catalog_detail.no_trigger_words' | translate }}</div>
             </div>
           }
         </div>
@@ -110,10 +129,15 @@
         @if (entry()!.repo_files.length > 0) {
           <div class="section-label-wrap">
             <div class="section-label">
-              Files
-              <span class="section-sub"
-                >{{ downloadedFiles().length }} / {{ entry()!.repo_files.length }} downloaded</span
-              >
+              {{ 'catalog_detail.files' | translate }}
+              <span class="section-sub">{{
+                'catalog_detail.files_count'
+                  | translate
+                    : {
+                        downloaded: downloadedFiles().length,
+                        total: entry()!.repo_files.length,
+                      }
+              }}</span>
             </div>
           </div>
           <div class="iv-list">
@@ -134,7 +158,11 @@
                       [class.ok]="f.is_downloaded"
                       [class.missing]="!f.is_downloaded"
                     >
-                      {{ f.is_downloaded ? 'Downloaded' : 'Not downloaded' }}
+                      {{
+                        f.is_downloaded
+                          ? ('catalog_detail.downloaded' | translate)
+                          : ('catalog_detail.not_downloaded' | translate)
+                      }}
                     </span>
                   </div>
                   @if (repoFileFullSubLabel(f)) {
@@ -144,20 +172,20 @@
                 @if (f.is_downloaded) {
                   <div class="iv-row-actions">
                     <button class="btn small ghost" (click)="addRepoFileToWorkflow(f)">
-                      Add to Workflow
+                      {{ 'catalog_detail.add_to_workflow' | translate }}
                     </button>
                     <a
                       class="btn small ghost"
                       [routerLink]="modelDetailUrl(f.model_type, f.installed_path || f.filename)"
                     >
-                      Details
+                      {{ 'catalog_detail.details' | translate }}
                     </a>
                     <app-confirm-popover
-                      question="Uninstall from disk? This cannot be undone."
+                      [question]="'catalog_detail.uninstall_question' | translate"
                       (confirmed)="uninstallRepoFile(f)"
                     >
                       <button class="btn small danger-ghost" [disabled]="deleting()">
-                        Uninstall
+                        {{ 'catalog_detail.uninstall' | translate }}
                       </button>
                     </app-confirm-popover>
                   </div>
@@ -171,7 +199,7 @@
                       }
                       <span class="iv-progress-label" [class.error]="task.status === 'error'">
                         @if (task.status === 'queued') {
-                          Queued…
+                          {{ 'catalog_detail.queued' | translate }}
                         } @else if (task.status === 'downloading') {
                           {{ task.progress | number: '1.0-0' }}%
                           @if (task.total_bytes > 0) {
@@ -179,19 +207,21 @@
                             {{ formatBytes(task.total_bytes) }}
                           }
                         } @else if (task.status === 'done') {
-                          Done
+                          {{ 'catalog_detail.done' | translate }}
                         } @else if (task.status === 'error') {
-                          Failed
+                          {{ 'catalog_detail.failed' | translate }}
                         }
                       </span>
                     </div>
                   } @else if (finalizingFiles().has(f.filename)) {
-                    <span class="iv-progress-label processing">Processing…</span>
+                    <span class="iv-progress-label processing">{{
+                      'catalog_detail.processing' | translate
+                    }}</span>
                   } @else if (downloadingFiles().has(f.filename)) {
-                    <span class="iv-progress-label">Queued…</span>
+                    <span class="iv-progress-label">{{ 'catalog_detail.queued' | translate }}</span>
                   } @else {
                     <button class="btn small ghost iv-download-btn" (click)="downloadFile(f)">
-                      Download
+                      {{ 'catalog_detail.download' | translate }}
                     </button>
                   }
                 }
@@ -199,19 +229,21 @@
             }
           </div>
         } @else if (!entry()!.is_empty) {
-          <p class="state-note">No file listing available for this entry.</p>
+          <p class="state-note">{{ 'catalog_detail.no_file_listing' | translate }}</p>
         } @else {
           <p class="state-note">
-            No files downloaded yet. Use the
-            <a [href]="entry()!.source_page_url" target="_blank" rel="noopener">source page</a>
-            to find download links.
+            {{ 'catalog_detail.no_files_downloaded_prefix' | translate
+            }}<a [href]="entry()!.source_page_url" target="_blank" rel="noopener">{{
+              'catalog_detail.no_files_downloaded_link' | translate
+            }}</a
+            >{{ 'catalog_detail.no_files_downloaded_suffix' | translate }}
           </p>
         }
 
         <!-- Description -->
         @if (displayDescription()) {
           <div class="description">
-            <h3>About this model</h3>
+            <h3>{{ 'catalog_detail.about' | translate }}</h3>
             <div class="description-body" [innerHTML]="displayDescription() | safeHtml"></div>
           </div>
         }
@@ -219,7 +251,7 @@
         <!-- README -->
         @if (entry()!.readme_html) {
           <div class="description">
-            <h3>README</h3>
+            <h3>{{ 'catalog_detail.readme' | translate }}</h3>
             <div class="description-body" [innerHTML]="entry()!.readme_html | safeHtml"></div>
           </div>
         }
@@ -227,12 +259,12 @@
         <!-- Edit panel -->
         <div class="edit-panel">
           <label>
-            <span class="field-label">Description</span>
+            <span class="field-label">{{ 'catalog_detail.description' | translate }}</span>
             <textarea [(ngModel)]="editMeta.description" rows="6"></textarea>
           </label>
 
           <div class="field-group">
-            <span class="field-label">Base Model per file</span>
+            <span class="field-label">{{ 'catalog_detail.base_model_per_file' | translate }}</span>
             @if (editableFiles().length > 0) {
               @for (f of editableFiles(); track f.filename) {
                 <div class="edit-file-row">
@@ -245,7 +277,9 @@
                 </div>
               }
             } @else {
-              <p class="state-note">No downloaded files to assign a base model to.</p>
+              <p class="state-note">
+                {{ 'catalog_detail.no_downloaded_files_for_base' | translate }}
+              </p>
             }
           </div>
 

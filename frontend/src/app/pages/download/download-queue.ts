@@ -1,5 +1,6 @@
 import { Component, signal, inject, computed, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '@ngx-translate/core';
 import { toSignal, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, of } from 'rxjs';
 import { DownloadService, DownloadTask } from '../../services/download';
@@ -12,7 +13,7 @@ import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover
  */
 @Component({
   selector: 'app-download-queue',
-  imports: [CommonModule, ConfirmPopover],
+  imports: [CommonModule, ConfirmPopover, TranslatePipe],
   templateUrl: './download-queue.html',
   styleUrl: './download-queue.scss',
 })

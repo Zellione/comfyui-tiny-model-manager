@@ -12,6 +12,7 @@ import { isVideo } from '../../utils/media';
 import { ModelTypeSelect } from '../../components/model-type-select/model-type-select';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
 import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { NotificationService } from '../../services/notification';
 import { InstalledFilesService } from '../../services/installed-files';
 
@@ -25,7 +26,14 @@ type Platform = 'civitai' | 'huggingface';
  */
 @Component({
   selector: 'app-download-search',
-  imports: [CommonModule, FormsModule, ModelTypeSelect, BaseModelSelect, SafeHtmlPipe],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ModelTypeSelect,
+    BaseModelSelect,
+    SafeHtmlPipe,
+    TranslatePipe,
+  ],
   templateUrl: './download-search.html',
   styleUrl: './download-search.scss',
 })
@@ -35,33 +43,34 @@ export class DownloadSearch {
   private readonly notifService = inject(NotificationService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly installed = inject(InstalledFilesService);
+  private readonly translate = inject(TranslateService);
 
   readonly civitaiSortOptions = [
-    { label: 'Most Downloaded', value: 'Most Downloaded' },
-    { label: 'Highest Rated', value: 'Highest Rated' },
-    { label: 'Newest', value: 'Newest' },
+    { label: 'download_search.sort.most_downloaded', value: 'Most Downloaded' },
+    { label: 'download_search.sort.highest_rated', value: 'Highest Rated' },
+    { label: 'download_search.sort.newest', value: 'Newest' },
   ];
   readonly civitaiPeriodOptions = [
-    { label: 'All Time', value: 'AllTime' },
-    { label: 'Year', value: 'Year' },
-    { label: 'Month', value: 'Month' },
-    { label: 'Week', value: 'Week' },
-    { label: 'Day', value: 'Day' },
+    { label: 'download_search.period.all_time', value: 'AllTime' },
+    { label: 'download_search.period.year', value: 'Year' },
+    { label: 'download_search.period.month', value: 'Month' },
+    { label: 'download_search.period.week', value: 'Week' },
+    { label: 'download_search.period.day', value: 'Day' },
   ];
   readonly hfSortOptions = [
-    { label: 'Downloads', value: 'downloads' },
-    { label: 'Likes', value: 'likes' },
-    { label: 'Trending', value: 'trending' },
-    { label: 'Recently Updated', value: 'lastModified' },
-    { label: 'Recently Created', value: 'createdAt' },
+    { label: 'download_search.hf_sort.downloads', value: 'downloads' },
+    { label: 'download_search.hf_sort.likes', value: 'likes' },
+    { label: 'download_search.hf_sort.trending', value: 'trending' },
+    { label: 'download_search.hf_sort.recently_updated', value: 'lastModified' },
+    { label: 'download_search.hf_sort.recently_created', value: 'createdAt' },
   ];
   readonly formatOptions = [
-    { label: 'All formats', value: '' },
-    { label: '.safetensors', value: '.safetensors' },
-    { label: '.gguf', value: '.gguf' },
-    { label: '.ckpt', value: '.ckpt' },
-    { label: '.pt', value: '.pt' },
-    { label: '.bin', value: '.bin' },
+    { label: 'download_search.format.all', value: '' },
+    { label: 'download_search.format.safetensors', value: '.safetensors' },
+    { label: 'download_search.format.gguf', value: '.gguf' },
+    { label: 'download_search.format.ckpt', value: '.ckpt' },
+    { label: 'download_search.format.pt', value: '.pt' },
+    { label: 'download_search.format.bin', value: '.bin' },
   ];
   readonly civitaiBaseModelOptions = [
     'SD 1.5',
@@ -302,7 +311,7 @@ export class DownloadSearch {
         .subscribe({
           next: (r) => {
             if (r.items.length === 0 && !wasError) {
-              const msg = 'No results returned';
+              const msg = this.translate.instant('download_search.error.no_results');
               this.loadMoreError.set(msg);
               this.notifService.show('error', msg);
             } else {
@@ -313,7 +322,10 @@ export class DownloadSearch {
             this.loadingMore.set(false);
           },
           error: (err: HttpErrorResponse) => {
-            const msg = err.error?.error ?? err.message ?? 'Request failed';
+            const msg =
+              err.error?.error ??
+              err.message ??
+              this.translate.instant('download_search.error.request_failed');
             this.loadMoreError.set(msg);
             this.notifService.show('error', msg);
             this.loadingMore.set(false);
@@ -333,7 +345,7 @@ export class DownloadSearch {
         .subscribe({
           next: (r) => {
             if (r.items.length === 0 && !wasError) {
-              const msg = 'No results returned';
+              const msg = this.translate.instant('download_search.error.no_results');
               this.loadMoreError.set(msg);
               this.notifService.show('error', msg);
             } else {
@@ -344,7 +356,10 @@ export class DownloadSearch {
             this.loadingMore.set(false);
           },
           error: (err: HttpErrorResponse) => {
-            const msg = err.error?.error ?? err.message ?? 'Request failed';
+            const msg =
+              err.error?.error ??
+              err.message ??
+              this.translate.instant('download_search.error.request_failed');
             this.loadMoreError.set(msg);
             this.notifService.show('error', msg);
             this.loadingMore.set(false);
@@ -400,7 +415,9 @@ export class DownloadSearch {
       },
       error: (err) => {
         if (this.selectedModel()?.id !== targetId) return;
-        this.versionsError.set(err?.error?.error ?? 'Failed to load versions');
+        this.versionsError.set(
+          err?.error?.error ?? this.translate.instant('download_search.error.load_versions_failed'),
+        );
         this.loadingVersions.set(false);
       },
     });

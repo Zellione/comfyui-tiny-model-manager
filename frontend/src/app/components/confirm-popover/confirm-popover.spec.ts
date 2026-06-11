@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component } from '@angular/core';
+import { provideTranslateServiceForTests } from '../../../test-helpers/translate-testing';
 import { ConfirmPopover } from './confirm-popover';
 import { ConfirmPopoverService } from '../../services/confirm-popover.service';
 
@@ -32,6 +33,7 @@ describe('ConfirmPopover', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [TestHost],
+      providers: [provideTranslateServiceForTests()],
     }).compileComponents();
     fixture = TestBed.createComponent(TestHost);
     svc = TestBed.inject(ConfirmPopoverService);

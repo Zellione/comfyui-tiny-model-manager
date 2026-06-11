@@ -4,8 +4,12 @@
   <div class="cp-panel" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
     <span class="cp-question">{{ question() }}</span>
     <div class="cp-actions">
-      <button class="btn-secondary btn-small" (click)="onCancel($event)">Cancel</button>
-      <button class="btn-danger btn-small" (click)="onConfirm($event)">Confirm</button>
+      <button class="btn-secondary btn-small" (click)="onCancel($event)">
+        {{ 'confirm_popover.cancel' | translate }}
+      </button>
+      <button class="btn-danger btn-small" (click)="onConfirm($event)">
+        {{ 'confirm_popover.confirm' | translate }}
+      </button>
     </div>
   </div>
 }

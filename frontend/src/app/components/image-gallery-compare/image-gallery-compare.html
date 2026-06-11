@@ -1,9 +1,9 @@
 <div class="gallery-compare">
   <div class="gallery-strip-wrapper">
-    <div class="strip-header">Current images</div>
+    <div class="strip-header">{{ 'image_gallery.current' | translate }}</div>
     <div class="gallery-strip">
       @if (currentMedia().length === 0) {
-        <div class="strip-empty">No current images</div>
+        <div class="strip-empty">{{ 'image_gallery.no_current' | translate }}</div>
       }
       @for (item of currentMedia(); track item.id) {
         @if (item.media_type === 'image') {
@@ -14,7 +14,7 @@
               (change)="toggleExisting(item.local_path)"
             />
             <img [src]="mediaUrl(item.local_path)" alt="current" />
-            <span class="strip-label">Keep</span>
+            <span class="strip-label">{{ 'image_gallery.keep' | translate }}</span>
           </label>
         }
       }
@@ -22,10 +22,10 @@
   </div>
 
   <div class="gallery-strip-wrapper">
-    <div class="strip-header">Incoming images</div>
+    <div class="strip-header">{{ 'image_gallery.incoming' | translate }}</div>
     <div class="gallery-strip">
       @if (incomingUrls().length === 0) {
-        <div class="strip-empty">No incoming images</div>
+        <div class="strip-empty">{{ 'image_gallery.no_incoming' | translate }}</div>
       }
       @for (url of incomingUrls(); track url) {
         <label class="strip-item">
@@ -35,7 +35,7 @@
             (change)="toggleIncoming(url)"
           />
           <img [src]="url" alt="incoming" />
-          <span class="strip-label">Download</span>
+          <span class="strip-label">{{ 'image_gallery.download' | translate }}</span>
         </label>
       }
     </div>

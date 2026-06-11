@@ -1,6 +1,7 @@
 import { Component, OnInit, signal, inject, DestroyRef } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ToastComponent } from './components/toast/toast';
 import { NotificationService } from './services/notification';
 import { DownloadService } from './services/download';
@@ -8,7 +9,7 @@ import { BackendNotificationService } from './services/backend-notification';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, ToastComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, ToastComponent, TranslatePipe],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -19,6 +20,7 @@ export class App implements OnInit {
   private readonly dlService = inject(DownloadService);
   private readonly backendNotif = inject(BackendNotificationService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly translate = inject(TranslateService);
 
   ngOnInit() {
     this.backendNotif.start();
@@ -29,11 +31,22 @@ export class App implements OnInit {
 
     this.dlService.completedTasks$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((task) => {
       if (task.status === 'done') {
-        this.notifService.show('success', `Download complete: ${task.filename}`);
+        this.notifService.show(
+          'success',
+          this.translate.instant('app.download_complete', { filename: task.filename }),
+        );
+      } else if (task.error) {
+        this.notifService.show(
+          'error',
+          this.translate.instant('app.download_failed_with_error', {
+            filename: task.filename,
+            error: task.error,
+          }),
+        );
       } else {
         this.notifService.show(
           'error',
-          `Download failed: ${task.filename}${task.error ? ' — ' + task.error : ''}`,
+          this.translate.instant('app.download_failed', { filename: task.filename }),
         );
       }
     });

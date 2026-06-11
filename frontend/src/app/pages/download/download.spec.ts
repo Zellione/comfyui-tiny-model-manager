@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideTranslateServiceForTests } from '../../../test-helpers/translate-testing';
 import { of, EMPTY } from 'rxjs';
 import { vi } from 'vitest';
 import { Download } from './download';
@@ -52,6 +53,7 @@ async function createFixture() {
       { provide: ModelService, useValue: mockModelService },
       { provide: NotificationService, useValue: mockNotifService },
       { provide: KeywordsService, useValue: mockKeywordsService },
+      provideTranslateServiceForTests(),
     ],
   }).compileComponents();
   const fixture = TestBed.createComponent(Download);

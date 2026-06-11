@@ -1,11 +1,12 @@
 import { Component, effect, input, model } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '@ngx-translate/core';
 import { MediaItem } from '../../services/model';
 import { mediaUrl } from '../../utils/media';
 
 @Component({
   selector: 'app-image-gallery-compare',
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   templateUrl: './image-gallery-compare.html',
   styleUrl: './image-gallery-compare.scss',
 })

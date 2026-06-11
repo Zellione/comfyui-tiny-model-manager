@@ -1,11 +1,12 @@
 import { Component, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { TranslatePipe } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-edit-meta-form',
   templateUrl: './edit-meta-form.html',
   styleUrl: './edit-meta-form.scss',
-  imports: [FormsModule],
+  imports: [FormsModule, TranslatePipe],
 })
 export class EditMetaForm {
   readonly triggerWords = input<string[]>([]);

@@ -1,5 +1,6 @@
 import { Component, HostListener, computed, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '@ngx-translate/core';
 import { MediaItem } from '../../services/model';
 import { mediaUrl } from '../../utils/media';
 
@@ -13,7 +14,7 @@ import { mediaUrl } from '../../utils/media';
  */
 @Component({
   selector: 'app-media-gallery',
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   templateUrl: './media-gallery.html',
   styleUrl: './media-gallery.scss',
 })

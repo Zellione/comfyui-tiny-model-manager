@@ -1,13 +1,15 @@
 @if (displayTasks().length > 0) {
   <section class="active-downloads">
     <div class="active-downloads-header">
-      <h3>Active Downloads</h3>
+      <h3>{{ 'download_queue.title' | translate }}</h3>
       @if (hasCancellableTasks()) {
         <app-confirm-popover
-          [question]="'Cancel all ' + displayTasks().length + ' downloads?'"
+          [question]="
+            'download_queue.cancel_all_question' | translate: { count: displayTasks().length }
+          "
           (confirmed)="onCancelAll()"
         >
-          <button class="btn-secondary">Cancel all</button>
+          <button class="btn-secondary">{{ 'download_queue.cancel_all' | translate }}</button>
         </app-confirm-popover>
       }
     </div>
@@ -22,9 +24,16 @@
           <span class="pct">{{ activePct(task) }}</span>
         }
         @if (task.status !== 'done' && task.status !== 'error') {
-          <app-confirm-popover question="Cancel this download?" (confirmed)="onCancelTask(task.id)">
+          <app-confirm-popover
+            [question]="'download_queue.cancel_question' | translate"
+            (confirmed)="onCancelTask(task.id)"
+          >
             <button class="btn-secondary" [disabled]="cancellingIds().has(task.id)">
-              {{ cancellingIds().has(task.id) ? '…' : 'Cancel' }}
+              {{
+                cancellingIds().has(task.id)
+                  ? ('download_queue.cancelling' | translate)
+                  : ('download_queue.cancel' | translate)
+              }}
             </button>
           </app-confirm-popover>
         }

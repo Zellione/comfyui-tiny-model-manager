@@ -1,5 +1,5 @@
 <div class="field-group">
-  <span class="field-label">Trigger Words</span>
+  <span class="field-label">{{ 'edit_meta.trigger_words' | translate }}</span>
   <div class="chips">
     @for (w of triggerWords(); track w) {
       <span class="chip"
@@ -10,15 +10,17 @@
   <div class="add-row">
     <input
       [(ngModel)]="newTriggerWord"
-      placeholder="Add trigger word"
+      [placeholder]="'edit_meta.add_trigger_word_placeholder' | translate"
       (keyup.enter)="addTriggerWord()"
     />
-    <button type="button" class="btn small" (click)="addTriggerWord()">Add</button>
+    <button type="button" class="btn small" (click)="addTriggerWord()">
+      {{ 'edit_meta.add' | translate }}
+    </button>
   </div>
 </div>
 
 <div class="field-group">
-  <span class="field-label">Tags</span>
+  <span class="field-label">{{ 'edit_meta.tags' | translate }}</span>
   <div class="chips">
     @for (t of tags(); track t) {
       <span class="chip chip-tag"
@@ -27,8 +29,14 @@
     }
   </div>
   <div class="add-row">
-    <input [(ngModel)]="newTag" placeholder="Add tag" (keyup.enter)="addTag()" />
-    <button type="button" class="btn small" (click)="addTag()">Add</button>
+    <input
+      [(ngModel)]="newTag"
+      [placeholder]="'edit_meta.add_tag_placeholder' | translate"
+      (keyup.enter)="addTag()"
+    />
+    <button type="button" class="btn small" (click)="addTag()">
+      {{ 'edit_meta.add' | translate }}
+    </button>
   </div>
 </div>
 
@@ -36,10 +44,12 @@
 
 <div class="edit-actions">
   <button type="button" class="btn primary" (click)="saveClicked.emit()" [disabled]="saving()">
-    {{ saving() ? 'Saving…' : 'Save' }}
+    {{ saving() ? ('edit_meta.saving' | translate) : ('edit_meta.save' | translate) }}
   </button>
-  <button type="button" class="btn ghost" (click)="cancelClicked.emit()">Cancel</button>
+  <button type="button" class="btn ghost" (click)="cancelClicked.emit()">
+    {{ 'edit_meta.cancel' | translate }}
+  </button>
   <button type="button" class="btn ghost" (click)="refetchClicked.emit()" [disabled]="refetching()">
-    {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
+    {{ refetching() ? ('edit_meta.refetching' | translate) : ('edit_meta.refetch' | translate) }}
   </button>
 </div>

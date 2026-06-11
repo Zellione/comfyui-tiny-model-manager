@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { of } from 'rxjs';
 import { catchError, filter, switchMap } from 'rxjs/operators';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   ModelService,
   ModelMeta,
@@ -37,6 +38,7 @@ import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover
     RefetchReviewModal,
     MediaGallery,
     ConfirmPopover,
+    TranslatePipe,
   ],
   templateUrl: './model-detail.html',
   styleUrl: './model-detail.scss',
@@ -102,6 +104,7 @@ export class ModelDetail implements OnInit {
     private readonly downloadService: DownloadService,
     private readonly workflowService: WorkflowService,
     private readonly notifService: NotificationService,
+    private readonly translate: TranslateService,
   ) {}
 
   private detect(filename: string) {
@@ -216,7 +219,7 @@ export class ModelDetail implements OnInit {
       .subscribe({
         next: (result) => {
           this.saving.set(false);
-          this.notifService.show('success', 'Metadata saved.');
+          this.notifService.show('success', this.translate.instant('model_detail.notify.saved'));
           this.saveSiblingBaseModels();
           const newPath = result.new_path;
           if (typeChanged || newPath !== this.modelPath) {
@@ -252,7 +255,10 @@ export class ModelDetail implements OnInit {
       next: (res) => {
         this.refetching.set(false);
         if (res.removed) {
-          this.notifService.show('success', 'File no longer on disk — removed its stale entry.');
+          this.notifService.show(
+            'success',
+            this.translate.instant('model_detail.notify.stale_removed'),
+          );
           this.router.navigate(['/models']);
           return;
         }
@@ -282,7 +288,7 @@ export class ModelDetail implements OnInit {
     this.showRefetchModal.set(false);
     this.meta.set(meta);
     this.syncEditMeta(meta);
-    this.notifService.show('success', 'Metadata updated.');
+    this.notifService.show('success', this.translate.instant('model_detail.notify.updated'));
     this.loadRepoFiles();
   }
 
@@ -309,9 +315,10 @@ export class ModelDetail implements OnInit {
 
   addToWorkflow() {
     this.workflowService.addToWorkflow(this.modelType, this.modelPath).subscribe({
-      next: () => this.notifService.show('success', 'Model queued for workflow insertion.'),
+      next: () =>
+        this.notifService.show('success', this.translate.instant('model_detail.notify.queued')),
       error: () =>
-        this.notifService.show('error', 'Failed to enqueue model for workflow insertion.'),
+        this.notifService.show('error', this.translate.instant('model_detail.notify.queue_failed')),
     });
   }
 
@@ -319,7 +326,12 @@ export class ModelDetail implements OnInit {
     this.deleting.set(true);
     this.modelService.deleteModel(this.modelType, this.modelPath).subscribe({
       next: () => {
-        this.notifService.show('success', `${this.modelBasename} uninstalled.`);
+        this.notifService.show(
+          'success',
+          this.translate.instant('model_detail.notify.uninstalled', {
+            name: this.modelBasename,
+          }),
+        );
         this.router.navigate(['/models']);
       },
       error: (err) => {
@@ -337,7 +349,10 @@ export class ModelDetail implements OnInit {
     this.modelService.linkSource(this.modelType, this.modelPath, url).subscribe({
       next: () => {
         this.linking.set(false);
-        this.notifService.show('success', 'Source linked.');
+        this.notifService.show(
+          'success',
+          this.translate.instant('model_detail.notify.source_linked'),
+        );
         this.router.navigate(['/models']);
       },
       error: (err) => {
@@ -350,8 +365,16 @@ export class ModelDetail implements OnInit {
   addFileToWorkflow(file: RepoFile) {
     const path = file.installed_path || file.filename;
     this.workflowService.addToWorkflow(this.modelType, path).subscribe({
-      next: () => this.notifService.show('success', 'Queued for workflow insertion.'),
-      error: () => this.notifService.show('error', 'Failed to enqueue for workflow insertion.'),
+      next: () =>
+        this.notifService.show(
+          'success',
+          this.translate.instant('model_detail.notify.queued_short'),
+        ),
+      error: () =>
+        this.notifService.show(
+          'error',
+          this.translate.instant('model_detail.notify.queue_failed_short'),
+        ),
     });
   }
 
@@ -359,7 +382,12 @@ export class ModelDetail implements OnInit {
     const path = file.installed_path || file.filename;
     this.modelService.deleteModel(this.modelType, path).subscribe({
       next: () => {
-        this.notifService.show('success', `${file.filename} deleted.`);
+        this.notifService.show(
+          'success',
+          this.translate.instant('model_detail.notify.file_deleted', {
+            filename: file.filename,
+          }),
+        );
         this.loadRepoFiles();
       },
       error: (err) => this.notifService.show('error', (err as Error).message),
@@ -386,7 +414,12 @@ export class ModelDetail implements OnInit {
       .startDownload(file.download_url, this.modelType, destFilename, platform, sourceId, baseModel)
       .subscribe({
         next: () => {
-          this.notifService.show('success', `Downloading ${file.filename}…`);
+          this.notifService.show(
+            'success',
+            this.translate.instant('model_detail.notify.downloading', {
+              filename: file.filename,
+            }),
+          );
         },
         error: () => {
           this.downloadingFiles.update((s) => {
@@ -394,7 +427,12 @@ export class ModelDetail implements OnInit {
             next.delete(file.filename);
             return next;
           });
-          this.notifService.show('error', `Failed to start download for ${file.filename}`);
+          this.notifService.show(
+            'error',
+            this.translate.instant('model_detail.notify.download_failed', {
+              filename: file.filename,
+            }),
+          );
         },
       });
   }
@@ -405,9 +443,15 @@ export class ModelDetail implements OnInit {
       await navigator.clipboard.writeText(text);
       this.copied.set(true);
       setTimeout(() => this.copied.set(false), 1400);
-      this.notifService.show('success', 'Trigger words copied');
+      this.notifService.show(
+        'success',
+        this.translate.instant('model_detail.notify.trigger_copied'),
+      );
     } catch {
-      this.notifService.show('error', 'Could not copy trigger words');
+      this.notifService.show(
+        'error',
+        this.translate.instant('model_detail.notify.trigger_copy_failed'),
+      );
     }
   }
 

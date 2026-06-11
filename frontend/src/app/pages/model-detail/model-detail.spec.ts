@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import { provideTranslateServiceForTests } from '../../../test-helpers/translate-testing';
 import { EMPTY, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { ModelDetail } from './model-detail';
@@ -124,12 +125,14 @@ describe('ModelDetail', () => {
         { provide: WorkflowService, useValue: mockWorkflowService },
         { provide: NotificationService, useValue: mockNotifService },
         { provide: KeywordsService, useValue: mockKeywordsService },
+        provideTranslateServiceForTests(),
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(ModelDetail);
     component = fixture.componentInstance;
     router = TestBed.inject(Router);
     vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
     component.modelType = 'loras';
     component.modelPath = 'my-lora.safetensors';
     component.editType = 'loras';
@@ -653,6 +656,205 @@ describe('ModelDetail', () => {
       component.downloadFile(file);
       expect(component.downloadingFiles().has(file.filename)).toBe(false);
       expect(mockNotifService.show).toHaveBeenCalledWith('error', expect.any(String));
+    });
+  });
+
+  describe('addToWorkflow()', () => {
+    it('shows success notification on success', () => {
+      mockWorkflowService.addToWorkflow.mockReturnValueOnce(of(undefined));
+      component.addToWorkflow();
+      expect(mockNotifService.show).toHaveBeenCalledWith('success', expect.any(String));
+    });
+
+    it('shows error notification on failure', () => {
+      mockWorkflowService.addToWorkflow.mockReturnValueOnce(throwError(() => new Error('fail')));
+      component.addToWorkflow();
+      expect(mockNotifService.show).toHaveBeenCalledWith('error', expect.any(String));
+    });
+  });
+
+  describe('onModalCancelled()', () => {
+    it('closes the refetch modal', () => {
+      component.showRefetchModal.set(true);
+      component.onModalCancelled();
+      expect(component.showRefetchModal()).toBe(false);
+    });
+  });
+
+  describe('save() — error path', () => {
+    it('shows error notification and sets error signal on failure', () => {
+      mockModelService.updateMetadataWithPath.mockReturnValueOnce(
+        throwError(() => new Error('write failed')),
+      );
+      component.enterEdit();
+      component.save();
+      expect(mockNotifService.show).toHaveBeenCalledWith('error', 'write failed');
+      expect(component.error()).toBe('write failed');
+      expect(component.saving()).toBe(false);
+    });
+  });
+
+  describe('save() — type change', () => {
+    it('navigates to new URL when model type changes', () => {
+      mockModelService.moveModel.mockReturnValueOnce(of(undefined));
+      mockModelService.updateMetadataWithPath.mockReturnValueOnce(
+        of({ new_path: 'my-lora.safetensors' }),
+      );
+      component.editType = 'checkpoints';
+      component.enterEdit();
+      component.save();
+      expect(mockModelService.moveModel).toHaveBeenCalledWith(
+        'loras',
+        'my-lora.safetensors',
+        'checkpoints',
+      );
+      expect(router.navigateByUrl).toHaveBeenCalled();
+    });
+  });
+
+  describe('triggerRefetchPreview() — error path', () => {
+    it('shows error notification and sets error signal on failure', () => {
+      mockModelService.refetchPreview.mockReturnValueOnce(
+        throwError(() => new Error('fetch failed')),
+      );
+      component.triggerRefetchPreview();
+      expect(mockNotifService.show).toHaveBeenCalledWith('error', 'fetch failed');
+      expect(component.error()).toBe('fetch failed');
+      expect(component.refetching()).toBe(false);
+    });
+  });
+
+  describe('addFileToWorkflow() — error path', () => {
+    it('shows error notification on failure', () => {
+      mockWorkflowService.addToWorkflow.mockReturnValueOnce(throwError(() => new Error('fail')));
+      component.addFileToWorkflow(makeRepoFile({ is_downloaded: true }));
+      expect(mockNotifService.show).toHaveBeenCalledWith('error', expect.any(String));
+    });
+  });
+
+  describe('deleteFile() — error path', () => {
+    it('shows error notification on failure', () => {
+      mockModelService.deleteModel.mockReturnValueOnce(throwError(() => new Error('locked')));
+      component.deleteFile(
+        makeRepoFile({ is_downloaded: true, installed_path: 'companion.safetensors' }),
+      );
+      expect(mockNotifService.show).toHaveBeenCalledWith('error', 'locked');
+    });
+  });
+
+  describe('ngOnInit', () => {
+    it('calls getModelTypes and loadMeta', () => {
+      vi.clearAllMocks();
+      mockModelService.getModelTypes.mockReturnValue(of(['checkpoints', 'loras']));
+      mockModelService.getMetadata.mockReturnValue(of(makeMeta()));
+      mockModelService.getCatalogEntry.mockReturnValue(of(null));
+      mockModelService.getRepoFiles.mockReturnValue(of([]));
+      component.ngOnInit();
+      expect(mockModelService.getModelTypes).toHaveBeenCalled();
+      expect(mockModelService.getMetadata).toHaveBeenCalled();
+    });
+
+    it('sets modelTypes signal from service response', () => {
+      mockModelService.getModelTypes.mockReturnValue(of(['checkpoints', 'loras', 'vae']));
+      component.ngOnInit();
+      expect(component.modelTypes()).toEqual(['checkpoints', 'loras', 'vae']);
+    });
+  });
+
+  describe('loadMeta', () => {
+    it('fetches metadata, sets meta signal, and stops loading', () => {
+      component.loading.set(true);
+      component.loadMeta();
+      expect(component.meta()?.description).toBe('A test model');
+      expect(component.loading()).toBe(false);
+    });
+
+    it('sets error signal and stops loading on failure', () => {
+      mockModelService.getMetadata.mockReturnValueOnce(throwError(() => new Error('not found')));
+      component.loadMeta();
+      expect(component.error()).toBe('not found');
+      expect(component.loading()).toBe(false);
+    });
+
+    it('calls getCatalogEntry with extracted civitai page id', () => {
+      vi.clearAllMocks();
+      mockModelService.getMetadata.mockReturnValue(of(makeMeta()));
+      mockModelService.getCatalogEntry.mockReturnValue(of(null));
+      mockModelService.getRepoFiles.mockReturnValue(of([]));
+      component.loadMeta();
+      expect(mockModelService.getCatalogEntry).toHaveBeenCalledWith('civitai', '1');
+    });
+
+    it('calls getCatalogEntry with extracted huggingface page id', () => {
+      vi.clearAllMocks();
+      mockModelService.getMetadata.mockReturnValue(
+        of(
+          makeMeta({
+            source_platform: 'huggingface',
+            source_url: 'https://huggingface.co/user/repo',
+          }),
+        ),
+      );
+      mockModelService.getCatalogEntry.mockReturnValue(of(null));
+      mockModelService.getRepoFiles.mockReturnValue(of([]));
+      component.loadMeta();
+      expect(mockModelService.getCatalogEntry).toHaveBeenCalledWith('huggingface', 'user/repo');
+    });
+
+    it('skips getCatalogEntry when source_platform is missing', () => {
+      vi.clearAllMocks();
+      mockModelService.getMetadata.mockReturnValue(
+        of(makeMeta({ source_platform: '', source_url: '' })),
+      );
+      mockModelService.getRepoFiles.mockReturnValue(of([]));
+      component.loadMeta();
+      expect(mockModelService.getCatalogEntry).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('setFileBaseModel', () => {
+    it('merges the new value into fileBaseModels without losing existing keys', () => {
+      component.fileBaseModels.set({ 'a.safetensors': 'SDXL 1.0' });
+      component.setFileBaseModel('b.safetensors', 'Pony');
+      expect(component.fileBaseModels()['b.safetensors']).toBe('Pony');
+      expect(component.fileBaseModels()['a.safetensors']).toBe('SDXL 1.0');
+    });
+  });
+
+  describe('saveSiblingBaseModels via save()', () => {
+    it('saves changed base_model for a downloaded sibling file', () => {
+      const sibling = makeRepoFile({
+        filename: 'companion.safetensors',
+        is_downloaded: true,
+        installed_path: 'companion.safetensors',
+        base_model: 'SDXL 1.0',
+      });
+      component.repoFiles.set([sibling]);
+      component.fileBaseModels.set({ 'companion.safetensors': 'Pony' });
+      component.save();
+      expect(mockModelService.updateMetadata).toHaveBeenCalledWith(
+        'loras',
+        'companion.safetensors',
+        { base_model: 'Pony' },
+      );
+    });
+
+    it('skips the current model file to avoid double-save', () => {
+      component.modelPath = 'companion.safetensors';
+      const current = makeRepoFile({
+        filename: 'companion.safetensors',
+        is_downloaded: true,
+        installed_path: 'companion.safetensors',
+        base_model: 'SDXL 1.0',
+      });
+      component.repoFiles.set([current]);
+      component.fileBaseModels.set({ 'companion.safetensors': 'Pony' });
+      vi.clearAllMocks();
+      mockModelService.updateMetadataWithPath.mockReturnValue(
+        of({ new_path: 'companion.safetensors' }),
+      );
+      component.save();
+      expect(mockModelService.updateMetadata).not.toHaveBeenCalled();
     });
   });
 });

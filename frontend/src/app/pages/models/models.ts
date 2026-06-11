@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { forkJoin, merge, timer, Subject, EMPTY } from 'rxjs';
 import { switchMap, catchError } from 'rxjs/operators';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   ModelService,
   ModelFile,
@@ -22,7 +23,7 @@ const UNKNOWN_SOURCE = '__unknown_source__';
 
 @Component({
   selector: 'app-models',
-  imports: [CommonModule, RouterLink, ConfirmPopover],
+  imports: [CommonModule, RouterLink, ConfirmPopover, TranslatePipe],
   templateUrl: './models.html',
   styleUrl: './models.scss',
 })
@@ -42,16 +43,16 @@ export class Models implements OnInit {
   showEmpty = signal(false);
 
   readonly sourceOptions = [
-    { label: 'All sources', value: '' },
+    { label: 'models.source.all', value: '' },
     { label: 'CivitAI', value: 'civitai' },
     { label: 'HuggingFace', value: 'huggingface' },
-    { label: 'Unknown', value: '__unknown_source__' },
+    { label: 'models.source.unknown', value: '__unknown_source__' },
   ];
   readonly sortOptions = [
-    { label: 'Name A→Z', value: 'name-asc' },
-    { label: 'Name Z→A', value: 'name-desc' },
-    { label: 'Date added (newest)', value: 'created-desc' },
-    { label: 'Date added (oldest)', value: 'created-asc' },
+    { label: 'models.sort.name_asc', value: 'name-asc' },
+    { label: 'models.sort.name_desc', value: 'name-desc' },
+    { label: 'models.sort.created_desc', value: 'created-desc' },
+    { label: 'models.sort.created_asc', value: 'created-asc' },
   ];
 
   availableBaseModels = computed(() => {
@@ -136,6 +137,7 @@ export class Models implements OnInit {
     private readonly workflowService: WorkflowService,
     private readonly notifService: NotificationService,
     private readonly settingsService: SettingsService,
+    private readonly translate: TranslateService,
   ) {}
 
   ngOnInit() {
@@ -255,17 +257,20 @@ export class Models implements OnInit {
           s2.delete(filename);
           this.queuedForWorkflow.set(s2);
         }, 2000);
-        this.notifService.show('success', 'Model queued for workflow insertion.');
+        this.notifService.show('success', this.translate.instant('models.notify.queued'));
       },
       error: () =>
-        this.notifService.show('error', 'Failed to enqueue model for workflow insertion.'),
+        this.notifService.show('error', this.translate.instant('models.notify.queue_failed')),
     });
   }
 
   deleteUnknownModel(type: string, file: ModelFile) {
     this.modelService.deleteModel(type, file.filename).subscribe({
       next: () => {
-        this.notifService.show('success', `Deleted: ${file.filename}`);
+        this.notifService.show(
+          'success',
+          this.translate.instant('models.notify.deleted', { filename: file.filename }),
+        );
         this.load();
       },
       error: (err) => this.notifService.show('error', 'Delete failed: ' + (err as Error).message),
@@ -288,9 +293,9 @@ export class Models implements OnInit {
     const text = (entry.trigger_words ?? []).join(', ');
     try {
       await navigator.clipboard.writeText(text);
-      this.notifService.show('success', 'Trigger words copied');
+      this.notifService.show('success', this.translate.instant('models.notify.trigger_copied'));
     } catch {
-      this.notifService.show('error', 'Could not copy trigger words');
+      this.notifService.show('error', this.translate.instant('models.notify.trigger_copy_failed'));
     }
   }
 
@@ -299,7 +304,11 @@ export class Models implements OnInit {
       next: (r) => {
         this.notifService.show(
           'success',
-          `Organized ${r.moved} model(s). Skipped: ${r.skipped}. Errors: ${r.errors}.`,
+          this.translate.instant('models.notify.organized', {
+            moved: r.moved,
+            skipped: r.skipped,
+            errors: r.errors,
+          }),
         );
         this.load();
       },
