@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, provideRouter } from '@angular/router';
 import { provideTranslateServiceForTests } from '../../../test-helpers/translate-testing';
-import { of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { CatalogDetail } from './catalog-detail';
 import { ModelService, CatalogEntryDetail, InstalledFile } from '../../services/model';
@@ -486,5 +486,220 @@ describe('CatalogDetail — F-82 downloadFile base model detection', () => {
       expect.any(String),
       '',
     );
+  });
+});
+
+describe('CatalogDetail — copyTriggerWords', () => {
+  let clipboardWriteText: ReturnType<typeof vi.fn>;
+  let originalNavigator: typeof navigator;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    originalNavigator = globalThis.navigator;
+    clipboardWriteText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText: clipboardWriteText } });
+    mockModelService.getCatalogEntry.mockReturnValue(of(mockEntry));
+    mockModelService.getRepoFiles.mockReturnValue(of([]));
+  });
+
+  afterEach(() => {
+    vi.stubGlobal('navigator', originalNavigator);
+    TestBed.resetTestingModule();
+  });
+
+  it('does nothing when entry has no trigger words', async () => {
+    const fixture = await createFixture();
+    fixture.componentInstance.copyTriggerWords();
+    expect(clipboardWriteText).not.toHaveBeenCalled();
+  });
+
+  it('copies joined trigger words to clipboard', async () => {
+    mockModelService.getCatalogEntry.mockReturnValue(
+      of({ ...mockEntry, trigger_words: ['alpha', 'beta'] }),
+    );
+    const fixture = await createFixture();
+    fixture.componentInstance.copyTriggerWords();
+    expect(clipboardWriteText).toHaveBeenCalledWith('alpha, beta');
+  });
+
+  it('sets copied signal after successful clipboard write', async () => {
+    mockModelService.getCatalogEntry.mockReturnValue(of({ ...mockEntry, trigger_words: ['word'] }));
+    const fixture = await createFixture();
+    fixture.componentInstance.copyTriggerWords();
+    await fixture.whenStable();
+    expect(fixture.componentInstance.copied()).toBe(true);
+  });
+});
+
+describe('CatalogDetail — repoFileSourceId paths', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockModelService.getRepoFiles.mockReturnValue(of([]));
+    mockDownloadService.startDownload.mockReturnValue(of({}));
+  });
+
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('uses entry source_page_id as sourceId for huggingface downloads', async () => {
+    mockModelService.getCatalogEntry.mockReturnValue(
+      of({ ...mockEntry, source_platform: 'huggingface', source_page_id: 'user/repo' }),
+    );
+    const fixture = await createFixture('huggingface', 'user/repo');
+    fixture.componentInstance.downloadFile({
+      ...mockEntry.repo_files[0],
+      download_url: 'https://huggingface.co/user/repo/resolve/main/test.safetensors',
+    });
+    expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.any(String),
+      'huggingface',
+      'user/repo',
+      '',
+    );
+  });
+
+  it('extracts modelVersionId from civitai source_page_url as sourceId', async () => {
+    mockModelService.getCatalogEntry.mockReturnValue(of(mockEntry));
+    const fixture = await createFixture();
+    fixture.componentInstance.downloadFile({
+      ...mockEntry.repo_files[0],
+      source_page_url: 'https://civitai.com/models/123?modelVersionId=456',
+    });
+    expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.any(String),
+      'civitai',
+      '456',
+      '',
+    );
+  });
+
+  it('returns empty sourceId for invalid civitai source_page_url', async () => {
+    mockModelService.getCatalogEntry.mockReturnValue(of(mockEntry));
+    const fixture = await createFixture();
+    fixture.componentInstance.downloadFile({
+      ...mockEntry.repo_files[0],
+      source_page_url: 'not-a-valid-url',
+    });
+    expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.any(String),
+      'civitai',
+      '',
+      '',
+    );
+  });
+});
+
+describe('CatalogDetail — cancelEdit restores per-file base models', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('restores fileBaseModels from downloaded repo files', async () => {
+    vi.clearAllMocks();
+    mockModelService.getCatalogEntry.mockReturnValue(
+      of({ ...mockEntry, installed_files: [mockInstalledFile] }),
+    );
+    mockModelService.getRepoFiles.mockReturnValue(
+      of([{ ...mockEntry.repo_files[0], is_downloaded: true, base_model: 'SDXL 1.0' }]),
+    );
+    const fixture = await createFixture();
+    fixture.componentInstance.setFileBaseModel('test.safetensors', 'Pony');
+    fixture.componentInstance.cancelEdit();
+    expect(fixture.componentInstance.fileBaseModels()['test.safetensors']).toBe('SDXL 1.0');
+  });
+});
+
+describe('CatalogDetail — completedTasks$ handler', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('shows error notification for a completed error task matching a repo file', async () => {
+    vi.clearAllMocks();
+    const completedTasks$ = new Subject<DownloadTask>();
+    (mockDownloadService as any).completedTasks$ = completedTasks$;
+    mockModelService.getCatalogEntry.mockReturnValue(of(mockEntry));
+    mockModelService.getRepoFiles.mockReturnValue(of([]));
+
+    await createFixture();
+    const errorTask: DownloadTask = {
+      id: 'task-1',
+      url: '',
+      model_type: 'loras',
+      filename: 'test.safetensors',
+      platform: 'civitai',
+      source_id: '123',
+      status: 'error',
+      progress: 0,
+      downloaded_bytes: 0,
+      total_bytes: 0,
+      error: 'disk full',
+      history_id: null,
+    };
+    completedTasks$.next(errorTask);
+
+    expect(mockNotifService.show).toHaveBeenCalledWith('error', expect.any(String));
+    (mockDownloadService as any).completedTasks$ = of([]);
+  });
+
+  it('adds file to finalizingFiles for a completed done task matching a repo file', async () => {
+    vi.clearAllMocks();
+    const completedTasks$ = new Subject<DownloadTask>();
+    (mockDownloadService as any).completedTasks$ = completedTasks$;
+    mockModelService.getCatalogEntry.mockReturnValue(of(mockEntry));
+    mockModelService.getRepoFiles.mockReturnValue(of([]));
+
+    const fixture = await createFixture();
+    const doneTask: DownloadTask = {
+      id: 'task-2',
+      url: '',
+      model_type: 'loras',
+      filename: 'test.safetensors',
+      platform: 'civitai',
+      source_id: '123',
+      status: 'done',
+      progress: 100,
+      downloaded_bytes: 1024,
+      total_bytes: 1024,
+      error: null,
+      history_id: null,
+    };
+    completedTasks$.next(doneTask);
+
+    expect(fixture.componentInstance.finalizingFiles().has('test.safetensors')).toBe(true);
+    (mockDownloadService as any).completedTasks$ = of([]);
+  });
+
+  it('triggers pollUntilDownloaded and drops from finalizingFiles when file is confirmed downloaded', async () => {
+    vi.clearAllMocks();
+    const completedTasks$ = new Subject<DownloadTask>();
+    (mockDownloadService as any).completedTasks$ = completedTasks$;
+    const downloadedEntry = {
+      ...mockEntry,
+      repo_files: [{ ...mockEntry.repo_files[0], is_downloaded: true }],
+    };
+    mockModelService.getCatalogEntry.mockReturnValue(of(downloadedEntry));
+    mockModelService.getRepoFiles.mockReturnValue(of([]));
+
+    const fixture = await createFixture();
+    const doneTask: DownloadTask = {
+      id: 'task-3',
+      url: '',
+      model_type: 'loras',
+      filename: 'test.safetensors',
+      platform: 'civitai',
+      source_id: '123',
+      status: 'done',
+      progress: 100,
+      downloaded_bytes: 1024,
+      total_bytes: 1024,
+      error: null,
+      history_id: null,
+    };
+    completedTasks$.next(doneTask);
+
+    expect(fixture.componentInstance.finalizingFiles().has('test.safetensors')).toBe(false);
+    (mockDownloadService as any).completedTasks$ = of([]);
   });
 });
