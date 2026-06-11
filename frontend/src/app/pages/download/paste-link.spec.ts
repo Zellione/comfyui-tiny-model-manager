@@ -8,6 +8,7 @@ import { DownloadService, DownloadTask } from '../../services/download';
 import { ModelService } from '../../services/model';
 import { NotificationService } from '../../services/notification';
 import { KeywordsService } from '../../services/keywords';
+import { InstalledFilesService } from '../../services/installed-files';
 import { FilenameKeyword } from '../../utils/filename-detector';
 
 const mockCivitaiService = {
@@ -65,6 +66,7 @@ async function configureTestBed() {
   await TestBed.configureTestingModule({
     imports: [PasteLink],
     providers: [
+      InstalledFilesService,
       { provide: CivitaiService, useValue: mockCivitaiService },
       { provide: HuggingFaceService, useValue: mockHfService },
       { provide: DownloadService, useValue: mockDownloadService },

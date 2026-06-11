@@ -1,9 +1,8 @@
-import { Component, signal, inject, computed, DestroyRef, WritableSignal } from '@angular/core';
+import { Component, signal, inject, computed, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { toSignal, toObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject, debounceTime, distinctUntilChanged, switchMap, of, catchError, map } from 'rxjs';
-import { DownloadService, DownloadTask } from '../../services/download';
 import {
   CivitaiService,
   CivitaiVersion,
@@ -11,15 +10,12 @@ import {
   CivitaiDirectLinkInfo,
 } from '../../services/civitai';
 import { HuggingFaceService } from '../../services/huggingface';
-import { ModelService } from '../../services/model';
-import { NotificationService } from '../../services/notification';
-import { KeywordsService } from '../../services/keywords';
 import { detectLink, LinkKind } from '../../utils/link-detector';
 import { ModelType } from '../../utils/model-types';
-import { detectFromFilename, FilenameKeyword } from '../../utils/filename-detector';
 import { formatSize } from '../../utils/format';
 import { ModelTypeSelect } from '../../components/model-type-select/model-type-select';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
+import { InstalledFilesService } from '../../services/installed-files';
 
 type HfFileItem = { filename: string; size: number; url: string };
 
@@ -32,8 +28,8 @@ type LinkResolution =
 /**
  * The "Paste a link" section. Resolves a HuggingFace or CivitAI URL into a
  * downloadable file (or list of files/versions) and enqueues the chosen ones.
- * Self-contained: it tracks its own installed-file state to render per-file
- * status, mirroring how the search section does.
+ * The installed-file status, filename detection, download enqueue, and per-row
+ * override helpers are shared with the search section via InstalledFilesService.
  */
 @Component({
   selector: 'app-paste-link',
@@ -42,22 +38,11 @@ type LinkResolution =
   styleUrl: './paste-link.scss',
 })
 export class PasteLink {
-  private readonly dlService = inject(DownloadService);
   private readonly civitaiService = inject(CivitaiService);
   private readonly hfService = inject(HuggingFaceService);
-  private readonly modelService = inject(ModelService);
-  private readonly notifService = inject(NotificationService);
-  private readonly keywordsService = inject(KeywordsService);
   private readonly destroyRef = inject(DestroyRef);
+  protected readonly installed = inject(InstalledFilesService);
   private readonly pasteUrl$ = new Subject<string>();
-
-  readonly keywords = toSignal(this.keywordsService.getKeywords(), {
-    initialValue: [] as FilenameKeyword[],
-  });
-  private readonly activeTasks = toSignal(this.dlService.activeTasks$, {
-    initialValue: [] as DownloadTask[],
-  });
-  readonly installedFilenames = signal(new Set<string>());
 
   formatSize = formatSize;
 
@@ -188,73 +173,51 @@ export class PasteLink {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((result) => this.applyLinkResolution(result));
-
-    this.modelService
-      .listModels()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((models) => {
-        const names = new Set<string>();
-        for (const files of Object.values(models)) {
-          for (const f of files) names.add(f.filename);
-        }
-        this.installedFilenames.set(names);
-      });
-
-    toObservable(this.activeTasks)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((tasks) => {
-        const done = tasks.filter((t) => t.status === 'done').map((t) => t.filename);
-        if (done.length > 0) {
-          this.installedFilenames.update((prev) => {
-            const next = new Set(prev);
-            done.forEach((f) => next.add(f));
-            return next;
-          });
-        }
-      });
   }
 
-  private detect(filename: string) {
-    return detectFromFilename(filename, this.keywords());
-  }
-
-  private readOverride<T>(map: WritableSignal<Record<string, T>>, key: string, fallback: T): T {
-    return map()[key] ?? fallback;
-  }
-  private writeOverride<T>(map: WritableSignal<Record<string, T>>, key: string, value: T): void {
-    map.update((m) => ({ ...m, [key]: value }));
-  }
-  private fileKey(versionId: number, file: CivitaiFile): string {
-    return `${versionId}_${file.id}`;
+  fileStatus(filename: string) {
+    return this.installed.fileStatus(filename);
   }
 
   linkHfRowType(name: string): ModelType {
-    return this.readOverride(this.linkHfRowTypes, name, 'checkpoints');
+    return this.installed.readOverride(this.linkHfRowTypes, name, 'checkpoints');
   }
   setLinkHfRowType(name: string, t: ModelType) {
-    this.writeOverride(this.linkHfRowTypes, name, t);
+    this.installed.writeOverride(this.linkHfRowTypes, name, t);
   }
   linkCivitaiFileType(versionId: number, file: CivitaiFile): ModelType {
-    return this.readOverride(
+    return this.installed.readOverride(
       this.linkCivitaiFileTypes,
-      this.fileKey(versionId, file),
+      this.installed.fileKey(versionId, file),
       'checkpoints',
     );
   }
   setLinkCivitaiFileType(versionId: number, file: CivitaiFile, t: ModelType) {
-    this.writeOverride(this.linkCivitaiFileTypes, this.fileKey(versionId, file), t);
+    this.installed.writeOverride(
+      this.linkCivitaiFileTypes,
+      this.installed.fileKey(versionId, file),
+      t,
+    );
   }
   linkHfRowBaseModel(name: string): string {
-    return this.readOverride(this.linkHfRowBaseModels, name, '');
+    return this.installed.readOverride(this.linkHfRowBaseModels, name, '');
   }
   setLinkHfRowBaseModel(name: string, v: string) {
-    this.writeOverride(this.linkHfRowBaseModels, name, v);
+    this.installed.writeOverride(this.linkHfRowBaseModels, name, v);
   }
   linkCivitaiFileBaseModel(versionId: number, file: CivitaiFile): string {
-    return this.readOverride(this.linkCivitaiFileBaseModels, this.fileKey(versionId, file), '');
+    return this.installed.readOverride(
+      this.linkCivitaiFileBaseModels,
+      this.installed.fileKey(versionId, file),
+      '',
+    );
   }
   setLinkCivitaiFileBaseModel(versionId: number, file: CivitaiFile, v: string) {
-    this.writeOverride(this.linkCivitaiFileBaseModels, this.fileKey(versionId, file), v);
+    this.installed.writeOverride(
+      this.linkCivitaiFileBaseModels,
+      this.installed.fileKey(versionId, file),
+      v,
+    );
   }
 
   private applyHfResolve(result: {
@@ -263,7 +226,7 @@ export class PasteLink {
     filename: string;
   }): void {
     this.linkImages.set(result.image_urls ?? []);
-    const det = this.detect(result.filename);
+    const det = this.installed.detect(result.filename);
     if (det.modelType) this.linkModelType.set(det.modelType);
     this.linkBaseModel.set(det.baseModel);
   }
@@ -272,7 +235,7 @@ export class PasteLink {
     this.linkResolved.set(result);
     this.linkModelType.set((result.model_type as ModelType) ?? 'checkpoints');
     this.linkImages.set(result.image_urls ?? []);
-    this.linkBaseModel.set(this.detect(result.filename).baseModel);
+    this.linkBaseModel.set(this.installed.detect(result.filename).baseModel);
   }
 
   private applyHfRepo(result: { tag: 'hf-repo'; files: HfFileItem[] }): void {
@@ -280,7 +243,7 @@ export class PasteLink {
     const types: Record<string, ModelType> = {};
     const baseModels: Record<string, string> = {};
     for (const f of result.files) {
-      const det = this.detect(f.filename);
+      const det = this.installed.detect(f.filename);
       if (det.modelType) types[f.filename] = det.modelType;
       if (det.baseModel) baseModels[f.filename] = det.baseModel;
     }
@@ -302,7 +265,7 @@ export class PasteLink {
       for (const f of v.files) {
         const key = `${v.id}_${f.id}`;
         types[key] = detectedType;
-        baseModels[key] = v.baseModel || this.detect(f.name).baseModel;
+        baseModels[key] = v.baseModel || this.installed.detect(f.name).baseModel;
       }
     }
     this.linkCivitaiFileTypes.set(types);
@@ -319,37 +282,9 @@ export class PasteLink {
     this.linkResolving.set(false);
   }
 
-  fileStatus(filename: string): 'idle' | 'downloading' | 'installed' | 'error' {
-    // HuggingFace files may have a subfolder prefix in their listed name (e.g.
-    // "split_files/model.safetensors"). The downloader strips this to the basename
-    // before saving, so we match on the basename here for correct status resolution.
-    const base = filename.split('/').pop() ?? filename;
-    const task = this.activeTasks().find((t) => t.filename === base);
-    if (task) {
-      if (task.status === 'done') return 'installed';
-      if (task.status === 'error') return 'error';
-      return 'downloading';
-    }
-    return this.installedFilenames().has(base) ? 'installed' : 'idle';
-  }
-
   onPasteUrlChange(url: string) {
     this.pasteUrl.set(url);
     this.pasteUrl$.next(url);
-  }
-
-  /** Start a download and toast on success. Shared by all download buttons. */
-  private enqueue(
-    url: string,
-    type: ModelType,
-    filename: string,
-    platform: string,
-    sourceId: string,
-    baseModel = '',
-  ) {
-    this.dlService.startDownload(url, type, filename, platform, sourceId, baseModel).subscribe({
-      next: () => this.notifService.show('success', `Download enqueued: ${filename}`),
-    });
   }
 
   submitDirectLink() {
@@ -357,11 +292,25 @@ export class PasteLink {
     const type = this.linkModelType();
     const baseModel = this.linkBaseModel();
     if (kind.type === 'hf-resolve') {
-      this.enqueue(this.pasteUrl(), type, kind.filename, 'huggingface', kind.repo, baseModel);
+      this.installed.enqueue(
+        this.pasteUrl(),
+        type,
+        kind.filename,
+        'huggingface',
+        kind.repo,
+        baseModel,
+      );
     } else if (kind.type === 'civitai-download') {
       const r = this.linkResolved();
       if (!r) return;
-      this.enqueue(this.pasteUrl(), type, r.filename, 'civitai', String(kind.versionId), baseModel);
+      this.installed.enqueue(
+        this.pasteUrl(),
+        type,
+        r.filename,
+        'civitai',
+        String(kind.versionId),
+        baseModel,
+      );
     }
     this.pasteUrl.set('');
     this.linkKind.set({ type: 'empty' });
@@ -375,7 +324,7 @@ export class PasteLink {
   downloadLinkHfFile(f: HfFileItem) {
     const kind = this.linkKind();
     const repo = kind.type === 'hf-repo' ? kind.repo : '';
-    this.enqueue(
+    this.installed.enqueue(
       f.url,
       this.linkHfRowType(f.filename),
       f.filename,
@@ -404,7 +353,7 @@ export class PasteLink {
   }
 
   downloadLinkFile(file: CivitaiFile, versionId: number) {
-    this.enqueue(
+    this.installed.enqueue(
       file.downloadUrl,
       this.linkCivitaiFileType(versionId, file),
       file.name,
@@ -416,7 +365,7 @@ export class PasteLink {
 
   downloadSelectedLinkCivitai() {
     for (const { file, versionId } of this.linkCivitaiSelected().values()) {
-      this.enqueue(
+      this.installed.enqueue(
         file.downloadUrl,
         this.linkCivitaiFileType(versionId, file),
         file.name,

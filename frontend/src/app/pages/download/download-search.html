@@ -1,0 +1,505 @@
+<!-- Search bar -->
+<div class="search-bar">
+  <div class="platform-tabs">
+    <button [class.active]="platform() === 'civitai'" (click)="platform.set('civitai')">
+      CivitAI
+    </button>
+    <button [class.active]="platform() === 'huggingface'" (click)="platform.set('huggingface')">
+      HuggingFace
+    </button>
+  </div>
+
+  <input
+    [ngModel]="query()"
+    (ngModelChange)="query.set($event)"
+    placeholder="Search models…"
+    (keyup.enter)="search()"
+  />
+  @if (platform() === 'civitai') {
+    <app-model-type-select [value]="modelType()" (valueChange)="modelType.set($event)" />
+  }
+  <button class="btn-primary" (click)="search()" [disabled]="searching()">
+    {{ searching() ? 'Searching…' : 'Search' }}
+  </button>
+
+  <div class="filter-row">
+    @if (platform() === 'civitai') {
+      <select [ngModel]="civitaiBaseModel()" (ngModelChange)="civitaiBaseModel.set($event)">
+        <option value="">All base models</option>
+        @for (bm of civitaiBaseModelOptions; track bm) {
+          <option [value]="bm">{{ bm }}</option>
+        }
+      </select>
+      <select [ngModel]="civitaiSort()" (ngModelChange)="civitaiSort.set($event)">
+        <option value="">Default sort</option>
+        @for (o of civitaiSortOptions; track o.value) {
+          <option [value]="o.value">{{ o.label }}</option>
+        }
+      </select>
+      @if (civitaiSort()) {
+        <select [ngModel]="civitaiPeriod()" (ngModelChange)="civitaiPeriod.set($event)">
+          @for (o of civitaiPeriodOptions; track o.value) {
+            <option [value]="o.value">{{ o.label }}</option>
+          }
+        </select>
+      }
+    } @else {
+      <select [ngModel]="hfSort()" (ngModelChange)="hfSort.set($event)">
+        @for (o of hfSortOptions; track o.value) {
+          <option [value]="o.value">{{ o.label }}</option>
+        }
+      </select>
+    }
+
+    <select [ngModel]="formatFilter()" (ngModelChange)="formatFilter.set($event)">
+      @for (o of formatOptions; track o.value) {
+        <option [value]="o.value">{{ o.label }}</option>
+      }
+    </select>
+  </div>
+
+  <div class="tag-filter-row">
+    <div class="search-wrap">
+      <div class="search-input">
+        <input
+          type="text"
+          placeholder="Filter by tag…"
+          [value]="tagInput()"
+          (input)="tagInput.set($any($event.target).value)"
+          (keydown.enter)="addTagFromInput()"
+        />
+      </div>
+    </div>
+    @for (tag of tagFilter(); track tag) {
+      <span class="active-tag">
+        {{ tag }}
+        <button class="chip-remove" (click)="removeTag(tag)">×</button>
+      </span>
+    }
+  </div>
+  @if (platform() === 'civitai' && tagFilter().length > 1) {
+    <p class="tag-limit-hint">
+      CivitAI only supports one server-side tag filter. The first tag narrows the API results;
+      additional tags are applied locally.
+    </p>
+  }
+</div>
+
+<!-- Results: split view / empty states -->
+@if (searching()) {
+  <div class="detail-empty">
+    <div class="empty-icon">⟳</div>
+    <p>Searching…</p>
+  </div>
+} @else if (!hasSearched()) {
+  <div class="detail-empty">
+    <div class="empty-icon">🔍</div>
+    <p>Search for models above to get started.</p>
+  </div>
+} @else if (searchError()) {
+  <div class="detail-empty">
+    <div class="empty-icon">⚠</div>
+    <p>Search failed: {{ searchError() }}</p>
+  </div>
+} @else if (platform() === 'civitai' && filteredCivitaiResults().length === 0) {
+  <div class="detail-empty">
+    <div class="empty-icon">∅</div>
+    <p>No results found. Try a different query or adjust your filters.</p>
+  </div>
+} @else if (platform() === 'huggingface' && filteredHfResults().length === 0) {
+  <div class="detail-empty">
+    <div class="empty-icon">∅</div>
+    <p>No results found. Try a different query or adjust your filters.</p>
+  </div>
+} @else {
+  <div class="split-view">
+    <!-- LEFT LIST PANE -->
+    <div class="list-pane">
+      <div class="list-scroll">
+        @if (platform() === 'civitai') {
+          @for (model of filteredCivitaiResults(); track model.id) {
+            <div
+              class="list-row"
+              [class.selected]="selectedModel()?.id === model.id"
+              (click)="selectCivitai(model)"
+            >
+              <div class="row-thumb">
+                @if (civitaiThumb(model)) {
+                  <img
+                    [src]="civitaiThumb(model)"
+                    alt=""
+                    loading="lazy"
+                    (error)="onImgError($event)"
+                  />
+                }
+              </div>
+              <div class="row-info">
+                <span class="row-name">{{ model.name }}</span>
+                <div class="row-meta">
+                  <span class="badge">{{ model.type }}</span>
+                  @if (civitaiModelBaseModel(model)) {
+                    <span class="badge badge-accent">{{ civitaiModelBaseModel(model) }}</span>
+                  }
+                  @for (tag of model.tags ?? []; track tag; let i = $index) {
+                    @if (i < 2) {
+                      <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
+                        tag
+                      }}</span>
+                    }
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        }
+
+        @if (platform() === 'huggingface') {
+          @for (model of filteredHfResults(); track model.id) {
+            <div
+              class="list-row"
+              [class.selected]="selectedHfModel()?.id === model.id"
+              (click)="selectHf(model)"
+            >
+              <div class="row-thumb">
+                @if (model.thumbnail) {
+                  <img [src]="model.thumbnail" alt="" loading="lazy" (error)="onImgError($event)" />
+                }
+              </div>
+              <div class="row-info">
+                <span class="row-name">{{ model.modelId || model.id }}</span>
+                <div class="row-meta">
+                  @for (fmt of model.formats ?? []; track fmt) {
+                    <span class="badge">{{ fmt }}</span>
+                  }
+                  @for (tag of model.tags; track tag; let i = $index) {
+                    @if (i < 2) {
+                      <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
+                        tag
+                      }}</span>
+                    }
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        }
+      </div>
+
+      <!-- Load More — always visible below scroll area -->
+      <button
+        class="btn-secondary load-more-btn"
+        [class.load-more-btn--error]="loadMoreError()"
+        [class.load-more-btn--done]="!loadMoreError() && !activeHasMore() && !loadingMore()"
+        [disabled]="loadingMore() || (!loadMoreError() && !activeHasMore())"
+        (click)="loadMore()"
+      >
+        @if (loadingMore()) {
+          Loading…
+        } @else if (loadMoreError()) {
+          Failed
+        } @else if (activeHasMore()) {
+          Load more
+        } @else {
+          No more results
+        }
+      </button>
+    </div>
+    <!-- /list-pane -->
+
+    <!-- RIGHT DETAIL PANE -->
+    <div class="detail-pane">
+      <!-- CivitAI detail -->
+      @if (platform() === 'civitai' && selectedModel(); as model) {
+        <!-- Header spans full width -->
+        <div class="detail-header">
+          <div class="detail-title-row">
+            <h2 class="detail-title">{{ model.name }}</h2>
+            <a class="source-link" [href]="civitaiSourceUrl(model)" target="_blank" rel="noopener">
+              CivitAI ↗
+            </a>
+          </div>
+          <div class="detail-meta-row">
+            <span class="badge">{{ model.type }}</span>
+            @if (civitaiModelBaseModel(model)) {
+              <span class="badge badge-accent">{{ civitaiModelBaseModel(model) }}</span>
+            }
+            @if (model.creator.username) {
+              <span class="meta-author">by {{ model.creator.username }}</span>
+            }
+            @if (model.stats.downloadCount) {
+              <span class="meta-stat">{{ model.stats.downloadCount | number }} downloads</span>
+            }
+          </div>
+        </div>
+
+        <!-- Inner two-column body -->
+        <div class="detail-body">
+          <!-- Left: gallery only -->
+          <div class="detail-media">
+            @if (civitaiGalleryImages(model).length > 0) {
+              <div class="gallery">
+                @if (civitaiGalleryImages(model).length > 1) {
+                  <div class="gallery-thumbs">
+                    @for (url of civitaiGalleryImages(model); track url; let i = $index) {
+                      <div
+                        class="gallery-thumb"
+                        [class.active]="galleryIndex() === i"
+                        (click)="setGalleryIndex(i)"
+                      >
+                        @if (isVideo(url)) {
+                          <span class="video-icon">▶</span>
+                        } @else {
+                          <img [src]="url" alt="" loading="lazy" (error)="onImgError($event)" />
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+                <div class="gallery-main">
+                  @if (isVideo(currentGalleryUrl(model))) {
+                    <video [src]="currentGalleryUrl(model)" controls loop muted autoplay></video>
+                  } @else {
+                    <img [src]="currentGalleryUrl(model)" alt="" (error)="onImgError($event)" />
+                  }
+                </div>
+              </div>
+            }
+          </div>
+          <!-- /detail-media -->
+
+          <!-- Right: versions + file picker -->
+          <div class="detail-downloads">
+            <div class="versions-section">
+              <div class="versions-section-header">
+                <h3>Versions</h3>
+                @if (selectedCivitaiCount() > 0) {
+                  <button class="btn-primary" (click)="downloadSelectedCivitai()">
+                    Download selected ({{ selectedCivitaiCount() }})
+                  </button>
+                }
+              </div>
+              @if (loadingVersions()) {
+                <p class="detail-loading">Loading versions…</p>
+              } @else if (versionsError()) {
+                <p class="detail-error">{{ versionsError() }}</p>
+              } @else {
+                @for (v of versions(); track v.id) {
+                  <div class="version-section">
+                    <div class="version-header">
+                      <strong>{{ v.name }}</strong>
+                      @if (v.baseModel) {
+                        <span class="badge badge-accent">{{ v.baseModel }}</span>
+                      }
+                    </div>
+                    @for (f of v.files; track f.id) {
+                      @if (f.type === 'Model') {
+                        <div class="version-row">
+                          <div class="version-row-top">
+                            <input
+                              type="checkbox"
+                              [checked]="isCivitaiFileSelected(v.id, f)"
+                              (change)="toggleCivitaiFile(v.id, f)"
+                              (click)="$event.stopPropagation()"
+                              (keydown)="$event.stopPropagation()"
+                            />
+                            <span>{{ f.name }}</span>
+                          </div>
+                          <div class="version-row-bottom">
+                            <div class="row-format">
+                              @if (f.metadata.format) {
+                                <span class="badge"
+                                  >{{ f.metadata.format
+                                  }}{{ f.metadata.fp ? ' · ' + f.metadata.fp : '' }}</span
+                                >
+                              }
+                            </div>
+                            <small>{{ formatSize(f.sizeKB * 1024) }}</small>
+                            <app-model-type-select
+                              [value]="civitaiFileType(v.id, f)"
+                              (valueChange)="setCivitaiFileType(v.id, f, $event)"
+                            />
+                            <app-base-model-select
+                              [value]="civitaiFileBaseModel(v.id, f)"
+                              (valueChange)="setCivitaiFileBaseModel(v.id, f, $event)"
+                            />
+                            @switch (fileStatus(f.name)) {
+                              @case ('installed') {
+                                <button class="btn-library">In library</button>
+                              }
+                              @case ('downloading') {
+                                <button class="btn-primary" disabled>Downloading…</button>
+                              }
+                              @default {
+                                <button class="btn-primary" (click)="downloadFile(f, v.id)">
+                                  Download
+                                </button>
+                              }
+                            }
+                          </div>
+                        </div>
+                      }
+                    }
+                  </div>
+                }
+              }
+            </div>
+          </div>
+          <!-- /detail-downloads -->
+        </div>
+        <!-- /detail-body -->
+
+        <!-- Full-width: tags, trigger words, description -->
+        @if ((model.tags ?? []).length > 0) {
+          <div class="chip-section">
+            <span class="chip-label">Tags</span>
+            <div class="chip-list">
+              @for (tag of model.tags ?? []; track tag) {
+                <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
+                  tag
+                }}</span>
+              }
+            </div>
+          </div>
+        }
+
+        @if (civitaiTriggerWords(model).length > 0) {
+          <div class="chip-section">
+            <span class="chip-label">Trigger words</span>
+            <div class="chip-list">
+              @for (w of civitaiTriggerWords(model); track w) {
+                <span class="trigger-chip">{{ w }}</span>
+              }
+            </div>
+          </div>
+        }
+
+        @if (model.description) {
+          <div class="detail-desc" [innerHTML]="model.description"></div>
+        }
+      }
+
+      <!-- HuggingFace detail -->
+      @if (platform() === 'huggingface' && selectedHfModel(); as model) {
+        <!-- Header spans full width -->
+        <div class="detail-header">
+          <div class="detail-title-row">
+            <h2 class="detail-title">{{ model.modelId || model.id }}</h2>
+            <a class="source-link" [href]="hfSourceUrl(model)" target="_blank" rel="noopener">
+              HuggingFace ↗
+            </a>
+          </div>
+          <div class="detail-meta-row">
+            <span class="meta-stat">{{ model.downloads | number }} downloads</span>
+            @for (fmt of model.formats ?? []; track fmt) {
+              <span class="badge">{{ fmt }}</span>
+            }
+          </div>
+        </div>
+
+        <!-- Inner two-column body -->
+        <div class="detail-body">
+          <!-- Left: gallery -->
+          <div class="detail-media">
+            @if (hfGalleryImages(model).length > 0) {
+              <div class="gallery">
+                @if (hfGalleryImages(model).length > 1) {
+                  <div class="gallery-thumbs">
+                    @for (url of hfGalleryImages(model); track url; let i = $index) {
+                      <div
+                        class="gallery-thumb"
+                        [class.active]="galleryIndex() === i"
+                        (click)="setGalleryIndex(i)"
+                      >
+                        @if (isVideo(url)) {
+                          <span class="video-icon">▶</span>
+                        } @else {
+                          <img [src]="url" alt="" loading="lazy" (error)="onImgError($event)" />
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+                <div class="gallery-main">
+                  @if (isVideo(currentHfGalleryUrl(model))) {
+                    <video [src]="currentHfGalleryUrl(model)" controls loop muted autoplay>
+                      <track kind="captions" />
+                    </video>
+                  } @else {
+                    <img [src]="currentHfGalleryUrl(model)" alt="" (error)="onImgError($event)" />
+                  }
+                </div>
+              </div>
+            }
+          </div>
+          <!-- /detail-media -->
+
+          <!-- Right: files list -->
+          <div class="detail-downloads">
+            <div class="versions-section">
+              <div class="versions-section-header">
+                <h3>Files</h3>
+              </div>
+              @if (hfFiles().length === 0) {
+                <p class="detail-loading">Loading files…</p>
+              } @else {
+                @for (f of hfFiles(); track f.filename) {
+                  <div class="version-row">
+                    <div class="version-row-top">
+                      <span>{{ f.filename }}</span>
+                    </div>
+                    <div class="version-row-bottom">
+                      <div class="row-format"></div>
+                      <small>{{ formatSize(f.size) }}</small>
+                      <app-model-type-select
+                        [value]="hfRowType(f.filename)"
+                        (valueChange)="setHfRowType(f.filename, $event)"
+                      />
+                      <app-base-model-select
+                        [value]="hfRowBaseModel(f.filename)"
+                        (valueChange)="setHfRowBaseModel(f.filename, $event)"
+                      />
+                      @switch (fileStatus(f.filename)) {
+                        @case ('installed') {
+                          <button class="btn-library">In library</button>
+                        }
+                        @case ('downloading') {
+                          <button class="btn-primary" disabled>Downloading…</button>
+                        }
+                        @default {
+                          <button class="btn-primary" (click)="downloadHf(f)">Download</button>
+                        }
+                      }
+                    </div>
+                  </div>
+                }
+              }
+            </div>
+          </div>
+          <!-- /detail-downloads -->
+        </div>
+        <!-- /detail-body -->
+
+        @if (model.tags.length > 0) {
+          <div class="chip-section">
+            <span class="chip-label">Tags</span>
+            <div class="chip-list">
+              @for (tag of model.tags; track tag) {
+                <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
+                  tag
+                }}</span>
+              }
+            </div>
+          </div>
+        }
+
+        @if (hfDescriptionLoading()) {
+          <p class="detail-loading">Loading description…</p>
+        } @else if (hfDescription()) {
+          <div class="detail-desc" [innerHTML]="hfDescription() | safeHtml"></div>
+        }
+      }
+    </div>
+    <!-- /detail-pane -->
+  </div>
+  <!-- /split-view -->
+}
