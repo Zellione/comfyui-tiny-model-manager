@@ -125,6 +125,34 @@ class TestGetReadme:
 
 
 # ---------------------------------------------------------------------------
+# resolve_direct_link
+# ---------------------------------------------------------------------------
+
+
+class TestResolveDirectLink:
+    async def test_returns_image_urls_from_siblings(self, provider, monkeypatch):
+        repo_data = {
+            "siblings": [
+                {"rfilename": "preview.png"},
+                {"rfilename": "model.safetensors"},  # non-image ignored
+                {"rfilename": "sample.webp"},
+            ]
+        }
+        _patch_client(monkeypatch, _mock(repo_data))
+        result = await provider.resolve_direct_link("user/repo")
+        assert result["image_urls"] == [
+            "https://huggingface.co/user/repo/resolve/main/preview.png",
+            "https://huggingface.co/user/repo/resolve/main/sample.webp",
+        ]
+
+    async def test_caps_at_5_images(self, provider, monkeypatch):
+        siblings = [{"rfilename": f"img{i}.jpg"} for i in range(10)]
+        _patch_client(monkeypatch, _mock({"siblings": siblings}))
+        result = await provider.resolve_direct_link("user/repo")
+        assert len(result["image_urls"]) == 5
+
+
+# ---------------------------------------------------------------------------
 # fetch_metadata
 # ---------------------------------------------------------------------------
 

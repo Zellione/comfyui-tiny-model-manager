@@ -9,6 +9,7 @@ run, preventing file-move conflicts when the toggle is flipped back quickly.
 """
 
 import asyncio
+import logging
 import os
 import re
 import shutil
@@ -17,6 +18,7 @@ import folder_paths
 
 from ..db import model_repo
 
+_log = logging.getLogger("tiny-model-manager")
 _MAX_SUBFOLDER_LEN = 100
 _INVALID_PATH_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 _lock = asyncio.Lock()
@@ -93,7 +95,7 @@ async def _process_organize_job(job: dict) -> None:
         if new_fn != filename:
             await model_repo.update_model_filename(filename, new_fn)
     except Exception:
-        pass
+        _log.warning("Organize job failed for %s", filename, exc_info=True)
 
     await model_repo.complete_job(job_id)
 
@@ -137,7 +139,7 @@ async def _process_deorganize_job(job: dict) -> None:
         _remove_empty_dir(os.path.dirname(src))
         await model_repo.update_model_filename(filename, basename)
     except Exception:
-        pass
+        _log.warning("Deorganize job failed for %s", filename, exc_info=True)
 
     await model_repo.complete_job(job_id)
 

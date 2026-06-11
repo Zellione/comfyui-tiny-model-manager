@@ -26,7 +26,7 @@ class TestDownloadEnqueue:
         resp = await client.post(
             "/tiny-model-manager/api/download",
             json={
-                "url": "https://example.com/model.safetensors",
+                "url": "https://civitai.com/model.safetensors",
                 "model_type": "checkpoints",
                 "filename": "model.safetensors",
                 "platform": "civitai",
@@ -37,6 +37,39 @@ class TestDownloadEnqueue:
         data = await resp.json()
         assert data["success"] is True
         assert "task_id" in data["data"]
+
+    async def test_enqueue_rejects_disallowed_url_host(self, client):
+        resp = await client.post(
+            "/tiny-model-manager/api/download",
+            json={
+                "url": "http://169.254.169.254/latest/meta-data/",
+                "model_type": "checkpoints",
+                "filename": "model.safetensors",
+                "platform": "civitai",
+            },
+        )
+        assert resp.status == 400
+        # A rejected download must not leave a dangling history row.
+        from py.db import model_repo
+
+        entries, _ = await model_repo.get_download_history()
+        assert entries == []
+
+    async def test_enqueue_rejects_traversal_filename(self, client):
+        resp = await client.post(
+            "/tiny-model-manager/api/download",
+            json={
+                "url": "https://civitai.com/api/download/models/1",
+                "model_type": "checkpoints",
+                "filename": "../../../../tmp/evil.txt",
+                "platform": "civitai",
+            },
+        )
+        assert resp.status == 400
+        from py.db import model_repo
+
+        entries, _ = await model_repo.get_download_history()
+        assert entries == []
 
     async def test_enqueue_missing_url_returns_400(self, client):
         resp = await client.post(
@@ -49,7 +82,7 @@ class TestDownloadEnqueue:
         resp = await client.post(
             "/tiny-model-manager/api/download",
             json={
-                "url": "https://example.com/f.safetensors",
+                "url": "https://civitai.com/f.safetensors",
                 "model_type": "loras",
                 "platform": "",
             },
@@ -69,7 +102,7 @@ class TestDownloadStatus:
         await client.post(
             "/tiny-model-manager/api/download",
             json={
-                "url": "https://example.com/x.safetensors",
+                "url": "https://civitai.com/x.safetensors",
                 "model_type": "loras",
                 "filename": "x.safetensors",
                 "platform": "huggingface",
@@ -126,7 +159,7 @@ class TestCancelDownload:
         resp = await client.post(
             "/tiny-model-manager/api/download",
             json={
-                "url": "https://example.com/model.safetensors",
+                "url": "https://civitai.com/model.safetensors",
                 "model_type": "checkpoints",
                 "filename": "model.safetensors",
                 "platform": "civitai",
@@ -144,7 +177,7 @@ class TestCancelDownload:
         resp = await client.post(
             "/tiny-model-manager/api/download",
             json={
-                "url": "https://example.com/model.safetensors",
+                "url": "https://civitai.com/model.safetensors",
                 "model_type": "checkpoints",
                 "filename": "model.safetensors",
                 "platform": "civitai",
@@ -159,7 +192,7 @@ class TestCancelDownload:
         resp = await client.post(
             "/tiny-model-manager/api/download",
             json={
-                "url": "https://example.com/model.safetensors",
+                "url": "https://civitai.com/model.safetensors",
                 "model_type": "checkpoints",
                 "filename": "model.safetensors",
                 "platform": "civitai",
@@ -184,7 +217,7 @@ class TestDownloadHistory:
         await client.post(
             "/tiny-model-manager/api/download",
             json={
-                "url": "https://example.com/model.safetensors",
+                "url": "https://civitai.com/model.safetensors",
                 "model_type": "checkpoints",
                 "filename": "model.safetensors",
                 "platform": "civitai",
@@ -207,7 +240,7 @@ class TestDownloadHistory:
             source="civitai",
             model_id="",
             version_id="1",
-            file_url="https://example.com/done.safetensors",
+            file_url="https://civitai.com/done.safetensors",
             dest_path="done.safetensors",
             model_type="checkpoints",
         )
@@ -216,7 +249,7 @@ class TestDownloadHistory:
             source="huggingface",
             model_id="user/repo",
             version_id="",
-            file_url="https://example.com/err.safetensors",
+            file_url="https://civitai.com/err.safetensors",
             dest_path="err.safetensors",
             model_type="loras",
         )
@@ -247,7 +280,7 @@ class TestDownloadHistory:
             source="civitai",
             model_id="",
             version_id="42",
-            file_url="https://example.com/rv.safetensors",
+            file_url="https://civitai.com/rv.safetensors",
             dest_path="rv.safetensors",
             model_type="checkpoints",
         )
@@ -256,7 +289,7 @@ class TestDownloadHistory:
             source="civitai",
             model_id="",
             version_id="7",
-            file_url="https://example.com/al.safetensors",
+            file_url="https://civitai.com/al.safetensors",
             dest_path="al.safetensors",
             model_type="loras",
         )
@@ -277,7 +310,7 @@ class TestDownloadHistory:
                 source="civitai",
                 model_id="",
                 version_id=str(i),
-                file_url=f"https://example.com/{i}.safetensors",
+                file_url=f"https://civitai.com/{i}.safetensors",
                 dest_path=f"model_{i}.safetensors",
                 model_type="checkpoints",
             )
@@ -309,7 +342,7 @@ class TestRedownload:
             source="civitai",
             model_id="",
             version_id="55",
-            file_url="https://example.com/my_model.safetensors",
+            file_url="https://civitai.com/my_model.safetensors",
             dest_path="my_model.safetensors",
             model_type="checkpoints",
         )
@@ -327,7 +360,7 @@ class TestRedownload:
             source="huggingface",
             model_id="user/repo",
             version_id="",
-            file_url="https://example.com/redo.safetensors",
+            file_url="https://civitai.com/redo.safetensors",
             dest_path="redo.safetensors",
             model_type="loras",
         )

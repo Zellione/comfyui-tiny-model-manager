@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import logging
 import os
 import re
 import shutil
@@ -13,6 +14,9 @@ from .. import config as cfg
 from ..db import model_repo
 from .providers import get_provider
 from .providers.base import ProviderMetadata
+from .url_guard import is_allowed_url
+
+_log = logging.getLogger("tiny-model-manager")
 
 
 def _compute_media_hash(platform: str, source_id: str, filename: str) -> str:
@@ -107,6 +111,7 @@ async def _store_catalog_entry(
         await model_repo.set_model_catalog_entry(filename, catalog_entry_id)
         return catalog_entry_id
     except Exception:
+        _log.warning("Failed to store catalog entry for %s", filename, exc_info=True)
         return 0
 
 
@@ -133,7 +138,7 @@ async def fetch_and_store(
 
             filename = _move_to_subfolder(filename, model_type, meta.base_model)
         except Exception:
-            pass
+            _log.warning("Failed to reorganize %s into subfolder", filename, exc_info=True)
 
     media_hash = _compute_media_hash(platform, source_id, filename)
     model_id = await model_repo.upsert_model_with_meta(
@@ -234,7 +239,7 @@ async def _fetch_and_store_repo_files(
             return
         await model_repo.upsert_repo_files(catalog_entry_id, model_type, files)
     except Exception:
-        pass
+        _log.warning("Failed to fetch/store repo files for %s", source_id, exc_info=True)
 
 
 def _remove_dir_if_empty(path: str | None) -> None:
@@ -336,12 +341,17 @@ async def _fetch_url_to_file(
 
 
 async def _iter_downloaded_urls(media_hash: str, urls: list[str]) -> list[tuple[str, str]]:
-    """Download up to 5 URLs into the media hash dir; return (dest, ext) pairs."""
+    """Download up to 5 URLs into the media hash dir; return (dest, ext) pairs.
+
+    URLs are fetched server-side, so each is confined to a trusted provider host
+    (SSRF guard) before any request is made.
+    """
     dest_dir = _media_subdir(media_hash)
     os.makedirs(dest_dir, exist_ok=True)
+    safe_urls = [u for u in urls if is_allowed_url(u)]
     results: list[tuple[str, str]] = []
     async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-        for i, url in enumerate(urls[:5]):
+        for i, url in enumerate(safe_urls[:5]):
             result = await _fetch_url_to_file(client, url, dest_dir, i)
             if result:
                 results.append(result)

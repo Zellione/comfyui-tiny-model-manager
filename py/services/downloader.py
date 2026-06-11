@@ -11,6 +11,7 @@ import httpx
 
 from ..background import spawn
 from ..db import model_repo
+from . import model_paths
 from .providers import get_provider
 
 SUPPORTED_TYPES = {
@@ -67,6 +68,8 @@ _worker_started = False
 
 
 def _get_dest_dir(model_type: str) -> str:
+    if not model_paths.is_safe_segment(model_type):
+        raise ValueError(f"Invalid model_type: {model_type!r}")
     try:
         folders = folder_paths.get_folder_paths(model_type)
         return folders[0]
@@ -75,6 +78,24 @@ def _get_dest_dir(model_type: str) -> str:
         # and to our own list_models endpoint (which scans folder_paths).  The old
         # fallback used cfg.data_dir() which placed files outside ComfyUI's reach.
         return os.path.join(folder_paths.models_dir, model_type)
+
+
+def validate_target(model_type: str, filename: str, platform: str) -> str:
+    """Resolve and validate the absolute destination path for a download.
+
+    ``filename`` and ``model_type`` arrive from request data; an unchecked value such as
+    ``../../etc/foo`` would let a download write outside the model roots (CWE-22). The
+    destination is confined to ``model_type``'s download directory here, raising
+    ``ValueError`` on any traversal attempt. HuggingFace filenames keep their existing
+    basename normalisation (subfolder prefixes like ``split_files/`` are stripped).
+    """
+    if platform == "huggingface":
+        filename = os.path.basename(filename)
+    dest_dir = _get_dest_dir(model_type)
+    safe_path = model_paths.contained_path(dest_dir, filename)
+    if safe_path is None:
+        raise ValueError(f"Unsafe download filename: {filename!r}")
+    return safe_path
 
 
 def enqueue(
@@ -91,6 +112,8 @@ def enqueue(
     # → "model.safetensors"). The download URL is a separate field and remains untouched.
     if platform == "huggingface":
         filename = os.path.basename(filename)
+    # Confine the destination to model_type's download directory; raises on traversal.
+    dest_path = validate_target(model_type, filename, platform)
     task = DownloadTask(
         id=str(uuid.uuid4()),
         url=url,
@@ -102,8 +125,7 @@ def enqueue(
         history_id=history_id,
         hint_base_model=hint_base_model,
     )
-    dest_dir = _get_dest_dir(model_type)
-    task.dest_path = os.path.join(dest_dir, filename)
+    task.dest_path = dest_path
     os.makedirs(os.path.dirname(task.dest_path), exist_ok=True)
     _tasks[task.id] = task
     _queue.put_nowait(task)
@@ -162,8 +184,13 @@ async def _worker():
         _queue.task_done()
 
 
+# No overall deadline (model files are large and download for a long time), but a
+# stalled socket must abort the worker instead of hanging the whole queue forever.
+_DOWNLOAD_TIMEOUT = httpx.Timeout(None, connect=30.0, read=120.0)
+
+
 async def _stream_file(task: DownloadTask, headers: dict) -> None:
-    async with httpx.AsyncClient(timeout=None, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=_DOWNLOAD_TIMEOUT, follow_redirects=True) as client:
         async with client.stream("GET", task.url, headers=headers) as resp:
             resp.raise_for_status()
             total = int(resp.headers.get("content-length", 0))

@@ -84,6 +84,27 @@ class TestDeleteModel:
         resp = await client.delete("/tiny-model-manager/api/models/checkpoints/../../etc/passwd")
         assert resp.status == 404
 
+    async def test_delete_sibling_directory_escape_blocked(self, client, ext_dir):
+        import types
+
+        import folder_paths
+
+        from py.routes.models import _delete_model
+
+        # Sibling of the registered loras dir that shares its name prefix must be
+        # unreachable (a plain str.startswith guard would wrongly allow "loras_evil").
+        base = folder_paths.folder_names_and_paths["loras"][0][0]
+        sibling = base + "_evil"
+        os.makedirs(sibling, exist_ok=True)
+        victim = os.path.join(sibling, "keep.safetensors")
+        open(victim, "wb").close()
+
+        rel = os.path.join("..", os.path.basename(sibling), "keep.safetensors")
+        req = types.SimpleNamespace(match_info={"model_type": "loras", "path": rel})
+        resp = await _delete_model(req)
+        assert resp.status == 404
+        assert os.path.exists(victim)
+
 
 class TestListModelTypes:
     async def test_returns_types(self, client):
