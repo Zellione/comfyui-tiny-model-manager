@@ -120,8 +120,6 @@
           @for (model of filteredCivitaiResults(); track model.id) {
             <div
               class="list-row"
-              role="button"
-              tabindex="0"
               [class.selected]="selectedModel()?.id === model.id"
               (click)="selectCivitai(model)"
               (keydown.enter)="selectCivitai(model)"
@@ -160,8 +158,6 @@
           @for (model of filteredHfResults(); track model.id) {
             <div
               class="list-row"
-              role="button"
-              tabindex="0"
               [class.selected]="selectedHfModel()?.id === model.id"
               (click)="selectHf(model)"
               (keydown.enter)="selectHf(model)"
@@ -249,8 +245,6 @@
                     @for (url of civitaiGalleryImages(model); track url; let i = $index) {
                       <div
                         class="gallery-thumb"
-                        role="button"
-                        tabindex="0"
                         [class.active]="galleryIndex() === i"
                         (click)="setGalleryIndex(i)"
                         (keydown.enter)="setGalleryIndex(i)"
@@ -418,8 +412,6 @@
                     @for (url of hfGalleryImages(model); track url; let i = $index) {
                       <div
                         class="gallery-thumb"
-                        role="button"
-                        tabindex="0"
                         [class.active]="galleryIndex() === i"
                         (click)="setGalleryIndex(i)"
                         (keydown.enter)="setGalleryIndex(i)"
