@@ -34,7 +34,7 @@
   </div>
 } @else {
   <div class="gallery">
-    <div class="gallery-main gallery-placeholder">NO PREVIEW</div>
+    <div class="gallery-main gallery-placeholder">{{ 'media_gallery.no_preview' | translate }}</div>
   </div>
 }
 
@@ -42,7 +42,7 @@
   <button
     type="button"
     class="lightbox"
-    aria-label="Close preview"
+    [attr.aria-label]="'media_gallery.close_preview' | translate"
     (click)="lightboxOpen.set(false)"
   >
     <img [src]="mediaUrl(activeMedia()!.local_path)" alt="full size preview" />

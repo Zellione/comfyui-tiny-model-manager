@@ -1,9 +1,13 @@
 import { TestBed } from '@angular/core/testing';
+import { provideTranslateServiceForTests } from '../../../test-helpers/translate-testing';
 import { vi } from 'vitest';
 import { EditMetaForm } from './edit-meta-form';
 
 async function createFixture() {
-  await TestBed.configureTestingModule({ imports: [EditMetaForm] }).compileComponents();
+  await TestBed.configureTestingModule({
+    imports: [EditMetaForm],
+    providers: [provideTranslateServiceForTests()],
+  }).compileComponents();
   const fixture = TestBed.createComponent(EditMetaForm);
   fixture.detectChanges();
   return fixture;

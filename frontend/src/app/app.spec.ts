@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { provideTranslateServiceForTests } from '../test-helpers/translate-testing';
 import { EMPTY } from 'rxjs';
 import { App } from './app';
 import { DownloadService } from './services/download';
@@ -10,7 +11,11 @@ describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter([]), { provide: DownloadService, useValue: mockDownloadService }],
+      providers: [
+        provideRouter([]),
+        { provide: DownloadService, useValue: mockDownloadService },
+        provideTranslateServiceForTests(),
+      ],
     }).compileComponents();
   });
 

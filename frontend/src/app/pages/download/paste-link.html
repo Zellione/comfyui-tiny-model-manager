@@ -1,16 +1,16 @@
 <div class="paste-link-section">
-  <h3>Paste a link</h3>
+  <h3>{{ 'paste_link.title' | translate }}</h3>
   <div class="paste-link-row">
     <input
       class="paste-url-input"
       [ngModel]="pasteUrl()"
       (ngModelChange)="onPasteUrlChange($event)"
-      placeholder="https://huggingface.co/… or https://civitai.com/models/…"
+      [placeholder]="'paste_link.placeholder' | translate"
     />
   </div>
 
   @if (linkResolving()) {
-    <p class="paste-status">Resolving…</p>
+    <p class="paste-status">{{ 'paste_link.resolving' | translate }}</p>
   }
   @if (linkError()) {
     <p class="paste-error">{{ linkError() }}</p>
@@ -45,7 +45,7 @@
   }
 
   @if (linkKind().type === 'unknown' && pasteUrl()) {
-    <p class="paste-status muted">URL not recognized.</p>
+    <p class="paste-status muted">{{ 'paste_link.url_not_recognized' | translate }}</p>
   }
 
   <!-- F-17/F-18: single-file download action -->
@@ -55,13 +55,15 @@
       <app-base-model-select [value]="linkBaseModel()" (valueChange)="linkBaseModel.set($event)" />
       @switch (fileStatus(linkFilename())) {
         @case ('installed') {
-          <button class="btn-library">In library</button>
+          <button class="btn-library">{{ 'paste_link.in_library' | translate }}</button>
         }
         @case ('downloading') {
-          <button class="btn-primary" disabled>Downloading…</button>
+          <button class="btn-primary" disabled>{{ 'paste_link.downloading' | translate }}</button>
         }
         @default {
-          <button class="btn-primary" (click)="submitDirectLink()">Download</button>
+          <button class="btn-primary" (click)="submitDirectLink()">
+            {{ 'paste_link.download' | translate }}
+          </button>
         }
       }
     </div>
@@ -76,7 +78,7 @@
     @if (linkHfFiles().length > 0) {
       <div class="versions-panel">
         <div class="versions-header">
-          <h3>Files in {{ k.repo }}</h3>
+          <h3>{{ 'paste_link.files_in' | translate: { repo: k.repo } }}</h3>
         </div>
         @for (f of linkHfFiles(); track f.filename) {
           <div class="version-row">
@@ -96,13 +98,17 @@
               />
               @switch (fileStatus(f.filename)) {
                 @case ('installed') {
-                  <button class="btn-library">In library</button>
+                  <button class="btn-library">{{ 'paste_link.in_library' | translate }}</button>
                 }
                 @case ('downloading') {
-                  <button class="btn-primary" disabled>Downloading…</button>
+                  <button class="btn-primary" disabled>
+                    {{ 'paste_link.downloading' | translate }}
+                  </button>
                 }
                 @default {
-                  <button class="btn-primary" (click)="downloadLinkHfFile(f)">Download</button>
+                  <button class="btn-primary" (click)="downloadLinkHfFile(f)">
+                    {{ 'paste_link.download' | translate }}
+                  </button>
                 }
               }
             </div>
@@ -123,10 +129,12 @@
     @if (linkVersions().length > 0) {
       <div class="versions-panel">
         <div class="versions-header">
-          <h3>Versions</h3>
+          <h3>{{ 'paste_link.versions' | translate }}</h3>
           @if (linkCivitaiSelectedCount() > 0) {
             <button class="btn-primary" (click)="downloadSelectedLinkCivitai()">
-              Download selected ({{ linkCivitaiSelectedCount() }})
+              {{
+                'paste_link.download_selected' | translate: { count: linkCivitaiSelectedCount() }
+              }}
             </button>
           }
         </div>
@@ -171,14 +179,18 @@
                     />
                     @switch (fileStatus(f.name)) {
                       @case ('installed') {
-                        <button class="btn-library">In library</button>
+                        <button class="btn-library">
+                          {{ 'paste_link.in_library' | translate }}
+                        </button>
                       }
                       @case ('downloading') {
-                        <button class="btn-primary" disabled>Downloading…</button>
+                        <button class="btn-primary" disabled>
+                          {{ 'paste_link.downloading' | translate }}
+                        </button>
                       }
                       @default {
                         <button class="btn-primary" (click)="downloadLinkFile(f, v.id)">
-                          Download
+                          {{ 'paste_link.download' | translate }}
                         </button>
                       }
                     }

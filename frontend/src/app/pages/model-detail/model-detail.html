@@ -1,9 +1,9 @@
 <div class="page">
   <!-- Header bar -->
   <div class="detail-back">
-    <a routerLink="/models" class="btn ghost">← Back to Models</a>
+    <a routerLink="/models" class="btn ghost">{{ 'model_detail.back' | translate }}</a>
     <span class="crumbs">
-      <span>Installed</span>
+      <span>{{ 'model_detail.installed' | translate }}</span>
       <span class="crumb-sep">/</span>
       <span>{{ modelType }}</span>
       <span class="crumb-sep">/</span>
@@ -12,28 +12,38 @@
     <span class="spacer"></span>
     @if (!editMode()) {
       <app-confirm-popover
-        question="Re-fetch metadata from source?"
+        [question]="'model_detail.refetch_question' | translate"
         (confirmed)="triggerRefetchPreview()"
       >
         <button class="btn ghost" [disabled]="refetching()">
-          {{ refetching() ? 'Fetching…' : 'Re-fetch Metadata' }}
+          {{
+            refetching()
+              ? ('model_detail.refetching' | translate)
+              : ('model_detail.refetch' | translate)
+          }}
         </button>
       </app-confirm-popover>
-      <button class="btn ghost" (click)="enterEdit()">Edit</button>
+      <button class="btn ghost" (click)="enterEdit()">{{ 'model_detail.edit' | translate }}</button>
     }
     <app-confirm-popover
-      question="Remove this model from disk? This cannot be undone."
+      [question]="'model_detail.uninstall_question' | translate"
       (confirmed)="uninstall()"
     >
       <button class="btn danger-ghost" [disabled]="deleting()">
-        {{ deleting() ? 'Removing…' : 'Uninstall' }}
+        {{
+          deleting()
+            ? ('model_detail.removing' | translate)
+            : ('model_detail.uninstall' | translate)
+        }}
       </button>
     </app-confirm-popover>
   </div>
 
   <!-- Loading / error states -->
   @if (loading()) {
-    <div class="detail-card state-card"><p>Loading metadata…</p></div>
+    <div class="detail-card state-card">
+      <p>{{ 'model_detail.loading' | translate }}</p>
+    </div>
   } @else if (error()) {
     <div class="detail-card state-card">
       <p class="error-msg">{{ error() }}</p>
@@ -58,7 +68,7 @@
         <span class="dl-detail-spacer"></span>
         @if (meta()!.source_url) {
           <a [href]="meta()!.source_url" target="_blank" rel="noopener" class="dl-detail-source">
-            View on {{ sourceName() }} ↗
+            {{ 'model_detail.view_on' | translate: { source: sourceName() } }}
           </a>
         }
       </div>
@@ -66,15 +76,12 @@
       <!-- Link to Source panel (shown when file has no source URL) -->
       @if (showLinkSourcePanel()) {
         <div class="link-source-panel">
-          <span class="link-source-label"
-            >No source linked — paste a CivitAI or HuggingFace URL to link this file to its catalog
-            entry:</span
-          >
+          <span class="link-source-label">{{ 'model_detail.no_source' | translate }}</span>
           <div class="link-source-row">
             <input
               class="link-source-input"
               type="text"
-              placeholder="https://civitai.com/models/… or https://huggingface.co/…"
+              [placeholder]="'model_detail.source_placeholder' | translate"
               [value]="linkSourceUrl()"
               (input)="linkSourceUrl.set($any($event.target).value)"
               (keyup.enter)="linkSource()"
@@ -84,7 +91,9 @@
               (click)="linkSource()"
               [disabled]="linking() || !linkSourceUrl()"
             >
-              {{ linking() ? 'Linking…' : 'Link' }}
+              {{
+                linking() ? ('model_detail.linking' | translate) : ('model_detail.link' | translate)
+              }}
             </button>
           </div>
           @if (linkSourceError()) {
@@ -95,8 +104,10 @@
 
       @if (refetchNoChanges()) {
         <div class="no-changes-banner">
-          Metadata already up to date.
-          <button class="btn ghost small" (click)="reviewAnyway()">Review anyway</button>
+          {{ 'model_detail.up_to_date' | translate }}
+          <button class="btn ghost small" (click)="reviewAnyway()">
+            {{ 'model_detail.review_anyway' | translate }}
+          </button>
         </div>
       }
 
@@ -109,7 +120,7 @@
         <!-- Tags -->
         @if (meta()!.tags && meta()!.tags.length > 0) {
           <div class="dl-tags">
-            <span class="dl-tags-label">Tags</span>
+            <span class="dl-tags-label">{{ 'model_detail.tags' | translate }}</span>
             @for (t of meta()!.tags; track t) {
               <span class="tag">{{ t }}</span>
             }
@@ -120,11 +131,15 @@
         <div class="detail-section">
           @if (meta()!.trigger_words && meta()!.trigger_words.length > 0) {
             <div class="keywords-row">
-              <div class="keywords-label">Trigger keywords</div>
+              <div class="keywords-label">{{ 'model_detail.trigger_keywords' | translate }}</div>
               <div class="keywords-line">
                 <code>{{ meta()!.trigger_words.join(', ') }}</code>
                 <button class="btn small ghost keywords-copy" (click)="copyTriggerWords()">
-                  {{ copied() ? '✓ Copied' : 'Copy' }}
+                  {{
+                    copied()
+                      ? ('model_detail.copied' | translate)
+                      : ('model_detail.copy' | translate)
+                  }}
                 </button>
               </div>
               <div class="keywords-chips">
@@ -135,8 +150,8 @@
             </div>
           } @else {
             <div class="keywords-row empty">
-              <div class="keywords-label">Trigger keywords</div>
-              <div class="keywords-empty">No trigger words for this model</div>
+              <div class="keywords-label">{{ 'model_detail.trigger_keywords' | translate }}</div>
+              <div class="keywords-empty">{{ 'model_detail.no_trigger_words' | translate }}</div>
             </div>
           }
         </div>
@@ -144,7 +159,7 @@
         <!-- About this model -->
         @if (meta()!.description) {
           <div class="description">
-            <h3>About this model</h3>
+            <h3>{{ 'model_detail.about' | translate }}</h3>
             <div class="description-body" [innerHTML]="meta()!.description | safeHtml"></div>
           </div>
         }
@@ -152,7 +167,7 @@
         <!-- README -->
         @if (meta()!.readme_html) {
           <div class="description">
-            <h3>README</h3>
+            <h3>{{ 'model_detail.readme' | translate }}</h3>
             <div class="description-body" [innerHTML]="meta()!.readme_html | safeHtml"></div>
           </div>
         }
@@ -160,12 +175,12 @@
         <!-- ── Edit view ── -->
         <div class="edit-panel">
           <label>
-            <span class="field-label">Description</span>
+            <span class="field-label">{{ 'model_detail.description' | translate }}</span>
             <textarea [(ngModel)]="editMeta.description" rows="6"></textarea>
           </label>
 
           <label>
-            <span class="field-label">Model Type</span>
+            <span class="field-label">{{ 'model_detail.model_type' | translate }}</span>
             <select [(ngModel)]="editType">
               @for (t of modelTypes(); track t) {
                 <option [value]="t">{{ t }}</option>
@@ -174,7 +189,7 @@
           </label>
 
           <div class="field-group">
-            <span class="field-label">Base Model</span>
+            <span class="field-label">{{ 'model_detail.base_model' | translate }}</span>
             <app-base-model-select
               [value]="editMeta.base_model ?? ''"
               (valueChange)="editMeta.base_model = $event"

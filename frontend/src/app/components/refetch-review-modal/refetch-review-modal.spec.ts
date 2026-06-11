@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideTranslateServiceForTests } from '../../../test-helpers/translate-testing';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
 import { RefetchReviewModal } from './refetch-review-modal';
@@ -34,7 +35,10 @@ const mockModelService = {
 async function createFixture(data = makePreviewData()) {
   await TestBed.configureTestingModule({
     imports: [RefetchReviewModal],
-    providers: [{ provide: ModelService, useValue: mockModelService }],
+    providers: [
+      { provide: ModelService, useValue: mockModelService },
+      provideTranslateServiceForTests(),
+    ],
   }).compileComponents();
   const fixture = TestBed.createComponent(RefetchReviewModal);
   fixture.componentRef.setInput('data', data);

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, provideRouter } from '@angular/router';
+import { provideTranslateServiceForTests } from '../../../test-helpers/translate-testing';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { CatalogDetail } from './catalog-detail';
@@ -98,6 +99,7 @@ async function createFixture(platform = 'civitai', pageId = '123') {
       { provide: WorkflowService, useValue: mockWorkflowService },
       { provide: NotificationService, useValue: mockNotifService },
       { provide: KeywordsService, useValue: mockKeywordsService },
+      provideTranslateServiceForTests(),
     ],
   }).compileComponents();
 

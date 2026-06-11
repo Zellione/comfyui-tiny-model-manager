@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideTranslateServiceForTests } from '../../../test-helpers/translate-testing';
 import { of, throwError, EMPTY } from 'rxjs';
 import { vi } from 'vitest';
 import { PasteLink } from './paste-link';
@@ -73,6 +74,7 @@ async function configureTestBed() {
       { provide: ModelService, useValue: mockModelService },
       { provide: NotificationService, useValue: mockNotifService },
       { provide: KeywordsService, useValue: mockKeywordsService },
+      provideTranslateServiceForTests(),
     ],
   }).compileComponents();
 }

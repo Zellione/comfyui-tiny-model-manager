@@ -15,6 +15,7 @@ import { ModelType } from '../../utils/model-types';
 import { formatSize } from '../../utils/format';
 import { ModelTypeSelect } from '../../components/model-type-select/model-type-select';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { InstalledFilesService } from '../../services/installed-files';
 
 type HfFileItem = { filename: string; size: number; url: string };
@@ -33,7 +34,7 @@ type LinkResolution =
  */
 @Component({
   selector: 'app-paste-link',
-  imports: [CommonModule, FormsModule, ModelTypeSelect, BaseModelSelect],
+  imports: [CommonModule, FormsModule, ModelTypeSelect, BaseModelSelect, TranslatePipe],
   templateUrl: './paste-link.html',
   styleUrl: './paste-link.scss',
 })
@@ -42,6 +43,7 @@ export class PasteLink {
   private readonly hfService = inject(HuggingFaceService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly installed = inject(InstalledFilesService);
+  private readonly translate = inject(TranslateService);
   private readonly pasteUrl$ = new Subject<string>();
 
   formatSize = formatSize;
@@ -136,7 +138,9 @@ export class PasteLink {
             return this.civitaiService.resolveDirectLink(kind.versionId).pipe(
               map((r) => ({ tag: 'civitai-download' as const, ...r })),
               catchError((err) => {
-                this.linkError.set(err?.error?.error ?? 'Failed to resolve link');
+                this.linkError.set(
+                  err?.error?.error ?? this.translate.instant('paste_link.error.resolve_failed'),
+                );
                 this.linkResolving.set(false);
                 return of(null);
               }),
@@ -147,7 +151,7 @@ export class PasteLink {
             return this.hfService.getFiles(kind.repo).pipe(
               map((files) => ({ tag: 'hf-repo' as const, files })),
               catchError(() => {
-                this.linkError.set('Failed to load files from repository');
+                this.linkError.set(this.translate.instant('paste_link.error.load_files_failed'));
                 this.linkResolving.set(false);
                 return of(null);
               }),
@@ -162,7 +166,10 @@ export class PasteLink {
                 model_type: r.model_type,
               })),
               catchError((err) => {
-                this.linkVersionsError.set(err?.error?.error ?? 'Failed to load model versions');
+                this.linkVersionsError.set(
+                  err?.error?.error ??
+                    this.translate.instant('paste_link.error.load_versions_failed'),
+                );
                 this.linkResolving.set(false);
                 return of(null);
               }),

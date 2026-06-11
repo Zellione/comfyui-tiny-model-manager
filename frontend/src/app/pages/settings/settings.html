@@ -1,27 +1,26 @@
 <div class="page">
   <div class="page-head">
-    <h1 class="page-title">Settings</h1>
+    <h1 class="page-title">{{ 'settings.title' | translate }}</h1>
   </div>
 
   <section class="settings-section">
-    <h2 class="section-title">Filename Detection Keywords</h2>
+    <h2 class="section-title">{{ 'settings.keywords.title' | translate }}</h2>
     <p class="section-desc">
-      Keywords are matched (case-insensitive) against downloaded filenames. The first matching
-      keyword per field wins. Drag to reorder, or adjust sort order values.
+      {{ 'settings.keywords.description' | translate }}
     </p>
 
     @if (loading()) {
-      <p class="settings-loading">Loading…</p>
+      <p class="settings-loading">{{ 'settings.keywords.loading' | translate }}</p>
     } @else if (error()) {
       <p class="settings-error">{{ error() }}</p>
     } @else {
       <table class="kw-table">
         <thead>
           <tr>
-            <th>Keyword</th>
-            <th>Base model</th>
-            <th>Model type</th>
-            <th>Sort order</th>
+            <th>{{ 'settings.keywords.header.keyword' | translate }}</th>
+            <th>{{ 'settings.keywords.header.base_model' | translate }}</th>
+            <th>{{ 'settings.keywords.header.model_type' | translate }}</th>
+            <th>{{ 'settings.keywords.header.sort_order' | translate }}</th>
             <th></th>
           </tr>
         </thead>
@@ -34,7 +33,7 @@
                     class="kw-input"
                     [ngModel]="editKeyword()"
                     (ngModelChange)="editKeyword.set($event)"
-                    placeholder="keyword"
+                    [placeholder]="'settings.keywords.placeholder.keyword' | translate"
                     (keydown.enter)="saveEdit()"
                     (keydown.escape)="cancelEdit()"
                   />
@@ -44,7 +43,7 @@
                     class="kw-input"
                     [ngModel]="editBaseModel()"
                     (ngModelChange)="editBaseModel.set($event)"
-                    placeholder="e.g. SDXL 1.0"
+                    [placeholder]="'settings.keywords.placeholder.base_model' | translate"
                     (keydown.enter)="saveEdit()"
                     (keydown.escape)="cancelEdit()"
                   />
@@ -55,7 +54,7 @@
                     [ngModel]="editModelType()"
                     (ngModelChange)="editModelType.set($event)"
                   >
-                    <option value="">— none —</option>
+                    <option value="">{{ 'settings.keywords.no_model_type' | translate }}</option>
                     @for (t of modelTypes; track t) {
                       <option [value]="t">{{ t }}</option>
                     }
@@ -64,9 +63,11 @@
                 <td class="kw-sort">{{ kw.sort_order }}</td>
                 <td class="kw-actions">
                   <button class="btn-primary btn-small" [disabled]="saving()" (click)="saveEdit()">
-                    Save
+                    {{ 'settings.keywords.save' | translate }}
                   </button>
-                  <button class="btn-secondary btn-small" (click)="cancelEdit()">Cancel</button>
+                  <button class="btn-secondary btn-small" (click)="cancelEdit()">
+                    {{ 'settings.keywords.cancel' | translate }}
+                  </button>
                 </td>
               </tr>
             } @else {
@@ -76,9 +77,11 @@
                 <td class="kw-cell">{{ kw.model_type ?? '—' }}</td>
                 <td class="kw-sort">{{ kw.sort_order }}</td>
                 <td class="kw-actions">
-                  <button class="btn-secondary btn-small" (click)="startEdit(kw)">Edit</button>
+                  <button class="btn-secondary btn-small" (click)="startEdit(kw)">
+                    {{ 'settings.keywords.edit' | translate }}
+                  </button>
                   <button class="btn-danger btn-small" (click)="deleteKeyword(kw.id)">
-                    Delete
+                    {{ 'settings.keywords.delete' | translate }}
                   </button>
                 </td>
               </tr>
@@ -92,7 +95,7 @@
                 class="kw-input"
                 [ngModel]="newKeyword()"
                 (ngModelChange)="newKeyword.set($event)"
-                placeholder="new keyword…"
+                [placeholder]="'settings.keywords.placeholder.new' | translate"
                 (keydown.enter)="addKeyword()"
               />
             </td>
@@ -101,7 +104,7 @@
                 class="kw-input"
                 [ngModel]="newBaseModel()"
                 (ngModelChange)="newBaseModel.set($event)"
-                placeholder="e.g. SDXL 1.0"
+                [placeholder]="'settings.keywords.placeholder.base_model' | translate"
                 (keydown.enter)="addKeyword()"
               />
             </td>
@@ -111,20 +114,20 @@
                 [ngModel]="newModelType()"
                 (ngModelChange)="newModelType.set($event)"
               >
-                <option value="">— none —</option>
+                <option value="">{{ 'settings.keywords.no_model_type' | translate }}</option>
                 @for (t of modelTypes; track t) {
                   <option [value]="t">{{ t }}</option>
                 }
               </select>
             </td>
-            <td class="kw-sort">auto</td>
+            <td class="kw-sort">{{ 'settings.keywords.auto_sort' | translate }}</td>
             <td class="kw-actions">
               <button
                 class="btn-primary btn-small"
                 [disabled]="adding() || !newKeyword().trim()"
                 (click)="addKeyword()"
               >
-                Add
+                {{ 'settings.keywords.add' | translate }}
               </button>
             </td>
           </tr>

@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import { provideTranslateServiceForTests } from '../../../test-helpers/translate-testing';
 import { EMPTY, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { ModelDetail } from './model-detail';
@@ -124,6 +125,7 @@ describe('ModelDetail', () => {
         { provide: WorkflowService, useValue: mockWorkflowService },
         { provide: NotificationService, useValue: mockNotifService },
         { provide: KeywordsService, useValue: mockKeywordsService },
+        provideTranslateServiceForTests(),
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(ModelDetail);

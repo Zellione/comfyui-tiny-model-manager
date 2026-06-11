@@ -7,10 +7,12 @@ import {
   input,
   output,
 } from '@angular/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { ConfirmPopoverService } from '../../services/confirm-popover.service';
 
 @Component({
   selector: 'app-confirm-popover',
+  imports: [TranslatePipe],
   templateUrl: './confirm-popover.html',
   styleUrl: './confirm-popover.scss',
 })

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { provideTranslateServiceForTests } from '../../../test-helpers/translate-testing';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { Models } from './models';
@@ -81,6 +82,7 @@ describe('Models component', () => {
         { provide: WorkflowService, useValue: mockWorkflowService },
         { provide: SettingsService, useValue: mockSettingsService },
         { provide: NotificationService, useValue: mockNotifService },
+        provideTranslateServiceForTests(),
       ],
     }).compileComponents();
   });

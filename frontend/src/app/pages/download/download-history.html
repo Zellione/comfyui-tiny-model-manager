@@ -2,22 +2,13 @@
   <!-- Filter controls -->
   <div class="history-filters">
     <div class="history-status-chips">
-      @for (
-        opt of [
-          { label: 'All', value: '' },
-          { label: 'Done', value: 'done' },
-          { label: 'Error', value: 'error' },
-          { label: 'Cancelled', value: 'cancelled' },
-          { label: 'Deleted', value: 'deleted' },
-        ];
-        track opt.value
-      ) {
+      @for (opt of historyStatusOptions; track opt.value) {
         <button
           class="chip"
           [class.chip--active]="historyStatusFilter() === opt.value"
           (click)="historyStatusFilter.set(opt.value)"
         >
-          {{ opt.label }}
+          {{ opt.label | translate }}
         </button>
       }
     </div>
@@ -25,15 +16,15 @@
       class="history-search"
       [ngModel]="historySearch()"
       (ngModelChange)="historySearch.set($event)"
-      placeholder="Search by name…"
+      [placeholder]="'download_history.placeholder' | translate"
     />
   </div>
 
   <!-- Entries -->
   @if (historyLoading() && historyEntries().length === 0) {
-    <p class="history-loading">Loading…</p>
+    <p class="history-loading">{{ 'download_history.loading' | translate }}</p>
   } @else if (historyEntries().length === 0) {
-    <p class="history-empty">No history entries found.</p>
+    <p class="history-empty">{{ 'download_history.empty' | translate }}</p>
   } @else {
     <div class="history-list">
       @for (entry of historyEntries(); track entry.id) {
@@ -59,27 +50,37 @@
             @if (entry.status === 'downloading' && historyTaskMap().has(entry.id)) {
               @let activeTask = historyTaskMap().get(entry.id)!;
               <app-confirm-popover
-                question="Cancel this download?"
+                [question]="'download_history.cancel_question' | translate"
                 (confirmed)="onCancelTask(activeTask.id)"
               >
                 <button
                   class="btn-secondary btn-sm"
                   [disabled]="cancellingIds().has(activeTask.id)"
                 >
-                  {{ cancellingIds().has(activeTask.id) ? '…' : 'Cancel' }}
+                  {{
+                    cancellingIds().has(activeTask.id)
+                      ? ('download_history.cancelling' | translate)
+                      : ('download_history.cancel' | translate)
+                  }}
                 </button>
               </app-confirm-popover>
             }
             @if (canRedownload(entry.status)) {
               <app-confirm-popover
-                question="Re-download {{ entry.model_name }}?"
+                [question]="
+                  'download_history.redownload_question' | translate: { name: entry.model_name }
+                "
                 (confirmed)="redownload(entry)"
               >
                 <button
                   class="btn-secondary btn-sm"
                   [disabled]="historyRedownloadingIds().has(entry.id)"
                 >
-                  {{ historyRedownloadingIds().has(entry.id) ? '…' : 'Redownload' }}
+                  {{
+                    historyRedownloadingIds().has(entry.id)
+                      ? ('download_history.redownloading' | translate)
+                      : ('download_history.redownload' | translate)
+                  }}
                 </button>
               </app-confirm-popover>
             }
@@ -94,7 +95,11 @@
           <p class="load-more-error">{{ historyLoadMoreError() }}</p>
         }
         <button class="btn-secondary" [disabled]="historyLoading()" (click)="historyLoadMore()">
-          {{ historyLoading() ? 'Loading…' : 'Load more' }}
+          {{
+            historyLoading()
+              ? ('download_history.load_more.loading' | translate)
+              : ('download_history.load_more.load_more' | translate)
+          }}
         </button>
       </div>
     }

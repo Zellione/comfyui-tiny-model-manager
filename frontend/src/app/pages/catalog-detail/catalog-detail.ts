@@ -28,6 +28,7 @@ import { formatBytes } from '../../utils/format';
 import { mediaUrl } from '../../utils/media';
 import { KeywordsService } from '../../services/keywords';
 import { detectFromFilename, FilenameKeyword } from '../../utils/filename-detector';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
 import { EditMetaForm } from '../../components/edit-meta-form/edit-meta-form';
 import { MediaGallery } from '../../components/media-gallery/media-gallery';
@@ -44,6 +45,7 @@ import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover
     EditMetaForm,
     MediaGallery,
     ConfirmPopover,
+    TranslatePipe,
   ],
   templateUrl: './catalog-detail.html',
   styleUrl: './catalog-detail.scss',
@@ -133,6 +135,7 @@ export class CatalogDetail implements OnInit {
     private readonly workflowService: WorkflowService,
     private readonly notifService: NotificationService,
     private readonly destroyRef: DestroyRef,
+    private readonly translate: TranslateService,
   ) {
     this.activeTasks = toSignal(this.downloadService.activeTasks$, {
       initialValue: [] as DownloadTask[],
@@ -146,7 +149,12 @@ export class CatalogDetail implements OnInit {
         // The download is no longer in the queued/downloading phase.
         this.dropFromSet(this.downloadingFiles, task.filename);
         if (task.status === 'error') {
-          this.notifService.show('error', `Download failed: ${task.error ?? task.filename}`);
+          this.notifService.show(
+            'error',
+            this.translate.instant('catalog_detail.notify.download_failed', {
+              error: task.error ?? task.filename,
+            }),
+          );
           this.load();
           return;
         }
@@ -279,7 +287,7 @@ export class CatalogDetail implements OnInit {
     forkJoin([metaOp, ...this.collectBaseModelUpdates()]).subscribe({
       next: () => {
         this.saving.set(false);
-        this.notifService.show('success', 'Metadata saved.');
+        this.notifService.show('success', this.translate.instant('catalog_detail.notify.saved'));
         this.editMode.set(false);
         // Reload so moved files land under their new subfolders and the catalog reflects it.
         this.load();
@@ -312,7 +320,10 @@ export class CatalogDetail implements OnInit {
       next: (entry) => {
         this.refetching.set(false);
         this.applyEntry(entry);
-        this.notifService.show('success', 'Metadata re-fetched from source.');
+        this.notifService.show(
+          'success',
+          this.translate.instant('catalog_detail.notify.refetched'),
+        );
       },
       error: (err) => {
         this.refetching.set(false);
@@ -343,7 +354,10 @@ export class CatalogDetail implements OnInit {
     this.modelService.deleteModel(rf.model_type, path).subscribe({
       next: () => {
         this.deleting.set(false);
-        this.notifService.show('success', 'File uninstalled.');
+        this.notifService.show(
+          'success',
+          this.translate.instant('catalog_detail.notify.uninstalled'),
+        );
         this.load();
       },
       error: (err) => {
@@ -356,9 +370,13 @@ export class CatalogDetail implements OnInit {
   addRepoFileToWorkflow(rf: RepoFile) {
     const path = rf.installed_path || rf.filename;
     this.workflowService.addToWorkflow(rf.model_type, path).subscribe({
-      next: () => this.notifService.show('success', 'Model queued for workflow insertion.'),
+      next: () =>
+        this.notifService.show('success', this.translate.instant('catalog_detail.notify.queued')),
       error: () =>
-        this.notifService.show('error', 'Failed to enqueue model for workflow insertion.'),
+        this.notifService.show(
+          'error',
+          this.translate.instant('catalog_detail.notify.queue_failed'),
+        ),
     });
   }
 
@@ -404,12 +422,20 @@ export class CatalogDetail implements OnInit {
     this.modelService.removeCatalogEntry(this.platform, this.pageId).subscribe({
       next: () => {
         const name = this.entry()?.display_name || this.pageId;
-        this.notifService.show('success', `Removed "${name}" from catalog.`);
+        this.notifService.show(
+          'success',
+          this.translate.instant('catalog_detail.notify.removed', { name }),
+        );
         this.router.navigate(['/catalog']);
       },
       error: (err) => {
         this.removing.set(false);
-        this.notifService.show('error', 'Failed to remove from catalog: ' + (err as Error).message);
+        this.notifService.show(
+          'error',
+          this.translate.instant('catalog_detail.notify.remove_failed', {
+            error: (err as Error).message,
+          }),
+        );
       },
     });
   }
@@ -425,10 +451,21 @@ export class CatalogDetail implements OnInit {
     this.downloadService
       .startDownload(file.download_url, modelType, file.filename, platform, sourceId, baseModel)
       .subscribe({
-        next: () => this.notifService.show('success', `Downloading ${file.filename}…`),
+        next: () =>
+          this.notifService.show(
+            'success',
+            this.translate.instant('catalog_detail.notify.downloading', {
+              filename: file.filename,
+            }),
+          ),
         error: () => {
           this.dropFromSet(this.downloadingFiles, file.filename);
-          this.notifService.show('error', `Failed to start download for ${file.filename}`);
+          this.notifService.show(
+            'error',
+            this.translate.instant('catalog_detail.notify.download_start_failed', {
+              filename: file.filename,
+            }),
+          );
         },
       });
   }

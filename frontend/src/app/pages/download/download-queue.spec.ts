@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideTranslateServiceForTests } from '../../../test-helpers/translate-testing';
 import { of, throwError, EMPTY, Subject } from 'rxjs';
 import { vi } from 'vitest';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -29,7 +30,10 @@ const activeTask = (): DownloadTask => ({
 async function configureTestBed() {
   await TestBed.configureTestingModule({
     imports: [DownloadQueue],
-    providers: [{ provide: DownloadService, useValue: mockDownloadService }],
+    providers: [
+      { provide: DownloadService, useValue: mockDownloadService },
+      provideTranslateServiceForTests(),
+    ],
   }).compileComponents();
 }
 

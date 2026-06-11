@@ -1,4 +1,5 @@
 import { Component, signal } from '@angular/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { InstalledFilesService } from '../../services/installed-files';
 import { DownloadHistory } from './download-history';
 import { DownloadQueue } from './download-queue';
@@ -12,7 +13,7 @@ import { DownloadSearch } from './download-search';
  */
 @Component({
   selector: 'app-download',
-  imports: [DownloadHistory, DownloadQueue, PasteLink, DownloadSearch],
+  imports: [DownloadHistory, DownloadQueue, PasteLink, DownloadSearch, TranslatePipe],
   providers: [InstalledFilesService],
   templateUrl: './download.html',
   styleUrl: './download.scss',

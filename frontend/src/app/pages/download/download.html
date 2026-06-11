@@ -1,4 +1,4 @@
-<h2>Download Models</h2>
+<h2>{{ 'download.title' | translate }}</h2>
 
 <!-- Tab bar -->
 <div class="download-tabs">
@@ -7,14 +7,14 @@
     [class.download-tab--active]="activeTab() === 'active'"
     (click)="activeTab.set('active')"
   >
-    Active
+    {{ 'download.tabs.active' | translate }}
   </button>
   <button
     class="download-tab"
     [class.download-tab--active]="activeTab() === 'history'"
     (click)="activeTab.set('history')"
   >
-    History
+    {{ 'download.tabs.history' | translate }}
   </button>
 </div>
 

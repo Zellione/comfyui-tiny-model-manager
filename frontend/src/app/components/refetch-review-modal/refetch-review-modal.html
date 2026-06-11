@@ -5,13 +5,13 @@
     (keydown)="$event.stopPropagation()"
   >
     <div class="modal-header">
-      <h3>Review fetched metadata</h3>
+      <h3>{{ 'refetch_modal.title' | translate }}</h3>
       <button class="btn ghost small" (click)="cancelled.emit()">✕</button>
     </div>
 
     <div class="modal-body">
       <section class="diff-section">
-        <h4>Description</h4>
+        <h4>{{ 'refetch_modal.description' | translate }}</h4>
         <app-text-diff-field
           [oldValue]="data().old.description"
           [newValue]="data().new.description"
@@ -21,7 +21,7 @@
       </section>
 
       <section class="diff-section">
-        <h4>Trigger Words</h4>
+        <h4>{{ 'refetch_modal.trigger_words' | translate }}</h4>
         <app-array-field-merge
           [oldItems]="data().old.trigger_words"
           [newItems]="data().new.trigger_words"
@@ -31,7 +31,7 @@
       </section>
 
       <section class="diff-section">
-        <h4>Tags</h4>
+        <h4>{{ 'refetch_modal.tags' | translate }}</h4>
         <app-array-field-merge
           [oldItems]="data().old.tags"
           [newItems]="data().new.tags"
@@ -41,7 +41,7 @@
       </section>
 
       <section class="diff-section">
-        <h4>Base Model</h4>
+        <h4>{{ 'refetch_modal.base_model' | translate }}</h4>
         <div class="base-model-chips">
           <label class="chip" [class.chip--active]="baseModelChoice() === 'old'">
             <input
@@ -49,7 +49,8 @@
               [checked]="baseModelChoice() === 'old'"
               (change)="baseModelChoice.set('old')"
             />
-            Current: {{ data().old.base_model || '(none)' }}
+            {{ 'refetch_modal.current' | translate }}
+            {{ data().old.base_model || ('refetch_modal.none' | translate) }}
             @if (data().old.last_edited_at.base_model) {
               <span class="edited-icon">✏</span>
             }
@@ -60,7 +61,8 @@
               [checked]="baseModelChoice() === 'new'"
               (change)="baseModelChoice.set('new')"
             />
-            Incoming: {{ data().new.base_model || '(none)' }}
+            {{ 'refetch_modal.incoming' | translate }}
+            {{ data().new.base_model || ('refetch_modal.none' | translate) }}
           </label>
         </div>
       </section>
@@ -72,7 +74,7 @@
             [checked]="replaceImages()"
             (change)="replaceImages.set(!replaceImages())"
           />
-          Also replace images?
+          {{ 'refetch_modal.replace_images' | translate }}
         </label>
         @if (replaceImages()) {
           <app-image-gallery-compare
@@ -87,14 +89,25 @@
 
     <div class="modal-footer">
       @if (expired()) {
-        <p class="expire-msg">Preview expired — re-fetch to review again.</p>
+        <p class="expire-msg">{{ 'refetch_modal.preview_expired' | translate }}</p>
       } @else if (secondsRemaining() !== null) {
-        <p class="countdown">Preview expires in {{ formatCountdown(secondsRemaining()!) }}</p>
+        <p class="countdown">
+          {{
+            'refetch_modal.expires_in'
+              | translate: { countdown: formatCountdown(secondsRemaining()!) }
+          }}
+        </p>
       }
       <div class="footer-actions">
-        <button class="btn ghost" (click)="cancelled.emit()">Cancel</button>
+        <button class="btn ghost" (click)="cancelled.emit()">
+          {{ 'refetch_modal.cancel' | translate }}
+        </button>
         <button class="btn primary" (click)="applySelected()" [disabled]="expired() || applying()">
-          {{ applying() ? 'Applying…' : 'Apply selected' }}
+          {{
+            applying()
+              ? ('refetch_modal.applying' | translate)
+              : ('refetch_modal.apply_selected' | translate)
+          }}
         </button>
       </div>
     </div>
