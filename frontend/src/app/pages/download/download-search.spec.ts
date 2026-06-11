@@ -3,7 +3,7 @@ import { of, throwError, EMPTY } from 'rxjs';
 import { vi } from 'vitest';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DownloadSearch } from './download-search';
-import { CivitaiService, CivitaiFile } from '../../services/civitai';
+import { CivitaiService, CivitaiFile, CivitaiModel, CivitaiVersion } from '../../services/civitai';
 import { HuggingFaceService, HfModel } from '../../services/huggingface';
 import { DownloadService, DownloadTask } from '../../services/download';
 import { ModelService } from '../../services/model';
@@ -489,5 +489,245 @@ describe('DownloadSearch — F-82 base model signals', () => {
     const c = fixture.componentInstance;
     c.setCivitaiFileBaseModel(1, mockCivitaiFile, 'Pony');
     expect(c.civitaiFileBaseModel(1, mockCivitaiFile)).toBe('Pony');
+  });
+});
+
+const richCivitaiModel = (): CivitaiModel => ({
+  id: 7,
+  name: 'Rich Model',
+  type: 'Checkpoint',
+  description: 'desc',
+  tags: ['anime', 'style'],
+  modelVersions: [
+    {
+      id: 70,
+      name: 'v1',
+      baseModel: 'SDXL 1.0',
+      downloadUrl: 'https://civitai.com/v1',
+      trainedWords: ['trigger1', 'trigger2'],
+      images: [{ url: 'https://img/a.jpg' }, { url: 'https://img/b.mp4' }, { url: '' }],
+      files: [mockCivitaiFile],
+    },
+  ],
+  creator: { username: 'alice' },
+  stats: { downloadCount: 42, thumbsUpCount: 0, thumbsDownCount: 0 },
+});
+
+const hfGalleryModel = (): HfModel => ({
+  id: 'user/repo',
+  modelId: 'user/repo',
+  downloads: 5,
+  tags: ['tag'],
+  images: ['https://hf/img1.jpg', 'https://hf/img2.jpg'],
+});
+
+describe('DownloadSearch — display helpers', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mockKeywordsService.getKeywords.mockReturnValue(of([]));
+    mockModelService.listModels.mockReturnValue(of({}));
+    mockDownloadService.activeTasks$ = of([]);
+    await configureTestBed();
+  });
+
+  it('civitaiThumb returns the first version image url', async () => {
+    const c = (await createFixture()).componentInstance;
+    expect(c.civitaiThumb(richCivitaiModel())).toBe('https://img/a.jpg');
+  });
+
+  it('civitaiThumb returns empty string when there are no images', async () => {
+    const c = (await createFixture()).componentInstance;
+    const model = { ...richCivitaiModel(), modelVersions: [] };
+    expect(c.civitaiThumb(model)).toBe('');
+  });
+
+  it('civitaiGalleryImages drops blank urls and caps at 8', async () => {
+    const c = (await createFixture()).componentInstance;
+    expect(c.civitaiGalleryImages(richCivitaiModel())).toEqual([
+      'https://img/a.jpg',
+      'https://img/b.mp4',
+    ]);
+  });
+
+  it('currentGalleryUrl follows galleryIndex', async () => {
+    const c = (await createFixture()).componentInstance;
+    const model = richCivitaiModel();
+    expect(c.currentGalleryUrl(model)).toBe('https://img/a.jpg');
+    c.setGalleryIndex(1);
+    expect(c.currentGalleryUrl(model)).toBe('https://img/b.mp4');
+  });
+
+  it('civitaiModelBaseModel returns the first version base model', async () => {
+    const c = (await createFixture()).componentInstance;
+    expect(c.civitaiModelBaseModel(richCivitaiModel())).toBe('SDXL 1.0');
+  });
+
+  it('civitaiTriggerWords returns the first version trained words', async () => {
+    const c = (await createFixture()).componentInstance;
+    expect(c.civitaiTriggerWords(richCivitaiModel())).toEqual(['trigger1', 'trigger2']);
+  });
+
+  it('civitaiSourceUrl builds a model url from the id', async () => {
+    const c = (await createFixture()).componentInstance;
+    expect(c.civitaiSourceUrl(richCivitaiModel())).toBe('https://civitai.com/models/7');
+  });
+
+  it('hfGalleryImages and currentHfGalleryUrl follow galleryIndex', async () => {
+    const c = (await createFixture()).componentInstance;
+    const model = hfGalleryModel();
+    expect(c.hfGalleryImages(model)).toHaveLength(2);
+    expect(c.currentHfGalleryUrl(model)).toBe('https://hf/img1.jpg');
+    c.setGalleryIndex(1);
+    expect(c.currentHfGalleryUrl(model)).toBe('https://hf/img2.jpg');
+  });
+
+  it('hfSourceUrl builds a repo url from the modelId', async () => {
+    const c = (await createFixture()).componentInstance;
+    expect(c.hfSourceUrl(hfGalleryModel())).toBe('https://huggingface.co/user/repo');
+  });
+
+  it('onImgError hides the broken image element', async () => {
+    const c = (await createFixture()).componentInstance;
+    const img = document.createElement('img');
+    c.onImgError({ target: img } as unknown as Event);
+    expect(img.style.display).toBe('none');
+  });
+
+  it('fileStatus delegates to the installed-files service', async () => {
+    const c = (await createFixture()).componentInstance;
+    expect(c.fileStatus('nope.safetensors')).toBe('idle');
+  });
+});
+
+describe('DownloadSearch — CivitAI selection and downloads', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mockKeywordsService.getKeywords.mockReturnValue(of([]));
+    mockModelService.listModels.mockReturnValue(of({}));
+    mockDownloadService.activeTasks$ = of([]);
+    mockDownloadService.startDownload.mockReturnValue(of({}));
+    await configureTestBed();
+  });
+
+  it('selectCivitai loads versions and seeds per-file type/base-model overrides', async () => {
+    const versions: CivitaiVersion[] = richCivitaiModel().modelVersions;
+    mockCivitaiService.getVersions.mockReturnValue(of({ versions, model_type: 'checkpoints' }));
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+
+    c.selectCivitai(richCivitaiModel());
+    await fixture.whenStable();
+
+    expect(c.versions()).toEqual(versions);
+    expect(c.civitaiFileType(70, mockCivitaiFile)).toBe('checkpoints');
+    expect(c.civitaiFileBaseModel(70, mockCivitaiFile)).toBe('SDXL 1.0');
+    expect(c.loadingVersions()).toBe(false);
+  });
+
+  it('selectCivitai sets versionsError on failure', async () => {
+    mockCivitaiService.getVersions.mockReturnValue(
+      throwError(() => ({ error: { error: 'boom' } })),
+    );
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+
+    c.selectCivitai(richCivitaiModel());
+    await fixture.whenStable();
+
+    expect(c.versionsError()).toBe('boom');
+    expect(c.loadingVersions()).toBe(false);
+  });
+
+  it('toggleCivitaiFile selects then deselects a file', async () => {
+    const c = (await createFixture()).componentInstance;
+    expect(c.isCivitaiFileSelected(5, mockCivitaiFile)).toBe(false);
+    c.toggleCivitaiFile(5, mockCivitaiFile);
+    expect(c.isCivitaiFileSelected(5, mockCivitaiFile)).toBe(true);
+    expect(c.selectedCivitaiCount()).toBe(1);
+    c.toggleCivitaiFile(5, mockCivitaiFile);
+    expect(c.isCivitaiFileSelected(5, mockCivitaiFile)).toBe(false);
+  });
+
+  it('downloadFile enqueues with the file url and per-file overrides', async () => {
+    const c = (await createFixture()).componentInstance;
+    c.setCivitaiFileType(5, mockCivitaiFile, 'loras');
+    c.setCivitaiFileBaseModel(5, mockCivitaiFile, 'Pony');
+    c.downloadFile(mockCivitaiFile, 5);
+    expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
+      mockCivitaiFile.downloadUrl,
+      'loras',
+      mockCivitaiFile.name,
+      'civitai',
+      '5',
+      'Pony',
+    );
+  });
+
+  it('downloadSelectedCivitai enqueues all selected then clears the selection', async () => {
+    const c = (await createFixture()).componentInstance;
+    c.toggleCivitaiFile(5, mockCivitaiFile);
+    c.downloadSelectedCivitai();
+    expect(mockDownloadService.startDownload).toHaveBeenCalledTimes(1);
+    expect(c.selectedCivitaiCount()).toBe(0);
+  });
+});
+
+describe('DownloadSearch — HuggingFace selection and downloads', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mockKeywordsService.getKeywords.mockReturnValue(of([]));
+    mockModelService.listModels.mockReturnValue(of({}));
+    mockDownloadService.activeTasks$ = of([]);
+    mockDownloadService.startDownload.mockReturnValue(of({}));
+    await configureTestBed();
+  });
+
+  it('selectHf loads files and uses the inline description without fetching the readme', async () => {
+    const files = [{ filename: 'split_files/model.safetensors', size: 10, url: 'https://hf/m' }];
+    mockHfService.getFiles.mockReturnValue(of(files));
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+
+    c.selectHf({
+      id: 'user/repo',
+      modelId: 'user/repo',
+      downloads: 0,
+      tags: [],
+      description: 'inline',
+    });
+    await fixture.whenStable();
+
+    expect(c.hfFiles()).toEqual(files);
+    expect(c.hfDescription()).toBe('inline');
+    expect(mockHfService.getReadme).not.toHaveBeenCalled();
+  });
+
+  it('selectHf fetches the readme when the model has no inline description', async () => {
+    mockHfService.getFiles.mockReturnValue(of([]));
+    mockHfService.getReadme.mockReturnValue(of('<p>readme</p>'));
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+
+    c.selectHf({ id: 'user/repo', modelId: 'user/repo', downloads: 0, tags: [] });
+    await fixture.whenStable();
+
+    expect(mockHfService.getReadme).toHaveBeenCalledWith('user/repo');
+    expect(c.hfDescription()).toBe('<p>readme</p>');
+    expect(c.hfDescriptionLoading()).toBe(false);
+  });
+
+  it('downloadHf enqueues with the file url and per-row overrides', async () => {
+    const c = (await createFixture()).componentInstance;
+    c.selectedHfRepoId.set('user/repo');
+    c.setHfRowType('model.safetensors', 'vae');
+    c.downloadHf({ filename: 'model.safetensors', size: 10, url: 'https://hf/m' });
+    expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
+      'https://hf/m',
+      'vae',
+      'model.safetensors',
+      'huggingface',
+      'user/repo',
+      '',
+    );
   });
 });

@@ -120,8 +120,11 @@
           @for (model of filteredCivitaiResults(); track model.id) {
             <div
               class="list-row"
+              role="button"
+              tabindex="0"
               [class.selected]="selectedModel()?.id === model.id"
               (click)="selectCivitai(model)"
+              (keydown.enter)="selectCivitai(model)"
             >
               <div class="row-thumb">
                 @if (civitaiThumb(model)) {
@@ -157,8 +160,11 @@
           @for (model of filteredHfResults(); track model.id) {
             <div
               class="list-row"
+              role="button"
+              tabindex="0"
               [class.selected]="selectedHfModel()?.id === model.id"
               (click)="selectHf(model)"
+              (keydown.enter)="selectHf(model)"
             >
               <div class="row-thumb">
                 @if (model.thumbnail) {
@@ -243,8 +249,11 @@
                     @for (url of civitaiGalleryImages(model); track url; let i = $index) {
                       <div
                         class="gallery-thumb"
+                        role="button"
+                        tabindex="0"
                         [class.active]="galleryIndex() === i"
                         (click)="setGalleryIndex(i)"
+                        (keydown.enter)="setGalleryIndex(i)"
                       >
                         @if (isVideo(url)) {
                           <span class="video-icon">▶</span>
@@ -257,7 +266,9 @@
                 }
                 <div class="gallery-main">
                   @if (isVideo(currentGalleryUrl(model))) {
-                    <video [src]="currentGalleryUrl(model)" controls loop muted autoplay></video>
+                    <video [src]="currentGalleryUrl(model)" controls loop muted autoplay>
+                      <track kind="captions" />
+                    </video>
                   } @else {
                     <img [src]="currentGalleryUrl(model)" alt="" (error)="onImgError($event)" />
                   }
@@ -407,8 +418,11 @@
                     @for (url of hfGalleryImages(model); track url; let i = $index) {
                       <div
                         class="gallery-thumb"
+                        role="button"
+                        tabindex="0"
                         [class.active]="galleryIndex() === i"
                         (click)="setGalleryIndex(i)"
+                        (keydown.enter)="setGalleryIndex(i)"
                       >
                         @if (isVideo(url)) {
                           <span class="video-icon">▶</span>

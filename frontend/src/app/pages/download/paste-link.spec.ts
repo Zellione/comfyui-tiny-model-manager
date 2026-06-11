@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { of, EMPTY } from 'rxjs';
+import { of, throwError, EMPTY } from 'rxjs';
 import { vi } from 'vitest';
 import { PasteLink } from './paste-link';
 import { CivitaiService, CivitaiFile, CivitaiVersion } from '../../services/civitai';
@@ -361,5 +361,193 @@ describe('PasteLink — fileStatus', () => {
     mockModelService.listModels.mockReturnValue(of({}));
     const fixture = await createFixture();
     expect(fixture.componentInstance.fileStatus('nope.safetensors')).toBe('idle');
+  });
+});
+
+describe('PasteLink — submit and HF repo download', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mockKeywordsService.getKeywords.mockReturnValue(of([]));
+    mockModelService.listModels.mockReturnValue(of({}));
+    mockDownloadService.activeTasks$ = of([]);
+    mockDownloadService.startDownload.mockReturnValue(of({}));
+    await configureTestBed();
+  });
+
+  it('submitDirectLink enqueues an HF resolve link and resets the form', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    c.pasteUrl.set('https://huggingface.co/user/repo/resolve/main/model.safetensors');
+    c.linkKind.set({
+      type: 'hf-resolve',
+      repo: 'user/repo',
+      revision: 'main',
+      filename: 'model.safetensors',
+    });
+    c.linkModelType.set('loras');
+    c.linkBaseModel.set('SDXL 1.0');
+
+    c.submitDirectLink();
+
+    expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
+      'https://huggingface.co/user/repo/resolve/main/model.safetensors',
+      'loras',
+      'model.safetensors',
+      'huggingface',
+      'user/repo',
+      'SDXL 1.0',
+    );
+    expect(c.pasteUrl()).toBe('');
+    expect(c.linkKind().type).toBe('empty');
+  });
+
+  it('submitDirectLink enqueues a CivitAI download link', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    c.pasteUrl.set('https://civitai.com/api/download/models/123');
+    c.linkKind.set({ type: 'civitai-download', versionId: 123 });
+    c.linkResolved.set({
+      filename: 'model.safetensors',
+      model_type: 'checkpoints',
+      size_kb: 1024,
+      image_urls: [],
+    });
+    c.linkModelType.set('checkpoints');
+
+    c.submitDirectLink();
+
+    expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
+      'https://civitai.com/api/download/models/123',
+      'checkpoints',
+      'model.safetensors',
+      'civitai',
+      '123',
+      '',
+    );
+  });
+
+  it('submitDirectLink does nothing for a CivitAI link that has not resolved', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    c.linkKind.set({ type: 'civitai-download', versionId: 9 });
+    c.linkResolved.set(null);
+
+    c.submitDirectLink();
+
+    expect(mockDownloadService.startDownload).not.toHaveBeenCalled();
+  });
+
+  it('downloadLinkHfFile enqueues with the HF repo as source id', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    c.linkKind.set({ type: 'hf-repo', repo: 'user/repo' });
+    c.setLinkHfRowType('m.safetensors', 'vae');
+    c.downloadLinkHfFile({ filename: 'm.safetensors', size: 1, url: 'https://hf/m' });
+
+    expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
+      'https://hf/m',
+      'vae',
+      'm.safetensors',
+      'huggingface',
+      'user/repo',
+      '',
+    );
+  });
+
+  it('onImgError hides the broken image element', async () => {
+    const fixture = await createFixture();
+    const img = document.createElement('img');
+    fixture.componentInstance.onImgError({ target: img } as unknown as Event);
+    expect(img.style.display).toBe('none');
+  });
+});
+
+describe('PasteLink — link resolution pipe', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockKeywordsService.getKeywords.mockReturnValue(of([]));
+    mockModelService.listModels.mockReturnValue(of({}));
+    mockDownloadService.activeTasks$ = of([]);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // The pipe debounces 300ms before resolving; drive it with fake timers and
+  // synchronous (`of`) service mocks so resolution completes deterministically.
+  async function pipeFixture() {
+    await configureTestBed();
+    vi.useFakeTimers();
+    const fixture = TestBed.createComponent(PasteLink);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('resolves an HF resolve URL into images and detected metadata', async () => {
+    mockHfService.resolveDirectLink.mockReturnValue(of({ image_urls: ['https://img/a.jpg'] }));
+    const fixture = await pipeFixture();
+    const c = fixture.componentInstance;
+
+    c.onPasteUrlChange('https://huggingface.co/user/repo/resolve/main/model.safetensors');
+    vi.advanceTimersByTime(300);
+
+    expect(mockHfService.resolveDirectLink).toHaveBeenCalledWith('user/repo');
+    expect(c.linkImages()).toEqual(['https://img/a.jpg']);
+    expect(c.linkResolving()).toBe(false);
+  });
+
+  it('resolves a CivitAI download URL into linkResolved', async () => {
+    mockCivitaiService.resolveDirectLink.mockReturnValue(
+      of({ filename: 'm.safetensors', model_type: 'checkpoints', size_kb: 1024, image_urls: [] }),
+    );
+    const fixture = await pipeFixture();
+    const c = fixture.componentInstance;
+
+    c.onPasteUrlChange('https://civitai.com/api/download/models/123');
+    vi.advanceTimersByTime(300);
+
+    expect(mockCivitaiService.resolveDirectLink).toHaveBeenCalledWith(123);
+    expect(c.linkResolved()?.filename).toBe('m.safetensors');
+  });
+
+  it('resolves an HF repo URL into a file list', async () => {
+    mockHfService.getFiles.mockReturnValue(
+      of([{ filename: 'm.safetensors', size: 1, url: 'https://hf/m' }]),
+    );
+    const fixture = await pipeFixture();
+    const c = fixture.componentInstance;
+
+    c.onPasteUrlChange('https://huggingface.co/user/repo');
+    vi.advanceTimersByTime(300);
+
+    expect(mockHfService.getFiles).toHaveBeenCalledWith('user/repo');
+    expect(c.linkHfFiles()).toHaveLength(1);
+  });
+
+  it('resolves a CivitAI model URL into versions', async () => {
+    mockCivitaiService.getVersions.mockReturnValue(of({ versions: [], model_type: 'checkpoints' }));
+    const fixture = await pipeFixture();
+    const c = fixture.componentInstance;
+
+    c.onPasteUrlChange('https://civitai.com/models/456');
+    vi.advanceTimersByTime(300);
+
+    expect(mockCivitaiService.getVersions).toHaveBeenCalledWith(456);
+    expect(c.linkModelType()).toBe('checkpoints');
+  });
+
+  it('sets linkError when the CivitAI download link fails to resolve', async () => {
+    mockCivitaiService.resolveDirectLink.mockReturnValue(
+      throwError(() => ({ error: { error: 'gone' } })),
+    );
+    const fixture = await pipeFixture();
+    const c = fixture.componentInstance;
+
+    c.onPasteUrlChange('https://civitai.com/api/download/models/123');
+    vi.advanceTimersByTime(300);
+
+    expect(c.linkError()).toBe('gone');
+    expect(c.linkResolving()).toBe(false);
   });
 });

@@ -94,49 +94,92 @@ def _register_search_routes(routes):
         return ok(result)
 
 
+async def _start_download(request):
+    body = await request.json()
+    url = body.get("url", "")
+    model_type = body.get("model_type", "checkpoints")
+    filename = body.get("filename", "")
+    platform = body.get("platform", "")
+    source_id = body.get("source_id", "")
+    hint_base_model = body.get("base_model", "")
+    if not url or not filename:
+        return err("url and filename required", status=400)
+    if not is_allowed_url(url):
+        return err("Download URL host is not allowed", status=400)
+    # Confine the destination before any DB write so a rejected request leaves no
+    # dangling history row.
+    try:
+        dl.validate_target(model_type, filename, platform)
+    except ValueError as exc:
+        return err(str(exc), status=400)
+    model_name = os.path.basename(filename)
+    version_id = source_id if platform == "civitai" else ""
+    model_id = source_id if platform == "huggingface" else ""
+    history_id = await model_repo.insert_download_history(
+        model_name=model_name,
+        source=platform,
+        model_id=model_id,
+        version_id=version_id,
+        file_url=url,
+        dest_path=filename,
+        model_type=model_type,
+    )
+    task = dl.enqueue(
+        url,
+        model_type,
+        filename,
+        platform,
+        source_id,
+        history_id=history_id,
+        hint_base_model=hint_base_model,
+    )
+    return ok({"task_id": task.id})
+
+
+async def _redownload(request):
+    entry_id = int(request.match_info["id"])
+    entry = await model_repo.get_download_history_entry(entry_id)
+    if not entry:
+        return err("History entry not found", status=404)
+    url = entry["file_url"]
+    if not url:
+        return err("No download URL stored for this entry", status=400)
+    if not is_allowed_url(url):
+        return err("Download URL host is not allowed", status=400)
+    platform = entry["source"]
+    source_id = entry["version_id"] or entry["model_id"]
+    model_type = entry["model_type"]
+    dest_path = entry["dest_path"]
+    model_name = entry["model_name"]
+    try:
+        dl.validate_target(model_type, dest_path, platform)
+    except ValueError as exc:
+        return err(str(exc), status=400)
+    new_history_id = await model_repo.insert_download_history(
+        model_name=model_name,
+        source=platform,
+        model_id=entry["model_id"],
+        version_id=entry["version_id"],
+        file_url=url,
+        dest_path=dest_path,
+        model_type=model_type,
+    )
+    task = dl.enqueue(
+        url=url,
+        model_type=model_type,
+        filename=dest_path,
+        platform=platform,
+        source_id=source_id,
+        history_id=new_history_id,
+    )
+    return ok({"task_id": task.id})
+
+
 def _register_download_mgmt_routes(routes):
     @routes.post("/tiny-model-manager/api/download")
     @json_route
     async def start_download(request):
-        body = await request.json()
-        url = body.get("url", "")
-        model_type = body.get("model_type", "checkpoints")
-        filename = body.get("filename", "")
-        platform = body.get("platform", "")
-        source_id = body.get("source_id", "")
-        hint_base_model = body.get("base_model", "")
-        if not url or not filename:
-            return err("url and filename required", status=400)
-        if not is_allowed_url(url):
-            return err("Download URL host is not allowed", status=400)
-        # Confine the destination before any DB write so a rejected request leaves no
-        # dangling history row.
-        try:
-            dl.validate_target(model_type, filename, platform)
-        except ValueError as exc:
-            return err(str(exc), status=400)
-        model_name = os.path.basename(filename)
-        version_id = source_id if platform == "civitai" else ""
-        model_id = source_id if platform == "huggingface" else ""
-        history_id = await model_repo.insert_download_history(
-            model_name=model_name,
-            source=platform,
-            model_id=model_id,
-            version_id=version_id,
-            file_url=url,
-            dest_path=filename,
-            model_type=model_type,
-        )
-        task = dl.enqueue(
-            url,
-            model_type,
-            filename,
-            platform,
-            source_id,
-            history_id=history_id,
-            hint_base_model=hint_base_model,
-        )
-        return ok({"task_id": task.id})
+        return await _start_download(request)
 
     @routes.get("/tiny-model-manager/api/download/status")
     @json_route
@@ -166,42 +209,7 @@ def _register_download_mgmt_routes(routes):
     @routes.post("/tiny-model-manager/api/download/history/{id}/redownload")
     @json_route
     async def redownload(request):
-        entry_id = int(request.match_info["id"])
-        entry = await model_repo.get_download_history_entry(entry_id)
-        if not entry:
-            return err("History entry not found", status=404)
-        url = entry["file_url"]
-        if not url:
-            return err("No download URL stored for this entry", status=400)
-        if not is_allowed_url(url):
-            return err("Download URL host is not allowed", status=400)
-        platform = entry["source"]
-        source_id = entry["version_id"] or entry["model_id"]
-        model_type = entry["model_type"]
-        dest_path = entry["dest_path"]
-        model_name = entry["model_name"]
-        try:
-            dl.validate_target(model_type, dest_path, platform)
-        except ValueError as exc:
-            return err(str(exc), status=400)
-        new_history_id = await model_repo.insert_download_history(
-            model_name=model_name,
-            source=platform,
-            model_id=entry["model_id"],
-            version_id=entry["version_id"],
-            file_url=url,
-            dest_path=dest_path,
-            model_type=model_type,
-        )
-        task = dl.enqueue(
-            url=url,
-            model_type=model_type,
-            filename=dest_path,
-            platform=platform,
-            source_id=source_id,
-            history_id=new_history_id,
-        )
-        return ok({"task_id": task.id})
+        return await _redownload(request)
 
 
 def add_download_routes(routes):
