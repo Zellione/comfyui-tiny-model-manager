@@ -141,7 +141,7 @@ describe('PasteLink — applyLinkResolution', () => {
     const fixture = await createFixture();
     const c = fixture.componentInstance;
     c.linkResolving.set(true);
-    (c as any).applyLinkResolution({
+    c['applyLinkResolution']({
       tag: 'hf-resolve',
       filename: 'sdxl_lora.safetensors',
       image_urls: ['https://image.civitai.com/img.jpg'],
@@ -154,7 +154,7 @@ describe('PasteLink — applyLinkResolution', () => {
   it('hf-resolve: sets linkModelType when keyword provides model_type', async () => {
     const fixture = await createFixture();
     const c = fixture.componentInstance;
-    (c as any).applyLinkResolution({ tag: 'hf-resolve', filename: 'sdxl_lora.safetensors' });
+    c['applyLinkResolution']({ tag: 'hf-resolve', filename: 'sdxl_lora.safetensors' });
     expect(c.linkModelType()).toBe('loras');
   });
 
@@ -162,7 +162,7 @@ describe('PasteLink — applyLinkResolution', () => {
     const fixture = await createFixture();
     const c = fixture.componentInstance;
     c.linkModelType.set('vae');
-    (c as any).applyLinkResolution({ tag: 'hf-resolve', filename: 'sdxl_checkpoint.safetensors' });
+    c['applyLinkResolution']({ tag: 'hf-resolve', filename: 'sdxl_checkpoint.safetensors' });
     expect(c.linkModelType()).toBe('vae');
     expect(c.linkBaseModel()).toBe('SDXL 1.0');
   });
@@ -178,7 +178,7 @@ describe('PasteLink — applyLinkResolution', () => {
       size_kb: 1024,
       image_urls: ['https://image.civitai.com/img1.jpg'],
     };
-    (c as any).applyLinkResolution(result);
+    c['applyLinkResolution'](result);
     expect(c.linkBaseModel()).toBe('SDXL 1.0');
     expect(c.linkModelType()).toBe('checkpoints');
     expect(c.linkImages()).toEqual(['https://image.civitai.com/img1.jpg']);
@@ -202,7 +202,7 @@ describe('PasteLink — applyLinkResolution', () => {
         url: 'https://huggingface.co/b.safetensors',
       },
     ];
-    (c as any).applyLinkResolution({ tag: 'hf-repo', files });
+    c['applyLinkResolution']({ tag: 'hf-repo', files });
     expect(c.linkHfFiles()).toEqual(files);
     expect(c.linkHfRowBaseModels()['sdxl_model.safetensors']).toBe('SDXL 1.0');
     expect(c.linkHfRowBaseModels()['plain_model.safetensors']).toBeUndefined();
@@ -212,7 +212,7 @@ describe('PasteLink — applyLinkResolution', () => {
   it('hf-repo: sets linkHfRowTypes for matching model_type keywords', async () => {
     const fixture = await createFixture();
     const c = fixture.componentInstance;
-    (c as any).applyLinkResolution({
+    c['applyLinkResolution']({
       tag: 'hf-repo',
       files: [
         { filename: 'my_lora.safetensors', size: 512, url: 'https://huggingface.co/c.safetensors' },
@@ -246,7 +246,7 @@ describe('PasteLink — applyLinkResolution', () => {
     const fixture = await createFixture();
     const c = fixture.componentInstance;
     c.linkResolving.set(true);
-    (c as any).applyLinkResolution({ tag: 'civitai-model', versions, model_type: 'checkpoints' });
+    c['applyLinkResolution']({ tag: 'civitai-model', versions, model_type: 'checkpoints' });
     expect(c.linkVersions()).toEqual(versions);
     expect(c.linkModelType()).toBe('checkpoints');
     expect(c.linkCivitaiFileBaseModels()['10_200']).toBe('SDXL 1.0');
@@ -277,7 +277,7 @@ describe('PasteLink — applyLinkResolution', () => {
     ];
     const fixture = await createFixture();
     const c = fixture.componentInstance;
-    (c as any).applyLinkResolution({ tag: 'civitai-model', versions });
+    c['applyLinkResolution']({ tag: 'civitai-model', versions });
     expect(c.linkCivitaiFileBaseModels()['11_201']).toBe('Pony');
   });
 
@@ -286,7 +286,7 @@ describe('PasteLink — applyLinkResolution', () => {
     const c = fixture.componentInstance;
     c.linkResolving.set(true);
     c.linkBaseModel.set('existing');
-    (c as any).applyLinkResolution(null);
+    c['applyLinkResolution'](null);
     expect(c.linkResolving()).toBe(false);
     expect(c.linkBaseModel()).toBe('existing');
   });
@@ -551,5 +551,35 @@ describe('PasteLink — link resolution pipe', () => {
 
     expect(c.linkError()).toBe('gone');
     expect(c.linkResolving()).toBe(false);
+  });
+
+  it('pre-selects primary files and leaves non-primary files unselected when resolving a CivitAI model URL', async () => {
+    const optionalFile: CivitaiFile = {
+      ...mockCivitaiFile,
+      id: 2,
+      name: 'vae.safetensors',
+      primary: false,
+    };
+    const versions: CivitaiVersion[] = [
+      {
+        id: 10,
+        name: 'v1',
+        baseModel: 'SDXL 1.0',
+        downloadUrl: 'https://civitai.com/v1',
+        trainedWords: [],
+        images: [],
+        files: [mockCivitaiFile, optionalFile],
+      },
+    ];
+    mockCivitaiService.getVersions.mockReturnValue(of({ versions, model_type: 'checkpoints' }));
+    const fixture = await pipeFixture();
+    const c = fixture.componentInstance;
+
+    c.onPasteUrlChange('https://civitai.com/models/456');
+    vi.advanceTimersByTime(300);
+
+    expect(c.isLinkCivitaiFileSelected(10, mockCivitaiFile)).toBe(true);
+    expect(c.isLinkCivitaiFileSelected(10, optionalFile)).toBe(false);
+    expect(c.linkCivitaiSelectedCount()).toBe(1);
   });
 });

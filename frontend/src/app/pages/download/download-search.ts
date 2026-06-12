@@ -411,6 +411,15 @@ export class DownloadSearch {
         }
         this.civitaiFileTypes.set(types);
         this.civitaiFileBaseModels.set(baseModels);
+        const selection = new Map<string, { file: CivitaiFile; versionId: number }>();
+        for (const ver of v.versions) {
+          for (const f of ver.files) {
+            if (f.primary) {
+              selection.set(`${ver.id}_${f.id}`, { file: f, versionId: ver.id });
+            }
+          }
+        }
+        this.selectedCivitaiFiles.set(selection);
         this.loadingVersions.set(false);
       },
       error: (err) => {

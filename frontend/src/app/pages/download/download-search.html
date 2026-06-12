@@ -308,28 +308,33 @@
                       }
                     </div>
                     @for (f of v.files; track f.id) {
-                      @if (f.type === 'Model') {
-                        <div class="version-row">
-                          <div class="version-row-top">
-                            <input
-                              type="checkbox"
-                              [checked]="isCivitaiFileSelected(v.id, f)"
-                              (change)="toggleCivitaiFile(v.id, f)"
-                              (click)="$event.stopPropagation()"
-                              (keydown)="$event.stopPropagation()"
-                            />
-                            <span>{{ f.name }}</span>
-                          </div>
-                          <div class="version-row-bottom">
-                            <div class="row-format">
-                              @if (f.metadata.format) {
-                                <span class="badge"
-                                  >{{ f.metadata.format
-                                  }}{{ f.metadata.fp ? ' · ' + f.metadata.fp : '' }}</span
-                                >
-                              }
-                            </div>
+                      <div class="version-row">
+                        <div class="version-row-top">
+                          <input
+                            type="checkbox"
+                            [checked]="isCivitaiFileSelected(v.id, f)"
+                            (change)="toggleCivitaiFile(v.id, f)"
+                            (click)="$event.stopPropagation()"
+                            (keydown)="$event.stopPropagation()"
+                          />
+                          <span>{{ f.name }}</span>
+                          @if (!f.primary) {
+                            <span class="badge badge--optional">{{
+                              'download_search.detail.optional' | translate
+                            }}</span>
+                          }
+                        </div>
+                        <div class="version-row-bottom">
+                          <div class="row-meta">
+                            @if (f.metadata?.format) {
+                              <span class="badge"
+                                >{{ f.metadata?.format
+                                }}{{ f.metadata?.fp ? ' · ' + f.metadata?.fp : '' }}</span
+                              >
+                            }
                             <small>{{ formatSize(f.sizeKB * 1024) }}</small>
+                          </div>
+                          <div class="row-actions">
                             <app-model-type-select
                               [value]="civitaiFileType(v.id, f)"
                               (valueChange)="setCivitaiFileType(v.id, f, $event)"
@@ -357,7 +362,7 @@
                             }
                           </div>
                         </div>
-                      }
+                      </div>
                     }
                   </div>
                 }
@@ -473,33 +478,36 @@
                       <span>{{ f.filename }}</span>
                     </div>
                     <div class="version-row-bottom">
-                      <div class="row-format"></div>
-                      <small>{{ formatSize(f.size) }}</small>
-                      <app-model-type-select
-                        [value]="hfRowType(f.filename)"
-                        (valueChange)="setHfRowType(f.filename, $event)"
-                      />
-                      <app-base-model-select
-                        [value]="hfRowBaseModel(f.filename)"
-                        (valueChange)="setHfRowBaseModel(f.filename, $event)"
-                      />
-                      @switch (fileStatus(f.filename)) {
-                        @case ('installed') {
-                          <button class="btn-library">
-                            {{ 'download_search.detail.in_library' | translate }}
-                          </button>
+                      <div class="row-meta">
+                        <small>{{ formatSize(f.size) }}</small>
+                      </div>
+                      <div class="row-actions">
+                        <app-model-type-select
+                          [value]="hfRowType(f.filename)"
+                          (valueChange)="setHfRowType(f.filename, $event)"
+                        />
+                        <app-base-model-select
+                          [value]="hfRowBaseModel(f.filename)"
+                          (valueChange)="setHfRowBaseModel(f.filename, $event)"
+                        />
+                        @switch (fileStatus(f.filename)) {
+                          @case ('installed') {
+                            <button class="btn-library">
+                              {{ 'download_search.detail.in_library' | translate }}
+                            </button>
+                          }
+                          @case ('downloading') {
+                            <button class="btn-primary" disabled>
+                              {{ 'download_search.detail.downloading' | translate }}
+                            </button>
+                          }
+                          @default {
+                            <button class="btn-primary" (click)="downloadHf(f)">
+                              {{ 'download_search.detail.download' | translate }}
+                            </button>
+                          }
                         }
-                        @case ('downloading') {
-                          <button class="btn-primary" disabled>
-                            {{ 'download_search.detail.downloading' | translate }}
-                          </button>
-                        }
-                        @default {
-                          <button class="btn-primary" (click)="downloadHf(f)">
-                            {{ 'download_search.detail.download' | translate }}
-                          </button>
-                        }
-                      }
+                      </div>
                     </div>
                   </div>
                 }

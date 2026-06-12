@@ -207,8 +207,15 @@ textarea {
   padding: 0.15rem 0.5rem;
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
+  white-space: nowrap;
   background: var(--surface-hi);
   color: var(--text-2);
+
+  &--optional {
+    background: #eab308;
+    color: #1a1a1a;
+    font-weight: 600;
+  }
 }
 
 .progress-bar {
@@ -294,7 +301,7 @@ table {
     cursor: pointer;
     accent-color: var(--accent);
   }
-  span {
+  span:not(.badge) {
     flex: 1;
     font-size: 0.82rem;
     overflow: hidden;
@@ -302,23 +309,46 @@ table {
     white-space: nowrap;
     color: var(--text);
   }
+  .badge {
+    flex-shrink: 0;
+  }
 }
 
 .version-row-bottom {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
   padding-left: 1.5rem;
 
-  .row-format {
-    flex: 1;
+  .row-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     min-width: 0;
+    flex: 1 1 8rem;
+
+    .badge {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+  .row-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 0 1 auto;
+    margin-left: auto;
+
+    select {
+      min-width: 0;
+      flex: 1 1 6rem;
+    }
   }
   small {
     color: var(--text-3);
     font-size: 0.75rem;
-    width: 4.5rem;
-    text-align: right;
     flex-shrink: 0;
     white-space: nowrap;
   }

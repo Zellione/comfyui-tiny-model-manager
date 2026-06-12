@@ -10,7 +10,7 @@ export interface CivitaiFile {
   sizeKB: number;
   downloadUrl: string;
   primary: boolean;
-  metadata: { format: string; size: string; fp: string };
+  metadata?: { format: string; size: string; fp: string };
 }
 
 export interface CivitaiVersion {
