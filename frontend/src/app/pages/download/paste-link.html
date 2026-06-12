@@ -86,31 +86,34 @@
               <span>{{ f.filename }}</span>
             </div>
             <div class="version-row-bottom">
-              <div class="row-format"></div>
-              <small>{{ formatSize(f.size) }}</small>
-              <app-model-type-select
-                [value]="linkHfRowType(f.filename)"
-                (valueChange)="setLinkHfRowType(f.filename, $event)"
-              />
-              <app-base-model-select
-                [value]="linkHfRowBaseModel(f.filename)"
-                (valueChange)="setLinkHfRowBaseModel(f.filename, $event)"
-              />
-              @switch (fileStatus(f.filename)) {
-                @case ('installed') {
-                  <button class="btn-library">{{ 'paste_link.in_library' | translate }}</button>
+              <div class="row-meta">
+                <small>{{ formatSize(f.size) }}</small>
+              </div>
+              <div class="row-actions">
+                <app-model-type-select
+                  [value]="linkHfRowType(f.filename)"
+                  (valueChange)="setLinkHfRowType(f.filename, $event)"
+                />
+                <app-base-model-select
+                  [value]="linkHfRowBaseModel(f.filename)"
+                  (valueChange)="setLinkHfRowBaseModel(f.filename, $event)"
+                />
+                @switch (fileStatus(f.filename)) {
+                  @case ('installed') {
+                    <button class="btn-library">{{ 'paste_link.in_library' | translate }}</button>
+                  }
+                  @case ('downloading') {
+                    <button class="btn-primary" disabled>
+                      {{ 'paste_link.downloading' | translate }}
+                    </button>
+                  }
+                  @default {
+                    <button class="btn-primary" (click)="downloadLinkHfFile(f)">
+                      {{ 'paste_link.download' | translate }}
+                    </button>
+                  }
                 }
-                @case ('downloading') {
-                  <button class="btn-primary" disabled>
-                    {{ 'paste_link.downloading' | translate }}
-                  </button>
-                }
-                @default {
-                  <button class="btn-primary" (click)="downloadLinkHfFile(f)">
-                    {{ 'paste_link.download' | translate }}
-                  </button>
-                }
-              }
+              </div>
             </div>
           </div>
         }
@@ -164,40 +167,42 @@
                   }
                 </div>
                 <div class="version-row-bottom">
-                  <div class="row-format">
+                  <div class="row-meta">
                     @if (f.metadata?.format) {
                       <span class="badge"
                         >{{ f.metadata?.format
                         }}{{ f.metadata?.fp ? ' · ' + f.metadata?.fp : '' }}</span
                       >
                     }
+                    <small>{{ formatSize(f.sizeKB * 1024) }}</small>
                   </div>
-                  <small>{{ formatSize(f.sizeKB * 1024) }}</small>
-                  <app-model-type-select
-                    [value]="linkCivitaiFileType(v.id, f)"
-                    (valueChange)="setLinkCivitaiFileType(v.id, f, $event)"
-                  />
-                  <app-base-model-select
-                    [value]="linkCivitaiFileBaseModel(v.id, f)"
-                    (valueChange)="setLinkCivitaiFileBaseModel(v.id, f, $event)"
-                  />
-                  @switch (fileStatus(f.name)) {
-                    @case ('installed') {
-                      <button class="btn-library">
-                        {{ 'paste_link.in_library' | translate }}
-                      </button>
+                  <div class="row-actions">
+                    <app-model-type-select
+                      [value]="linkCivitaiFileType(v.id, f)"
+                      (valueChange)="setLinkCivitaiFileType(v.id, f, $event)"
+                    />
+                    <app-base-model-select
+                      [value]="linkCivitaiFileBaseModel(v.id, f)"
+                      (valueChange)="setLinkCivitaiFileBaseModel(v.id, f, $event)"
+                    />
+                    @switch (fileStatus(f.name)) {
+                      @case ('installed') {
+                        <button class="btn-library">
+                          {{ 'paste_link.in_library' | translate }}
+                        </button>
+                      }
+                      @case ('downloading') {
+                        <button class="btn-primary" disabled>
+                          {{ 'paste_link.downloading' | translate }}
+                        </button>
+                      }
+                      @default {
+                        <button class="btn-primary" (click)="downloadLinkFile(f, v.id)">
+                          {{ 'paste_link.download' | translate }}
+                        </button>
+                      }
                     }
-                    @case ('downloading') {
-                      <button class="btn-primary" disabled>
-                        {{ 'paste_link.downloading' | translate }}
-                      </button>
-                    }
-                    @default {
-                      <button class="btn-primary" (click)="downloadLinkFile(f, v.id)">
-                        {{ 'paste_link.download' | translate }}
-                      </button>
-                    }
-                  }
+                  </div>
                 </div>
               </div>
             }

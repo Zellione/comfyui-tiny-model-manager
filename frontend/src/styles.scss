@@ -317,18 +317,38 @@ table {
 .version-row-bottom {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
   padding-left: 1.5rem;
 
-  .row-format {
-    flex: 1;
+  .row-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     min-width: 0;
+    flex: 1 1 8rem;
+
+    .badge {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+  .row-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 0 1 auto;
+    margin-left: auto;
+
+    select {
+      min-width: 0;
+      flex: 1 1 6rem;
+    }
   }
   small {
     color: var(--text-3);
     font-size: 0.75rem;
-    width: 4.5rem;
-    text-align: right;
     flex-shrink: 0;
     white-space: nowrap;
   }
