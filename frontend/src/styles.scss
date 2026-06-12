@@ -212,9 +212,9 @@ textarea {
   color: var(--text-2);
 
   &--optional {
-    background: rgba(234, 179, 8, 0.12);
-    color: #eab308;
-    border: 1px solid rgba(234, 179, 8, 0.3);
+    background: #eab308;
+    color: #1a1a1a;
+    font-weight: 600;
   }
 }
 
