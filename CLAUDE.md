@@ -218,6 +218,10 @@ If planning and working on a new feature the following steps have to be executed
 8. **Move the GitHub project item to Done**: `gh project item-edit --id <item-id> --project-id PVT_kwHOAQaKGc4BZ7ME --field-id PVTSSF_lAHOAQaKGc4BZ7MEzhU2a7U --single-select-option-id 98236657`
 9. **Wait for explicit user approval before pushing to github (origin)**
 10. **Wait for explicit user approval before opening a pull request**
+11. **After pushing and opening the PR, poll the SonarCloud quality gate in a loop until it passes:**
+    - Check: `mcp__sonarqube__get_project_quality_gate_status` with `projectKey` and `pullRequest`
+    - If `status` is `ERROR`: inspect the failing conditions, fix the code (add/improve tests for `new_coverage`, fix issues for ratings), commit, push, then re-check
+    - Repeat until `status` is `OK`
 
 ### Bug during feature development.
 
@@ -235,3 +239,4 @@ If working on a bug during feature development and it was alrady pushed and a pu
 10. **Mark the feature as done (`[x]`) in `README.md` features checklist**
 11. **Wait for explicit user approval before pushing to github (origin)**
 12. **Wait for explicit user approval before updating the pull request**
+13. **After pushing, poll the SonarCloud quality gate in a loop until it passes (same loop as in Feature step 11)**
