@@ -207,6 +207,7 @@ textarea {
   padding: 0.15rem 0.5rem;
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
+  white-space: nowrap;
   background: var(--surface-hi);
   color: var(--text-2);
 
@@ -316,6 +317,7 @@ table {
 .version-row-bottom {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
   padding-left: 1.5rem;
 
