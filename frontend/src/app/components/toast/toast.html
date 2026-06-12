@@ -1,14 +1,23 @@
 <div class="toast-container">
-  @for (toast of notifService.toasts(); track toast.id) {
+  @for (item of toastsWithKeys(); track item.id) {
     <div
       class="toast"
-      [class.toast-success]="toast.type === 'success'"
-      [class.toast-error]="toast.type === 'error'"
-      (mouseenter)="pauseTimer(toast.id)"
-      (mouseleave)="resumeTimer(toast.id)"
+      [class.toast-success]="item.type === 'success'"
+      [class.toast-error]="item.type === 'error'"
+      [class.toast-info]="item.type === 'info'"
+      [class.toast-warning]="item.type === 'warning'"
+      (mouseenter)="pauseTimer(item.id)"
+      (mouseleave)="resumeTimer(item.id)"
     >
-      <span class="toast-msg">{{ toast.message }}</span>
-      <button class="toast-dismiss" (click)="notifService.dismiss(toast.id)">×</button>
+      <div class="toast-header">
+        <span class="toast-icon">{{ item.icon }}</span>
+        <span class="toast-type">{{ 'toast.type.' + item.type | translate }}</span>
+        <button class="toast-dismiss" (click)="notifService.dismiss(item.id)">×</button>
+      </div>
+      <p class="toast-msg">{{ item.message }}</p>
+      @for (k of [item.progressKey]; track k) {
+        <div class="toast-progress" [style.animation-duration.ms]="item.duration"></div>
+      }
     </div>
   }
 </div>
