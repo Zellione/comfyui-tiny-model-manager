@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Coverage quality gate — runs before every push.
+# Fails fast if backend < 88 % or frontend lines/functions/branches drop below thresholds.
+#
+# One-time activation per clone:
+#   git config core.hooksPath .githooks
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# Prefer the comfy-env venv; fall back to system python3.
+# Use cd+pwd to normalise the ../.. components without following symlinks —
+# realpath would resolve to /usr/bin/pythonX and lose the venv site-packages.
+if [ -f "$REPO_ROOT/../../../comfy-env/bin/python" ]; then
+  PYTHON="$(cd "$REPO_ROOT/../../../comfy-env/bin" && pwd)/python"
+else
+  PYTHON="python3"
+fi
+
+echo "==> Coverage quality gate"
+
+echo ""
+echo "--- Backend (≥88 % lines) ---"
+(
+  cd "$REPO_ROOT"
+  PYTHONSAFEPATH=1 "$PYTHON" -m pytest --cov=py --cov-report=term-missing -q
+)
+
+echo ""
+echo "--- Frontend (≥74 % lines, ≥62 % functions, ≥74 % branches) ---"
+(
+  cd "$REPO_ROOT/frontend"
+  npm run test:coverage --silent
+)
+
+echo ""
+echo "==> Coverage gate passed — push proceeding."

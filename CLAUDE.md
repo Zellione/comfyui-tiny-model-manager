@@ -107,6 +107,18 @@ Dev dependencies are in `requirements-dev.txt`; install once with:
 ../../../comfy-env/bin/python -m pip install -r requirements-dev.txt
 ```
 
+#### Git hooks (one-time per clone)
+
+Activate the pre-push coverage gate:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The hook enforces minimum coverage before every push:
+- Backend ≥ 88 % lines (`fail_under` in `pyproject.toml`)
+- Frontend ≥ 74 % lines / ≥ 62 % functions / ≥ 74 % branches (`coverageThresholds` in `angular.json`)
+
 ---
 
 ## Workflow

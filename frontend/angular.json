@@ -21,7 +21,10 @@
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "outputPath": {"base": "../web", "browser": ""},
+            "outputPath": {
+              "base": "../web",
+              "browser": ""
+            },
             "baseHref": "/tiny-model-manager/",
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
@@ -82,14 +85,25 @@
           "configurations": {
             "coverage": {
               "coverage": true,
-              "coverageReporters": ["lcovonly"]
+              "coverageReporters": [
+                "lcovonly",
+                "text-summary"
+              ],
+              "coverageThresholds": {
+                "lines": 74,
+                "functions": 62,
+                "branches": 74
+              }
             }
           }
         },
         "lint": {
           "builder": "@angular-eslint/builder:lint",
           "options": {
-            "lintFilePatterns": ["src/**/*.ts", "src/**/*.html"]
+            "lintFilePatterns": [
+              "src/**/*.ts",
+              "src/**/*.html"
+            ]
           }
         }
       }

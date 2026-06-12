@@ -12,7 +12,9 @@ pythonpath = ["."]
 # asyncio + aiohttp workers never report back to the subprocess coverage
 # collector; setting concurrency=thread avoids the post-run hang.
 concurrency = ["thread"]
-source = ["py"]
+
+[tool.coverage.report]
+fail_under = 88
 
 [tool.ruff]
 target-version = "py313"

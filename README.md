@@ -41,6 +41,23 @@ Assumes ComfyUI was installed via [comfy-cli](https://comfyui-wiki.com/en/instal
 
 ---
 
+## Developer Setup
+
+After cloning, activate the git hooks once per clone so the pre-push coverage gate runs automatically:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The hook at `.githooks/pre-push` runs before every `git push` and enforces minimum coverage thresholds:
+
+- **Backend** ≥ 88 % lines (`pytest --cov=py`, threshold set in `pyproject.toml`)
+- **Frontend** ≥ 74 % lines / ≥ 62 % functions / ≥ 74 % branches (thresholds in `angular.json`)
+
+The push is blocked if either threshold is not met.
+
+---
+
 ## API Endpoints
 
 | Method | Path | Description |
