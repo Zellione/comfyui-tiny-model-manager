@@ -4,7 +4,7 @@ testpaths = ["tests"]
 # importlib mode: each test file is imported as an independent module without
 # climbing the parent package tree (avoids importing the project's __init__.py
 # which requires a live ComfyUI server).
-addopts = "--import-mode=importlib"
+addopts = "--import-mode=importlib -p no:cov"
 # Make the project root importable as "py.*"
 pythonpath = ["."]
 
