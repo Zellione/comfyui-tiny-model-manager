@@ -9,6 +9,15 @@
   }
 }
 
+@keyframes progress-drain {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
 .toast-container {
   position: fixed;
   top: 72px;
@@ -24,32 +33,84 @@
 
 .toast {
   pointer-events: all;
-  min-width: 280px;
-  max-width: 480px;
-  padding: 10px 14px;
+  min-width: 360px;
+  max-width: 520px;
   border-radius: var(--radius);
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
   font-size: 0.875rem;
   box-shadow: var(--shadow);
   animation: toast-in 160ms var(--ease) both;
+  overflow: hidden;
 
   &.toast-success {
     background: color-mix(in oklab, var(--success) 18%, var(--surface));
     border: 1px solid color-mix(in oklab, var(--success) 40%, transparent);
     color: var(--success);
+
+    .toast-progress {
+      background: var(--success);
+    }
   }
 
   &.toast-error {
     background: var(--danger-soft);
     border: 1px solid var(--danger);
     color: var(--danger);
+
+    .toast-progress {
+      background: var(--danger);
+    }
+  }
+
+  &.toast-info {
+    background: color-mix(in oklab, var(--accent) 18%, var(--surface));
+    border: 1px solid color-mix(in oklab, var(--accent) 40%, transparent);
+    color: var(--accent);
+
+    .toast-progress {
+      background: var(--accent);
+    }
+  }
+
+  &.toast-warning {
+    background: color-mix(in oklab, var(--warn) 18%, var(--surface));
+    border: 1px solid color-mix(in oklab, var(--warn) 40%, transparent);
+    color: var(--warn);
+
+    .toast-progress {
+      background: var(--warn);
+    }
+  }
+
+  &:hover .toast-progress {
+    animation-play-state: paused;
   }
 }
 
-.toast-msg {
+.toast-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 6px;
+  font-weight: 600;
+}
+
+.toast-icon {
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.toast-type {
   flex: 1;
+}
+
+.toast-msg {
+  margin: 0;
+  padding: 0 14px 10px;
+  color: var(--text-2);
+  font-size: 0.8125rem;
+  line-height: 1.4;
 }
 
 .toast-dismiss {
@@ -65,4 +126,10 @@
   &:hover {
     opacity: 1;
   }
+}
+
+.toast-progress {
+  height: 3px;
+  width: 100%;
+  animation: progress-drain linear both;
 }

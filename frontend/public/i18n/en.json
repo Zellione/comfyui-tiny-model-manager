@@ -1,4 +1,12 @@
 {
+  "toast": {
+    "type": {
+      "success": "Success",
+      "error": "Error",
+      "info": "Info",
+      "warning": "Warning"
+    }
+  },
   "nav": {
     "catalog": "Catalog",
     "download": "Download",

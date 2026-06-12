@@ -8,6 +8,14 @@ addopts = "--import-mode=importlib"
 # Make the project root importable as "py.*"
 pythonpath = ["."]
 
+[tool.coverage.run]
+# asyncio + aiohttp workers never report back to the subprocess coverage
+# collector; setting concurrency=thread avoids the post-run hang.
+concurrency = ["thread"]
+
+[tool.coverage.report]
+fail_under = 88
+
 [tool.ruff]
 target-version = "py313"
 line-length = 100

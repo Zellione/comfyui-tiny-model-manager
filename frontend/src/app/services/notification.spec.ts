@@ -16,6 +16,13 @@ describe('NotificationService', () => {
     expect(service.toasts()[0].message).toBe('Hello');
   });
 
+  it('show() supports info and warning types', () => {
+    service.show('info', 'Info message');
+    service.show('warning', 'Warning message');
+    expect(service.toasts()[0].type).toBe('info');
+    expect(service.toasts()[1].type).toBe('warning');
+  });
+
   it('show() assigns unique incrementing ids', () => {
     service.show('success', 'A');
     service.show('error', 'B');
