@@ -211,7 +211,9 @@ textarea {
   color: var(--text-2);
 
   &--optional {
-    color: var(--text-3);
+    background: rgba(234, 179, 8, 0.12);
+    color: #eab308;
+    border: 1px solid rgba(234, 179, 8, 0.3);
   }
 }
 
@@ -298,13 +300,16 @@ table {
     cursor: pointer;
     accent-color: var(--accent);
   }
-  span {
+  span:not(.badge) {
     flex: 1;
     font-size: 0.82rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--text);
+  }
+  .badge {
+    flex-shrink: 0;
   }
 }
 
