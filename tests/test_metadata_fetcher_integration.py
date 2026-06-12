@@ -25,6 +25,7 @@ def _make_meta(base_model: str = "SDXL 1.0") -> MagicMock:
     meta.tags = []
     meta.base_model = base_model
     meta.civitai_model_id = ""
+    meta.civitai_version_name = ""
     meta.readme_html = ""
     meta.display_name = ""
     return meta
@@ -369,3 +370,81 @@ class TestRefetchCatalogMetadata:
 
         result = await refetch_catalog_metadata("unknown", "some/id")
         assert result is None
+
+    async def test_civitai_updates_version_names_on_refetch(self, ext_dir, loras_dir):
+        """F-96: refetch_catalog_metadata updates civitai_version_name for installed files."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from py.db import model_repo
+        from py.services.metadata_fetcher import refetch_catalog_metadata
+        from py.services.providers.base import ProviderMetadata
+
+        catalog_id = await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id="77",
+            source_page_url="https://civitai.com/models/77",
+            display_name="Test",
+            thumbnail_url="",
+            base_model="SDXL",
+        )
+        await model_repo.upsert_model_with_meta(
+            "refetch-lora.safetensors",
+            "loras",
+            "civitai",
+            "300",
+            "desc",
+            trigger_words=[],
+            tags=[],
+        )
+        await model_repo.set_model_catalog_entry("refetch-lora.safetensors", catalog_id)
+
+        mock_civitai_cls = MagicMock()
+        mock_civitai_inst = AsyncMock()
+        mock_civitai_inst.get_model_versions = AsyncMock(
+            return_value={"versions": [{"id": 300, "name": "Refetch V2"}], "model_type": "loras"}
+        )
+        mock_civitai_cls.return_value = mock_civitai_inst
+
+        mock_provider = AsyncMock()
+        mock_provider.fetch_metadata = AsyncMock(
+            return_value=ProviderMetadata(description="", trigger_words=[], image_urls=[], tags=[])
+        )
+
+        with (
+            patch("py.services.providers.civitai_provider.CivitaiProvider", mock_civitai_cls),
+            patch("py.services.metadata_fetcher.get_provider", return_value=mock_provider),
+        ):
+            result = await refetch_catalog_metadata("civitai", "77")
+
+        assert result is not None
+        installed = result["installed_files"]
+        assert len(installed) == 1
+        assert installed[0]["civitai_version_name"] == "Refetch V2"
+
+
+class TestCivitaiVersionName:
+    async def test_fetch_and_store_persists_civitai_version_name(self, ext_dir, loras_dir):
+        """F-96: civitai_version_name from ProviderMetadata is stored in the models table."""
+        import os
+        from unittest.mock import AsyncMock, patch
+
+        from py.db import model_repo
+        from py.services.metadata_fetcher import fetch_and_store
+
+        model_file = os.path.join(loras_dir, "versioned-lora.safetensors")
+        open(model_file, "wb").close()
+
+        meta = _make_meta("SDXL 1.0")
+        meta.civitai_version_name = "V5.1 (VAE)"
+
+        mock_provider = AsyncMock()
+        mock_provider.fetch_metadata = AsyncMock(return_value=meta)
+
+        with patch("py.services.metadata_fetcher.get_provider", return_value=mock_provider):
+            await fetch_and_store(
+                "versioned-lora.safetensors", "loras", "civitai", "999", skip_media=True
+            )
+
+        stored = await model_repo.get_model_by_filename("versioned-lora.safetensors")
+        assert stored is not None
+        assert stored["civitai_version_name"] == "V5.1 (VAE)"

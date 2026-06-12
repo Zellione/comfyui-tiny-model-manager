@@ -153,6 +153,7 @@ async def fetch_and_store(
         civitai_model_id=meta.civitai_model_id,
         media_hash=media_hash,
         readme_html=meta.readme_html,
+        civitai_version_name=meta.civitai_version_name,
     )
     if not skip_media:
         await _download_images(model_id, media_hash, meta.image_urls)
@@ -389,6 +390,7 @@ async def refetch_catalog_metadata(platform: str, page_id: str) -> dict | None:
 
     source_id = ""
     source_page_url = ""
+    version_name_map: dict[str, str] = {}
     if platform == "huggingface":
         source_id = page_id
         source_page_url = f"https://huggingface.co/{page_id}"
@@ -400,6 +402,7 @@ async def refetch_catalog_metadata(platform: str, page_id: str) -> dict | None:
             return None
         source_id = str(versions[0].get("id", ""))
         source_page_url = f"https://civitai.com/models/{page_id}"
+        version_name_map = {str(v["id"]): v.get("name", "") for v in versions}
     else:
         return None
 
@@ -420,4 +423,6 @@ async def refetch_catalog_metadata(platform: str, page_id: str) -> dict | None:
         media_hash=media_hash,
         readme_html=meta.readme_html,
     )
+    if version_name_map:
+        await model_repo.update_version_names_for_catalog(platform, page_id, version_name_map)
     return await model_repo.get_catalog_entry(platform, page_id)

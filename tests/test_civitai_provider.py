@@ -170,6 +170,29 @@ class TestFetchMetadata:
         assert "fantasy" in meta.tags
         assert meta.civitai_model_id == "111"
 
+    async def test_version_name_populated(self, provider, monkeypatch):
+        """F-96: civitai_version_name is populated from the 'name' field of the version response."""
+        version_data = {
+            "name": "V5.1 (VAE)",
+            "trainedWords": [],
+            "description": "",
+            "baseModel": "SDXL 1.0",
+            "images": [],
+            "modelId": None,
+        }
+
+        transport = httpx.MockTransport(
+            lambda req: (
+                httpx.Response(200, json=version_data)
+                if "model-versions" in str(req.url)
+                else httpx.Response(404)
+            )
+        )
+        _orig = httpx.AsyncClient
+        monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _orig(transport=transport, **kw))
+        meta = await provider.fetch_metadata("9999")
+        assert meta.civitai_version_name == "V5.1 (VAE)"
+
     async def test_base_model_not_in_tags(self, provider, monkeypatch):
         """F-32: base_model comes from baseModel field, never appears in tags."""
         version_data = {

@@ -152,6 +152,7 @@ class CivitaiProvider(ModelProvider):
         image_urls = [img["url"] for img in data.get("images", [])[:5] if img.get("url")]
         description = data.get("description") or ""
         base_model = data.get("baseModel", "")
+        version_name = data.get("name", "")
         tags: list[str] = []
         model_id = data.get("modelId")
         civitai_model_id = str(model_id) if model_id else ""
@@ -173,5 +174,6 @@ class CivitaiProvider(ModelProvider):
             tags=tags,
             base_model=base_model,
             civitai_model_id=civitai_model_id,
+            civitai_version_name=version_name,
             display_name=display_name,
         )

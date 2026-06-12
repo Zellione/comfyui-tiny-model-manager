@@ -46,12 +46,13 @@ async def _upsert_model_row(
     civitai_model_id: str,
     media_hash: str,
     readme_html: str = "",
+    civitai_version_name: str = "",
 ) -> int:
     """Insert/update the models row and return its id (does not commit)."""
     cursor = await db.execute(
         """
-        INSERT INTO models (filename, model_type, source_platform, source_id, description, base_model, civitai_model_id, media_hash, readme_html)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO models (filename, model_type, source_platform, source_id, description, base_model, civitai_model_id, civitai_version_name, media_hash, readme_html)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(filename) DO UPDATE SET
             model_type = excluded.model_type,
             source_platform = excluded.source_platform,
@@ -59,6 +60,7 @@ async def _upsert_model_row(
             description = excluded.description,
             base_model = CASE WHEN excluded.base_model != '' THEN excluded.base_model ELSE base_model END,
             civitai_model_id = excluded.civitai_model_id,
+            civitai_version_name = excluded.civitai_version_name,
             media_hash = excluded.media_hash,
             readme_html = excluded.readme_html
         """,
@@ -70,6 +72,7 @@ async def _upsert_model_row(
             description[:_MAX_DESCRIPTION],
             base_model,
             civitai_model_id,
+            civitai_version_name,
             media_hash,
             readme_html[:_MAX_DESCRIPTION],
         ),
@@ -92,6 +95,7 @@ async def upsert_model(
     civitai_model_id: str = "",
     media_hash: str = "",
     readme_html: str = "",
+    civitai_version_name: str = "",
 ) -> int:
     async with get_db() as db:
         model_id = await _upsert_model_row(
@@ -105,6 +109,7 @@ async def upsert_model(
             civitai_model_id,
             media_hash,
             readme_html,
+            civitai_version_name,
         )
         await db.commit()
         return model_id
@@ -122,6 +127,7 @@ async def upsert_model_with_meta(
     civitai_model_id: str = "",
     media_hash: str = "",
     readme_html: str = "",
+    civitai_version_name: str = "",
 ) -> int:
     async with get_db() as db:
         model_id = await _upsert_model_row(
@@ -135,6 +141,7 @@ async def upsert_model_with_meta(
             civitai_model_id,
             media_hash,
             readme_html,
+            civitai_version_name,
         )
         await db.execute(_DELETE_TRIGGER_WORDS, (model_id,))
         await db.executemany(
@@ -466,6 +473,35 @@ async def set_model_catalog_entry(filename: str, catalog_entry_id: int) -> None:
         await db.commit()
 
 
+async def update_version_names_for_catalog(
+    source_platform: str, source_page_id: str, version_name_map: dict[str, str]
+) -> None:
+    """Update civitai_version_name for installed files whose source_id is in the map."""
+    async with get_db() as db:
+        row = await (
+            await db.execute(
+                "SELECT id FROM catalog_entries WHERE source_platform = ? AND source_page_id = ?",
+                (source_platform, source_page_id),
+            )
+        ).fetchone()
+        if not row:
+            return
+        installed = await (
+            await db.execute(
+                "SELECT filename, source_id FROM models WHERE catalog_entry_id = ?",
+                (row["id"],),
+            )
+        ).fetchall()
+        for file_row in installed:
+            source_id = file_row["source_id"] or ""
+            if source_id in version_name_map:
+                await db.execute(
+                    "UPDATE models SET civitai_version_name = ? WHERE filename = ?",
+                    (version_name_map[source_id], file_row["filename"]),
+                )
+        await db.commit()
+
+
 async def get_first_image_path(model_id: int) -> str | None:
     async with get_db() as db:
         row = await (
@@ -493,7 +529,7 @@ async def list_catalog_entries() -> list[dict]:
             installed = list(
                 await (
                     await db.execute(
-                        "SELECT filename, model_type FROM models WHERE catalog_entry_id = ?",
+                        "SELECT filename, model_type, civitai_version_name FROM models WHERE catalog_entry_id = ?",
                         (e["id"],),
                     )
                 ).fetchall()
@@ -549,7 +585,7 @@ async def get_catalog_entry(source_platform: str, source_page_id: str) -> dict |
         entry["repo_files"] = [dict(r) for r in repo_files]
         installed = await (
             await db.execute(
-                "SELECT filename, model_type FROM models WHERE catalog_entry_id = ?",
+                "SELECT filename, model_type, civitai_version_name FROM models WHERE catalog_entry_id = ?",
                 (entry["id"],),
             )
         ).fetchall()
