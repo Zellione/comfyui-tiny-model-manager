@@ -116,6 +116,8 @@
                       (load)="onImgLoad($event)"
                       (error)="onImgError($event)"
                     />
+                  } @else if (entry.is_video_only) {
+                    <div class="thumb-video-only">▶</div>
                   }
                 </a>
                 @if (entry.source_platform) {

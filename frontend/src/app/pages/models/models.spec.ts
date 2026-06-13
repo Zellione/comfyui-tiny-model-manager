@@ -356,6 +356,7 @@ describe('Models component', () => {
       created_at: '',
       model_type: 'loras',
       is_empty: false,
+      is_video_only: false,
       installed_files: [],
       trigger_words: ['word1', 'word2'],
       ...overrides,
@@ -409,6 +410,7 @@ describe('Models component', () => {
       created_at: '2024-01-01',
       model_type: 'loras',
       is_empty: false,
+      is_video_only: false,
       installed_files: [],
       ...overrides,
     });

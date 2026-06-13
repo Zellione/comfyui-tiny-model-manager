@@ -369,10 +369,16 @@ def catalog_media_hash(platform: str, page_id: str) -> str:
     return hashlib.sha256(f"catalog:{platform}:{page_id}".encode()).hexdigest()
 
 
+_VIDEO_EXTS = {"mp4", "webm", "mov"}
+
+
 async def _download_catalog_images(media_hash: str, urls: list[str]) -> str:
     """Download gallery images into the catalog media dir. Returns the first image path."""
     results = await _iter_downloaded_urls(media_hash, urls)
-    return results[0][0] if results else ""
+    for path, ext in results:
+        if ext not in _VIDEO_EXTS:
+            return path
+    return ""
 
 
 async def _fetch_hf_repo_files_safe(source_id: str) -> list[dict] | None:

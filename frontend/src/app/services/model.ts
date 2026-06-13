@@ -107,6 +107,7 @@ export interface CatalogEntry {
   created_at: string;
   model_type: string;
   is_empty: boolean;
+  is_video_only?: boolean;
   installed_files: InstalledFile[];
   trigger_words?: string[];
 }

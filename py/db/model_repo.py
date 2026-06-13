@@ -521,10 +521,27 @@ async def list_catalog_entries() -> list[dict]:
                 " FROM catalog_entries ORDER BY created_at DESC"
             )
         ).fetchall()
+        _video_path_exts = (".mp4", ".webm", ".mov")
         result = []
         for entry in entries:
             e = dict(entry)
             e["trigger_words"] = _parse_json_list(e.get("trigger_words", ""))
+            # Clear any legacy video path stored as thumbnail_url
+            thumb = e.get("thumbnail_url", "")
+            if thumb and thumb.lower().endswith(_video_path_exts):
+                e["thumbnail_url"] = ""
+            # Fall back to first image in model_media if thumbnail is missing
+            if not e["thumbnail_url"]:
+                img_row = await (
+                    await db.execute(
+                        "SELECT mm.local_path FROM model_media mm"
+                        " JOIN models m ON mm.model_id = m.id"
+                        " WHERE m.catalog_entry_id = ? AND mm.media_type = 'image' LIMIT 1",
+                        (e["id"],),
+                    )
+                ).fetchone()
+                if img_row:
+                    e["thumbnail_url"] = img_row["local_path"]
             installed = list(
                 await (
                     await db.execute(
@@ -545,6 +562,17 @@ async def list_catalog_entries() -> list[dict]:
                     )
                 ).fetchone()
                 e["model_type"] = rf["model_type"] if rf else "other"
+            # is_video_only: installed files have video media but no image media
+            media_rows = await (
+                await db.execute(
+                    "SELECT mm.media_type FROM model_media mm"
+                    " JOIN models m ON mm.model_id = m.id"
+                    " WHERE m.catalog_entry_id = ? GROUP BY mm.media_type",
+                    (e["id"],),
+                )
+            ).fetchall()
+            media_types = {row["media_type"] for row in media_rows}
+            e["is_video_only"] = "video" in media_types and "image" not in media_types
             result.append(e)
         return result
 
