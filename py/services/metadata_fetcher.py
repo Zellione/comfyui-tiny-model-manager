@@ -393,18 +393,21 @@ async def refetch_catalog_metadata(platform: str, page_id: str) -> dict | None:
     source_id = ""
     source_page_url = ""
     version_name_map: dict[str, str] = {}
+    repo_files: list[dict] | None = None
     if platform == "huggingface":
         source_id = page_id
         source_page_url = f"https://huggingface.co/{page_id}"
     elif platform == "civitai":
         from .providers.civitai_provider import CivitaiProvider
 
-        versions = (await CivitaiProvider().get_model_versions(int(page_id))).get("versions", [])
+        model_data = await CivitaiProvider().get_model_versions(int(page_id))
+        versions = model_data.get("versions", [])
         if not versions:
             return None
         source_id = str(versions[0].get("id", ""))
         source_page_url = f"https://civitai.com/models/{page_id}"
         version_name_map = {str(v["id"]): v.get("name", "") for v in versions}
+        repo_files = _civitai_repo_files(model_data, source_page_url)
     else:
         return None
 
@@ -412,7 +415,7 @@ async def refetch_catalog_metadata(platform: str, page_id: str) -> dict | None:
     media_hash = catalog_media_hash(platform, page_id)
     thumbnail_url = await _download_catalog_images(media_hash, meta.image_urls)
 
-    await model_repo.upsert_catalog_entry(
+    catalog_entry_id = await model_repo.upsert_catalog_entry(
         source_platform=platform,
         source_page_id=page_id,
         source_page_url=source_page_url,
@@ -425,6 +428,23 @@ async def refetch_catalog_metadata(platform: str, page_id: str) -> dict | None:
         media_hash=media_hash,
         readme_html=meta.readme_html,
     )
+
+    if platform == "huggingface":
+        try:
+            repo_files = await _fetch_repo_files(platform, source_id, "")
+        except Exception:
+            _log.warning("Failed to fetch repo files for %s/%s", platform, page_id, exc_info=True)
+
+    if repo_files is not None:
+        model_type = await model_repo.get_model_type_for_catalog(catalog_entry_id)
+        if model_type:
+            try:
+                await model_repo.upsert_repo_files(catalog_entry_id, model_type, repo_files)
+            except Exception:
+                _log.warning(
+                    "Failed to store repo files for %s/%s", platform, page_id, exc_info=True
+                )
+
     if version_name_map:
         await model_repo.update_version_names_for_catalog(platform, page_id, version_name_map)
     return await model_repo.get_catalog_entry(platform, page_id)

@@ -421,6 +421,72 @@ class TestRefetchCatalogMetadata:
         assert len(installed) == 1
         assert installed[0]["civitai_version_name"] == "Refetch V2"
 
+    async def test_civitai_refetch_updates_repo_file_version_names(self, ext_dir):
+        """Refetch writes civitai_version_name into repo_files for non-installed files."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from py.db import model_repo
+        from py.services.metadata_fetcher import refetch_catalog_metadata
+        from py.services.providers.base import ProviderMetadata
+
+        catalog_id = await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id="88",
+            source_page_url="https://civitai.com/models/88",
+            display_name="RF Version Test",
+            thumbnail_url="",
+            base_model="",
+        )
+        await model_repo.upsert_repo_files(
+            catalog_id,
+            "loras",
+            [
+                {
+                    "filename": "rf.safetensors",
+                    "size_bytes": 512,
+                    "download_url": "https://example.com/rf.safetensors",
+                    "source_page_url": "https://civitai.com/models/88",
+                }
+            ],
+        )
+
+        mock_civitai_cls = MagicMock()
+        mock_civitai_inst = AsyncMock()
+        mock_civitai_inst.get_model_versions = AsyncMock(
+            return_value={
+                "versions": [
+                    {
+                        "id": 99,
+                        "name": "v1 Test",
+                        "files": [
+                            {
+                                "type": "Model",
+                                "name": "rf.safetensors",
+                                "sizeKB": 0.5,
+                                "downloadUrl": "https://example.com/rf.safetensors",
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+        mock_civitai_cls.return_value = mock_civitai_inst
+
+        mock_provider = AsyncMock()
+        mock_provider.fetch_metadata = AsyncMock(
+            return_value=ProviderMetadata(description="", trigger_words=[], image_urls=[], tags=[])
+        )
+
+        with (
+            patch("py.services.providers.civitai_provider.CivitaiProvider", mock_civitai_cls),
+            patch("py.services.metadata_fetcher.get_provider", return_value=mock_provider),
+        ):
+            result = await refetch_catalog_metadata("civitai", "88")
+
+        assert result is not None
+        rf = result["repo_files"][0]
+        assert rf["civitai_version_name"] == "v1 Test"
+
 
 class TestCivitaiVersionName:
     async def test_fetch_and_store_persists_civitai_version_name(self, ext_dir, loras_dir):

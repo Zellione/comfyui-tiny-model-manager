@@ -666,6 +666,26 @@ async def upsert_repo_files(catalog_entry_id: int, model_type: str, files: list[
         await db.commit()
 
 
+async def get_model_type_for_catalog(catalog_entry_id: int) -> str:
+    """Returns the model_type for a catalog entry, falling back to installed models."""
+    async with get_db() as db:
+        row = await (
+            await db.execute(
+                "SELECT model_type FROM repo_files WHERE catalog_entry_id = ? LIMIT 1",
+                (catalog_entry_id,),
+            )
+        ).fetchone()
+        if row:
+            return row["model_type"]
+        row = await (
+            await db.execute(
+                "SELECT model_type FROM models WHERE catalog_entry_id = ? LIMIT 1",
+                (catalog_entry_id,),
+            )
+        ).fetchone()
+        return row["model_type"] if row else ""
+
+
 async def get_repo_files_by_catalog(catalog_entry_id: int) -> list[dict]:
     async with get_db() as db:
         rows = await (
