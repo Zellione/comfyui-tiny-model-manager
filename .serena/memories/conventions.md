@@ -54,3 +54,8 @@
 - Commits and comments in English.
 - Never mention Claude as co-author or use EOF in commit messages.
 - Feature branches via `gh issue develop <num> --name <short> --checkout`.
+
+## Workflow Rules
+
+- **Serena memory commits are immediate**: any time a Serena memory file is written or updated, commit it on the current working branch right away — never defer to a later session or a separate PR.
+- **Post-PR follow-up changes**: changes made after the main feature commit has been pushed/merged (UI polish, translation fixes, Serena updates, etc.) must go on a new feature branch with their own PR — never accumulated on `main` locally.
