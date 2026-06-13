@@ -11,6 +11,14 @@
 - When testing components that inject `TagService`, provide `{ provide: TagService, useValue: mockTagService }` where `mockTagService = { searchTags: vi.fn().mockReturnValue(EMPTY) }`.
 - i18n: ngx-translate — all user-visible strings via translation keys.
 
+## Image loading pattern (thumbnail cards)
+
+When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
+- Start the `<img>` with `style="display: none"` so the browser's broken-image icon never appears.
+- Reveal on success: `(load)="onImgLoad($event)"` → `(event.target as HTMLImageElement).style.display = 'block'`.
+- `(error)="onImgError($event)"` → `style.display = 'none'` (already hidden, but needed for other img elements in the same template that start visible).
+- Gallery / detail-panel images that start visible still rely on `onImgError` to hide on failure.
+
 ## Autocomplete / typeahead pattern (TagAutocompleteInput)
 
 - `toObservable(inputSignal).pipe(debounceTime(200), switchMap(...), catchError(() => EMPTY), takeUntilDestroyed())` — keeps stream alive on HTTP errors.
