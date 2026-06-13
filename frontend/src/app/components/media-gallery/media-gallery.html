@@ -13,7 +13,7 @@
             />
           </button>
         } @else {
-          <video [src]="mediaUrl(m.local_path)" controls>
+          <video [src]="mediaUrl(m.local_path)" [poster]="videoPosterUrl(m.local_path)" controls>
             <track kind="captions" />
           </video>
         }
@@ -37,7 +37,16 @@
                 (error)="onImgError($event)"
               />
             } @else {
-              <div class="gallery-thumb-video">▶</div>
+              <div class="gallery-thumb-video-wrap">
+                <div class="gallery-thumb-video">▶</div>
+                <img
+                  [src]="videoPosterUrl(thumb.local_path)"
+                  alt=""
+                  style="display: none"
+                  (load)="onVideoPosterLoad($event)"
+                  (error)="onImgError($event)"
+                />
+              </div>
             }
           </button>
         }

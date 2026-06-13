@@ -32,12 +32,23 @@ export class MediaGallery {
 
   mediaUrl = mediaUrl;
 
+  videoPosterUrl(localPath: string): string {
+    return mediaUrl(localPath.replace(/\.[^.]+$/, '') + '_poster.jpg');
+  }
+
   onImgLoad(event: Event) {
     (event.target as HTMLImageElement).style.display = 'block';
   }
 
   onImgError(event: Event) {
     (event.target as HTMLImageElement).style.display = 'none';
+  }
+
+  onVideoPosterLoad(event: Event) {
+    const img = event.target as HTMLImageElement;
+    img.style.display = 'block';
+    const fallback = img.previousElementSibling as HTMLElement | null;
+    if (fallback) fallback.style.display = 'none';
   }
 
   @HostListener('document:keydown.escape')
