@@ -59,12 +59,23 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
   - `_download_catalog_images`: poster extraction when all downloaded files are videos; returns poster path instead of `""`.
   - `_download_images`: poster extraction when no image files downloaded; stored via `add_media(model_id, "image", poster)`.
   - `list_catalog_entries()`: lazy extraction for existing video-only entries; stored via `INSERT OR IGNORE INTO model_media` so the next request finds the image record normally.
+  - `_serve_video_poster` route: on-demand extraction for any video in media_dir (see below).
 - **Testing pattern**: mock `py.services.metadata_fetcher.extract_video_poster` (the imported name in the caller) — avoids coupling tests to av/ffmpeg internals. Unit tests for `_extract_with_av` and `_extract_with_ffmpeg` live in `tests/test_video_poster.py`.
 - **Fallback**: when ffmpeg is unavailable or extraction fails, the ▶ play icon is shown (frontend `is_video_only` branch).
 
+## On-demand video poster route (`GET /api/media-poster/{path}`)
+
+- **Route**: `GET /tiny-model-manager/api/media-poster/{path:.*}` in `py/routes/metadata.py` — handled by `_serve_video_poster`.
+- **Purpose**: lazily extract and serve the first video frame as a JPEG poster for **any** video inside `media_dir`, including models that have both video and image media (where pre-extraction in `_download_images` is skipped because `has_image` is true).
+- **Flow**: validate path is within `media_dir()` via `contained_path()` → 403 on escape; 404 if file missing on disk; `asyncio.to_thread(extract_video_poster, full_path)` → 404 if extraction returns `None`; `web.FileResponse(poster)` on success.
+- **Caching**: `extract_video_poster` saves the poster as `<stem>_poster.jpg` beside the video on first call and returns it immediately on subsequent calls — no re-extraction.
+- **`extract_video_poster` is imported at module level** in `metadata.py` (unlike other cfg/service lazy imports) so the name is patchable in tests via `patch("py.routes.metadata.extract_video_poster", ...)`.
+- **Frontend**: `videoPosterUrl(localPath: string)` in `MediaGallery` returns `/tiny-model-manager/api/media-poster/${encodeURIComponent(localPath)}` — passes the video file's `local_path` directly to the route. **Do NOT** derive the poster path by convention (`<stem>_poster.jpg`) on the frontend; the route handles extraction on demand.
+- **Tests**: `TestServeVideoPoster` in `tests/test_routes_metadata.py` — 4 tests covering success (extraction succeeds), extraction failure (→ 404), missing file (→ 404), and path traversal (→ 403/404).
+
 ## Video gallery thumbnail poster pattern (`MediaGallery`)
 
-- `videoPosterUrl(localPath: string)`: strips the file extension from `local_path` and appends `_poster.jpg`, then passes through `mediaUrl()`. Convention: poster is always `<stem>_poster.jpg` beside the video file.
+- `videoPosterUrl(localPath: string)` in `MediaGallery`: returns the on-demand poster URL `\`/tiny-model-manager/api/media-poster/${encodeURIComponent(localPath)}\`` — passes the video's `local_path` to the backend route which extracts and caches the poster frame. Works for all models regardless of whether they have image media alongside the video.
 - **Thumbnail strip** for video items: render a `.gallery-thumb-video-wrap` containing the `▶` fallback div first, then an `<img>` with `style="display: none"` pointing at the poster URL.
   - `(load)="onVideoPosterLoad($event)"`: shows the img (`display: block`) and hides the preceding sibling `▶` div (`previousElementSibling.style.display = 'none'`).
   - `(error)="onImgError($event)"`: keeps img hidden; ▶ remains visible.
