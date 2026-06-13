@@ -19,6 +19,11 @@ from .url_guard import is_allowed_url
 _log = logging.getLogger("tiny-model-manager")
 
 
+def _sanitize_log_str(s: str) -> str:
+    """Strip CR/LF to prevent log injection (S5145)."""
+    return s.replace("\r", "").replace("\n", " ")
+
+
 def _compute_media_hash(platform: str, source_id: str, filename: str) -> str:
     key = f"{platform}:{source_id}" if (platform and source_id) else filename
     return hashlib.sha1(key.encode()).hexdigest()
@@ -380,6 +385,18 @@ async def _download_catalog_images(media_hash: str, urls: list[str]) -> str:
     return results[0][0] if results else ""
 
 
+async def _fetch_hf_repo_files_safe(source_id: str, page_id: str) -> list[dict] | None:
+    try:
+        return await _fetch_repo_files("huggingface", source_id, "")
+    except Exception:
+        _log.warning(
+            "Failed to fetch repo files for huggingface/%s",
+            _sanitize_log_str(page_id),
+            exc_info=True,
+        )
+        return None
+
+
 async def refetch_catalog_metadata(platform: str, page_id: str) -> dict | None:
     """Re-fetch source-page metadata for a catalog entry independent of installed files.
 
@@ -430,10 +447,7 @@ async def refetch_catalog_metadata(platform: str, page_id: str) -> dict | None:
     )
 
     if platform == "huggingface":
-        try:
-            repo_files = await _fetch_repo_files(platform, source_id, "")
-        except Exception:
-            _log.warning("Failed to fetch repo files for %s/%s", platform, page_id, exc_info=True)
+        repo_files = await _fetch_hf_repo_files_safe(source_id, page_id)
 
     if repo_files is not None:
         model_type = await model_repo.get_model_type_for_catalog(catalog_entry_id)
@@ -442,7 +456,10 @@ async def refetch_catalog_metadata(platform: str, page_id: str) -> dict | None:
                 await model_repo.upsert_repo_files(catalog_entry_id, model_type, repo_files)
             except Exception:
                 _log.warning(
-                    "Failed to store repo files for %s/%s", platform, page_id, exc_info=True
+                    "Failed to store repo files for %s/%s",
+                    _sanitize_log_str(platform),
+                    _sanitize_log_str(page_id),
+                    exc_info=True,
                 )
 
     if version_name_map:
