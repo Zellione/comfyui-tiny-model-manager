@@ -15,6 +15,7 @@
 
 When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
 - Start the `<img>` with `style="display: none"` so the browser's broken-image icon never appears.
+- **Do NOT use `loading="lazy"` on images that start with `display: none`.** `loading="lazy"` requires the element to have a layout position (viewport proximity) to trigger loading. A `display:none` element has no position, so the browser defers loading forever and the `load` event never fires — images stay permanently hidden even when they would load successfully. Use eager loading (omit `loading="lazy"`) for thumbnails that start hidden.
 - Reveal on success: `(load)="onImgLoad($event)"` → `(event.target as HTMLImageElement).style.display = 'block'`.
 - `(error)="onImgError($event)"` → `style.display = 'none'` (already hidden, but needed for other img elements in the same template that start visible).
 - Gallery / detail-panel images that start visible still rely on `onImgError` to hide on failure.
