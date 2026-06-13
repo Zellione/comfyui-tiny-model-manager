@@ -289,6 +289,64 @@ class TestSearch:
         assert "gguf" in captured_filters
         assert "lora" in captured_filters
 
+
+# ---------------------------------------------------------------------------
+# _validate_repo_id
+# ---------------------------------------------------------------------------
+
+
+class TestValidateRepoId:
+    def test_valid_namespaced_repo(self):
+        from py.services.providers.huggingface_provider import _validate_repo_id
+
+        assert _validate_repo_id("user/repo") == "user/repo"
+
+    def test_valid_single_segment(self):
+        from py.services.providers.huggingface_provider import _validate_repo_id
+
+        assert _validate_repo_id("bert-base-uncased") == "bert-base-uncased"
+
+    def test_valid_with_dots_and_hyphens(self):
+        from py.services.providers.huggingface_provider import _validate_repo_id
+
+        assert _validate_repo_id("meta-llama/Llama-3.1-8B") == "meta-llama/Llama-3.1-8B"
+
+    def test_rejects_path_traversal(self):
+        from py.services.providers.huggingface_provider import _validate_repo_id
+
+        with pytest.raises(ValueError):
+            _validate_repo_id("../../etc/passwd")
+
+    def test_rejects_double_slash(self):
+        from py.services.providers.huggingface_provider import _validate_repo_id
+
+        with pytest.raises(ValueError):
+            _validate_repo_id("user/repo/subdir")
+
+    def test_rejects_empty_string(self):
+        from py.services.providers.huggingface_provider import _validate_repo_id
+
+        with pytest.raises(ValueError):
+            _validate_repo_id("")
+
+    def test_rejects_leading_dot(self):
+        from py.services.providers.huggingface_provider import _validate_repo_id
+
+        with pytest.raises(ValueError):
+            _validate_repo_id(".hidden/repo")
+
+    async def test_get_model_files_rejects_invalid_repo_id(self, provider):
+        with pytest.raises(ValueError):
+            await provider.get_model_files("../../etc/passwd")
+
+    async def test_get_readme_rejects_invalid_repo_id(self, provider):
+        with pytest.raises(ValueError):
+            await provider.get_readme("../../etc/passwd")
+
+    async def test_resolve_direct_link_rejects_invalid_repo_id(self, provider):
+        with pytest.raises(ValueError):
+            await provider.resolve_direct_link("../../etc/passwd")
+
     async def test_no_filter_param_when_no_tags_and_no_gguf(self, provider, monkeypatch):
         captured_filters: list[str] = []
 
