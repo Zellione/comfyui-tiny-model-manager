@@ -11,19 +11,19 @@ py/                    # Python backend
   background.py        # background task runner
   db/
     database.py        # SQLite init (init_db), schema
-    model_repo.py      # main persistence layer
+    model_repo.py      # main persistence layer (includes search_tags)
     keyword_repo.py    # trigger-word persistence
-  routes/              # aiohttp route handlers: catalog, download, metadata, models, settings, workflow, notifications, static, _helpers
+  routes/              # aiohttp route handlers: catalog, download, metadata, models, settings, workflow, notifications, static, tags, _helpers
   services/            # business logic: downloader, metadata_fetcher, model_paths, reconciler, reorganizer, url_guard, backend_notifier
     providers/         # civitai_provider, huggingface_provider (both implement base.py)
   nodes/               # ComfyUI nodes: lora_loader_with_triggers, checkpoint_loader_with_triggers, vae_loader, controlnet_loader, embedding_helper, upscale_model_loader
 frontend/              # Angular SPA (builds to ../web/)
   src/app/
     pages/             # download, catalog-detail, model-detail, models, settings
-    components/        # shared UI: toast, media-gallery, edit-meta-form, text-diff-field, …
-    services/          # Angular services: civitai, huggingface, download, model, keywords, settings, notification, installed-files, workflow
+    components/        # shared UI: toast, media-gallery, edit-meta-form, text-diff-field, tag-autocomplete-input, …
+    services/          # Angular services: civitai, huggingface, download, model, keywords, settings, notification, installed-files, workflow, tags
 js/                    # ComfyUI JS extension (topbar button); bundled into web/ by ng build
-tests/                 # pytest integration + unit tests
+tests/                 # pytest integration + unit tests (includes test_routes_tags.py)
 conftest.py            # root conftest: installs ComfyUI stubs (server, folder_paths, comfy.sd, comfy.utils) at import time
 tests/conftest.py      # ext_dir fixture: tmp_path + init_db; route tests use aiohttp_client + ext_dir
 web/                   # compiled frontend output (git-ignored; each worktree has its own)

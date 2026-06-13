@@ -74,6 +74,11 @@
         <button class="chip-remove" (click)="removeTag(tag)">×</button>
       </span>
     }
+    @if (tagFilter().length > 1) {
+      <button class="clear-tags-btn" (click)="clearTags()">
+        {{ 'download_search.filter.clear_tags' | translate }}
+      </button>
+    }
   </div>
   @if (platform() === 'civitai' && tagFilter().length > 1) {
     <p class="tag-limit-hint">
