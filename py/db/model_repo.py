@@ -603,6 +603,7 @@ async def list_catalog_entries() -> list[dict]:
                     e["is_video_only"] = False
                 else:
                     e["is_video_only"] = True
+                    e["first_video_path"] = first_video
             else:
                 e["is_video_only"] = "video" in media_types and "image" not in media_types
             result.append(e)

@@ -116,6 +116,16 @@
                       (load)="onImgLoad($event)"
                       (error)="onImgError($event)"
                     />
+                  } @else if (entry.is_video_only && entry.first_video_path) {
+                    <div class="thumb-video-only">▶</div>
+                    <img
+                      class="thumb"
+                      [src]="videoPosterUrl(entry.first_video_path)"
+                      alt=""
+                      style="display: none"
+                      (load)="onVideoPosterLoad($event)"
+                      (error)="onImgError($event)"
+                    />
                   } @else if (entry.is_video_only) {
                     <div class="thumb-video-only">▶</div>
                   }
