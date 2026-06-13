@@ -4,6 +4,8 @@
 
 **After any significant change** (new service, new convention, structural refactor, new pattern): update the relevant Serena memory (`mem:core`, `mem:conventions`, `mem:tech_stack`, or `mem:task_completion`) using `mcp__serena__write_memory`. Keep memories current so future sessions don't rediscover what is already known.
 
+**Serena memory commits are MANDATORY and IMMEDIATE:** Any time a Serena memory file is written or updated, commit it right away on the current working branch. Do not defer Serena commits to a later session or a separate PR.
+
 ---
 
 # Project
@@ -230,6 +232,16 @@ If planning and working on a new feature the following steps have to be executed
     - Check: `mcp__sonarqube__get_project_quality_gate_status` with `projectKey` and `pullRequest`
     - If `status` is `ERROR`: inspect the failing conditions, fix the code (add/improve tests for `new_coverage`, fix issues for ratings), commit, push, then re-check
     - Repeat until `status` is `OK`
+
+### Post-PR follow-up changes (MANDATORY)
+
+If additional changes are made after the main feature commit has been pushed / merged (e.g. UI polish, translation fixes, Serena memory updates), they MUST be committed on the current working branch — never left uncommitted. If the PR was already merged:
+
+1. Create a new feature branch from the updated `main` (or from the merge commit)
+2. Commit the follow-up changes there
+3. Push and open a new PR targeting `main`
+
+Do NOT accumulate follow-up changes on `main` locally without a PR.
 
 ### Bug during feature development.
 
