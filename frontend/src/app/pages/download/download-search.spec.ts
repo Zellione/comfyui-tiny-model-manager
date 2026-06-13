@@ -406,6 +406,14 @@ describe('DownloadSearch — tag methods', () => {
     expect(c.tagFilter()).not.toContain('anime');
     expect(c.tagFilter()).toContain('lora');
   });
+
+  it('clearTags empties all active tag filters', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    c.tagFilter.set(['anime', 'lora', 'xl']);
+    c.clearTags();
+    expect(c.tagFilter()).toHaveLength(0);
+  });
 });
 
 describe('DownloadSearch — F-80 HuggingFace model selection', () => {

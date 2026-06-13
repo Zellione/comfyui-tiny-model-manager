@@ -22,3 +22,9 @@
 - Frontend: `npx ng build` from `frontend/` directory
 - Backend: no build step; changes take effect after ComfyUI restart
 - `js/` extension: bundled as ng build asset (configured in `angular.json`)
+
+## Serena LSP Configuration (`.serena/project.yml`)
+- Languages: `typescript` (first/default), `python`
+- `python` uses Pyright, auto-downloaded by Serena via `uvx` — no manual install needed
+- `python_jedi` is NOT used (requires `jedi-language-server` in PATH, not installed)
+- To apply language config changes, restart the Serena MCP server

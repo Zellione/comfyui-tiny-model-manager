@@ -385,6 +385,10 @@ export class DownloadSearch {
     this.tagFilter.update((tags) => tags.filter((t) => t !== tag));
   }
 
+  clearTags() {
+    this.tagFilter.set([]);
+  }
+
   selectCivitai(model: CivitaiModel) {
     const targetId = model.id;
     this.selectedModel.set(model);

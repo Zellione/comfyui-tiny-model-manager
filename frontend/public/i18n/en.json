@@ -213,7 +213,8 @@
       "all_base_models": "All base models",
       "default_sort": "Default sort",
       "tag_placeholder": "Filter by tag…",
-      "tag_limit_hint": "CivitAI only supports one server-side tag filter. The first tag narrows the API results; additional tags are applied locally."
+      "tag_limit_hint": "CivitAI only supports one server-side tag filter. The first tag narrows the API results; additional tags are applied locally.",
+      "clear_tags": "Clear all"
     },
     "empty": {
       "searching": "Searching…",
