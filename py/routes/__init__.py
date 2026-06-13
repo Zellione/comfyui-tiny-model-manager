@@ -8,6 +8,7 @@ from .models import add_model_routes
 from .notifications import add_notification_routes
 from .settings import add_settings_routes
 from .static import add_static_routes
+from .tags import add_tag_routes
 from .workflow import register_workflow_routes
 
 
@@ -20,6 +21,7 @@ def register_routes(routes, ext_dir: str):
     add_catalog_routes(routes)
     add_settings_routes(routes)
     add_notification_routes(routes)
+    add_tag_routes(routes)
     register_workflow_routes(routes)
 
     async def _startup():

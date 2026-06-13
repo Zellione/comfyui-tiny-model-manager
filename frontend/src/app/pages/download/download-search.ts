@@ -11,6 +11,7 @@ import { formatSize } from '../../utils/format';
 import { isVideo } from '../../utils/media';
 import { ModelTypeSelect } from '../../components/model-type-select/model-type-select';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
+import { TagAutocompleteInput } from '../../components/tag-autocomplete-input/tag-autocomplete-input';
 import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { NotificationService } from '../../services/notification';
@@ -31,6 +32,7 @@ type Platform = 'civitai' | 'huggingface';
     FormsModule,
     ModelTypeSelect,
     BaseModelSelect,
+    TagAutocompleteInput,
     SafeHtmlPipe,
     TranslatePipe,
   ],
@@ -142,7 +144,6 @@ export class DownloadSearch {
   hfSort = signal('downloads');
   formatFilter = signal('');
   tagFilter = signal<string[]>([]);
-  tagInput = signal('');
   hasSearched = signal(false);
 
   civitaiResults = signal<CivitaiModel[]>([]);
@@ -169,6 +170,12 @@ export class DownloadSearch {
     const fmt = this.formatFilter();
     if (!fmt) return this.hfResults();
     return this.hfResults().filter((m) => m.formats?.includes(fmt));
+  });
+
+  readonly allResultTags = computed(() => {
+    const civitaiTags = this.civitaiResults().flatMap((m) => m.tags ?? []);
+    const hfTags = this.hfResults().flatMap((m) => m.tags);
+    return [...new Set([...civitaiTags, ...hfTags])];
   });
 
   // Intermediary so Angular stops propagating when the first tag value is unchanged (adding a 2nd+ tag).
@@ -372,12 +379,6 @@ export class DownloadSearch {
     const t = tag.trim();
     if (!t || this.tagFilter().includes(t)) return;
     this.tagFilter.update((tags) => [...tags, t]);
-    this.tagInput.set('');
-  }
-
-  addTagFromInput() {
-    const raw = this.tagInput().trim();
-    if (raw) this.addTag(raw);
   }
 
   removeTag(tag: string) {
