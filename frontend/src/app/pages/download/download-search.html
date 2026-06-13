@@ -134,6 +134,8 @@
                     loading="lazy"
                     (error)="onImgError($event)"
                   />
+                } @else if (civitaiIsVideoOnly(model)) {
+                  <div class="video-only-icon">▶</div>
                 }
               </div>
               <div class="row-info">

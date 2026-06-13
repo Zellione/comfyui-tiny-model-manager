@@ -538,6 +538,11 @@ export class DownloadSearch {
     return images.find((img) => img.type !== 'video' && !isVideo(img.url))?.url ?? '';
   }
 
+  civitaiIsVideoOnly(model: CivitaiModel): boolean {
+    const images = model.modelVersions?.[0]?.images ?? [];
+    return images.length > 0 && images.every((img) => img.type === 'video' || isVideo(img.url));
+  }
+
   civitaiGalleryImages(model: CivitaiModel): string[] {
     return (model.modelVersions?.[0]?.images ?? [])
       .slice(0, 8)
