@@ -32,8 +32,18 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
 - To find the first non-video item: `images.find((img) => img.type !== 'video' && !isVideo(img.url))` — `type` check is primary, `isVideo(url)` from `utils/media.ts` is the fallback for items without a `type`.
 - CivitAI does **not** provide a separate poster/thumbnail URL for video items — the only URL is the raw `.mp4`. When a static thumbnail is needed, skip videos and fall back to the existing placeholder.
 - Videos should remain in the gallery thumbnail strip (they are playable content); the image-first filter applies only to card-level thumbnails.
-- **Video-only indicator**: when `civitaiIsVideoOnly(model)` is true (all items are `type=video` or have video URLs, and there is at least one item), the card thumbnail shows a `▶` play icon (`.video-only-icon` div inside `.row-thumb`) instead of a blank dark placeholder. Pattern: `@else if (civitaiIsVideoOnly(model)) { <div class="video-only-icon">▶</div> }`.
+- **Video-only indicator (download search page)**: when `civitaiIsVideoOnly(model)` is true (all items are `type=video` or have video URLs, and there is at least one item), the card thumbnail shows a `▶` play icon (`.video-only-icon` div inside `.row-thumb`) instead of a blank dark placeholder. Pattern: `@else if (civitaiIsVideoOnly(model)) { <div class="video-only-icon">▶</div> }`.
 - `civitaiIsVideoOnly()`: `images.length > 0 && images.every((img) => img.type === 'video' || isVideo(img.url))`.
+
+## Catalog page thumbnail fallback (installed models)
+
+- `catalog_entries.thumbnail_url` can contain a stale video path (`.mp4`/`.webm`/`.mov`) if it was stored before the video-skip fix in `_download_catalog_images`.
+- `list_catalog_entries()` in `model_repo.py` handles this at read time:
+  1. Clears `thumbnail_url` if it ends with a video extension.
+  2. If `thumbnail_url` is still empty, queries `model_media` (joined via `models.catalog_entry_id`) for the first `media_type = 'image'` local path and uses that.
+- `CatalogEntry` has an `is_video_only?: boolean` field (optional to avoid breaking existing spec fixtures). Set to `true` only when the installed model has video media records but **no** image media records at all.
+- Catalog card template: `@else if (entry.is_video_only) { <div class="thumb-video-only">▶</div> }` after the `@if (catalogThumbnailUrl(entry))` block.
+- `_download_catalog_images` in `metadata_fetcher.py` always skips video files (`_VIDEO_EXTS = {"mp4", "webm", "mov"}`) and returns the first image path; returns `""` when all URLs are videos.
 
 ## JS Extension (js/)
 
