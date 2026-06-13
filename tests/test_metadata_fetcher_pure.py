@@ -54,3 +54,52 @@ def test_compute_media_hash_is_40_char_hex():
     h = _compute_media_hash("civitai", "123", "f.ckpt")
     assert len(h) == 40
     assert all(c in "0123456789abcdef" for c in h)
+
+
+# ---------------------------------------------------------------------------
+# _media_subdir
+# ---------------------------------------------------------------------------
+
+
+class TestMediaSubdir:
+    def test_returns_path_inside_media_dir(self, tmp_path):
+        import py.config as cfg
+
+        cfg.init(str(tmp_path))
+        from py.services.metadata_fetcher import _media_subdir
+
+        result = _media_subdir("a" * 40)
+        assert result.startswith(cfg.media_dir())
+
+    def test_rejects_path_traversal(self, tmp_path):
+        import pytest
+
+        import py.config as cfg
+
+        cfg.init(str(tmp_path))
+        from py.services.metadata_fetcher import _media_subdir
+
+        with pytest.raises(ValueError):
+            _media_subdir("../evil")
+
+    def test_rejects_empty_hash(self, tmp_path):
+        import pytest
+
+        import py.config as cfg
+
+        cfg.init(str(tmp_path))
+        from py.services.metadata_fetcher import _media_subdir
+
+        with pytest.raises(ValueError):
+            _media_subdir("")
+
+    def test_rejects_slash_in_hash(self, tmp_path):
+        import pytest
+
+        import py.config as cfg
+
+        cfg.init(str(tmp_path))
+        from py.services.metadata_fetcher import _media_subdir
+
+        with pytest.raises(ValueError):
+            _media_subdir("abc/def")

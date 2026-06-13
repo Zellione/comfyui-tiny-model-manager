@@ -23,6 +23,11 @@
 - ComfyUI `INPUT_TYPES` default-arg pattern intentionally violates B008 (ignored in ruff config).
 - Ruff quote-style: double; indent: space.
 
+## Security Patterns (SonarQube-compliant)
+
+- **S7044 (URL path injection)**: Use `urllib.parse.quote(value, safe="/")` on user-controlled path segments *and* use the return value in the URL. A custom regex validator alone is NOT recognised by SonarQube's taint engine — `quote()` is the required sanitiser. Pattern in `_validate_repo_id` (`huggingface_provider.py`): validate format with regex, then return `urllib.parse.quote(repo_id, safe="/")`.
+- **S6549 / S2083 (path traversal)**: For paths where the variable segment is user input, validate the segment with `re.fullmatch(r"[A-Za-z0-9_-]{1,128}", segment)` **before** any `os.path.join`. Once the segment is restricted to alphanumeric + `_` + `-` (no `.` or `/`), `os.path.join(base, segment)` cannot traverse outside `base` and no further `realpath`/`resolve` call is needed. Do **not** call `os.path.realpath()` or `Path.resolve()` on values derived from settings/config (SonarQube treats them as tainted and raises S6549).
+
 ## Testing
 
 - Backend route tests: create `aiohttp.web.Application`, register routes, use `aiohttp_client` fixture + `ext_dir` fixture.
