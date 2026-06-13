@@ -455,7 +455,7 @@ describe('CatalogDetail component', () => {
     expect(label).not.toContain('·  ·');
   });
 
-  it('repoFileFullSubLabel includes civitai_version_name for non-downloaded files', async () => {
+  it('repoFileFullSubLabel includes model_type, base_model, and version for non-downloaded files', async () => {
     const fixture = await createFixture();
     const comp = fixture.componentInstance;
     const rf = {
@@ -465,6 +465,8 @@ describe('CatalogDetail component', () => {
       civitai_version_name: 'v0.3',
     };
     const label = comp.repoFileFullSubLabel(rf);
+    expect(label).toContain('loras');
+    expect(label).toContain('SDXL');
     expect(label).toContain('v0.3');
   });
 });

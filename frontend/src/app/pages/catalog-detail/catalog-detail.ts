@@ -393,7 +393,9 @@ export class CatalogDetail implements OnInit {
       if (rf.size_bytes) parts.push(this.formatBytes(rf.size_bytes));
       return parts.join(' · ');
     }
-    const parts: string[] = [];
+    const parts: string[] = [rf.model_type];
+    const baseModel = this.entry()?.base_model;
+    if (baseModel) parts.push(baseModel);
     if (rf.civitai_version_name) parts.push(rf.civitai_version_name);
     if (rf.size_bytes) parts.push(this.formatBytes(rf.size_bytes));
     return parts.join(' · ');
