@@ -25,15 +25,15 @@ describe('MediaGallery', () => {
   });
 
   describe('videoPosterUrl', () => {
-    it('replaces extension with _poster.jpg and passes through mediaUrl', () => {
+    it('returns a media-poster URL encoding the video path', () => {
       const url = component.videoPosterUrl('/media/hash/clip.mp4');
-      expect(url).toContain('_poster.jpg');
-      expect(url).not.toContain('.mp4');
+      expect(url).toContain('/api/media-poster/');
+      expect(url).toContain(encodeURIComponent('/media/hash/clip.mp4'));
     });
 
-    it('works when the path has no extension', () => {
-      const url = component.videoPosterUrl('/media/hash/clip');
-      expect(url).toContain('clip_poster.jpg');
+    it('encodes paths with special characters', () => {
+      const url = component.videoPosterUrl('/media/hash/my clip.mp4');
+      expect(url).toContain(encodeURIComponent('/media/hash/my clip.mp4'));
     });
   });
 
@@ -76,7 +76,7 @@ describe('MediaGallery', () => {
 
       const posterImg = wrap.querySelector('img');
       expect(posterImg).not.toBeNull();
-      expect(posterImg.src).toContain('_poster.jpg');
+      expect(posterImg.src).toContain('/api/media-poster/');
     });
 
     it('adds [poster] attribute to the video element in the main panel', () => {
@@ -87,7 +87,7 @@ describe('MediaGallery', () => {
 
       const video: HTMLVideoElement = fixture.nativeElement.querySelector('video');
       expect(video).not.toBeNull();
-      expect(video.getAttribute('poster')).toContain('_poster.jpg');
+      expect(video.getAttribute('poster')).toContain('/api/media-poster/');
     });
   });
 });

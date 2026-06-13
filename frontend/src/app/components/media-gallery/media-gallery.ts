@@ -33,7 +33,7 @@ export class MediaGallery {
   mediaUrl = mediaUrl;
 
   videoPosterUrl(localPath: string): string {
-    return mediaUrl(localPath.replace(/\.[^.]+$/, '') + '_poster.jpg');
+    return `/tiny-model-manager/api/media-poster/${encodeURIComponent(localPath)}`;
   }
 
   onImgLoad(event: Event) {

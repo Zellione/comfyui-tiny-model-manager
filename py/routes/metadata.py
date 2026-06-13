@@ -8,6 +8,7 @@ from aiohttp import web
 
 from ..db import model_repo
 from ..services import model_paths
+from ..video_poster import extract_video_poster
 from ._helpers import err, json_route, ok
 
 _TTL_SECONDS = 300  # 5 minutes
@@ -386,6 +387,26 @@ async def _serve_media(request):
     return web.FileResponse(full_path)
 
 
+async def _serve_video_poster(request):
+    """Lazily extract and serve a poster (first video frame) for the given video path.
+
+    The path must be within media_dir. The poster is extracted once and cached as
+    <stem>_poster.jpg beside the video file; subsequent requests return the cached file.
+    """
+    path = request.match_info["path"]
+    from .. import config as cfg
+
+    full_path = model_paths.contained_path(cfg.media_dir(), path)
+    if full_path is None:
+        return web.Response(status=403)
+    if not os.path.isfile(full_path):
+        return web.Response(status=404)
+    poster = await _asyncio.to_thread(extract_video_poster, full_path)
+    if poster is None:
+        return web.Response(status=404)
+    return web.FileResponse(poster)
+
+
 def add_metadata_routes(routes):
     base = "/tiny-model-manager/api/models/{model_type}/{path:.*}"
     routes.get(f"{base}/metadata")(json_route(_get_metadata))
@@ -396,3 +417,4 @@ def add_metadata_routes(routes):
     routes.get(f"{base}/repo-files")(json_route(_get_repo_files))
     routes.post(f"{base}/link-source")(json_route(_link_source))
     routes.get("/tiny-model-manager/api/media/{path:.*}")(_serve_media)
+    routes.get("/tiny-model-manager/api/media-poster/{path:.*}")(_serve_video_poster)

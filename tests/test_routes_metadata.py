@@ -1021,3 +1021,46 @@ class TestServeMedia:
         req = types.SimpleNamespace(match_info={"path": rel})
         resp = await _serve_media(req)
         assert resp.status == 403
+
+
+class TestServeVideoPoster:
+    async def test_returns_poster_when_extraction_succeeds(self, client, ext_dir, tmp_path):
+        from unittest.mock import patch
+
+        from py import config as cfg
+
+        media_subdir = os.path.join(cfg.media_dir(), "videohash")
+        os.makedirs(media_subdir, exist_ok=True)
+        video_path = os.path.join(media_subdir, "clip.mp4")
+        Path(video_path).write_bytes(b"\x00\x00\x00\x18ftyp")
+
+        poster_path = os.path.join(media_subdir, "clip_poster.jpg")
+        Path(poster_path).write_bytes(b"\xff\xd8\xff")
+
+        with patch("py.routes.metadata.extract_video_poster", return_value=poster_path):
+            resp = await client.get("/tiny-model-manager/api/media-poster/videohash/clip.mp4")
+
+        assert resp.status == 200
+
+    async def test_returns_404_when_extraction_fails(self, client, ext_dir):
+        from unittest.mock import patch
+
+        from py import config as cfg
+
+        media_subdir = os.path.join(cfg.media_dir(), "videohash2")
+        os.makedirs(media_subdir, exist_ok=True)
+        video_path = os.path.join(media_subdir, "clip.mp4")
+        Path(video_path).write_bytes(b"\x00\x00\x00\x18ftyp")
+
+        with patch("py.routes.metadata.extract_video_poster", return_value=None):
+            resp = await client.get("/tiny-model-manager/api/media-poster/videohash2/clip.mp4")
+
+        assert resp.status == 404
+
+    async def test_returns_404_for_missing_file(self, client, ext_dir):
+        resp = await client.get("/tiny-model-manager/api/media-poster/nohash/missing.mp4")
+        assert resp.status == 404
+
+    async def test_path_traversal_returns_403(self, client, ext_dir):
+        resp = await client.get("/tiny-model-manager/api/media-poster/../../etc/passwd")
+        assert resp.status in (403, 404)
