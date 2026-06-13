@@ -41,8 +41,24 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
 - `list_catalog_entries()` in `model_repo.py` handles this at read time:
   1. Clears `thumbnail_url` if it ends with a video extension.
   2. If `thumbnail_url` is still empty, queries `model_media` (joined via `models.catalog_entry_id`) for the first `media_type = 'image'` local path and uses that.
-- `CatalogEntry` has an `is_video_only?: boolean` field (optional to avoid breaking existing spec fixtures). Set to `true` only when the installed model has video media records but **no** image media records at all.
-- Catalog card template: `@else if (entry.is_video_only) { <div class="thumb-video-only">▶</div> }` after the `@if (catalogThumbnailUrl(entry))` block.
+- `CatalogEntry` has `is_video_only?: boolean` and `first_video_path?: string` fields (both optional to avoid breaking existing spec fixtures):
+  - `is_video_only = true` when installed model has video media records but **no** image media at all.
+  - `first_video_path` is set (alongside `is_video_only = true`) when lazy poster extraction in `list_catalog_entries()` fails — the frontend uses it to request the poster on-demand via `/api/media-poster/`.
+  - If lazy extraction **succeeds**, `thumbnail_url` is set to the poster path and `is_video_only = false`; `first_video_path` is not included.
+- **Catalog card template** (in `models.html`):
+  ```
+  @if (catalogThumbnailUrl(entry)) {
+    <img class="thumb" ... />
+  } @else if (entry.is_video_only && entry.first_video_path) {
+    <div class="thumb-video-only">▶</div>
+    <img class="thumb" [src]="videoPosterUrl(entry.first_video_path)" style="display: none"
+         (load)="onVideoPosterLoad($event)" (error)="onImgError($event)" />
+  } @else if (entry.is_video_only) {
+    <div class="thumb-video-only">▶</div>
+  }
+  ```
+  The ▶ div comes **before** the img so `previousElementSibling` works in `onVideoPosterLoad`.
+- `videoPosterUrl()` and `onVideoPosterLoad()` are defined on the `Models` component (same implementation as `MediaGallery`).
 - `_download_catalog_images` in `metadata_fetcher.py` always skips video files (`_VIDEO_EXTS = {"mp4", "webm", "mov"}`) and returns the first image path; falls back to poster extraction when all URLs are videos.
 
 ## Video poster extraction (`py/video_poster.py`)
@@ -70,18 +86,19 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
 - **Flow**: validate path is within `media_dir()` via `contained_path()` → 403 on escape; 404 if file missing on disk; `asyncio.to_thread(extract_video_poster, full_path)` → 404 if extraction returns `None`; `web.FileResponse(poster)` on success.
 - **Caching**: `extract_video_poster` saves the poster as `<stem>_poster.jpg` beside the video on first call and returns it immediately on subsequent calls — no re-extraction.
 - **`extract_video_poster` is imported at module level** in `metadata.py` (unlike other cfg/service lazy imports) so the name is patchable in tests via `patch("py.routes.metadata.extract_video_poster", ...)`.
-- **Frontend**: `videoPosterUrl(localPath: string)` in `MediaGallery` returns `/tiny-model-manager/api/media-poster/${encodeURIComponent(localPath)}` — passes the video file's `local_path` directly to the route. **Do NOT** derive the poster path by convention (`<stem>_poster.jpg`) on the frontend; the route handles extraction on demand.
+- **Frontend `videoPosterUrl(localPath)`**: returns `/tiny-model-manager/api/media-poster/${encodeURIComponent(localPath)}` — implemented on both `MediaGallery` and the `Models` page component. **Do NOT** derive the poster path by convention (`<stem>_poster.jpg`) on the frontend; the route handles extraction on demand.
 - **Tests**: `TestServeVideoPoster` in `tests/test_routes_metadata.py` — 4 tests covering success (extraction succeeds), extraction failure (→ 404), missing file (→ 404), and path traversal (→ 403/404).
 
-## Video gallery thumbnail poster pattern (`MediaGallery`)
+## Video gallery thumbnail poster pattern (`MediaGallery` and catalog cards)
 
-- `videoPosterUrl(localPath: string)` in `MediaGallery`: returns the on-demand poster URL `\`/tiny-model-manager/api/media-poster/${encodeURIComponent(localPath)}\`` — passes the video's `local_path` to the backend route which extracts and caches the poster frame. Works for all models regardless of whether they have image media alongside the video.
-- **Thumbnail strip** for video items: render a `.gallery-thumb-video-wrap` containing the `▶` fallback div first, then an `<img>` with `style="display: none"` pointing at the poster URL.
-  - `(load)="onVideoPosterLoad($event)"`: shows the img (`display: block`) and hides the preceding sibling `▶` div (`previousElementSibling.style.display = 'none'`).
-  - `(error)="onImgError($event)"`: keeps img hidden; ▶ remains visible.
-  - The ▶ div comes **before** the img in the DOM so it has a lower paint order; the img overlaps it when loaded.
-  - `.gallery-thumb-video-wrap` uses `position: relative; width: 100%; height: 100%` with the `img` absolutely positioned (`inset: 0`) to fill the slot.
-- **Main panel video**: `[poster]="videoPosterUrl(m.local_path)"` on the `<video>` element — native HTML5 video poster, shown while the video is paused/loading. No JS needed.
+- `videoPosterUrl(localPath: string)` → `/tiny-model-manager/api/media-poster/${encodeURIComponent(localPath)}`. Defined on `MediaGallery` and `Models` page component (same implementation).
+- **▶ + poster img pattern** (used in both gallery thumbnail strip and catalog cards):
+  - Render `▶` div first (visible by default), then an `<img style="display: none">` pointing at the poster URL.
+  - `(load)="onVideoPosterLoad($event)"`: shows the img (`display: block`) and hides the preceding sibling via `img.previousElementSibling.style.display = 'none'`.
+  - `(error)="onImgError($event)"`: keeps img hidden; ▶ stays visible.
+  - The ▶ div **must come before** the img in the DOM — `onVideoPosterLoad` relies on `previousElementSibling`.
+- **Main panel video in MediaGallery**: `[poster]="videoPosterUrl(m.local_path)"` on the `<video>` element — native HTML5 poster, no JS needed.
+- **Catalog cards**: wrap is not needed (unlike `.gallery-thumb-video-wrap`); ▶ div and img are siblings inside `.thumb-link`. The `img` uses `class="thumb"` (same as normal thumbnails) so it fills the card slot.
 
 ## JS Extension (js/)
 
