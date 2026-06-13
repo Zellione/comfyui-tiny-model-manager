@@ -1,3 +1,11 @@
+# Serena (MANDATORY)
+
+**Before starting ANY coding task:** call `mcp__serena__initial_instructions`, then load needed tools via `ToolSearch`. No exceptions.
+
+**After any significant change** (new service, new convention, structural refactor, new pattern): update the relevant Serena memory (`mem:core`, `mem:conventions`, `mem:tech_stack`, or `mem:task_completion`) using `mcp__serena__write_memory`. Keep memories current so future sessions don't rediscover what is already known.
+
+---
+
 # Project
 ComfyUI custom-node to manage and download models, LORAs, workflows from CivitAI and huggingface.
 Goal: Dashboard to manage Models/LORAs and custom nodes to insert them with their documented trigger words
