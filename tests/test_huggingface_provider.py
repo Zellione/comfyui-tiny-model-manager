@@ -347,6 +347,10 @@ class TestValidateRepoId:
         with pytest.raises(ValueError):
             await provider.resolve_direct_link("../../etc/passwd")
 
+    async def test_fetch_metadata_rejects_invalid_source_id(self, provider):
+        with pytest.raises(ValueError):
+            await provider.fetch_metadata("../../etc/passwd")
+
     async def test_no_filter_param_when_no_tags_and_no_gguf(self, provider, monkeypatch):
         captured_filters: list[str] = []
 
