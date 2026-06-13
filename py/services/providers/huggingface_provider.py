@@ -7,17 +7,6 @@ import mistune
 from ... import config as cfg
 from .base import ModelProvider, ProviderMetadata
 
-_HF_REPO_ID_RE = re.compile(
-    r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}(/[A-Za-z0-9][A-Za-z0-9._-]{0,127})?$"
-)
-
-
-def _validate_repo_id(repo_id: str) -> str:
-    if not _HF_REPO_ID_RE.fullmatch(repo_id):
-        raise ValueError(f"Invalid HuggingFace repo ID: {repo_id!r}")
-    return urllib.parse.quote(repo_id, safe="/")
-
-
 _BASE = "https://huggingface.co"
 _API = "https://huggingface.co/api"
 
