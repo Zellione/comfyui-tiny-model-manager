@@ -388,11 +388,17 @@ export class CatalogDetail implements OnInit {
 
   repoFileFullSubLabel(rf: RepoFile): string {
     if (rf.is_downloaded) {
-      const label = this.repoFileSubLabel(rf);
-      const size = rf.size_bytes ? this.formatBytes(rf.size_bytes) : '';
-      return size ? `${label} · ${size}` : label;
+      const parts = [this.repoFileSubLabel(rf)];
+      if (rf.civitai_version_name) parts.push(rf.civitai_version_name);
+      if (rf.size_bytes) parts.push(this.formatBytes(rf.size_bytes));
+      return parts.join(' · ');
     }
-    return rf.size_bytes ? this.formatBytes(rf.size_bytes) : '';
+    const parts: string[] = [rf.model_type];
+    const baseModel = this.entry()?.base_model;
+    if (baseModel) parts.push(baseModel);
+    if (rf.civitai_version_name) parts.push(rf.civitai_version_name);
+    if (rf.size_bytes) parts.push(this.formatBytes(rf.size_bytes));
+    return parts.join(' · ');
   }
 
   activeTaskForFile(rf: RepoFile): DownloadTask | undefined {

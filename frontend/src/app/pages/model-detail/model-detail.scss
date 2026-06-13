@@ -331,6 +331,25 @@ app-media-gallery {
   margin-right: 4px;
 }
 
+// ── Inline metadata rows (e.g. version name) ─────────────────────────────────
+
+.detail-meta-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 22px 0;
+
+  .field-label {
+    margin-bottom: 0;
+    white-space: nowrap;
+  }
+}
+
+.detail-meta-value {
+  font-size: 13px;
+  color: var(--text-1);
+}
+
 // ── Trigger keywords ──────────────────────────────────────────────────────────
 
 .detail-section {

@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS models (
     description TEXT DEFAULT '',
     base_model TEXT NOT NULL DEFAULT '',
     civitai_model_id TEXT,
+    civitai_version_name TEXT DEFAULT '',
     media_hash TEXT NOT NULL DEFAULT '',
     created_at TEXT DEFAULT (datetime('now')),
     catalog_entry_id INTEGER REFERENCES catalog_entries(id)
@@ -223,6 +224,8 @@ _COLUMN_ADDITIONS = [
     "ALTER TABLE catalog_entries ADD COLUMN readme_html TEXT NOT NULL DEFAULT ''",
     # F-40: catalog_entry_id on models (created after catalog_entries exists)
     "ALTER TABLE models ADD COLUMN catalog_entry_id INTEGER REFERENCES catalog_entries(id)",
+    "ALTER TABLE models ADD COLUMN civitai_version_name TEXT DEFAULT ''",
+    "ALTER TABLE repo_files ADD COLUMN civitai_version_name TEXT DEFAULT ''",
 ]
 
 

@@ -103,6 +103,7 @@ def _meta_response_data(meta: dict) -> dict:
             meta.get("civitai_model_id", ""),
         ),
         "readme_html": meta.get("readme_html", ""),
+        "civitai_version_name": meta.get("civitai_version_name", ""),
     }
 
 

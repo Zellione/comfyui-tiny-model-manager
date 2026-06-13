@@ -127,6 +127,14 @@
           </div>
         }
 
+        <!-- CivitAI version name -->
+        @if (meta()!.civitai_version_name) {
+          <div class="detail-meta-row">
+            <span class="field-label">{{ 'model_detail.civitai_version' | translate }}</span>
+            <span class="detail-meta-value">{{ meta()!.civitai_version_name }}</span>
+          </div>
+        }
+
         <!-- Trigger keywords -->
         <div class="detail-section">
           @if (meta()!.trigger_words && meta()!.trigger_words.length > 0) {

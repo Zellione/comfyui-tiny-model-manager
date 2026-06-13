@@ -81,6 +81,30 @@ class TestListCatalog:
         entry = (await resp.json())["data"]["entries"][0]
         assert entry["is_empty"] is False
 
+    async def test_installed_file_exposes_civitai_version_name(self, client, ext_dir):
+        import folder_paths
+
+        from py.db import model_repo
+
+        entry_id = await _make_entry(page_id="vn_test")
+        loras_dir = folder_paths.folder_names_and_paths["loras"][0][0]
+        fpath = os.path.join(loras_dir, "versioned.safetensors")
+        Path(fpath).touch()
+        await model_repo.upsert_model(
+            "versioned.safetensors",
+            "loras",
+            "civitai",
+            "999",
+            "",
+            civitai_version_name="v2 Turbo",
+        )
+        await model_repo.set_model_catalog_entry("versioned.safetensors", entry_id)
+
+        resp = await client.get("/tiny-model-manager/api/catalog")
+        entries = (await resp.json())["data"]["entries"]
+        entry = next(e for e in entries if e["source_page_id"] == "vn_test")
+        assert entry["installed_files"][0]["civitai_version_name"] == "v2 Turbo"
+
     async def test_catalog_list_includes_trigger_words(self, client, ext_dir):
         from py.db import model_repo
 
@@ -157,6 +181,61 @@ class TestGetCatalogEntry:
         assert len(data["repo_files"]) == 1
         assert "is_downloaded" in data["repo_files"][0]
         assert data["repo_files"][0]["is_downloaded"] is False
+
+    async def test_repo_file_exposes_civitai_version_name_when_installed(self, client, ext_dir):
+        from py.db import model_repo
+
+        entry_id = await _make_entry(page_id="779")
+        await model_repo.upsert_repo_files(
+            entry_id,
+            "loras",
+            [
+                {
+                    "filename": "versioned.safetensors",
+                    "size_bytes": 500,
+                    "download_url": "https://example.com/versioned.safetensors",
+                    "source_page_url": "https://civitai.com/models/779",
+                }
+            ],
+        )
+        await model_repo.upsert_model(
+            "versioned.safetensors",
+            "loras",
+            "civitai",
+            "779",
+            "",
+            civitai_version_name="v2 Turbo",
+        )
+        await model_repo.set_model_catalog_entry("versioned.safetensors", entry_id)
+
+        resp = await client.get("/tiny-model-manager/api/catalog/civitai/779")
+        data = (await resp.json())["data"]
+        rf = data["repo_files"][0]
+        assert rf["civitai_version_name"] == "v2 Turbo"
+
+    async def test_repo_file_exposes_civitai_version_name_when_not_installed(self, client, ext_dir):
+        from py.db import model_repo
+
+        entry_id = await _make_entry(page_id="780")
+        await model_repo.upsert_repo_files(
+            entry_id,
+            "loras",
+            [
+                {
+                    "filename": "uninstalled.safetensors",
+                    "size_bytes": 700,
+                    "download_url": "https://example.com/uninstalled.safetensors",
+                    "source_page_url": "https://civitai.com/models/780",
+                    "civitai_version_name": "v1 Base",
+                }
+            ],
+        )
+
+        resp = await client.get("/tiny-model-manager/api/catalog/civitai/780")
+        data = (await resp.json())["data"]
+        rf = data["repo_files"][0]
+        assert rf["is_downloaded"] is False
+        assert rf["civitai_version_name"] == "v1 Base"
 
     async def test_is_downloaded_true_when_installed_in_subfolder(self, client, ext_dir):
         from py.db import model_repo

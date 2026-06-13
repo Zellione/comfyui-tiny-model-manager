@@ -48,11 +48,17 @@ def _annotate_catalog_detail(entry: dict) -> dict:
     installed_basename_map: dict[str, str] = {
         os.path.basename(f["filename"]): f["filename"] for f in entry["installed_files"]
     }
+    installed_version_map: dict[str, str] = {
+        os.path.basename(f["filename"]): f.get("civitai_version_name", "")
+        for f in entry["installed_files"]
+    }
     for rf in entry["repo_files"]:
         basename = os.path.basename(rf["filename"])
         db_path = installed_basename_map.get(basename, "")
         rf["is_downloaded"] = bool(db_path) or _model_file_exists(rf["model_type"], rf["filename"])
         rf["installed_path"] = db_path
+        if basename in installed_version_map:
+            rf["civitai_version_name"] = installed_version_map[basename]
     entry["is_empty"] = not any(
         _model_file_exists(f["model_type"], f["filename"]) for f in entry["installed_files"]
     )
@@ -158,6 +164,7 @@ def _annotate_entries(entries: list) -> tuple[list, set[str]]:
                 {
                     "filename": f["filename"],
                     "model_type": f["model_type"],
+                    "civitai_version_name": f.get("civitai_version_name", ""),
                     **(st or {"size_bytes": 0, "modified_at": 0}),
                 }
             )

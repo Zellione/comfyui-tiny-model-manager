@@ -137,6 +137,13 @@
                     <span class="dot"></span>
                     <span>{{ entry.base_model }}</span>
                   }
+                  @if (
+                    entry.installed_files.length === 1 &&
+                    entry.installed_files[0].civitai_version_name
+                  ) {
+                    <span class="dot"></span>
+                    <span>{{ entry.installed_files[0].civitai_version_name }}</span>
+                  }
                 </div>
 
                 <div class="card-actions">

@@ -428,6 +428,47 @@ describe('CatalogDetail component', () => {
     const fixture = await createFixture();
     expect(fixture.componentInstance.fileBaseModels()['test.safetensors']).toBe('SDXL 1.0');
   });
+
+  it('repoFileFullSubLabel includes civitai_version_name for downloaded files', async () => {
+    const fixture = await createFixture();
+    const comp = fixture.componentInstance;
+    const rf = {
+      ...mockEntry.repo_files[0],
+      is_downloaded: true,
+      size_bytes: 1024,
+      civitai_version_name: 'v2 Turbo',
+    };
+    const label = comp.repoFileFullSubLabel(rf);
+    expect(label).toContain('v2 Turbo');
+  });
+
+  it('repoFileFullSubLabel omits version name when empty', async () => {
+    const fixture = await createFixture();
+    const comp = fixture.componentInstance;
+    const rf = {
+      ...mockEntry.repo_files[0],
+      is_downloaded: true,
+      size_bytes: 1024,
+      civitai_version_name: '',
+    };
+    const label = comp.repoFileFullSubLabel(rf);
+    expect(label).not.toContain('·  ·');
+  });
+
+  it('repoFileFullSubLabel includes model_type, base_model, and version for non-downloaded files', async () => {
+    const fixture = await createFixture();
+    const comp = fixture.componentInstance;
+    const rf = {
+      ...mockEntry.repo_files[0],
+      is_downloaded: false,
+      size_bytes: 1024,
+      civitai_version_name: 'v0.3',
+    };
+    const label = comp.repoFileFullSubLabel(rf);
+    expect(label).toContain('loras');
+    expect(label).toContain('SDXL');
+    expect(label).toContain('v0.3');
+  });
 });
 
 describe('CatalogDetail — F-82 downloadFile base model detection', () => {

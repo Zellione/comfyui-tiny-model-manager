@@ -90,6 +90,7 @@
     "description": "Description",
     "model_type": "Model Type",
     "base_model": "Base Model",
+    "civitai_version": "Version",
     "notify": {
       "saved": "Metadata saved.",
       "stale_removed": "File no longer on disk — removed its stale entry.",

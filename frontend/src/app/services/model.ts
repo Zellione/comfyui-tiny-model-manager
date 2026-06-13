@@ -22,6 +22,7 @@ export interface ModelMeta {
   size_bytes: number;
   created_at?: string;
   readme_html?: string;
+  civitai_version_name?: string;
 }
 
 export interface MediaItem {
@@ -84,6 +85,7 @@ export interface RepoFile {
   added_at: number | null;
   installed_path: string;
   base_model: string;
+  civitai_version_name?: string;
 }
 
 export interface InstalledFile {
@@ -91,6 +93,7 @@ export interface InstalledFile {
   model_type: string;
   size_bytes: number;
   modified_at: number;
+  civitai_version_name?: string;
 }
 
 export interface CatalogEntry {

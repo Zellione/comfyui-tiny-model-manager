@@ -74,6 +74,14 @@ class TestInitDb:
             cols = [row[1] for row in await cur.fetchall()]
             assert "media_hash" in cols
 
+    async def test_models_table_has_civitai_version_name_column(self, ext_dir):
+        from py import config as cfg
+
+        async with aiosqlite.connect(cfg.db_path()) as db:
+            cur = await db.execute("PRAGMA table_info(models)")
+            cols = [row[1] for row in await cur.fetchall()]
+            assert "civitai_version_name" in cols
+
     async def test_foreign_keys_enabled(self, ext_dir):
         from py.db.database import get_db
 

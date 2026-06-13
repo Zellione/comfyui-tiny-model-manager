@@ -85,6 +85,7 @@ def _attach_model_metadata(result: dict, meta_map: dict) -> None:
                     m.get("civitai_model_id", ""),
                 ),
                 "created_at": m.get("created_at", ""),
+                "civitai_version_name": m.get("civitai_version_name", ""),
             }
 
 
