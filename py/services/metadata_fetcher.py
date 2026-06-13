@@ -12,6 +12,7 @@ import httpx
 
 from .. import config as cfg
 from ..db import model_repo
+from ..video_poster import extract_video_poster
 from .providers import get_provider
 from .providers.base import ProviderMetadata
 from .url_guard import is_allowed_url
@@ -359,9 +360,20 @@ async def _iter_downloaded_urls(media_hash: str, urls: list[str]) -> list[tuple[
 async def _download_images(model_id: int, media_hash: str, urls: list[str]):
     if not urls:
         return
-    for dest, ext in await _iter_downloaded_urls(media_hash, urls):
-        media_type = "video" if ext in ("mp4", "webm", "mov") else "image"
+    results = await _iter_downloaded_urls(media_hash, urls)
+    first_video: str | None = None
+    has_image = False
+    for dest, ext in results:
+        media_type = "video" if ext in _VIDEO_EXTS else "image"
+        if media_type == "image":
+            has_image = True
+        elif first_video is None:
+            first_video = dest
         await model_repo.add_media(model_id, media_type, dest)
+    if not has_image and first_video:
+        poster = await asyncio.to_thread(extract_video_poster, first_video)
+        if poster:
+            await model_repo.add_media(model_id, "image", poster)
 
 
 def catalog_media_hash(platform: str, page_id: str) -> str:
@@ -375,9 +387,16 @@ _VIDEO_EXTS = {"mp4", "webm", "mov"}
 async def _download_catalog_images(media_hash: str, urls: list[str]) -> str:
     """Download gallery images into the catalog media dir. Returns the first image path."""
     results = await _iter_downloaded_urls(media_hash, urls)
+    first_video: str | None = None
     for path, ext in results:
         if ext not in _VIDEO_EXTS:
             return path
+        if first_video is None:
+            first_video = path
+    if first_video:
+        poster = await asyncio.to_thread(extract_video_poster, first_video)
+        if poster:
+            return poster
     return ""
 
 

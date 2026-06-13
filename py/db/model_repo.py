@@ -1,7 +1,9 @@
+import asyncio
 import json
 import os
 from datetime import UTC, datetime
 
+from ..video_poster import extract_video_poster
 from .database import get_db
 
 _MAX_DESCRIPTION = 10_000
@@ -565,14 +567,44 @@ async def list_catalog_entries() -> list[dict]:
             # is_video_only: installed files have video media but no image media
             media_rows = await (
                 await db.execute(
-                    "SELECT mm.media_type FROM model_media mm"
+                    "SELECT mm.media_type, mm.local_path FROM model_media mm"
                     " JOIN models m ON mm.model_id = m.id"
-                    " WHERE m.catalog_entry_id = ? GROUP BY mm.media_type",
+                    " WHERE m.catalog_entry_id = ? GROUP BY mm.media_type, mm.local_path",
                     (e["id"],),
                 )
             ).fetchall()
             media_types = {row["media_type"] for row in media_rows}
-            e["is_video_only"] = "video" in media_types and "image" not in media_types
+            if "video" in media_types and "image" not in media_types:
+                # Try to extract a poster from the first video (lazy, one-time)
+                first_video = next(
+                    (row["local_path"] for row in media_rows if row["media_type"] == "video"),
+                    None,
+                )
+                poster = (
+                    await asyncio.to_thread(extract_video_poster, first_video)
+                    if first_video
+                    else None
+                )
+                if poster:
+                    model_row = await (
+                        await db.execute(
+                            "SELECT id FROM models WHERE catalog_entry_id = ? LIMIT 1",
+                            (e["id"],),
+                        )
+                    ).fetchone()
+                    if model_row:
+                        await db.execute(
+                            "INSERT OR IGNORE INTO model_media (model_id, media_type, local_path)"
+                            " VALUES (?, 'image', ?)",
+                            (model_row["id"], poster),
+                        )
+                        await db.commit()
+                    e["thumbnail_url"] = poster
+                    e["is_video_only"] = False
+                else:
+                    e["is_video_only"] = True
+            else:
+                e["is_video_only"] = "video" in media_types and "image" not in media_types
             result.append(e)
         return result
 

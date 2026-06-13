@@ -1,6 +1,7 @@
 """Integration tests for metadata_fetcher: retry logic and subfolder organization."""
 
 import os
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -253,7 +254,7 @@ class TestDownloadCatalogImages:
 
         shutil.rmtree(os.path.join(cfg.media_dir(), "hash_video_skip"), ignore_errors=True)
 
-    async def test_returns_empty_when_all_urls_are_videos(self, ext_dir):
+    async def test_returns_empty_when_all_urls_are_videos_and_no_ffmpeg(self, ext_dir):
         from py import config as cfg
         from py.services.metadata_fetcher import _download_catalog_images
 
@@ -264,16 +265,49 @@ class TestDownloadCatalogImages:
             ]
         )
         orig = httpx.AsyncClient
-        with patch.object(httpx, "AsyncClient", lambda **kw: orig(transport=transport, **kw)):
+        with (
+            patch.object(httpx, "AsyncClient", lambda **kw: orig(transport=transport, **kw)),
+            patch("py.video_poster.shutil.which", return_value=None),
+        ):
             path = await _download_catalog_images(
                 "hash_all_video",
                 ["https://image.civitai.com/1.mp4", "https://image.civitai.com/2.webm"],
             )
 
-        assert path == "", "should return empty string when all media items are videos"
+        assert path == "", (
+            "should return empty string when all media items are videos and no ffmpeg"
+        )
         import shutil
 
         shutil.rmtree(os.path.join(cfg.media_dir(), "hash_all_video"), ignore_errors=True)
+
+    async def test_returns_poster_when_all_urls_are_videos_and_ffmpeg_available(self, ext_dir):
+        from py import config as cfg
+        from py.services.metadata_fetcher import _download_catalog_images
+
+        transport = self._make_transport([(b"\x00\x00\x00\x18ftyp", "video/mp4")])
+        orig = httpx.AsyncClient
+        with (
+            patch.object(httpx, "AsyncClient", lambda **kw: orig(transport=transport, **kw)),
+            patch("py.video_poster.shutil.which", return_value="/usr/bin/ffmpeg"),
+            patch("py.video_poster.subprocess.run") as mock_run,
+        ):
+            # Simulate ffmpeg writing the poster file
+            def fake_ffmpeg(cmd, **_kw):
+                poster_path = cmd[cmd.index("-q:v") + 2]
+                Path(poster_path).write_bytes(b"\xff\xd8\xff")
+                return type("R", (), {"returncode": 0})()
+
+            mock_run.side_effect = fake_ffmpeg
+            path = await _download_catalog_images(
+                "hash_all_video_ffmpeg",
+                ["https://image.civitai.com/1.mp4"],
+            )
+
+        assert path.endswith("_poster.jpg"), "should return the extracted poster path"
+        import shutil
+
+        shutil.rmtree(os.path.join(cfg.media_dir(), "hash_all_video_ffmpeg"), ignore_errors=True)
 
 
 class TestFetchRepoFilesAllVersions:
