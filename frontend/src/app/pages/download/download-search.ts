@@ -534,7 +534,8 @@ export class DownloadSearch {
   formatSize = formatSize;
 
   civitaiThumb(model: CivitaiModel): string {
-    return model.modelVersions?.[0]?.images?.[0]?.url ?? '';
+    const images = model.modelVersions?.[0]?.images ?? [];
+    return images.find((img) => img.type !== 'video' && !isVideo(img.url))?.url ?? '';
   }
 
   civitaiGalleryImages(model: CivitaiModel): string[] {

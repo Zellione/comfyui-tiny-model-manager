@@ -538,6 +538,40 @@ describe('DownloadSearch — display helpers', () => {
     expect(c.civitaiThumb(model)).toBe('');
   });
 
+  it('civitaiThumb skips video items and returns first image url', async () => {
+    const c = (await createFixture()).componentInstance;
+    const model: CivitaiModel = {
+      ...richCivitaiModel(),
+      modelVersions: [
+        {
+          ...richCivitaiModel().modelVersions[0],
+          images: [
+            { url: 'https://img/clip.mp4', type: 'video' },
+            { url: 'https://img/first.jpg', type: 'image' },
+          ],
+        },
+      ],
+    };
+    expect(c.civitaiThumb(model)).toBe('https://img/first.jpg');
+  });
+
+  it('civitaiThumb returns empty string when all items are videos', async () => {
+    const c = (await createFixture()).componentInstance;
+    const model: CivitaiModel = {
+      ...richCivitaiModel(),
+      modelVersions: [
+        {
+          ...richCivitaiModel().modelVersions[0],
+          images: [
+            { url: 'https://img/a.mp4', type: 'video' },
+            { url: 'https://img/b.webm', type: 'video' },
+          ],
+        },
+      ],
+    };
+    expect(c.civitaiThumb(model)).toBe('');
+  });
+
   it('civitaiGalleryImages drops blank urls and caps at 8', async () => {
     const c = (await createFixture()).componentInstance;
     expect(c.civitaiGalleryImages(richCivitaiModel())).toEqual([
