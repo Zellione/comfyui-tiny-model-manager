@@ -16,6 +16,9 @@ _MEDIA_SELECT = "SELECT id, media_type, local_path FROM model_media WHERE model_
 _REPO_FILES_FROM_WHERE = " FROM repo_files WHERE catalog_entry_id = ?"
 _DELETE_TRIGGER_WORDS = "DELETE FROM trigger_words WHERE model_id = ?"
 _INSERT_TRIGGER_WORD = "INSERT INTO trigger_words (model_id, word) VALUES (?, ?)"
+_SELECT_CATALOG_ID = (
+    "SELECT id FROM catalog_entries WHERE source_platform = ? AND source_page_id = ?"
+)
 
 
 async def _prune_orphan_tags(db) -> None:
@@ -414,10 +417,7 @@ async def upsert_catalog_entry(
         )
         await db.commit()
         row = await (
-            await db.execute(
-                "SELECT id FROM catalog_entries WHERE source_platform = ? AND source_page_id = ?",
-                (source_platform, source_page_id),
-            )
+            await db.execute(_SELECT_CATALOG_ID, (source_platform, source_page_id))
         ).fetchone()
         assert row is not None
         return row["id"]
@@ -481,10 +481,7 @@ async def update_version_names_for_catalog(
     """Update civitai_version_name for installed files whose source_id is in the map."""
     async with get_db() as db:
         row = await (
-            await db.execute(
-                "SELECT id FROM catalog_entries WHERE source_platform = ? AND source_page_id = ?",
-                (source_platform, source_page_id),
-            )
+            await db.execute(_SELECT_CATALOG_ID, (source_platform, source_page_id))
         ).fetchone()
         if not row:
             return
@@ -599,10 +596,7 @@ async def delete_catalog_entry(source_platform: str, source_page_id: str) -> dic
     """Deletes the catalog entry and returns media info needed for disk cleanup."""
     async with get_db() as db:
         row = await (
-            await db.execute(
-                "SELECT id FROM catalog_entries WHERE source_platform = ? AND source_page_id = ?",
-                (source_platform, source_page_id),
-            )
+            await db.execute(_SELECT_CATALOG_ID, (source_platform, source_page_id))
         ).fetchone()
         if not row:
             return None
