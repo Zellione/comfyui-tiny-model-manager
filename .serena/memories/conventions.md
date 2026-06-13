@@ -43,22 +43,23 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
   2. If `thumbnail_url` is still empty, queries `model_media` (joined via `models.catalog_entry_id`) for the first `media_type = 'image'` local path and uses that.
 - `CatalogEntry` has an `is_video_only?: boolean` field (optional to avoid breaking existing spec fixtures). Set to `true` only when the installed model has video media records but **no** image media records at all.
 - Catalog card template: `@else if (entry.is_video_only) { <div class="thumb-video-only">▶</div> }` after the `@if (catalogThumbnailUrl(entry))` block.
-- `_download_catalog_images` in `metadata_fetcher.py` always skips video files (`_VIDEO_EXTS = {"mp4", "webm", "mov"}`) and returns the first image path; falls back to ffmpeg poster extraction when all URLs are videos.
+- `_download_catalog_images` in `metadata_fetcher.py` always skips video files (`_VIDEO_EXTS = {"mp4", "webm", "mov"}`) and returns the first image path; falls back to poster extraction when all URLs are videos.
 
-## ffmpeg poster extraction (`py/video_poster.py`)
+## Video poster extraction (`py/video_poster.py`)
 
-- **Location**: `py/video_poster.py` — a standalone stdlib-only utility, no circular imports.
-- **Pattern**: `extract_video_poster(video_path: str) -> str | None`
-  - Guards with `shutil.which("ffmpeg")` — returns `None` gracefully if ffmpeg is absent.
-  - Output: `<video_stem>_poster.jpg` beside the video file.
-  - Idempotent: returns the existing poster path if the file already exists.
-  - Runs synchronous subprocess; call from async code with `await asyncio.to_thread(extract_video_poster, path)`.
+- **Location**: `py/video_poster.py` — stdlib-only imports at module level; `av` is imported lazily inside `_extract_with_av`. No circular imports.
+- **Public API**: `extract_video_poster(video_path: str) -> str | None`
+  - Idempotent: returns existing `<stem>_poster.jpg` immediately if it already exists.
+  - Tries `_extract_with_av` first, then `_extract_with_ffmpeg` as fallback.
+  - Returns `None` if both fail; caller falls back to the ▶ icon.
+  - Run from async code with `await asyncio.to_thread(extract_video_poster, path)`.
+- **`_extract_with_av`**: uses the `av` package (PyAV, already in comfy-env, bundles libav — no system ffmpeg needed). Iterates `container.decode(stream)`, calls `frame.to_image()` on the first video frame, saves as JPEG. `av` is imported inside the function so the module stays importable even without it.
+- **`_extract_with_ffmpeg`**: subprocess fallback — only runs if `shutil.which("ffmpeg")` finds a system binary. Uses `-vframes 1 -q:v 2`.
 - **Where used**:
-  - `_download_catalog_images`: tries poster extraction when all downloaded files are videos; returns poster path instead of `""`.
-  - `_download_images`: tries poster extraction when no image files were downloaded; stores result with `add_media(model_id, "image", poster)`.
-  - `list_catalog_entries()`: lazy extraction for existing video-only installed models; stores result via `INSERT OR IGNORE INTO model_media` so the next request finds the image record normally.
-- **Testing pattern**: mock `py.video_poster.shutil.which` (return `/usr/bin/ffmpeg`) and `py.video_poster.subprocess.run`; have the mock write a fake JPEG to the path extracted from the ffmpeg command args.
-- **Fallback**: when ffmpeg is unavailable or extraction fails, the `▶` play icon is shown (frontend `is_video_only` branch).
+  - `_download_catalog_images`: poster extraction when all downloaded files are videos; returns poster path instead of `""`.
+  - `_download_images`: poster extraction when no image files downloaded; stored via `add_media(model_id, "image", poster)`.
+  - `list_catalog_entries()`: lazy extraction for existing video-only entries; stored via `INSERT OR IGNORE INTO model_media` so the next request finds the image record normally.
+- **Testing pattern**: mock `py.services.metadata_fetcher.extract_video_poster` (the imported name in the caller) — avoids coupling tests to av/ffmpeg internals. Unit tests for `_extract_with_av` and `_extract_with_ffmpeg` live in `tests/test_video_poster.py`.
 
 ## JS Extension (js/)
 
