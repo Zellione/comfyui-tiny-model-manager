@@ -299,6 +299,14 @@ export class Models implements OnInit {
     }
   }
 
+  onImgLoad(event: Event) {
+    (event.target as HTMLImageElement).style.display = 'block';
+  }
+
+  onImgError(event: Event) {
+    (event.target as HTMLImageElement).style.display = 'none';
+  }
+
   organizeIntoSubfolders() {
     this.modelService.organizeIntoSubfolders().subscribe({
       next: (r) => {

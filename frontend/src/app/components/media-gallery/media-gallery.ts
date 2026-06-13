@@ -32,6 +32,14 @@ export class MediaGallery {
 
   mediaUrl = mediaUrl;
 
+  onImgLoad(event: Event) {
+    (event.target as HTMLImageElement).style.display = 'block';
+  }
+
+  onImgError(event: Event) {
+    (event.target as HTMLImageElement).style.display = 'none';
+  }
+
   @HostListener('document:keydown.escape')
   onEscape() {
     if (this.lightboxOpen()) this.lightboxOpen.set(false);

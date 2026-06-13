@@ -108,7 +108,14 @@
                 >
                   <div class="thumb-placeholder"></div>
                   @if (catalogThumbnailUrl(entry)) {
-                    <img class="thumb" [src]="catalogThumbnailUrl(entry)!" alt="" loading="lazy" />
+                    <img
+                      class="thumb"
+                      [src]="catalogThumbnailUrl(entry)!"
+                      alt=""
+                      style="display: none"
+                      (load)="onImgLoad($event)"
+                      (error)="onImgError($event)"
+                    />
                   }
                 </a>
                 @if (entry.source_platform) {
@@ -226,7 +233,9 @@
                         class="thumb"
                         [src]="unknownThumbnailUrl(file.metadata)!"
                         alt=""
-                        loading="lazy"
+                        style="display: none"
+                        (load)="onImgLoad($event)"
+                        (error)="onImgError($event)"
                       />
                     }
                   </a>
