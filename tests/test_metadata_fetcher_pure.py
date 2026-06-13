@@ -1,6 +1,7 @@
 """Tests for pure functions in py/services/metadata_fetcher.py."""
 
 import hashlib
+import os
 
 
 def test_compute_media_hash_deterministic():
@@ -54,3 +55,44 @@ def test_compute_media_hash_is_40_char_hex():
     h = _compute_media_hash("civitai", "123", "f.ckpt")
     assert len(h) == 40
     assert all(c in "0123456789abcdef" for c in h)
+
+
+# ---------------------------------------------------------------------------
+# _media_subdir
+# ---------------------------------------------------------------------------
+
+
+def test_media_subdir_returns_path_inside_media_dir(tmp_path, monkeypatch):
+    import py.config as cfg
+    from py.services.metadata_fetcher import _media_subdir
+
+    monkeypatch.setattr(cfg, "media_dir", lambda: str(tmp_path))
+    result = _media_subdir("a" * 40)
+    assert result.startswith(str(tmp_path))
+
+
+def test_media_subdir_returns_realpath(tmp_path, monkeypatch):
+    import py.config as cfg
+    from py.services.metadata_fetcher import _media_subdir
+
+    monkeypatch.setattr(cfg, "media_dir", lambda: str(tmp_path))
+    result = _media_subdir("abc123")
+    assert result == os.path.realpath(result)
+
+
+def test_media_subdir_rejects_traversal():
+    import pytest
+
+    from py.services.metadata_fetcher import _media_subdir
+
+    with pytest.raises(ValueError):
+        _media_subdir("../escape")
+
+
+def test_media_subdir_rejects_empty():
+    import pytest
+
+    from py.services.metadata_fetcher import _media_subdir
+
+    with pytest.raises(ValueError):
+        _media_subdir("")

@@ -22,6 +22,52 @@ def _patch_client(monkeypatch, transport: httpx.MockTransport) -> None:
 
 
 # ---------------------------------------------------------------------------
+# _validate_repo_id
+# ---------------------------------------------------------------------------
+
+
+class TestValidateRepoId:
+    def test_accepts_valid_repo_id(self):
+        from py.services.providers.huggingface_provider import _validate_repo_id
+
+        assert _validate_repo_id("user/repo") == "user/repo"
+
+    def test_rejects_path_traversal(self):
+        from py.services.providers.huggingface_provider import _validate_repo_id
+
+        with pytest.raises(ValueError):
+            _validate_repo_id("../../etc/passwd")
+
+    def test_rejects_empty_string(self):
+        from py.services.providers.huggingface_provider import _validate_repo_id
+
+        with pytest.raises(ValueError):
+            _validate_repo_id("")
+
+    def test_rejects_absolute_path(self):
+        from py.services.providers.huggingface_provider import _validate_repo_id
+
+        with pytest.raises(ValueError):
+            _validate_repo_id("/etc/passwd")
+
+    async def test_fetch_metadata_rejects_invalid_source_id(self, provider):
+        with pytest.raises(ValueError):
+            await provider.fetch_metadata("../../etc/passwd")
+
+    async def test_get_model_files_rejects_invalid_repo_id(self, provider):
+        with pytest.raises(ValueError):
+            await provider.get_model_files("../../etc/passwd")
+
+    async def test_get_readme_rejects_invalid_repo_id(self, provider):
+        with pytest.raises(ValueError):
+            await provider.get_readme("../../etc/passwd")
+
+    async def test_resolve_direct_link_rejects_invalid_repo_id(self, provider):
+        with pytest.raises(ValueError):
+            await provider.resolve_direct_link("../../etc/passwd")
+
+
+# ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 

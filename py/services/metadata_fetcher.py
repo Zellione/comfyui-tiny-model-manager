@@ -33,7 +33,7 @@ def _media_subdir(media_hash: str) -> str:
     """
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", media_hash):
         raise ValueError(f"Invalid media hash: {media_hash!r}")
-    return os.path.join(cfg.media_dir(), media_hash)
+    return os.path.realpath(os.path.join(cfg.media_dir(), media_hash))
 
 
 async def fetch_metadata_only(platform: str, source_id: str) -> ProviderMetadata:

@@ -1,8 +1,22 @@
+import re
+import urllib.parse
+
 import httpx
 import mistune
 
 from ... import config as cfg
 from .base import ModelProvider, ProviderMetadata
+
+_HF_REPO_ID_RE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}(/[A-Za-z0-9][A-Za-z0-9._-]{0,127})?$"
+)
+
+
+def _validate_repo_id(repo_id: str) -> str:
+    if not _HF_REPO_ID_RE.fullmatch(repo_id):
+        raise ValueError(f"Invalid HuggingFace repo ID: {repo_id!r}")
+    return urllib.parse.quote(repo_id, safe="/")
+
 
 _BASE = "https://huggingface.co"
 _API = "https://huggingface.co/api"
@@ -119,6 +133,7 @@ class HuggingFaceProvider(ModelProvider):
 
     async def get_model_files(self, repo_id: str) -> list[dict]:
         """Returns model files (.safetensors etc.) from a HuggingFace repo."""
+        repo_id = _validate_repo_id(repo_id)
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(
                 f"{_API}/models/{repo_id}", params={"blobs": "true"}, headers=self.auth_headers()
@@ -155,6 +170,7 @@ class HuggingFaceProvider(ModelProvider):
 
     async def get_readme(self, repo_id: str) -> str:
         """Fetches README.md and returns its body as HTML with YAML front matter stripped."""
+        repo_id = _validate_repo_id(repo_id)
         url = f"{_BASE}/{repo_id}/resolve/main/README.md"
         async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
             resp = await client.get(url, headers=self.auth_headers())
@@ -169,6 +185,7 @@ class HuggingFaceProvider(ModelProvider):
 
     async def resolve_direct_link(self, repo_id: str) -> dict:
         """Returns preview image URLs for a HuggingFace repo for direct link preview."""
+        repo_id = _validate_repo_id(repo_id)
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(f"{_API}/models/{repo_id}", headers=self.auth_headers())
             resp.raise_for_status()
@@ -177,6 +194,7 @@ class HuggingFaceProvider(ModelProvider):
 
     async def fetch_metadata(self, source_id: str) -> ProviderMetadata:
         """Returns description, readme HTML, tags, and preview image URLs from a HuggingFace model card."""
+        source_id = _validate_repo_id(source_id)
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(f"{_API}/models/{source_id}", headers=self.auth_headers())
             resp.raise_for_status()
