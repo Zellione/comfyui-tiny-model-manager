@@ -585,6 +585,10 @@ export class DownloadSearch {
     return `https://huggingface.co/${model.modelId ?? model.id}`;
   }
 
+  onImgLoad(event: Event) {
+    (event.target as HTMLImageElement).style.display = 'block';
+  }
+
   onImgError(event: Event) {
     (event.target as HTMLImageElement).style.display = 'none';
   }

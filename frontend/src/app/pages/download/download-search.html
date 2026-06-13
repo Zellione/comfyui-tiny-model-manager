@@ -132,6 +132,8 @@
                     [src]="civitaiThumb(model)"
                     alt=""
                     loading="lazy"
+                    style="display: none"
+                    (load)="onImgLoad($event)"
                     (error)="onImgError($event)"
                   />
                 } @else if (civitaiIsVideoOnly(model)) {

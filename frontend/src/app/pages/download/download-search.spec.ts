@@ -667,6 +667,14 @@ describe('DownloadSearch — display helpers', () => {
     expect(img.style.display).toBe('none');
   });
 
+  it('onImgLoad reveals a previously hidden image element', async () => {
+    const c = (await createFixture()).componentInstance;
+    const img = document.createElement('img');
+    img.style.display = 'none';
+    c.onImgLoad({ target: img } as unknown as Event);
+    expect(img.style.display).toBe('block');
+  });
+
   it('fileStatus delegates to the installed-files service', async () => {
     const c = (await createFixture()).componentInstance;
     expect(c.fileStatus('nope.safetensors')).toBe('idle');
