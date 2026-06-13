@@ -225,6 +225,7 @@ _COLUMN_ADDITIONS = [
     # F-40: catalog_entry_id on models (created after catalog_entries exists)
     "ALTER TABLE models ADD COLUMN catalog_entry_id INTEGER REFERENCES catalog_entries(id)",
     "ALTER TABLE models ADD COLUMN civitai_version_name TEXT DEFAULT ''",
+    "ALTER TABLE repo_files ADD COLUMN civitai_version_name TEXT DEFAULT ''",
 ]
 
 

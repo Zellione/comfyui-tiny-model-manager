@@ -185,6 +185,7 @@ def _civitai_repo_files(model_data: dict, source_base: str) -> list[dict]:
     for version in model_data.get("versions", []):
         vid = version.get("id")
         page_url = f"{source_base}?modelVersionId={vid}" if vid else source_base
+        version_name = version.get("name", "")
         for f in version.get("files", []):
             if f.get("type") != "Model":
                 continue
@@ -194,6 +195,7 @@ def _civitai_repo_files(model_data: dict, source_base: str) -> list[dict]:
                     "size_bytes": int(f.get("sizeKB", 0) * 1024),
                     "download_url": f.get("downloadUrl", ""),
                     "source_page_url": page_url,
+                    "civitai_version_name": version_name,
                 }
             )
     return files

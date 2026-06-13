@@ -126,6 +126,7 @@ class CivitaiProvider(ModelProvider):
             data = resp.json()
         model_id = data.get("modelId")
         source_page_url = f"https://civitai.com/models/{model_id}" if model_id else ""
+        version_name = data.get("name", "")
         result = []
         for f in data.get("files", []):
             if f.get("type") != "Model":
@@ -136,6 +137,7 @@ class CivitaiProvider(ModelProvider):
                     "size_bytes": int(f.get("sizeKB", 0) * 1024),
                     "download_url": f.get("downloadUrl", ""),
                     "source_page_url": source_page_url,
+                    "civitai_version_name": version_name,
                 }
             )
         return result

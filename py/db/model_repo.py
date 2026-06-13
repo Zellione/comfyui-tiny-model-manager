@@ -5,7 +5,9 @@ from datetime import UTC, datetime
 from .database import get_db
 
 _MAX_DESCRIPTION = 10_000
-_REPO_FILE_COLS = "SELECT filename, model_type, size_bytes, download_url, source_page_url"
+_REPO_FILE_COLS = (
+    "SELECT filename, model_type, size_bytes, download_url, source_page_url, civitai_version_name"
+)
 _MAX_WORD = 200
 _MAX_TAG = 200
 _MAX_PATH = 1_000
@@ -642,13 +644,14 @@ async def upsert_repo_files(catalog_entry_id: int, model_type: str, files: list[
         for f in files:
             await db.execute(
                 """
-                INSERT INTO repo_files (catalog_entry_id, model_type, filename, size_bytes, download_url, source_page_url)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO repo_files (catalog_entry_id, model_type, filename, size_bytes, download_url, source_page_url, civitai_version_name)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(catalog_entry_id, filename) DO UPDATE SET
-                    model_type      = excluded.model_type,
-                    size_bytes      = excluded.size_bytes,
-                    download_url    = excluded.download_url,
-                    source_page_url = excluded.source_page_url
+                    model_type           = excluded.model_type,
+                    size_bytes           = excluded.size_bytes,
+                    download_url         = excluded.download_url,
+                    source_page_url      = excluded.source_page_url,
+                    civitai_version_name = excluded.civitai_version_name
                 """,
                 (
                     catalog_entry_id,
@@ -657,6 +660,7 @@ async def upsert_repo_files(catalog_entry_id: int, model_type: str, files: list[
                     f.get("size_bytes"),
                     f.get("download_url", ""),
                     f.get("source_page_url", ""),
+                    f.get("civitai_version_name", ""),
                 ),
             )
         await db.commit()

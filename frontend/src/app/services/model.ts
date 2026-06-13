@@ -85,6 +85,7 @@ export interface RepoFile {
   added_at: number | null;
   installed_path: string;
   base_model: string;
+  civitai_version_name?: string;
 }
 
 export interface InstalledFile {
