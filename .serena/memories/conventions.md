@@ -43,7 +43,22 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
   2. If `thumbnail_url` is still empty, queries `model_media` (joined via `models.catalog_entry_id`) for the first `media_type = 'image'` local path and uses that.
 - `CatalogEntry` has an `is_video_only?: boolean` field (optional to avoid breaking existing spec fixtures). Set to `true` only when the installed model has video media records but **no** image media records at all.
 - Catalog card template: `@else if (entry.is_video_only) { <div class="thumb-video-only">▶</div> }` after the `@if (catalogThumbnailUrl(entry))` block.
-- `_download_catalog_images` in `metadata_fetcher.py` always skips video files (`_VIDEO_EXTS = {"mp4", "webm", "mov"}`) and returns the first image path; returns `""` when all URLs are videos.
+- `_download_catalog_images` in `metadata_fetcher.py` always skips video files (`_VIDEO_EXTS = {"mp4", "webm", "mov"}`) and returns the first image path; falls back to ffmpeg poster extraction when all URLs are videos.
+
+## ffmpeg poster extraction (`py/video_poster.py`)
+
+- **Location**: `py/video_poster.py` — a standalone stdlib-only utility, no circular imports.
+- **Pattern**: `extract_video_poster(video_path: str) -> str | None`
+  - Guards with `shutil.which("ffmpeg")` — returns `None` gracefully if ffmpeg is absent.
+  - Output: `<video_stem>_poster.jpg` beside the video file.
+  - Idempotent: returns the existing poster path if the file already exists.
+  - Runs synchronous subprocess; call from async code with `await asyncio.to_thread(extract_video_poster, path)`.
+- **Where used**:
+  - `_download_catalog_images`: tries poster extraction when all downloaded files are videos; returns poster path instead of `""`.
+  - `_download_images`: tries poster extraction when no image files were downloaded; stores result with `add_media(model_id, "image", poster)`.
+  - `list_catalog_entries()`: lazy extraction for existing video-only installed models; stores result via `INSERT OR IGNORE INTO model_media` so the next request finds the image record normally.
+- **Testing pattern**: mock `py.video_poster.shutil.which` (return `/usr/bin/ffmpeg`) and `py.video_poster.subprocess.run`; have the mock write a fake JPEG to the path extracted from the ffmpeg command args.
+- **Fallback**: when ffmpeg is unavailable or extraction fails, the `▶` play icon is shown (frontend `is_video_only` branch).
 
 ## JS Extension (js/)
 
