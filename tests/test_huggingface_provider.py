@@ -32,11 +32,27 @@ class TestValidateRepoId:
 
         assert _validate_repo_id("user/repo") == "user/repo"
 
+    def test_valid_single_segment(self):
+        from py.services.providers.huggingface_provider import _validate_repo_id
+
+        assert _validate_repo_id("bert-base-uncased") == "bert-base-uncased"
+
+    def test_valid_with_dots_and_hyphens(self):
+        from py.services.providers.huggingface_provider import _validate_repo_id
+
+        assert _validate_repo_id("meta-llama/Llama-3.1-8B") == "meta-llama/Llama-3.1-8B"
+
     def test_rejects_path_traversal(self):
         from py.services.providers.huggingface_provider import _validate_repo_id
 
         with pytest.raises(ValueError):
             _validate_repo_id("../../etc/passwd")
+
+    def test_rejects_double_slash(self):
+        from py.services.providers.huggingface_provider import _validate_repo_id
+
+        with pytest.raises(ValueError):
+            _validate_repo_id("user/repo/subdir")
 
     def test_rejects_empty_string(self):
         from py.services.providers.huggingface_provider import _validate_repo_id
@@ -49,6 +65,12 @@ class TestValidateRepoId:
 
         with pytest.raises(ValueError):
             _validate_repo_id("/etc/passwd")
+
+    def test_rejects_leading_dot(self):
+        from py.services.providers.huggingface_provider import _validate_repo_id
+
+        with pytest.raises(ValueError):
+            _validate_repo_id(".hidden/repo")
 
     async def test_fetch_metadata_rejects_invalid_source_id(self, provider):
         with pytest.raises(ValueError):

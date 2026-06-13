@@ -62,37 +62,54 @@ def test_compute_media_hash_is_40_char_hex():
 # ---------------------------------------------------------------------------
 
 
-def test_media_subdir_returns_path_inside_media_dir(tmp_path, monkeypatch):
-    import py.config as cfg
-    from py.services.metadata_fetcher import _media_subdir
+class TestMediaSubdir:
+    def test_returns_path_inside_media_dir(self, tmp_path):
+        import py.config as cfg
 
-    monkeypatch.setattr(cfg, "media_dir", lambda: str(tmp_path))
-    result = _media_subdir("a" * 40)
-    assert result.startswith(str(tmp_path))
+        cfg.init(str(tmp_path))
+        from py.services.metadata_fetcher import _media_subdir
 
+        result = _media_subdir("a" * 40)
+        assert result.startswith(cfg.media_dir())
 
-def test_media_subdir_returns_realpath(tmp_path, monkeypatch):
-    import py.config as cfg
-    from py.services.metadata_fetcher import _media_subdir
+    def test_returns_realpath(self, tmp_path):
+        import py.config as cfg
 
-    monkeypatch.setattr(cfg, "media_dir", lambda: str(tmp_path))
-    result = _media_subdir("abc123")
-    assert result == os.path.realpath(result)
+        cfg.init(str(tmp_path))
+        from py.services.metadata_fetcher import _media_subdir
 
+        result = _media_subdir("abc123")
+        assert result == os.path.realpath(result)
 
-def test_media_subdir_rejects_traversal():
-    import pytest
+    def test_rejects_path_traversal(self, tmp_path):
+        import pytest
 
-    from py.services.metadata_fetcher import _media_subdir
+        import py.config as cfg
 
-    with pytest.raises(ValueError):
-        _media_subdir("../escape")
+        cfg.init(str(tmp_path))
+        from py.services.metadata_fetcher import _media_subdir
 
+        with pytest.raises(ValueError):
+            _media_subdir("../evil")
 
-def test_media_subdir_rejects_empty():
-    import pytest
+    def test_rejects_empty_hash(self, tmp_path):
+        import pytest
 
-    from py.services.metadata_fetcher import _media_subdir
+        import py.config as cfg
 
-    with pytest.raises(ValueError):
-        _media_subdir("")
+        cfg.init(str(tmp_path))
+        from py.services.metadata_fetcher import _media_subdir
+
+        with pytest.raises(ValueError):
+            _media_subdir("")
+
+    def test_rejects_slash_in_hash(self, tmp_path):
+        import pytest
+
+        import py.config as cfg
+
+        cfg.init(str(tmp_path))
+        from py.services.metadata_fetcher import _media_subdir
+
+        with pytest.raises(ValueError):
+            _media_subdir("abc/def")

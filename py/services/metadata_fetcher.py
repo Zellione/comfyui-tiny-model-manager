@@ -25,12 +25,7 @@ def _compute_media_hash(platform: str, source_id: str, filename: str) -> str:
 
 
 def _media_subdir(media_hash: str) -> str:
-    """Return the per-model media directory, guarding against path traversal.
-
-    ``media_hash`` is a digest from ``_compute_media_hash``.  Restricting it to
-    a single path segment with no separators or dots keeps the join strictly
-    inside the media directory (no ``..`` or absolute-path escapes).
-    """
+    """Return the per-model media directory, guarding against path traversal."""
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", media_hash):
         raise ValueError(f"Invalid media hash: {media_hash!r}")
     return os.path.realpath(os.path.join(cfg.media_dir(), media_hash))
