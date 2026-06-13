@@ -60,6 +60,17 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
   - `_download_images`: poster extraction when no image files downloaded; stored via `add_media(model_id, "image", poster)`.
   - `list_catalog_entries()`: lazy extraction for existing video-only entries; stored via `INSERT OR IGNORE INTO model_media` so the next request finds the image record normally.
 - **Testing pattern**: mock `py.services.metadata_fetcher.extract_video_poster` (the imported name in the caller) — avoids coupling tests to av/ffmpeg internals. Unit tests for `_extract_with_av` and `_extract_with_ffmpeg` live in `tests/test_video_poster.py`.
+- **Fallback**: when ffmpeg is unavailable or extraction fails, the ▶ play icon is shown (frontend `is_video_only` branch).
+
+## Video gallery thumbnail poster pattern (`MediaGallery`)
+
+- `videoPosterUrl(localPath: string)`: strips the file extension from `local_path` and appends `_poster.jpg`, then passes through `mediaUrl()`. Convention: poster is always `<stem>_poster.jpg` beside the video file.
+- **Thumbnail strip** for video items: render a `.gallery-thumb-video-wrap` containing the `▶` fallback div first, then an `<img>` with `style="display: none"` pointing at the poster URL.
+  - `(load)="onVideoPosterLoad($event)"`: shows the img (`display: block`) and hides the preceding sibling `▶` div (`previousElementSibling.style.display = 'none'`).
+  - `(error)="onImgError($event)"`: keeps img hidden; ▶ remains visible.
+  - The ▶ div comes **before** the img in the DOM so it has a lower paint order; the img overlaps it when loaded.
+  - `.gallery-thumb-video-wrap` uses `position: relative; width: 100%; height: 100%` with the `img` absolutely positioned (`inset: 0`) to fill the slot.
+- **Main panel video**: `[poster]="videoPosterUrl(m.local_path)"` on the `<video>` element — native HTML5 video poster, shown while the video is paused/loading. No JS needed.
 
 ## JS Extension (js/)
 
