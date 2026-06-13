@@ -1,6 +1,7 @@
 """Tests for pure functions in py/services/metadata_fetcher.py."""
 
 import hashlib
+import os
 
 
 def test_compute_media_hash_deterministic():
@@ -70,6 +71,15 @@ class TestMediaSubdir:
 
         result = _media_subdir("a" * 40)
         assert result.startswith(cfg.media_dir())
+
+    def test_returns_realpath(self, tmp_path):
+        import py.config as cfg
+
+        cfg.init(str(tmp_path))
+        from py.services.metadata_fetcher import _media_subdir
+
+        result = _media_subdir("abc123")
+        assert result == os.path.realpath(result)
 
     def test_rejects_path_traversal(self, tmp_path):
         import pytest

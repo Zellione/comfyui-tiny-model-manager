@@ -25,8 +25,16 @@
 
 ## Security Patterns (SonarQube-compliant)
 
-- **S7044 (URL path injection)**: Use `urllib.parse.quote(value, safe="/")` on user-controlled path segments *and* use the return value in the URL. A custom regex validator alone is NOT recognised by SonarQube's taint engine — `quote()` is the required sanitiser. Pattern in `_validate_repo_id` (`huggingface_provider.py`): validate format with regex, then return `urllib.parse.quote(repo_id, safe="/")`.
-- **S6549 / S2083 (path traversal)**: For paths where the variable segment is user input, validate the segment with `re.fullmatch(r"[A-Za-z0-9_-]{1,128}", segment)` **before** any `os.path.join`. Once the segment is restricted to alphanumeric + `_` + `-` (no `.` or `/`), `os.path.join(base, segment)` cannot traverse outside `base` and no further `realpath`/`resolve` call is needed. Do **not** call `os.path.realpath()` or `Path.resolve()` on values derived from settings/config (SonarQube treats them as tainted and raises S6549).
+### S7044 — URL path traversal (SSRF)
+- **Only `urllib.parse.quote(value, safe="/")` is recognized** as a sanitizer by SonarQube's taint engine. Custom regex validators alone are NOT sufficient.
+- The return value of `quote()` must be **assigned back** (`repo_id = _validate_repo_id(repo_id)`) and used in URL construction; discarding the return value leaves the original variable tainted.
+- Pattern in `huggingface_provider.py`: `_validate_repo_id()` validates with a strict regex AND returns `urllib.parse.quote(repo_id, safe="/")`.
+
+### S2083 / S6549 — Filesystem path traversal
+- **`os.path.realpath()` is the recognized S2083 sanitizer.** Applying it before `os.makedirs` / `open` breaks the taint chain.
+- **S6549 fires when** `realpath()` is called on a tainted value AND a security decision (`startswith`, `is_relative_to`) follows. Avoid `realpath`/`Path.resolve()` on settings-derived values when a security check follows.
+- Safe pattern: validate the segment with `re.fullmatch(r"[A-Za-z0-9_-]{1,128}", segment)` (no `.` or `/` → no traversal possible), then return `os.path.realpath(os.path.join(base_dir, segment))` — `realpath` satisfies S2083; no security decision needed so S6549 does not fire.
+- Pattern in `metadata_fetcher.py`: `_media_subdir()` validates `media_hash` with regex, returns `os.path.realpath(os.path.join(cfg.media_dir(), media_hash))`.
 
 ## Testing
 

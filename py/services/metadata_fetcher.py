@@ -28,8 +28,7 @@ def _media_subdir(media_hash: str) -> str:
     """Return the per-model media directory, guarding against path traversal."""
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", media_hash):
         raise ValueError(f"Invalid media hash: {media_hash!r}")
-    # media_hash is validated to [A-Za-z0-9_-] only — os.path.join cannot traverse outside base
-    return os.path.join(cfg.media_dir(), media_hash)
+    return os.path.realpath(os.path.join(cfg.media_dir(), media_hash))
 
 
 async def fetch_metadata_only(platform: str, source_id: str) -> ProviderMetadata:
