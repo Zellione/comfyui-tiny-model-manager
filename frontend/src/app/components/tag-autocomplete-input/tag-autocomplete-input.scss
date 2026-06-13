@@ -1,0 +1,58 @@
+.tai-wrap {
+  position: relative;
+  min-width: 180px;
+}
+
+.tai-input {
+  display: flex;
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 12px;
+  transition: border-color var(--dur);
+
+  &:focus-within {
+    border-color: var(--accent);
+    background: var(--bg);
+  }
+
+  input {
+    flex: 1;
+    background: none;
+    border: 0;
+    outline: none;
+    font-size: 13px;
+    color: var(--text);
+
+    &::placeholder {
+      color: var(--text-3);
+    }
+  }
+}
+
+.tai-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--surface-2);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.tai-option {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+
+  &:hover {
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+  }
+}

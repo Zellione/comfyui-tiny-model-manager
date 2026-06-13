@@ -917,3 +917,22 @@ async def get_interrupted_downloads() -> list[dict]:
             await db.execute("SELECT * FROM download_history WHERE status = 'downloading'")
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+async def search_tags(prefix: str, limit: int = 5) -> list[str]:
+    async with get_db() as db:
+        rows = await (
+            await db.execute(
+                """
+                SELECT t.name
+                FROM tags t
+                LEFT JOIN model_tags mt ON mt.tag_id = t.id
+                WHERE t.name LIKE ?
+                GROUP BY t.id
+                ORDER BY COUNT(mt.model_id) DESC
+                LIMIT ?
+                """,
+                (f"{prefix}%", limit),
+            )
+        ).fetchall()
+        return [r["name"] for r in rows]

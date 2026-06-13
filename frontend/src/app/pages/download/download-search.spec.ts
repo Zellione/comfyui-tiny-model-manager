@@ -12,6 +12,7 @@ import { NotificationService } from '../../services/notification';
 import { KeywordsService } from '../../services/keywords';
 import { InstalledFilesService } from '../../services/installed-files';
 import { FilenameKeyword } from '../../utils/filename-detector';
+import { TagService } from '../../services/tags';
 
 const civitaiModel = (id: number) => ({
   id,
@@ -49,6 +50,10 @@ const mockNotifService = {
   show: vi.fn(),
 };
 
+const mockTagService = {
+  searchTags: vi.fn().mockReturnValue(EMPTY),
+};
+
 const mockKeywordsService = {
   getKeywords: vi.fn(() => of([] as FilenameKeyword[])),
 };
@@ -64,6 +69,7 @@ async function configureTestBed() {
       { provide: ModelService, useValue: mockModelService },
       { provide: NotificationService, useValue: mockNotifService },
       { provide: KeywordsService, useValue: mockKeywordsService },
+      { provide: TagService, useValue: mockTagService },
       provideTranslateServiceForTests(),
     ],
   }).compileComponents();
@@ -370,13 +376,11 @@ describe('DownloadSearch — tag methods', () => {
     await configureTestBed();
   });
 
-  it('addTag appends a trimmed tag to tagFilter and clears tagInput', async () => {
+  it('addTag appends a trimmed tag to tagFilter', async () => {
     const fixture = await createFixture();
     const c = fixture.componentInstance;
-    c.tagInput.set('anime');
     c.addTag('  anime  ');
     expect(c.tagFilter()).toContain('anime');
-    expect(c.tagInput()).toBe('');
   });
 
   it('addTag ignores duplicate tags', async () => {
@@ -391,23 +395,6 @@ describe('DownloadSearch — tag methods', () => {
     const fixture = await createFixture();
     const c = fixture.componentInstance;
     c.addTag('   ');
-    expect(c.tagFilter()).toHaveLength(0);
-  });
-
-  it('addTagFromInput adds the current tagInput value', async () => {
-    const fixture = await createFixture();
-    const c = fixture.componentInstance;
-    c.tagInput.set('  lora  ');
-    c.addTagFromInput();
-    expect(c.tagFilter()).toContain('lora');
-    expect(c.tagInput()).toBe('');
-  });
-
-  it('addTagFromInput does nothing when tagInput is blank', async () => {
-    const fixture = await createFixture();
-    const c = fixture.componentInstance;
-    c.tagInput.set('');
-    c.addTagFromInput();
     expect(c.tagFilter()).toHaveLength(0);
   });
 

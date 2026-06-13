@@ -1,0 +1,20 @@
+<div class="tai-wrap">
+  <div class="tai-input">
+    <input
+      type="text"
+      [placeholder]="'download_search.filter.tag_placeholder' | translate"
+      [value]="inputValue()"
+      (input)="onInput($any($event.target).value)"
+      (keydown.enter)="onEnter()"
+    />
+  </div>
+  @if (open() && suggestions().length > 0) {
+    <ul class="tai-panel">
+      @for (tag of suggestions(); track tag) {
+        <li class="tai-option" (click)="select(tag)" (keydown.enter)="select(tag)">
+          {{ tag }}
+        </li>
+      }
+    </ul>
+  }
+</div>

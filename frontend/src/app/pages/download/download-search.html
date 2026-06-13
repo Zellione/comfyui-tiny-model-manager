@@ -63,17 +63,11 @@
   </div>
 
   <div class="tag-filter-row">
-    <div class="search-wrap">
-      <div class="search-input">
-        <input
-          type="text"
-          [placeholder]="'download_search.filter.tag_placeholder' | translate"
-          [value]="tagInput()"
-          (input)="tagInput.set($any($event.target).value)"
-          (keydown.enter)="addTagFromInput()"
-        />
-      </div>
-    </div>
+    <app-tag-autocomplete-input
+      [selectedTags]="tagFilter()"
+      [searchResultTags]="allResultTags()"
+      (tagAdded)="addTag($event)"
+    />
     @for (tag of tagFilter(); track tag) {
       <span class="active-tag">
         {{ tag }}
