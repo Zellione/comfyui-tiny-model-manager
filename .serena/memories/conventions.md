@@ -100,6 +100,14 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
 - **Main panel video in MediaGallery**: `[poster]="videoPosterUrl(m.local_path)"` on the `<video>` element — native HTML5 poster, no JS needed.
 - **Catalog cards**: wrap is not needed (unlike `.gallery-thumb-video-wrap`); ▶ div and img are siblings inside `.thumb-link`. The `img` uses `class="thumb"` (same as normal thumbnails) so it fills the card slot.
 
+## Cognitive complexity (SonarQube S3776)
+
+- SonarQube enforces a max cognitive complexity of **15** per function (rule `python:S3776`).
+- When a Python async function exceeds 15, extract private helper coroutines (`async def _helper(db, e: dict) -> None`) that each own a single responsibility. The caller becomes a thin orchestrator.
+- **Pattern used in `model_repo.py`** (`list_catalog_entries`): extracted `_fill_thumbnail`, `_fill_model_type`, `_fill_video_status` — each is `async`, accepts `db` and the mutable entry dict `e`, mutates `e` in place, returns `None`.
+- Module-level constants shared by helpers (e.g. `_VIDEO_PATH_EXTS`) go alongside the other `_UPPER_CASE` constants at the top of the file.
+- Private helpers are not tested directly; coverage comes from route/integration tests that exercise the public function.
+
 ## JS Extension (js/)
 
 - `setup()` runs before Vue mounts → use `MutationObserver` on `document.body` for Vue-rendered elements.
