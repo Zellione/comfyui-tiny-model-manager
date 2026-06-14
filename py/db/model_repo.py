@@ -14,6 +14,7 @@ _MAX_WORD = 200
 _MAX_TAG = 200
 _MAX_PATH = 1_000
 _ALLOWED_MEDIA_TYPES = {"image", "video"}
+_VIDEO_PATH_EXTS = (".mp4", ".webm", ".mov")
 _MEDIA_SELECT = "SELECT id, media_type, local_path FROM model_media WHERE model_id = ?"
 _REPO_FILES_FROM_WHERE = " FROM repo_files WHERE catalog_entry_id = ?"
 _DELETE_TRIGGER_WORDS = "DELETE FROM trigger_words WHERE model_id = ?"
@@ -514,6 +515,72 @@ async def get_first_image_path(model_id: int) -> str | None:
         return row["local_path"] if row else None
 
 
+async def _fill_thumbnail(db, e: dict) -> None:
+    thumb = e.get("thumbnail_url", "")
+    if thumb and thumb.lower().endswith(_VIDEO_PATH_EXTS):
+        e["thumbnail_url"] = ""
+    if not e["thumbnail_url"]:
+        row = await (
+            await db.execute(
+                "SELECT mm.local_path FROM model_media mm"
+                " JOIN models m ON mm.model_id = m.id"
+                " WHERE m.catalog_entry_id = ? AND mm.media_type = 'image' LIMIT 1",
+                (e["id"],),
+            )
+        ).fetchone()
+        if row:
+            e["thumbnail_url"] = row["local_path"]
+
+
+async def _fill_model_type(db, e: dict, installed: list) -> None:
+    if installed:
+        e["model_type"] = installed[0]["model_type"] or "other"
+        return
+    rf = await (
+        await db.execute(
+            "SELECT model_type FROM repo_files WHERE catalog_entry_id = ? LIMIT 1",
+            (e["id"],),
+        )
+    ).fetchone()
+    e["model_type"] = rf["model_type"] if rf else "other"
+
+
+async def _fill_video_status(db, e: dict) -> None:
+    rows = await (
+        await db.execute(
+            "SELECT mm.media_type, mm.local_path FROM model_media mm"
+            " JOIN models m ON mm.model_id = m.id"
+            " WHERE m.catalog_entry_id = ? GROUP BY mm.media_type, mm.local_path",
+            (e["id"],),
+        )
+    ).fetchall()
+    types = {r["media_type"] for r in rows}
+    if "video" not in types or "image" in types:
+        e["is_video_only"] = False
+        return
+    first_video = next((r["local_path"] for r in rows if r["media_type"] == "video"), None)
+    poster = await asyncio.to_thread(extract_video_poster, first_video) if first_video else None
+    if poster:
+        model_row = await (
+            await db.execute(
+                "SELECT id FROM models WHERE catalog_entry_id = ? LIMIT 1",
+                (e["id"],),
+            )
+        ).fetchone()
+        if model_row:
+            await db.execute(
+                "INSERT OR IGNORE INTO model_media (model_id, media_type, local_path)"
+                " VALUES (?, 'image', ?)",
+                (model_row["id"], poster),
+            )
+            await db.commit()
+        e["thumbnail_url"] = poster
+        e["is_video_only"] = False
+    else:
+        e["is_video_only"] = True
+        e["first_video_path"] = first_video
+
+
 async def list_catalog_entries() -> list[dict]:
     async with get_db() as db:
         entries = await (
@@ -523,27 +590,11 @@ async def list_catalog_entries() -> list[dict]:
                 " FROM catalog_entries ORDER BY created_at DESC"
             )
         ).fetchall()
-        _video_path_exts = (".mp4", ".webm", ".mov")
         result = []
         for entry in entries:
             e = dict(entry)
             e["trigger_words"] = _parse_json_list(e.get("trigger_words", ""))
-            # Clear any legacy video path stored as thumbnail_url
-            thumb = e.get("thumbnail_url", "")
-            if thumb and thumb.lower().endswith(_video_path_exts):
-                e["thumbnail_url"] = ""
-            # Fall back to first image in model_media if thumbnail is missing
-            if not e["thumbnail_url"]:
-                img_row = await (
-                    await db.execute(
-                        "SELECT mm.local_path FROM model_media mm"
-                        " JOIN models m ON mm.model_id = m.id"
-                        " WHERE m.catalog_entry_id = ? AND mm.media_type = 'image' LIMIT 1",
-                        (e["id"],),
-                    )
-                ).fetchone()
-                if img_row:
-                    e["thumbnail_url"] = img_row["local_path"]
+            await _fill_thumbnail(db, e)
             installed = list(
                 await (
                     await db.execute(
@@ -553,59 +604,8 @@ async def list_catalog_entries() -> list[dict]:
                 ).fetchall()
             )
             e["installed_files"] = [dict(r) for r in installed]
-            # Derive a model_type for section grouping (from installed files or repo_files)
-            if installed:
-                e["model_type"] = installed[0]["model_type"] or "other"
-            else:
-                rf = await (
-                    await db.execute(
-                        "SELECT model_type FROM repo_files WHERE catalog_entry_id = ? LIMIT 1",
-                        (e["id"],),
-                    )
-                ).fetchone()
-                e["model_type"] = rf["model_type"] if rf else "other"
-            # is_video_only: installed files have video media but no image media
-            media_rows = await (
-                await db.execute(
-                    "SELECT mm.media_type, mm.local_path FROM model_media mm"
-                    " JOIN models m ON mm.model_id = m.id"
-                    " WHERE m.catalog_entry_id = ? GROUP BY mm.media_type, mm.local_path",
-                    (e["id"],),
-                )
-            ).fetchall()
-            media_types = {row["media_type"] for row in media_rows}
-            if "video" in media_types and "image" not in media_types:
-                # Try to extract a poster from the first video (lazy, one-time)
-                first_video = next(
-                    (row["local_path"] for row in media_rows if row["media_type"] == "video"),
-                    None,
-                )
-                poster = (
-                    await asyncio.to_thread(extract_video_poster, first_video)
-                    if first_video
-                    else None
-                )
-                if poster:
-                    model_row = await (
-                        await db.execute(
-                            "SELECT id FROM models WHERE catalog_entry_id = ? LIMIT 1",
-                            (e["id"],),
-                        )
-                    ).fetchone()
-                    if model_row:
-                        await db.execute(
-                            "INSERT OR IGNORE INTO model_media (model_id, media_type, local_path)"
-                            " VALUES (?, 'image', ?)",
-                            (model_row["id"], poster),
-                        )
-                        await db.commit()
-                    e["thumbnail_url"] = poster
-                    e["is_video_only"] = False
-                else:
-                    e["is_video_only"] = True
-                    e["first_video_path"] = first_video
-            else:
-                e["is_video_only"] = "video" in media_types and "image" not in media_types
+            await _fill_model_type(db, e, installed)
+            await _fill_video_status(db, e)
             result.append(e)
         return result
 
