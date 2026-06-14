@@ -299,6 +299,25 @@ export class Models implements OnInit {
     }
   }
 
+  onImgLoad(event: Event) {
+    (event.target as HTMLImageElement).style.display = 'block';
+  }
+
+  onImgError(event: Event) {
+    (event.target as HTMLImageElement).style.display = 'none';
+  }
+
+  videoPosterUrl(localPath: string): string {
+    return `/tiny-model-manager/api/media-poster/${encodeURIComponent(localPath)}`;
+  }
+
+  onVideoPosterLoad(event: Event) {
+    const img = event.target as HTMLImageElement;
+    img.style.display = 'block';
+    const fallback = img.previousElementSibling as HTMLElement | null;
+    if (fallback) fallback.style.display = 'none';
+  }
+
   organizeIntoSubfolders() {
     this.modelService.organizeIntoSubfolders().subscribe({
       next: (r) => {

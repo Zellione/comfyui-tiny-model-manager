@@ -4,10 +4,16 @@
       @if (activeMedia(); as m) {
         @if (m.media_type === 'image') {
           <button type="button" class="gallery-main-btn" (click)="lightboxOpen.set(true)">
-            <img [src]="mediaUrl(m.local_path)" alt="preview" />
+            <img
+              [src]="mediaUrl(m.local_path)"
+              alt="preview"
+              style="display: none"
+              (load)="onImgLoad($event)"
+              (error)="onImgError($event)"
+            />
           </button>
         } @else {
-          <video [src]="mediaUrl(m.local_path)" controls>
+          <video [src]="mediaUrl(m.local_path)" [poster]="videoPosterUrl(m.local_path)" controls>
             <track kind="captions" />
           </video>
         }
@@ -23,9 +29,24 @@
             (click)="galleryIdx.set(i)"
           >
             @if (thumb.media_type === 'image') {
-              <img [src]="mediaUrl(thumb.local_path)" alt="" />
+              <img
+                [src]="mediaUrl(thumb.local_path)"
+                alt=""
+                style="display: none"
+                (load)="onImgLoad($event)"
+                (error)="onImgError($event)"
+              />
             } @else {
-              <div class="gallery-thumb-video">▶</div>
+              <div class="gallery-thumb-video-wrap">
+                <div class="gallery-thumb-video">▶</div>
+                <img
+                  [src]="videoPosterUrl(thumb.local_path)"
+                  alt=""
+                  style="display: none"
+                  (load)="onVideoPosterLoad($event)"
+                  (error)="onImgError($event)"
+                />
+              </div>
             }
           </button>
         }
@@ -45,6 +66,12 @@
     [attr.aria-label]="'media_gallery.close_preview' | translate"
     (click)="lightboxOpen.set(false)"
   >
-    <img [src]="mediaUrl(activeMedia()!.local_path)" alt="full size preview" />
+    <img
+      [src]="mediaUrl(activeMedia()!.local_path)"
+      alt="full size preview"
+      style="display: none"
+      (load)="onImgLoad($event)"
+      (error)="onImgError($event)"
+    />
   </button>
 }

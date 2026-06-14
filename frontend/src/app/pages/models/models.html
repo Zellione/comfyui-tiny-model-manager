@@ -108,7 +108,26 @@
                 >
                   <div class="thumb-placeholder"></div>
                   @if (catalogThumbnailUrl(entry)) {
-                    <img class="thumb" [src]="catalogThumbnailUrl(entry)!" alt="" loading="lazy" />
+                    <img
+                      class="thumb"
+                      [src]="catalogThumbnailUrl(entry)!"
+                      alt=""
+                      style="display: none"
+                      (load)="onImgLoad($event)"
+                      (error)="onImgError($event)"
+                    />
+                  } @else if (entry.is_video_only && entry.first_video_path) {
+                    <div class="thumb-video-only">▶</div>
+                    <img
+                      class="thumb"
+                      [src]="videoPosterUrl(entry.first_video_path)"
+                      alt=""
+                      style="display: none"
+                      (load)="onVideoPosterLoad($event)"
+                      (error)="onImgError($event)"
+                    />
+                  } @else if (entry.is_video_only) {
+                    <div class="thumb-video-only">▶</div>
                   }
                 </a>
                 @if (entry.source_platform) {
@@ -226,7 +245,9 @@
                         class="thumb"
                         [src]="unknownThumbnailUrl(file.metadata)!"
                         alt=""
-                        loading="lazy"
+                        style="display: none"
+                        (load)="onImgLoad($event)"
+                        (error)="onImgError($event)"
                       />
                     }
                   </a>

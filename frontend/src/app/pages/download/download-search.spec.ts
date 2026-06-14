@@ -538,6 +538,83 @@ describe('DownloadSearch — display helpers', () => {
     expect(c.civitaiThumb(model)).toBe('');
   });
 
+  it('civitaiThumb skips video items and returns first image url', async () => {
+    const c = (await createFixture()).componentInstance;
+    const model: CivitaiModel = {
+      ...richCivitaiModel(),
+      modelVersions: [
+        {
+          ...richCivitaiModel().modelVersions[0],
+          images: [
+            { url: 'https://img/clip.mp4', type: 'video' },
+            { url: 'https://img/first.jpg', type: 'image' },
+          ],
+        },
+      ],
+    };
+    expect(c.civitaiThumb(model)).toBe('https://img/first.jpg');
+  });
+
+  it('civitaiThumb returns empty string when all items are videos', async () => {
+    const c = (await createFixture()).componentInstance;
+    const model: CivitaiModel = {
+      ...richCivitaiModel(),
+      modelVersions: [
+        {
+          ...richCivitaiModel().modelVersions[0],
+          images: [
+            { url: 'https://img/a.mp4', type: 'video' },
+            { url: 'https://img/b.webm', type: 'video' },
+          ],
+        },
+      ],
+    };
+    expect(c.civitaiThumb(model)).toBe('');
+  });
+
+  it('civitaiIsVideoOnly returns true when all items are videos', async () => {
+    const c = (await createFixture()).componentInstance;
+    const model: CivitaiModel = {
+      ...richCivitaiModel(),
+      modelVersions: [
+        {
+          ...richCivitaiModel().modelVersions[0],
+          images: [
+            { url: 'https://img/a.mp4', type: 'video' },
+            { url: 'https://img/b.webm', type: 'video' },
+          ],
+        },
+      ],
+    };
+    expect(c.civitaiIsVideoOnly(model)).toBe(true);
+  });
+
+  it('civitaiIsVideoOnly returns false when at least one image is present', async () => {
+    const c = (await createFixture()).componentInstance;
+    const model: CivitaiModel = {
+      ...richCivitaiModel(),
+      modelVersions: [
+        {
+          ...richCivitaiModel().modelVersions[0],
+          images: [
+            { url: 'https://img/clip.mp4', type: 'video' },
+            { url: 'https://img/first.jpg', type: 'image' },
+          ],
+        },
+      ],
+    };
+    expect(c.civitaiIsVideoOnly(model)).toBe(false);
+  });
+
+  it('civitaiIsVideoOnly returns false when there are no images', async () => {
+    const c = (await createFixture()).componentInstance;
+    const model: CivitaiModel = {
+      ...richCivitaiModel(),
+      modelVersions: [{ ...richCivitaiModel().modelVersions[0], images: [] }],
+    };
+    expect(c.civitaiIsVideoOnly(model)).toBe(false);
+  });
+
   it('civitaiGalleryImages drops blank urls and caps at 8', async () => {
     const c = (await createFixture()).componentInstance;
     expect(c.civitaiGalleryImages(richCivitaiModel())).toEqual([
@@ -588,6 +665,14 @@ describe('DownloadSearch — display helpers', () => {
     const img = document.createElement('img');
     c.onImgError({ target: img } as unknown as Event);
     expect(img.style.display).toBe('none');
+  });
+
+  it('onImgLoad reveals a previously hidden image element', async () => {
+    const c = (await createFixture()).componentInstance;
+    const img = document.createElement('img');
+    img.style.display = 'none';
+    c.onImgLoad({ target: img } as unknown as Event);
+    expect(img.style.display).toBe('block');
   });
 
   it('fileStatus delegates to the installed-files service', async () => {

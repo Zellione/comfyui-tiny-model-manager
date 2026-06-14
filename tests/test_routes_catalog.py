@@ -123,6 +123,72 @@ class TestListCatalog:
         entry = next(e for e in entries if e["source_page_id"] == "tw_test")
         assert entry["trigger_words"] == ["alpha", "beta"]
 
+    async def test_entry_is_video_only_when_all_media_are_videos(self, client, ext_dir):
+        from py.db import model_repo
+
+        entry_id = await _make_entry(page_id="vidonly")
+        model_id = await model_repo.upsert_model(
+            "vidonly.safetensors", "loras", "civitai", "99", ""
+        )
+        await model_repo.set_model_catalog_entry("vidonly.safetensors", entry_id)
+        await model_repo.add_media(model_id, "video", "/tmp/clip.mp4")
+
+        resp = await client.get("/tiny-model-manager/api/catalog")
+        entry = next(
+            e for e in (await resp.json())["data"]["entries"] if e["source_page_id"] == "vidonly"
+        )
+        assert entry["is_video_only"] is True
+
+    async def test_entry_is_not_video_only_when_has_image(self, client, ext_dir):
+        from py.db import model_repo
+
+        entry_id = await _make_entry(page_id="withimg")
+        model_id = await model_repo.upsert_model(
+            "withimg.safetensors", "loras", "civitai", "100", ""
+        )
+        await model_repo.set_model_catalog_entry("withimg.safetensors", entry_id)
+        await model_repo.add_media(model_id, "video", "/tmp/clip.mp4")
+        await model_repo.add_media(model_id, "image", "/tmp/thumb.jpg")
+
+        resp = await client.get("/tiny-model-manager/api/catalog")
+        entry = next(
+            e for e in (await resp.json())["data"]["entries"] if e["source_page_id"] == "withimg"
+        )
+        assert entry["is_video_only"] is False
+
+    async def test_entry_is_not_video_only_when_no_media(self, client, ext_dir):
+        await _make_entry(page_id="nomedia")
+        resp = await client.get("/tiny-model-manager/api/catalog")
+        entry = next(
+            e for e in (await resp.json())["data"]["entries"] if e["source_page_id"] == "nomedia"
+        )
+        assert entry["is_video_only"] is False
+
+    async def test_thumbnail_falls_back_to_image_when_catalog_url_is_video(self, client, ext_dir):
+        from py.db import model_repo
+
+        entry_id = await model_repo.upsert_catalog_entry(
+            source_platform="civitai",
+            source_page_id="vidfirst",
+            source_page_url="https://civitai.com/models/vidfirst",
+            display_name="Video First",
+            thumbnail_url="/tmp/preview.mp4",
+            base_model="SDXL",
+        )
+        model_id = await model_repo.upsert_model(
+            "vidfirst.safetensors", "loras", "civitai", "vidfirst", ""
+        )
+        await model_repo.set_model_catalog_entry("vidfirst.safetensors", entry_id)
+        await model_repo.add_media(model_id, "video", "/tmp/first.mp4")
+        await model_repo.add_media(model_id, "image", "/tmp/fallback.jpg")
+
+        resp = await client.get("/tiny-model-manager/api/catalog")
+        entry = next(
+            e for e in (await resp.json())["data"]["entries"] if e["source_page_id"] == "vidfirst"
+        )
+        assert entry["thumbnail_url"] == "/tmp/fallback.jpg"
+        assert entry["is_video_only"] is False
+
     async def test_catalog_list_trigger_words_empty_when_none(self, client, ext_dir):
         await _make_entry()
         resp = await client.get("/tiny-model-manager/api/catalog")

@@ -241,6 +241,16 @@
     object-fit: cover;
     display: block;
   }
+
+  .video-only-icon {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    color: var(--text-muted, #888);
+  }
 }
 
 .row-info {

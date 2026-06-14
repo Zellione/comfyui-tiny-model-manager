@@ -1,7 +1,9 @@
+import asyncio
 import json
 import os
 from datetime import UTC, datetime
 
+from ..video_poster import extract_video_poster
 from .database import get_db
 
 _MAX_DESCRIPTION = 10_000
@@ -12,6 +14,7 @@ _MAX_WORD = 200
 _MAX_TAG = 200
 _MAX_PATH = 1_000
 _ALLOWED_MEDIA_TYPES = {"image", "video"}
+_VIDEO_PATH_EXTS = (".mp4", ".webm", ".mov")
 _MEDIA_SELECT = "SELECT id, media_type, local_path FROM model_media WHERE model_id = ?"
 _REPO_FILES_FROM_WHERE = " FROM repo_files WHERE catalog_entry_id = ?"
 _DELETE_TRIGGER_WORDS = "DELETE FROM trigger_words WHERE model_id = ?"
@@ -512,6 +515,72 @@ async def get_first_image_path(model_id: int) -> str | None:
         return row["local_path"] if row else None
 
 
+async def _fill_thumbnail(db, e: dict) -> None:
+    thumb = e.get("thumbnail_url", "")
+    if thumb and thumb.lower().endswith(_VIDEO_PATH_EXTS):
+        e["thumbnail_url"] = ""
+    if not e["thumbnail_url"]:
+        row = await (
+            await db.execute(
+                "SELECT mm.local_path FROM model_media mm"
+                " JOIN models m ON mm.model_id = m.id"
+                " WHERE m.catalog_entry_id = ? AND mm.media_type = 'image' LIMIT 1",
+                (e["id"],),
+            )
+        ).fetchone()
+        if row:
+            e["thumbnail_url"] = row["local_path"]
+
+
+async def _fill_model_type(db, e: dict, installed: list) -> None:
+    if installed:
+        e["model_type"] = installed[0]["model_type"] or "other"
+        return
+    rf = await (
+        await db.execute(
+            "SELECT model_type FROM repo_files WHERE catalog_entry_id = ? LIMIT 1",
+            (e["id"],),
+        )
+    ).fetchone()
+    e["model_type"] = rf["model_type"] if rf else "other"
+
+
+async def _fill_video_status(db, e: dict) -> None:
+    rows = await (
+        await db.execute(
+            "SELECT mm.media_type, mm.local_path FROM model_media mm"
+            " JOIN models m ON mm.model_id = m.id"
+            " WHERE m.catalog_entry_id = ? GROUP BY mm.media_type, mm.local_path",
+            (e["id"],),
+        )
+    ).fetchall()
+    types = {r["media_type"] for r in rows}
+    if "video" not in types or "image" in types:
+        e["is_video_only"] = False
+        return
+    first_video = next((r["local_path"] for r in rows if r["media_type"] == "video"), None)
+    poster = await asyncio.to_thread(extract_video_poster, first_video) if first_video else None
+    if poster:
+        model_row = await (
+            await db.execute(
+                "SELECT id FROM models WHERE catalog_entry_id = ? LIMIT 1",
+                (e["id"],),
+            )
+        ).fetchone()
+        if model_row:
+            await db.execute(
+                "INSERT OR IGNORE INTO model_media (model_id, media_type, local_path)"
+                " VALUES (?, 'image', ?)",
+                (model_row["id"], poster),
+            )
+            await db.commit()
+        e["thumbnail_url"] = poster
+        e["is_video_only"] = False
+    else:
+        e["is_video_only"] = True
+        e["first_video_path"] = first_video
+
+
 async def list_catalog_entries() -> list[dict]:
     async with get_db() as db:
         entries = await (
@@ -525,6 +594,7 @@ async def list_catalog_entries() -> list[dict]:
         for entry in entries:
             e = dict(entry)
             e["trigger_words"] = _parse_json_list(e.get("trigger_words", ""))
+            await _fill_thumbnail(db, e)
             installed = list(
                 await (
                     await db.execute(
@@ -534,17 +604,8 @@ async def list_catalog_entries() -> list[dict]:
                 ).fetchall()
             )
             e["installed_files"] = [dict(r) for r in installed]
-            # Derive a model_type for section grouping (from installed files or repo_files)
-            if installed:
-                e["model_type"] = installed[0]["model_type"] or "other"
-            else:
-                rf = await (
-                    await db.execute(
-                        "SELECT model_type FROM repo_files WHERE catalog_entry_id = ? LIMIT 1",
-                        (e["id"],),
-                    )
-                ).fetchone()
-                e["model_type"] = rf["model_type"] if rf else "other"
+            await _fill_model_type(db, e, installed)
+            await _fill_video_status(db, e)
             result.append(e)
         return result
 

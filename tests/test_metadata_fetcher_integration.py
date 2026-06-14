@@ -1,6 +1,7 @@
 """Integration tests for metadata_fetcher: retry logic and subfolder organization."""
 
 import os
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -198,6 +199,111 @@ class TestDownloadImagesIdempotency:
             import shutil
 
             shutil.rmtree(dest_dir)
+
+
+class TestDownloadCatalogImages:
+    """_download_catalog_images must return the first image path and skip videos."""
+
+    def _make_transport(self, responses: list[tuple[bytes, str]]) -> httpx.MockTransport:
+        """Each entry is (content, content-type) served in sequence."""
+        calls = iter(responses)
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            content, ct = next(calls)
+            return httpx.Response(200, content=content, headers={"content-type": ct})
+
+        return httpx.MockTransport(handler)
+
+    async def test_returns_first_image_when_first_url_is_image(self, ext_dir):
+        from py import config as cfg
+        from py.services.metadata_fetcher import _download_catalog_images
+
+        transport = self._make_transport([(b"\xff\xd8\xff", "image/jpeg")])
+        orig = httpx.AsyncClient
+        with patch.object(httpx, "AsyncClient", lambda **kw: orig(transport=transport, **kw)):
+            path = await _download_catalog_images(
+                "hash_img_first", ["https://image.civitai.com/1.jpg"]
+            )
+
+        assert path != "", "should return the image path"
+        assert not path.lower().endswith((".mp4", ".webm", ".mov"))
+        import shutil
+
+        shutil.rmtree(os.path.join(cfg.media_dir(), "hash_img_first"), ignore_errors=True)
+
+    async def test_skips_video_and_returns_first_image(self, ext_dir):
+        from py import config as cfg
+        from py.services.metadata_fetcher import _download_catalog_images
+
+        transport = self._make_transport(
+            [
+                (b"\x00\x00\x00\x18ftyp", "video/mp4"),
+                (b"\xff\xd8\xff", "image/jpeg"),
+            ]
+        )
+        orig = httpx.AsyncClient
+        with patch.object(httpx, "AsyncClient", lambda **kw: orig(transport=transport, **kw)):
+            path = await _download_catalog_images(
+                "hash_video_skip",
+                ["https://image.civitai.com/1.mp4", "https://image.civitai.com/2.jpg"],
+            )
+
+        assert path != "", "should return second (image) path when first is a video"
+        assert not path.lower().endswith(".mp4"), "returned path must not be a video"
+        import shutil
+
+        shutil.rmtree(os.path.join(cfg.media_dir(), "hash_video_skip"), ignore_errors=True)
+
+    async def test_returns_empty_when_all_urls_are_videos_and_no_extractor(self, ext_dir):
+        from py import config as cfg
+        from py.services.metadata_fetcher import _download_catalog_images
+
+        transport = self._make_transport(
+            [
+                (b"\x00\x00\x00\x18ftyp", "video/mp4"),
+                (b"\x1aE\xdf\xa3", "video/webm"),
+            ]
+        )
+        orig = httpx.AsyncClient
+        with (
+            patch.object(httpx, "AsyncClient", lambda **kw: orig(transport=transport, **kw)),
+            patch("py.services.metadata_fetcher.extract_video_poster", return_value=None),
+        ):
+            path = await _download_catalog_images(
+                "hash_all_video",
+                ["https://image.civitai.com/1.mp4", "https://image.civitai.com/2.webm"],
+            )
+
+        assert path == "", "should return empty string when all media are videos and no extractor"
+        import shutil
+
+        shutil.rmtree(os.path.join(cfg.media_dir(), "hash_all_video"), ignore_errors=True)
+
+    async def test_returns_poster_when_all_urls_are_videos_and_extractor_available(self, ext_dir):
+        from py import config as cfg
+        from py.services.metadata_fetcher import _download_catalog_images
+
+        transport = self._make_transport([(b"\x00\x00\x00\x18ftyp", "video/mp4")])
+        orig = httpx.AsyncClient
+
+        def fake_extract(video_path):
+            poster_path = os.path.splitext(video_path)[0] + "_poster.jpg"
+            Path(poster_path).write_bytes(b"\xff\xd8\xff")
+            return poster_path
+
+        with (
+            patch.object(httpx, "AsyncClient", lambda **kw: orig(transport=transport, **kw)),
+            patch("py.services.metadata_fetcher.extract_video_poster", side_effect=fake_extract),
+        ):
+            path = await _download_catalog_images(
+                "hash_all_video_poster",
+                ["https://image.civitai.com/1.mp4"],
+            )
+
+        assert path.endswith("_poster.jpg"), "should return the extracted poster path"
+        import shutil
+
+        shutil.rmtree(os.path.join(cfg.media_dir(), "hash_all_video_poster"), ignore_errors=True)
 
 
 class TestFetchRepoFilesAllVersions:

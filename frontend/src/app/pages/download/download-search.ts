@@ -534,7 +534,13 @@ export class DownloadSearch {
   formatSize = formatSize;
 
   civitaiThumb(model: CivitaiModel): string {
-    return model.modelVersions?.[0]?.images?.[0]?.url ?? '';
+    const images = model.modelVersions?.[0]?.images ?? [];
+    return images.find((img) => img.type !== 'video' && !isVideo(img.url))?.url ?? '';
+  }
+
+  civitaiIsVideoOnly(model: CivitaiModel): boolean {
+    const images = model.modelVersions?.[0]?.images ?? [];
+    return images.length > 0 && images.every((img) => img.type === 'video' || isVideo(img.url));
   }
 
   civitaiGalleryImages(model: CivitaiModel): string[] {
@@ -577,6 +583,10 @@ export class DownloadSearch {
 
   hfSourceUrl(model: HfModel): string {
     return `https://huggingface.co/${model.modelId ?? model.id}`;
+  }
+
+  onImgLoad(event: Event) {
+    (event.target as HTMLImageElement).style.display = 'block';
   }
 
   onImgError(event: Event) {

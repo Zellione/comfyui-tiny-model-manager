@@ -11,11 +11,102 @@
 - When testing components that inject `TagService`, provide `{ provide: TagService, useValue: mockTagService }` where `mockTagService = { searchTags: vi.fn().mockReturnValue(EMPTY) }`.
 - i18n: ngx-translate — all user-visible strings via translation keys.
 
+## Image loading pattern (thumbnail cards)
+
+When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
+- Start the `<img>` with `style="display: none"` so the browser's broken-image icon never appears.
+- **Do NOT use `loading="lazy"` on images that start with `display: none`.** `loading="lazy"` requires the element to have a layout position (viewport proximity) to trigger loading. A `display:none` element has no position, so the browser defers loading forever and the `load` event never fires — images stay permanently hidden even when they would load successfully. Use eager loading (omit `loading="lazy"`) for thumbnails that start hidden.
+- Reveal on success: `(load)="onImgLoad($event)"` → `(event.target as HTMLImageElement).style.display = 'block'`.
+- `(error)="onImgError($event)"` → `style.display = 'none'` (already hidden, but needed for other img elements in the same template that start visible).
+- Gallery / detail-panel images that start visible still rely on `onImgError` to hide on failure.
+
 ## Autocomplete / typeahead pattern (TagAutocompleteInput)
 
 - `toObservable(inputSignal).pipe(debounceTime(200), switchMap(...), catchError(() => EMPTY), takeUntilDestroyed())` — keeps stream alive on HTTP errors.
 - Click-outside and Escape dismissal via `@HostListener('document:click')` / `@HostListener('document:keydown.escape')` + `inject(ElementRef)` containment check.
 - Merge search-result tags (instant, client-side) with DB suggestions (debounced HTTP), deduplicate via `Set`, cap at 5.
+
+## CivitAI media filtering
+
+- CivitAI image objects carry an optional `type` field (`'image'` | `'video'`). Prefer it over URL extension detection.
+- To find the first non-video item: `images.find((img) => img.type !== 'video' && !isVideo(img.url))` — `type` check is primary, `isVideo(url)` from `utils/media.ts` is the fallback for items without a `type`.
+- CivitAI does **not** provide a separate poster/thumbnail URL for video items — the only URL is the raw `.mp4`. When a static thumbnail is needed, skip videos and fall back to the existing placeholder.
+- Videos should remain in the gallery thumbnail strip (they are playable content); the image-first filter applies only to card-level thumbnails.
+- **Video-only indicator (download search page)**: when `civitaiIsVideoOnly(model)` is true (all items are `type=video` or have video URLs, and there is at least one item), the card thumbnail shows a `▶` play icon (`.video-only-icon` div inside `.row-thumb`) instead of a blank dark placeholder. Pattern: `@else if (civitaiIsVideoOnly(model)) { <div class="video-only-icon">▶</div> }`.
+- `civitaiIsVideoOnly()`: `images.length > 0 && images.every((img) => img.type === 'video' || isVideo(img.url))`.
+
+## Catalog page thumbnail fallback (installed models)
+
+- `catalog_entries.thumbnail_url` can contain a stale video path (`.mp4`/`.webm`/`.mov`) if it was stored before the video-skip fix in `_download_catalog_images`.
+- `list_catalog_entries()` in `model_repo.py` handles this at read time:
+  1. Clears `thumbnail_url` if it ends with a video extension.
+  2. If `thumbnail_url` is still empty, queries `model_media` (joined via `models.catalog_entry_id`) for the first `media_type = 'image'` local path and uses that.
+- `CatalogEntry` has `is_video_only?: boolean` and `first_video_path?: string` fields (both optional to avoid breaking existing spec fixtures):
+  - `is_video_only = true` when installed model has video media records but **no** image media at all.
+  - `first_video_path` is set (alongside `is_video_only = true`) when lazy poster extraction in `list_catalog_entries()` fails — the frontend uses it to request the poster on-demand via `/api/media-poster/`.
+  - If lazy extraction **succeeds**, `thumbnail_url` is set to the poster path and `is_video_only = false`; `first_video_path` is not included.
+- **Catalog card template** (in `models.html`):
+  ```
+  @if (catalogThumbnailUrl(entry)) {
+    <img class="thumb" ... />
+  } @else if (entry.is_video_only && entry.first_video_path) {
+    <div class="thumb-video-only">▶</div>
+    <img class="thumb" [src]="videoPosterUrl(entry.first_video_path)" style="display: none"
+         (load)="onVideoPosterLoad($event)" (error)="onImgError($event)" />
+  } @else if (entry.is_video_only) {
+    <div class="thumb-video-only">▶</div>
+  }
+  ```
+  The ▶ div comes **before** the img so `previousElementSibling` works in `onVideoPosterLoad`.
+- `videoPosterUrl()` and `onVideoPosterLoad()` are defined on the `Models` component (same implementation as `MediaGallery`).
+- `_download_catalog_images` in `metadata_fetcher.py` always skips video files (`_VIDEO_EXTS = {"mp4", "webm", "mov"}`) and returns the first image path; falls back to poster extraction when all URLs are videos.
+
+## Video poster extraction (`py/video_poster.py`)
+
+- **Location**: `py/video_poster.py` — stdlib-only imports at module level; `av` is imported lazily inside `_extract_with_av`. No circular imports.
+- **Public API**: `extract_video_poster(video_path: str) -> str | None`
+  - Idempotent: returns existing `<stem>_poster.jpg` immediately if it already exists.
+  - Tries `_extract_with_av` first, then `_extract_with_ffmpeg` as fallback.
+  - Returns `None` if both fail; caller falls back to the ▶ icon.
+  - Run from async code with `await asyncio.to_thread(extract_video_poster, path)`.
+- **`_extract_with_av`**: uses the `av` package (PyAV, already in comfy-env, bundles libav — no system ffmpeg needed). Iterates `container.decode(stream)`, calls `frame.to_image()` on the first video frame, saves as JPEG. `av` is imported inside the function so the module stays importable even without it.
+- **`_extract_with_ffmpeg`**: subprocess fallback — only runs if `shutil.which("ffmpeg")` finds a system binary. Uses `-vframes 1 -q:v 2`.
+- **Where used**:
+  - `_download_catalog_images`: poster extraction when all downloaded files are videos; returns poster path instead of `""`.
+  - `_download_images`: poster extraction when no image files downloaded; stored via `add_media(model_id, "image", poster)`.
+  - `list_catalog_entries()`: lazy extraction for existing video-only entries; stored via `INSERT OR IGNORE INTO model_media` so the next request finds the image record normally.
+  - `_serve_video_poster` route: on-demand extraction for any video in media_dir (see below).
+- **Testing pattern**: mock `py.services.metadata_fetcher.extract_video_poster` (the imported name in the caller) — avoids coupling tests to av/ffmpeg internals. Unit tests for `_extract_with_av` and `_extract_with_ffmpeg` live in `tests/test_video_poster.py`.
+- **Fallback**: when ffmpeg is unavailable or extraction fails, the ▶ play icon is shown (frontend `is_video_only` branch).
+
+## On-demand video poster route (`GET /api/media-poster/{path}`)
+
+- **Route**: `GET /tiny-model-manager/api/media-poster/{path:.*}` in `py/routes/metadata.py` — handled by `_serve_video_poster`.
+- **Purpose**: lazily extract and serve the first video frame as a JPEG poster for **any** video inside `media_dir`, including models that have both video and image media (where pre-extraction in `_download_images` is skipped because `has_image` is true).
+- **Flow**: validate path is within `media_dir()` via `contained_path()` → 403 on escape; 404 if file missing on disk; `asyncio.to_thread(extract_video_poster, full_path)` → 404 if extraction returns `None`; `web.FileResponse(poster)` on success.
+- **Caching**: `extract_video_poster` saves the poster as `<stem>_poster.jpg` beside the video on first call and returns it immediately on subsequent calls — no re-extraction.
+- **`extract_video_poster` is imported at module level** in `metadata.py` (unlike other cfg/service lazy imports) so the name is patchable in tests via `patch("py.routes.metadata.extract_video_poster", ...)`.
+- **Frontend `videoPosterUrl(localPath)`**: returns `/tiny-model-manager/api/media-poster/${encodeURIComponent(localPath)}` — implemented on both `MediaGallery` and the `Models` page component. **Do NOT** derive the poster path by convention (`<stem>_poster.jpg`) on the frontend; the route handles extraction on demand.
+- **Tests**: `TestServeVideoPoster` in `tests/test_routes_metadata.py` — 4 tests covering success (extraction succeeds), extraction failure (→ 404), missing file (→ 404), and path traversal (→ 403/404).
+
+## Video gallery thumbnail poster pattern (`MediaGallery` and catalog cards)
+
+- `videoPosterUrl(localPath: string)` → `/tiny-model-manager/api/media-poster/${encodeURIComponent(localPath)}`. Defined on `MediaGallery` and `Models` page component (same implementation).
+- **▶ + poster img pattern** (used in both gallery thumbnail strip and catalog cards):
+  - Render `▶` div first (visible by default), then an `<img style="display: none">` pointing at the poster URL.
+  - `(load)="onVideoPosterLoad($event)"`: shows the img (`display: block`) and hides the preceding sibling via `img.previousElementSibling.style.display = 'none'`.
+  - `(error)="onImgError($event)"`: keeps img hidden; ▶ stays visible.
+  - The ▶ div **must come before** the img in the DOM — `onVideoPosterLoad` relies on `previousElementSibling`.
+- **Main panel video in MediaGallery**: `[poster]="videoPosterUrl(m.local_path)"` on the `<video>` element — native HTML5 poster, no JS needed.
+- **Catalog cards**: wrap is not needed (unlike `.gallery-thumb-video-wrap`); ▶ div and img are siblings inside `.thumb-link`. The `img` uses `class="thumb"` (same as normal thumbnails) so it fills the card slot.
+
+## Cognitive complexity (SonarQube S3776)
+
+- SonarQube enforces a max cognitive complexity of **15** per function (rule `python:S3776`).
+- When a Python async function exceeds 15, extract private helper coroutines (`async def _helper(db, e: dict) -> None`) that each own a single responsibility. The caller becomes a thin orchestrator.
+- **Pattern used in `model_repo.py`** (`list_catalog_entries`): extracted `_fill_thumbnail`, `_fill_model_type`, `_fill_video_status` — each is `async`, accepts `db` and the mutable entry dict `e`, mutates `e` in place, returns `None`.
+- Module-level constants shared by helpers (e.g. `_VIDEO_PATH_EXTS`) go alongside the other `_UPPER_CASE` constants at the top of the file.
+- Private helpers are not tested directly; coverage comes from route/integration tests that exercise the public function.
 
 ## JS Extension (js/)
 
