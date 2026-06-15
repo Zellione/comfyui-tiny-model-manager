@@ -108,6 +108,35 @@ describe('TagAutocompleteInput', () => {
     expect(cmp.suggestions().length).toBeLessThanOrEqual(5);
   });
 
+  it('onDocClick keeps the panel open when the click target is inside the host', async () => {
+    const fixture = await createFixture();
+    const cmp = fixture.componentInstance;
+    cmp.onInput('a');
+    expect(cmp.open()).toBe(true);
+    const inner = fixture.nativeElement.querySelector('input') as Node;
+    cmp.onDocClick({ target: inner } as unknown as MouseEvent);
+    expect(cmp.open()).toBe(true);
+  });
+
+  it('onDocClick closes the panel when the click target is outside the host', async () => {
+    const fixture = await createFixture();
+    const cmp = fixture.componentInstance;
+    cmp.onInput('a');
+    expect(cmp.open()).toBe(true);
+    const outside = document.createElement('div');
+    cmp.onDocClick({ target: outside } as unknown as MouseEvent);
+    expect(cmp.open()).toBe(false);
+  });
+
+  it('onDocClick closes the panel when the click target is not a Node', async () => {
+    const fixture = await createFixture();
+    const cmp = fixture.componentInstance;
+    cmp.onInput('a');
+    expect(cmp.open()).toBe(true);
+    cmp.onDocClick({ target: null } as unknown as MouseEvent);
+    expect(cmp.open()).toBe(false);
+  });
+
   it('escape closes the panel', async () => {
     const fixture = await createFixture();
     const cmp = fixture.componentInstance;

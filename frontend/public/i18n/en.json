@@ -228,6 +228,9 @@
     "filter": {
       "all_base_models": "All base models",
       "default_sort": "Default sort",
+      "sort_label": "Sort by",
+      "period_label": "Time period",
+      "format_label": "Filter by format",
       "tag_placeholder": "Filter by tag…",
       "tag_limit_hint": "CivitAI only supports one server-side tag filter. The first tag narrows the API results; additional tags are applied locally.",
       "clear_tags": "Clear all"

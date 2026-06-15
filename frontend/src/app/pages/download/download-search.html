@@ -13,6 +13,7 @@
     [ngModel]="query()"
     (ngModelChange)="query.set($event)"
     [placeholder]="'download_search.placeholder' | translate"
+    [attr.aria-label]="'download_search.placeholder' | translate"
     (keyup.enter)="search()"
   />
   @if (platform() === 'civitai') {
@@ -28,34 +29,54 @@
 
   <div class="filter-row">
     @if (platform() === 'civitai') {
-      <select [ngModel]="civitaiBaseModel()" (ngModelChange)="civitaiBaseModel.set($event)">
+      <select
+        [ngModel]="civitaiBaseModel()"
+        (ngModelChange)="civitaiBaseModel.set($event)"
+        [attr.aria-label]="'download_search.filter.all_base_models' | translate"
+      >
         <option value="">{{ 'download_search.filter.all_base_models' | translate }}</option>
         @for (bm of civitaiBaseModelOptions; track bm) {
           <option [value]="bm">{{ bm }}</option>
         }
       </select>
-      <select [ngModel]="civitaiSort()" (ngModelChange)="civitaiSort.set($event)">
+      <select
+        [ngModel]="civitaiSort()"
+        (ngModelChange)="civitaiSort.set($event)"
+        [attr.aria-label]="'download_search.filter.sort_label' | translate"
+      >
         <option value="">{{ 'download_search.filter.default_sort' | translate }}</option>
         @for (o of civitaiSortOptions; track o.value) {
           <option [value]="o.value">{{ o.label | translate }}</option>
         }
       </select>
       @if (civitaiSort()) {
-        <select [ngModel]="civitaiPeriod()" (ngModelChange)="civitaiPeriod.set($event)">
+        <select
+          [ngModel]="civitaiPeriod()"
+          (ngModelChange)="civitaiPeriod.set($event)"
+          [attr.aria-label]="'download_search.filter.period_label' | translate"
+        >
           @for (o of civitaiPeriodOptions; track o.value) {
             <option [value]="o.value">{{ o.label | translate }}</option>
           }
         </select>
       }
     } @else {
-      <select [ngModel]="hfSort()" (ngModelChange)="hfSort.set($event)">
+      <select
+        [ngModel]="hfSort()"
+        (ngModelChange)="hfSort.set($event)"
+        [attr.aria-label]="'download_search.filter.sort_label' | translate"
+      >
         @for (o of hfSortOptions; track o.value) {
           <option [value]="o.value">{{ o.label | translate }}</option>
         }
       </select>
     }
 
-    <select [ngModel]="formatFilter()" (ngModelChange)="formatFilter.set($event)">
+    <select
+      [ngModel]="formatFilter()"
+      (ngModelChange)="formatFilter.set($event)"
+      [attr.aria-label]="'download_search.filter.format_label' | translate"
+    >
       @for (o of formatOptions; track o.value) {
         <option [value]="o.value">{{ o.label | translate }}</option>
       }
@@ -318,6 +339,7 @@
                             (change)="toggleCivitaiFile(v.id, f)"
                             (click)="$event.stopPropagation()"
                             (keydown)="$event.stopPropagation()"
+                            [attr.aria-label]="f.name"
                           />
                           <span>{{ f.name }}</span>
                           @if (!f.primary) {

@@ -3,6 +3,7 @@
     <input
       type="text"
       [placeholder]="'download_search.filter.tag_placeholder' | translate"
+      [attr.aria-label]="'download_search.filter.tag_placeholder' | translate"
       [value]="inputValue()"
       (input)="onInput($any($event.target).value)"
       (keydown.enter)="onEnter()"

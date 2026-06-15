@@ -85,9 +85,11 @@ export class TagAutocompleteInput {
 
   @HostListener('document:click', ['$event'])
   onDocClick(ev: MouseEvent) {
-    if (!this.host.nativeElement.contains(ev.target as Node)) {
-      this.open.set(false);
+    const target = ev.target;
+    if (target instanceof Node && this.host.nativeElement.contains(target)) {
+      return;
     }
+    this.open.set(false);
   }
 
   @HostListener('document:keydown.escape')

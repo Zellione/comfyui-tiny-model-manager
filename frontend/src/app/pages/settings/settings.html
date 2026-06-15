@@ -34,6 +34,7 @@
                     [ngModel]="editKeyword()"
                     (ngModelChange)="editKeyword.set($event)"
                     [placeholder]="'settings.keywords.placeholder.keyword' | translate"
+                    [attr.aria-label]="'settings.keywords.header.keyword' | translate"
                     (keydown.enter)="saveEdit()"
                     (keydown.escape)="cancelEdit()"
                   />
@@ -44,6 +45,7 @@
                     [ngModel]="editBaseModel()"
                     (ngModelChange)="editBaseModel.set($event)"
                     [placeholder]="'settings.keywords.placeholder.base_model' | translate"
+                    [attr.aria-label]="'settings.keywords.header.base_model' | translate"
                     (keydown.enter)="saveEdit()"
                     (keydown.escape)="cancelEdit()"
                   />
@@ -53,6 +55,7 @@
                     class="kw-select"
                     [ngModel]="editModelType()"
                     (ngModelChange)="editModelType.set($event)"
+                    [attr.aria-label]="'settings.keywords.header.model_type' | translate"
                   >
                     <option value="">{{ 'settings.keywords.no_model_type' | translate }}</option>
                     @for (t of modelTypes; track t) {
@@ -96,6 +99,7 @@
                 [ngModel]="newKeyword()"
                 (ngModelChange)="newKeyword.set($event)"
                 [placeholder]="'settings.keywords.placeholder.new' | translate"
+                [attr.aria-label]="'settings.keywords.header.keyword' | translate"
                 (keydown.enter)="addKeyword()"
               />
             </td>
@@ -105,6 +109,7 @@
                 [ngModel]="newBaseModel()"
                 (ngModelChange)="newBaseModel.set($event)"
                 [placeholder]="'settings.keywords.placeholder.base_model' | translate"
+                [attr.aria-label]="'settings.keywords.header.base_model' | translate"
                 (keydown.enter)="addKeyword()"
               />
             </td>
@@ -113,6 +118,7 @@
                 class="kw-select"
                 [ngModel]="newModelType()"
                 (ngModelChange)="newModelType.set($event)"
+                [attr.aria-label]="'settings.keywords.header.model_type' | translate"
               >
                 <option value="">{{ 'settings.keywords.no_model_type' | translate }}</option>
                 @for (t of modelTypes; track t) {

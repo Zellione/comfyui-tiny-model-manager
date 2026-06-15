@@ -82,6 +82,7 @@
               class="link-source-input"
               type="text"
               [placeholder]="'model_detail.source_placeholder' | translate"
+              [attr.aria-label]="'model_detail.source_placeholder' | translate"
               [value]="linkSourceUrl()"
               (input)="linkSourceUrl.set($any($event.target).value)"
               (keyup.enter)="linkSource()"
