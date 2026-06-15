@@ -10,6 +10,7 @@
 - New services: mock `activeTasks$` as `of([])` and `completedTasks$` as `EMPTY` when testing components that inject `DownloadService`.
 - When testing components that inject `TagService`, provide `{ provide: TagService, useValue: mockTagService }` where `mockTagService = { searchTags: vi.fn().mockReturnValue(EMPTY) }`.
 - i18n: ngx-translate — all user-visible strings via translation keys.
+- **Form-control labeling (SonarQube `Web:InputWithoutLabelCheck`, a RELIABILITY bug)**: every `<input>` (except submit/button/image/hidden), `<select>` and `<textarea>` must have an associated label. Preferred fix is `[attr.aria-label]="'<key>' | translate"` (no layout change); reuse the placeholder/header translation key where one exists, or bind a meaningful value (e.g. `[attr.aria-label]="f.name"` for per-file checkboxes). Inputs wrapped in a `<label>…</label>` (implicit label) are already compliant.
 
 ## Angular service HTTP pattern
 
