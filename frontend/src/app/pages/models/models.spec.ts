@@ -868,14 +868,33 @@ describe('Models component', () => {
       });
     });
 
-    it('submitRegister() sets error on failure', async () => {
+    it('submitRegister() sets generic error on failure', async () => {
       mockModelService.registerModel.mockReturnValue(
-        throwError(() => ({ error: { detail: 'something' } })),
+        throwError(() => ({ error: { error: 'some_other_error' } })),
       );
 
       const component = await getComponent();
       const file = {
         filename: 'test.safetensors',
+        base_dir: '/models',
+        size_bytes: 100,
+        modified_at: 0,
+      };
+      component.openRegisterForm('checkpoints', file);
+      component.submitRegister();
+
+      expect(component.registerForm().saving).toBe(false);
+      expect(component.registerForm().error).not.toBe('');
+    });
+
+    it('submitRegister() shows file_gone message when file not found', async () => {
+      mockModelService.registerModel.mockReturnValue(
+        throwError(() => ({ error: { error: 'file_not_found' } })),
+      );
+
+      const component = await getComponent();
+      const file = {
+        filename: 'missing.safetensors',
         base_dir: '/models',
         size_bytes: 100,
         modified_at: 0,

@@ -429,7 +429,7 @@ export class Models implements OnInit {
       },
       error: (err) => {
         const msg =
-          err?.error?.detail === 'file_not_found'
+          err?.error?.error === 'file_not_found'
             ? this.translate.instant('models.unregistered.file_gone')
             : this.translate.instant('models.unregistered.register_failed');
         this.registerForm.update((f) => ({ ...f, saving: false, error: msg }));
