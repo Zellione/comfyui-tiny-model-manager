@@ -4,6 +4,7 @@
     type="text"
     [value]="value()"
     [placeholder]="placeholder()"
+    [attr.aria-label]="placeholder()"
     (input)="onInput($any($event.target).value)"
     (focus)="onFocus()"
     (click)="$any($event.target).select()"

@@ -28,6 +28,7 @@
         <select
           [value]="baseModelFilter()"
           (change)="baseModelFilter.set($any($event.target).value)"
+          [attr.aria-label]="'models.filter_base' | translate"
         >
           <option value="">{{ 'models.filter_all' | translate }}</option>
           <option value="__unknown__">{{ 'models.filter_unknown' | translate }}</option>
@@ -40,7 +41,11 @@
 
       <div class="filter">
         <span class="filter-label">{{ 'models.filter_source' | translate }}</span>
-        <select [value]="sourceFilter()" (change)="sourceFilter.set($any($event.target).value)">
+        <select
+          [value]="sourceFilter()"
+          (change)="sourceFilter.set($any($event.target).value)"
+          [attr.aria-label]="'models.filter_source' | translate"
+        >
           @for (opt of sourceOptions; track opt.value) {
             <option [value]="opt.value">{{ opt.label | translate }}</option>
           }
@@ -50,7 +55,11 @@
 
       <div class="filter">
         <span class="filter-label">{{ 'models.filter_sort' | translate }}</span>
-        <select [value]="sortBy()" (change)="sortBy.set($any($event.target).value)">
+        <select
+          [value]="sortBy()"
+          (change)="sortBy.set($any($event.target).value)"
+          [attr.aria-label]="'models.filter_sort' | translate"
+        >
           @for (opt of sortOptions; track opt.value) {
             <option [value]="opt.value">{{ opt.label | translate }}</option>
           }

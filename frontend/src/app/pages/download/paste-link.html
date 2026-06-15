@@ -6,6 +6,7 @@
       [ngModel]="pasteUrl()"
       (ngModelChange)="onPasteUrlChange($event)"
       [placeholder]="'paste_link.placeholder' | translate"
+      [attr.aria-label]="'paste_link.placeholder' | translate"
     />
   </div>
 
@@ -158,6 +159,7 @@
                     (change)="toggleLinkCivitaiFile(v.id, f)"
                     (click)="$event.stopPropagation()"
                     (keydown)="$event.stopPropagation()"
+                    [attr.aria-label]="f.name"
                   />
                   <span>{{ f.name }}</span>
                   @if (!f.primary) {

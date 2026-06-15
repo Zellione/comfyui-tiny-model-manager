@@ -17,6 +17,7 @@
       [ngModel]="historySearch()"
       (ngModelChange)="historySearch.set($event)"
       [placeholder]="'download_history.placeholder' | translate"
+      [attr.aria-label]="'download_history.placeholder' | translate"
     />
   </div>
 

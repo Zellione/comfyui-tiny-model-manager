@@ -11,6 +11,7 @@
     <input
       [(ngModel)]="newTriggerWord"
       [placeholder]="'edit_meta.add_trigger_word_placeholder' | translate"
+      [attr.aria-label]="'edit_meta.add_trigger_word_placeholder' | translate"
       (keyup.enter)="addTriggerWord()"
     />
     <button type="button" class="btn small" (click)="addTriggerWord()">
@@ -32,6 +33,7 @@
     <input
       [(ngModel)]="newTag"
       [placeholder]="'edit_meta.add_tag_placeholder' | translate"
+      [attr.aria-label]="'edit_meta.add_tag_placeholder' | translate"
       (keyup.enter)="addTag()"
     />
     <button type="button" class="btn small" (click)="addTag()">
