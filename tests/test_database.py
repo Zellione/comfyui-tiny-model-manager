@@ -99,6 +99,16 @@ class TestMigrateDb:
         await _migrate_db()
         await _migrate_db()  # second call should be a no-op
 
+
+class TestFileHashColumn:
+    async def test_file_hash_column_exists(self, ext_dir):
+        from py import config as cfg
+
+        async with aiosqlite.connect(cfg.db_path()) as db:
+            cur = await db.execute("PRAGMA table_info(models)")
+            cols = [row[1] for row in await cur.fetchall()]
+            assert "file_hash" in cols
+
     async def test_init_db_idempotent(self, ext_dir):
         from py.db.database import init_db
 

@@ -508,3 +508,68 @@ class TestRepoFiles:
         await model_repo.upsert_model("orphan.safetensors", "loras", "", "", "")
         rows = await model_repo.get_repo_files("loras", "orphan.safetensors")
         assert rows == []
+
+
+class TestGetRegisteredFilenames:
+    async def test_empty_when_no_models(self, ext_dir):
+        from py.db import model_repo
+
+        result = await model_repo.get_registered_filenames()
+        assert result == set()
+
+    async def test_includes_upserted_model(self, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_model("model1.safetensors", "checkpoints", "", "", "")
+        await model_repo.upsert_model("model2.safetensors", "loras", "", "", "")
+        result = await model_repo.get_registered_filenames()
+        assert result == {"model1.safetensors", "model2.safetensors"}
+
+    async def test_includes_registered_model(self, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.register_model("model3.safetensors", "checkpoints")
+        result = await model_repo.get_registered_filenames()
+        assert "model3.safetensors" in result
+
+
+class TestRegisterModel:
+    async def test_minimal_registration(self, ext_dir):
+        from py.db import model_repo
+
+        mid = await model_repo.register_model("mymodel.safetensors", "checkpoints")
+        assert isinstance(mid, int)
+        assert mid > 0
+        row = await model_repo.get_model_by_filename("mymodel.safetensors")
+        assert row is not None
+        assert row["filename"] == "mymodel.safetensors"
+        assert row["model_type"] == "checkpoints"
+        assert row["base_model"] == ""
+        assert row["description"] == ""
+
+    async def test_full_registration(self, ext_dir):
+        from py.db import model_repo
+
+        mid = await model_repo.register_model(
+            "full.safetensors",
+            "loras",
+            base_model="SDXL 1.0",
+            tags=["portrait", "fantasy"],
+            description="A beautiful portrait",
+        )
+        assert isinstance(mid, int)
+        assert mid > 0
+        row = await model_repo.get_model_by_filename("full.safetensors")
+        assert row is not None
+        assert row["filename"] == "full.safetensors"
+        assert row["model_type"] == "loras"
+        assert row["base_model"] == "SDXL 1.0"
+        assert row["description"] == "A beautiful portrait"
+        assert set(row["tags"]) == {"portrait", "fantasy"}
+
+    async def test_registration_with_empty_tags_list(self, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.register_model("notags.safetensors", "checkpoints", tags=[])
+        row = await model_repo.get_model_by_filename("notags.safetensors")
+        assert row["tags"] == []

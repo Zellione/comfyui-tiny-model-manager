@@ -997,3 +997,39 @@ async def search_tags(prefix: str, limit: int = 5) -> list[str]:
             )
         ).fetchall()
         return [r["name"] for r in rows]
+
+
+async def get_registered_filenames() -> set[str]:
+    """Return the set of all registered model filenames in the database."""
+    async with get_db() as db:
+        rows = await (await db.execute("SELECT filename FROM models")).fetchall()
+        return {row["filename"] for row in rows}
+
+
+async def register_model(
+    filename: str,
+    model_type: str,
+    base_model: str = "",
+    tags: list[str] | None = None,
+    description: str = "",
+) -> int:
+    """Register a model file with minimal metadata. Returns the model ID."""
+    if tags is None:
+        tags = []
+    async with get_db() as db:
+        model_id = await _upsert_model_row(
+            db,
+            filename=filename,
+            model_type=model_type,
+            source_platform="",
+            source_id="",
+            description=description,
+            base_model=base_model,
+            civitai_model_id="",
+            media_hash="",
+            readme_html="",
+            civitai_version_name="",
+        )
+        await _set_model_tags(db, model_id, tags)
+        await db.commit()
+        return model_id
