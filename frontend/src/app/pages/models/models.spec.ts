@@ -803,6 +803,8 @@ describe('Models component', () => {
       expect(component.unregisteredFiles()).toEqual(unregisteredData);
       expect(component.unregisteredExpanded()).toBe(true);
       expect(component.scanLoading()).toBe(false);
+      expect(component.unregisteredTypeKeys()).toEqual(['checkpoints']);
+      expect(component.hasAnyUnregistered()).toBe(true);
     });
 
     it('scan() clears scanLoading on error', async () => {

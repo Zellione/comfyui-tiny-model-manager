@@ -114,4 +114,26 @@ describe('ModelService', () => {
     expect(req.request.method).toBe('PUT');
     expect(req.request.body).toEqual({ description: 'x', tags: [] });
   });
+
+  it('getUnregistered GETs /models/unregistered and unwraps data', () => {
+    const data = {
+      checkpoints: [{ filename: 'foo.safetensors', base_dir: '/m', size_bytes: 1, modified_at: 0 }],
+    };
+    let result: unknown;
+    service.getUnregistered().subscribe((r) => (result = r));
+    http.expectOne('/tiny-model-manager/api/models/unregistered').flush({ success: true, data });
+    expect(result).toEqual(data);
+  });
+
+  it('registerModel POSTs to /models/register and unwraps model_id', () => {
+    let result: unknown;
+    service
+      .registerModel({ filename: 'foo.safetensors', model_type: 'checkpoints' })
+      .subscribe((r) => (result = r));
+    const req = http.expectOne('/tiny-model-manager/api/models/register');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ filename: 'foo.safetensors', model_type: 'checkpoints' });
+    req.flush({ success: true, data: { model_id: 42 } });
+    expect(result).toEqual({ model_id: 42 });
+  });
 });
