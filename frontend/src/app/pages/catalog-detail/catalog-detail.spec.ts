@@ -659,7 +659,8 @@ describe('CatalogDetail — completedTasks$ handler', () => {
   it('shows error notification for a completed error task matching a repo file', async () => {
     vi.clearAllMocks();
     const completedTasks$ = new Subject<DownloadTask>();
-    (mockDownloadService as any).completedTasks$ = completedTasks$;
+    mockDownloadService.completedTasks$ =
+      completedTasks$ as unknown as typeof mockDownloadService.completedTasks$;
     mockModelService.getCatalogEntry.mockReturnValue(of(mockEntry));
     mockModelService.getRepoFiles.mockReturnValue(of([]));
 
@@ -681,13 +682,16 @@ describe('CatalogDetail — completedTasks$ handler', () => {
     completedTasks$.next(errorTask);
 
     expect(mockNotifService.show).toHaveBeenCalledWith('error', expect.any(String));
-    (mockDownloadService as any).completedTasks$ = of([]);
+    mockDownloadService.completedTasks$ = of(
+      [],
+    ) as unknown as typeof mockDownloadService.completedTasks$;
   });
 
   it('adds file to finalizingFiles for a completed done task matching a repo file', async () => {
     vi.clearAllMocks();
     const completedTasks$ = new Subject<DownloadTask>();
-    (mockDownloadService as any).completedTasks$ = completedTasks$;
+    mockDownloadService.completedTasks$ =
+      completedTasks$ as unknown as typeof mockDownloadService.completedTasks$;
     mockModelService.getCatalogEntry.mockReturnValue(of(mockEntry));
     mockModelService.getRepoFiles.mockReturnValue(of([]));
 
@@ -709,13 +713,16 @@ describe('CatalogDetail — completedTasks$ handler', () => {
     completedTasks$.next(doneTask);
 
     expect(fixture.componentInstance.finalizingFiles().has('test.safetensors')).toBe(true);
-    (mockDownloadService as any).completedTasks$ = of([]);
+    mockDownloadService.completedTasks$ = of(
+      [],
+    ) as unknown as typeof mockDownloadService.completedTasks$;
   });
 
   it('triggers pollUntilDownloaded and drops from finalizingFiles when file is confirmed downloaded', async () => {
     vi.clearAllMocks();
     const completedTasks$ = new Subject<DownloadTask>();
-    (mockDownloadService as any).completedTasks$ = completedTasks$;
+    mockDownloadService.completedTasks$ =
+      completedTasks$ as unknown as typeof mockDownloadService.completedTasks$;
     const downloadedEntry = {
       ...mockEntry,
       repo_files: [{ ...mockEntry.repo_files[0], is_downloaded: true }],
@@ -741,6 +748,8 @@ describe('CatalogDetail — completedTasks$ handler', () => {
     completedTasks$.next(doneTask);
 
     expect(fixture.componentInstance.finalizingFiles().has('test.safetensors')).toBe(false);
-    (mockDownloadService as any).completedTasks$ = of([]);
+    mockDownloadService.completedTasks$ = of(
+      [],
+    ) as unknown as typeof mockDownloadService.completedTasks$;
   });
 });
