@@ -113,3 +113,14 @@ class TestMediaSubdir:
 
         with pytest.raises(ValueError):
             _media_subdir("abc/def")
+
+    def test_resolved_path_is_contained_in_media_dir(self, tmp_path):
+        import py.config as cfg
+
+        cfg.init(str(tmp_path))
+        from py.services.metadata_fetcher import _media_subdir
+
+        base = os.path.realpath(cfg.media_dir())
+        resolved = _media_subdir("contained123")
+        # Defense-in-depth: the resolved directory must stay within media_dir.
+        assert resolved == base or resolved.startswith(base + os.sep)

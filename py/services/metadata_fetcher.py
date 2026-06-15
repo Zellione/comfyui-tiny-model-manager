@@ -29,7 +29,14 @@ def _media_subdir(media_hash: str) -> str:
     """Return the per-model media directory, guarding against path traversal."""
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", media_hash):
         raise ValueError(f"Invalid media hash: {media_hash!r}")
-    return os.path.realpath(os.path.join(cfg.media_dir(), media_hash))
+    base = os.path.realpath(cfg.media_dir())
+    resolved = os.path.realpath(os.path.join(base, media_hash))
+    # Defense-in-depth: the allowlist above already rejects separators, but
+    # explicitly confirm the resolved path stays inside the media directory so
+    # the safe boundary is enforced at the point where the path is constructed.
+    if resolved != base and not resolved.startswith(base + os.sep):
+        raise ValueError(f"Invalid media hash: {media_hash!r}")
+    return resolved
 
 
 async def fetch_metadata_only(platform: str, source_id: str) -> ProviderMetadata:
