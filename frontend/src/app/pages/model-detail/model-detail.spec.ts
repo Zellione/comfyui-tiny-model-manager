@@ -230,7 +230,7 @@ describe('ModelDetail', () => {
       beforeEach(() => {
         component.modelPath = 'sdxl_my-lora.safetensors';
         component.meta.set(makeMeta({ base_model: '' }));
-        (component as any).keywords = signal([sdxlKeyword]);
+        Object.assign(component, { keywords: signal([sdxlKeyword]) });
       });
 
       it('injects detected base model into refetchPreviewData when both meta and response lack one', () => {
@@ -552,7 +552,7 @@ describe('ModelDetail', () => {
         model_type: null,
         sort_order: 10,
       };
-      (component as any).keywords = signal([sdxlKeyword]);
+      Object.assign(component, { keywords: signal([sdxlKeyword]) });
       const file = makeRepoFile({
         filename: 'sdxl_companion.safetensors',
         download_url: 'https://civitai.com/api/download/models/99999',

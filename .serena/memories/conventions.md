@@ -169,9 +169,28 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
 
 - Backend route tests: create `aiohttp.web.Application`, register routes, use `aiohttp_client` fixture + `ext_dir` fixture.
 - Frontend unit tests: `TestBed.configureTestingModule` + `vi.fn()` mocks; assert signals via `fixture.componentInstance.signal()`.
-- New spec files go beside the file under test (`foo.spec.ts` next to `foo.ts`).
+- New spec files go beside the file under test (`foo.spec.ts` next to `foo.ts`)
 - Path traversal tests: add `test_*_path_traversal_rejected` to route test classes that accept user-supplied filenames (e.g. `TestRegisterModel.test_path_traversal_rejected`).
 - Whitespace input tests: add `test_*_whitespace_only_*_returns_400` when handler strips required fields.
+- **V8 function coverage for service methods**: Angular services are fully mocked in component tests, so their method bodies get 0% V8 function coverage. **Each new service method must have a dedicated test in `<service>.spec.ts` using `HttpTestingController`** — e.g., `provideHttpClientTesting()` + `TestBed.inject(HttpTestingController)` → `ctrl.expectOne(url).flush(response)`. Without this, the frontend function-coverage gate (≥62%) will fail.
+- **V8 coverage for computed signal callbacks**: `computed(() => expr)` arrow functions are separate function entries in V8. Access each computed signal at least once in a test to execute its callback and count it as covered.
+- **Reassigning Observable mock properties without `no-explicit-any`**: when a spec-file mock object has a typed `obs$: Observable<T>` property and a test needs to swap it for a `Subject<T>`, use `as unknown as typeof mockX.obs$` instead of `(mockX as any).obs$ = ...`:
+  ```typescript
+  // CORRECT — type-safe, ESLint clean
+  mockDownloadService.completedTasks$ = completedTasks$ as unknown as typeof mockDownloadService.completedTasks$;
+  mockDownloadService.completedTasks$ = of([]) as unknown as typeof mockDownloadService.completedTasks$;
+
+  // WRONG — triggers @typescript-eslint/no-explicit-any
+  (mockDownloadService as any).completedTasks$ = completedTasks$;
+  ```
+- **Assigning private/computed signals on a component under test**: use `Object.assign` instead of `(component as any)`:
+  ```typescript
+  // CORRECT
+  Object.assign(component, { keywords: signal([sdxlKeyword]) });
+
+  // WRONG — triggers @typescript-eslint/no-explicit-any
+  (component as any).keywords = signal([sdxlKeyword]);
+  ```
 
 ## Git / Commits
 
