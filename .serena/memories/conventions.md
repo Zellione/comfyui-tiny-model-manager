@@ -163,7 +163,8 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
 - **`os.path.realpath()` is the recognized S2083 sanitizer.** Applying it before `os.makedirs` / `open` breaks the taint chain.
 - **S6549 fires when** `realpath()` is called on a tainted value AND a security decision (`startswith`, `is_relative_to`) follows. Avoid `realpath`/`Path.resolve()` on settings-derived values when a security check follows.
 - Safe pattern: validate the segment with `re.fullmatch(r"[A-Za-z0-9_-]{1,128}", segment)` (no `.` or `/` → no traversal possible), then return `os.path.realpath(os.path.join(base_dir, segment))` — `realpath` satisfies S2083; no security decision needed so S6549 does not fire.
-- Pattern in `metadata_fetcher.py`: `_media_subdir()` validates `media_hash` with regex, returns `os.path.realpath(os.path.join(cfg.media_dir(), media_hash))`.
+- Pattern in `metadata_fetcher.py`: `_media_subdir()` validates `media_hash` with regex, then resolves `base = os.path.realpath(cfg.media_dir())` and `resolved = os.path.realpath(os.path.join(base, media_hash))`, and raises `ValueError` unless `resolved == base or resolved.startswith(base + os.sep)` (defense-in-depth containment). The realpath+`startswith` containment pattern is also used in `_migrate_model_media` and has **not** triggered S6549 in practice (the regex already untaints the segment), so it is safe to enforce the boundary explicitly here.
+- Two historical `pythonsecurity:S2083` BLOCKERs on the `os.makedirs` sinks fed by `_media_subdir()` (lines ~261/349) were stale taint false positives — the path is fully validated — and are marked **False Positive** in SonarQube. If they reappear after a re-scan, re-mark rather than mutating the already-safe code.
 
 ## Testing
 
