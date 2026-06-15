@@ -310,5 +310,103 @@
         </section>
       }
     }
+
+    <!-- Unregistered files section -->
+    <section class="unregistered-section">
+      <div class="unregistered-head">
+        <button class="btn-secondary btn-small" (click)="scan()" [disabled]="scanLoading()">
+          @if (scanLoading()) {
+            {{ 'models.unregistered.scanning' | translate }}
+          } @else {
+            {{ 'models.unregistered.scan' | translate }}
+          }
+        </button>
+        @if (hasAnyUnregistered()) {
+          <button class="btn-toggle" (click)="toggleUnregistered()">
+            {{ 'models.unregistered.title' | translate }}
+            <span class="count-badge">{{ unregisteredTypeKeys().length }}</span>
+            <span>{{ unregisteredExpanded() ? '▲' : '▼' }}</span>
+          </button>
+        }
+      </div>
+      @if (unregisteredExpanded() && hasAnyUnregistered()) {
+        @for (type of unregisteredTypeKeys(); track type) {
+          <div class="unregistered-type-group">
+            <h3 class="unregistered-type-label">{{ type }}</h3>
+            @for (file of unregisteredFiles()[type]; track file.filename) {
+              <div class="unregistered-file-row">
+                <span class="unregistered-filename" [title]="file.filename">{{
+                  basename(file.filename)
+                }}</span>
+                <span class="unregistered-size">{{ formatSize(file.size_bytes) }}</span>
+                <button
+                  class="btn-secondary btn-small"
+                  (click)="openRegisterForm(type, file)"
+                  [disabled]="registerFormFile()?.file?.filename === file.filename"
+                >
+                  {{ 'models.unregistered.register' | translate }}
+                </button>
+              </div>
+              @if (registerFormFile()?.file?.filename === file.filename) {
+                <div class="register-form-inline">
+                  <div class="register-form-fields">
+                    <label>
+                      <span>{{ 'models.unregistered.base_model_label' | translate }}</span>
+                      <input
+                        type="text"
+                        [value]="registerForm().baseModel"
+                        (input)="
+                          registerForm.update((f) => ({
+                            ...f,
+                            baseModel: $any($event.target).value,
+                          }))
+                        "
+                      />
+                    </label>
+                    <label>
+                      <span>{{ 'models.unregistered.tags_label' | translate }}</span>
+                      <input
+                        type="text"
+                        [value]="registerForm().tags"
+                        (input)="
+                          registerForm.update((f) => ({ ...f, tags: $any($event.target).value }))
+                        "
+                      />
+                    </label>
+                    <label>
+                      <span>{{ 'models.unregistered.description_label' | translate }}</span>
+                      <textarea
+                        [value]="registerForm().description"
+                        (input)="
+                          registerForm.update((f) => ({
+                            ...f,
+                            description: $any($event.target).value,
+                          }))
+                        "
+                      ></textarea>
+                    </label>
+                  </div>
+                  @if (registerForm().error) {
+                    <p class="register-form-error">{{ registerForm().error }}</p>
+                  }
+                  <div class="register-form-actions">
+                    <button
+                      class="btn-primary btn-small"
+                      (click)="submitRegister()"
+                      [disabled]="registerForm().saving"
+                    >
+                      {{ 'models.unregistered.save' | translate }}
+                    </button>
+                    <button class="btn-secondary btn-small" (click)="cancelRegister()">
+                      {{ 'models.unregistered.cancel' | translate }}
+                    </button>
+                  </div>
+                </div>
+              }
+            }
+          </div>
+        }
+      }
+    </section>
   }
 </div>
