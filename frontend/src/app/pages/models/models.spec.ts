@@ -33,6 +33,8 @@ const mockModelService = {
   getModelTypes: vi.fn(),
   moveModel: vi.fn(),
   getPendingQueue: vi.fn(),
+  getUnregistered: vi.fn(),
+  registerModel: vi.fn(),
 };
 
 const mockWorkflowService = {
@@ -780,6 +782,139 @@ describe('Models component', () => {
       const channel = capturedChannel!;
       TestBed.resetTestingModule();
       expect(channel.close).toHaveBeenCalled();
+    });
+  });
+
+  describe('disk scanner', () => {
+    it('scan() populates unregisteredFiles and sets expanded true', async () => {
+      const unregisteredData = {
+        checkpoints: [
+          {
+            filename: 'foo.safetensors',
+            base_dir: '/models',
+            size_bytes: 100,
+            modified_at: 0,
+          },
+        ],
+      };
+      mockModelService.getUnregistered.mockReturnValue(of(unregisteredData));
+      const component = await getComponent();
+      component.scan();
+      expect(component.unregisteredFiles()).toEqual(unregisteredData);
+      expect(component.unregisteredExpanded()).toBe(true);
+      expect(component.scanLoading()).toBe(false);
+      expect(component.unregisteredTypeKeys()).toEqual(['checkpoints']);
+      expect(component.hasAnyUnregistered()).toBe(true);
+    });
+
+    it('scan() clears scanLoading on error', async () => {
+      mockModelService.getUnregistered.mockReturnValue(throwError(() => new Error('fail')));
+      const component = await getComponent();
+      component.scan();
+      expect(component.scanLoading()).toBe(false);
+    });
+
+    it('openRegisterForm() sets registerFormFile with type and file', async () => {
+      const component = await getComponent();
+      const file = {
+        filename: 'test.safetensors',
+        base_dir: '/models',
+        size_bytes: 100,
+        modified_at: 0,
+      };
+      component.openRegisterForm('checkpoints', file);
+      expect(component.registerFormFile()).toEqual({ type: 'checkpoints', file });
+      expect(component.registerForm().modelType).toBe('checkpoints');
+    });
+
+    it('cancelRegister() clears registerFormFile', async () => {
+      const component = await getComponent();
+      const file = {
+        filename: 'test.safetensors',
+        base_dir: '/models',
+        size_bytes: 100,
+        modified_at: 0,
+      };
+      component.openRegisterForm('checkpoints', file);
+      expect(component.registerFormFile()).not.toBeNull();
+      component.cancelRegister();
+      expect(component.registerFormFile()).toBeNull();
+    });
+
+    it('submitRegister() removes file on success', async () => {
+      mockModelService.registerModel.mockReturnValue(of({ model_id: 1 }));
+      mockModelService.listCatalog.mockReturnValue(of(emptyCatalog));
+
+      const component = await getComponent();
+      const file = {
+        filename: 'test.safetensors',
+        base_dir: '/models',
+        size_bytes: 100,
+        modified_at: 0,
+      };
+      component.unregisteredFiles.set({
+        checkpoints: [file],
+      });
+      component.openRegisterForm('checkpoints', file);
+      component.registerForm.update((f) => ({ ...f, tags: 'tag1, tag2' }));
+
+      component.submitRegister();
+
+      // When the list is emptied, the key is deleted
+      expect(Object.keys(component.unregisteredFiles())).not.toContain('checkpoints');
+      expect(component.registerFormFile()).toBeNull();
+      expect(mockModelService.registerModel).toHaveBeenCalledWith({
+        filename: 'test.safetensors',
+        model_type: 'checkpoints',
+        tags: ['tag1', 'tag2'],
+      });
+    });
+
+    it('submitRegister() sets generic error on failure', async () => {
+      mockModelService.registerModel.mockReturnValue(
+        throwError(() => ({ error: { error: 'some_other_error' } })),
+      );
+
+      const component = await getComponent();
+      const file = {
+        filename: 'test.safetensors',
+        base_dir: '/models',
+        size_bytes: 100,
+        modified_at: 0,
+      };
+      component.openRegisterForm('checkpoints', file);
+      component.submitRegister();
+
+      expect(component.registerForm().saving).toBe(false);
+      expect(component.registerForm().error).not.toBe('');
+    });
+
+    it('submitRegister() shows file_gone message when file not found', async () => {
+      mockModelService.registerModel.mockReturnValue(
+        throwError(() => ({ error: { error: 'file_not_found' } })),
+      );
+
+      const component = await getComponent();
+      const file = {
+        filename: 'missing.safetensors',
+        base_dir: '/models',
+        size_bytes: 100,
+        modified_at: 0,
+      };
+      component.openRegisterForm('checkpoints', file);
+      component.submitRegister();
+
+      expect(component.registerForm().saving).toBe(false);
+      expect(component.registerForm().error).not.toBe('');
+    });
+
+    it('toggleUnregistered() toggles unregisteredExpanded', async () => {
+      const component = await getComponent();
+      expect(component.unregisteredExpanded()).toBe(false);
+      component.toggleUnregistered();
+      expect(component.unregisteredExpanded()).toBe(true);
+      component.toggleUnregistered();
+      expect(component.unregisteredExpanded()).toBe(false);
     });
   });
 });

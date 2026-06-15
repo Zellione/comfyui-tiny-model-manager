@@ -226,6 +226,7 @@ _COLUMN_ADDITIONS = [
     "ALTER TABLE models ADD COLUMN catalog_entry_id INTEGER REFERENCES catalog_entries(id)",
     "ALTER TABLE models ADD COLUMN civitai_version_name TEXT DEFAULT ''",
     "ALTER TABLE repo_files ADD COLUMN civitai_version_name TEXT DEFAULT ''",
+    "ALTER TABLE models ADD COLUMN file_hash TEXT DEFAULT NULL",
 ]
 
 

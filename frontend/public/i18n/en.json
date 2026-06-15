@@ -53,6 +53,22 @@
       "created_desc": "Date added (newest)",
       "created_asc": "Date added (oldest)"
     },
+    "unregistered": {
+      "scan": "Scan for unregistered files",
+      "scanning": "Scanning…",
+      "title": "Unregistered Files",
+      "no_files": "No unregistered files found.",
+      "register": "Register",
+      "cancel": "Cancel",
+      "save": "Save",
+      "base_model_label": "Base model",
+      "description_label": "Description",
+      "tags_label": "Tags (comma-separated)",
+      "registered_ok": "{{filename}} registered.",
+      "register_failed": "Registration failed.",
+      "file_gone": "File no longer exists on disk.",
+      "scan_failed": "Scan failed."
+    },
     "notify": {
       "queued": "Model queued for workflow insertion.",
       "queue_failed": "Failed to enqueue model for workflow insertion.",

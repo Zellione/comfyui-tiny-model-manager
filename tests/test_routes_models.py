@@ -235,3 +235,126 @@ class TestPendingReorganize:
         data = (await resp.json())["data"]
         assert "SDXL 1.0/a.safetensors" in data
         assert "flat.safetensors" in data
+
+
+class TestUnregisteredFiles:
+    async def test_returns_empty_when_all_registered(self, client, checkpoints_dir):
+        from py.db import model_repo
+
+        model_file = os.path.join(checkpoints_dir, "test.safetensors")
+        open(model_file, "wb").close()
+        await model_repo.register_model("test.safetensors", "checkpoints")
+
+        resp = await client.get("/tiny-model-manager/api/models/unregistered")
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert data == {}
+
+    async def test_returns_file_when_not_in_db(self, client, checkpoints_dir):
+        model_file = os.path.join(checkpoints_dir, "unregistered.safetensors")
+        open(model_file, "wb").close()
+
+        resp = await client.get("/tiny-model-manager/api/models/unregistered")
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert "checkpoints" in data
+        filenames = [f["filename"] for f in data["checkpoints"]]
+        assert "unregistered.safetensors" in filenames
+
+    async def test_ignores_non_model_extension(self, client, checkpoints_dir):
+        txt_file = os.path.join(checkpoints_dir, "readme.txt")
+        open(txt_file, "w").close()
+
+        resp = await client.get("/tiny-model-manager/api/models/unregistered")
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        ck_files = [f["filename"] for f in data.get("checkpoints", [])]
+        assert "readme.txt" not in ck_files
+
+
+class TestRegisterModel:
+    async def test_registers_minimal_data(self, client, checkpoints_dir):
+        from py.db import model_repo
+
+        model_file = os.path.join(checkpoints_dir, "test.safetensors")
+        open(model_file, "wb").close()
+
+        resp = await client.post(
+            "/tiny-model-manager/api/models/register",
+            json={"filename": "test.safetensors", "model_type": "checkpoints"},
+        )
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert "model_id" in data
+        assert isinstance(data["model_id"], int)
+
+        # Verify the record was created
+        record = await model_repo.get_model_by_filename("test.safetensors")
+        assert record is not None
+        assert record["model_type"] == "checkpoints"
+
+    async def test_registers_full_data(self, client, checkpoints_dir):
+        from py.db import model_repo
+
+        model_file = os.path.join(checkpoints_dir, "test.safetensors")
+        open(model_file, "wb").close()
+
+        resp = await client.post(
+            "/tiny-model-manager/api/models/register",
+            json={
+                "filename": "test.safetensors",
+                "model_type": "checkpoints",
+                "base_model": "SD 1.5",
+                "tags": ["tag1", "tag2"],
+                "description": "Test model",
+            },
+        )
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert "model_id" in data
+
+        # Verify the record has all fields
+        record = await model_repo.get_model_by_filename("test.safetensors")
+        assert record is not None
+        assert record["base_model"] == "SD 1.5"
+        assert record["description"] == "Test model"
+        assert "tag1" in record["tags"]
+        assert "tag2" in record["tags"]
+
+    async def test_file_not_found_returns_404(self, client):
+        resp = await client.post(
+            "/tiny-model-manager/api/models/register",
+            json={"filename": "nonexistent.safetensors", "model_type": "checkpoints"},
+        )
+        assert resp.status == 404
+        data = await resp.json()
+        assert data["success"] is False
+        assert "file_not_found" in data["error"]
+
+    async def test_missing_fields_returns_400(self, client):
+        resp = await client.post("/tiny-model-manager/api/models/register", json={})
+        assert resp.status == 400
+        data = await resp.json()
+        assert data["success"] is False
+        assert "required" in data["error"]
+
+    async def test_path_traversal_rejected(self, client):
+        """Path traversal filenames like '../../../etc/passwd' should be rejected with 404."""
+        resp = await client.post(
+            "/tiny-model-manager/api/models/register",
+            json={"filename": "../../../etc/passwd", "model_type": "checkpoints"},
+        )
+        assert resp.status == 404
+        data = await resp.json()
+        assert data["success"] is False
+
+    async def test_whitespace_only_input_rejected(self, client):
+        """Whitespace-only inputs should be rejected with 400 after stripping."""
+        resp = await client.post(
+            "/tiny-model-manager/api/models/register",
+            json={"filename": "   ", "model_type": "  "},
+        )
+        assert resp.status == 400
+        data = await resp.json()
+        assert data["success"] is False
+        assert "required" in data["error"]

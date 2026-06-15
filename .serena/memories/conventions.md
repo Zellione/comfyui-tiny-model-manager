@@ -11,6 +11,37 @@
 - When testing components that inject `TagService`, provide `{ provide: TagService, useValue: mockTagService }` where `mockTagService = { searchTags: vi.fn().mockReturnValue(EMPTY) }`.
 - i18n: ngx-translate — all user-visible strings via translation keys.
 
+## Angular service HTTP pattern
+
+All `ModelService` (and other services) methods that call the backend **must** wrap with the typed response and extract `.data`:
+```typescript
+// CORRECT
+getUnregistered(): Observable<Record<string, UnregisteredFile[]>> {
+  return this.http
+    .get<{ success: boolean; data: Record<string, UnregisteredFile[]> }>(`${API}/models/unregistered`)
+    .pipe(map((r) => r.data));
+}
+
+// WRONG — missing wrapper and map
+getUnregistered(): Observable<Record<string, UnregisteredFile[]>> {
+  return this.http.get<Record<string, UnregisteredFile[]>>(`${API}/models/unregistered`);
+}
+```
+The backend always returns `{"success": true, "data": ...}` (via `ok()` helper) or `{"success": false, "error": "..."}` (via `err()` helper).
+
+## Backend error format and frontend error field access
+
+The backend `err(message, status)` helper returns `{"success": false, "error": message}`.
+
+When Angular `HttpClient` receives a non-2xx response, the body lands at `httpError.error`. So to check for a specific backend error string in a component:
+```typescript
+// CORRECT — backend sends {"error": "file_not_found"}
+err?.error?.error === 'file_not_found'
+
+// WRONG — "detail" is not a field in the backend error response
+err?.error?.detail === 'file_not_found'
+```
+
 ## Image loading pattern (thumbnail cards)
 
 When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
@@ -139,6 +170,8 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
 - Backend route tests: create `aiohttp.web.Application`, register routes, use `aiohttp_client` fixture + `ext_dir` fixture.
 - Frontend unit tests: `TestBed.configureTestingModule` + `vi.fn()` mocks; assert signals via `fixture.componentInstance.signal()`.
 - New spec files go beside the file under test (`foo.spec.ts` next to `foo.ts`).
+- Path traversal tests: add `test_*_path_traversal_rejected` to route test classes that accept user-supplied filenames (e.g. `TestRegisterModel.test_path_traversal_rejected`).
+- Whitespace input tests: add `test_*_whitespace_only_*_returns_400` when handler strips required fields.
 
 ## Git / Commits
 

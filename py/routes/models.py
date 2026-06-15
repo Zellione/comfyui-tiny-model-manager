@@ -237,8 +237,54 @@ async def _get_pending_reorganize(request):
     return ok([j["filename"] for j in jobs])
 
 
+async def _get_unregistered_files(request):
+    """Scan all model dirs and return files not yet in the models table."""
+    result: dict = {}
+    scanned: set[str] = set()
+    _scan_registered_types(result, scanned)
+    _scan_root_subdirs(result, scanned, folder_paths.models_dir, skip_types=True)
+    _scan_root_subdirs(result, scanned, os.path.join(cfg.data_dir(), "models"), skip_types=False)
+
+    registered = await model_repo.get_registered_filenames()
+    unregistered: dict = {}
+    for mtype, files in result.items():
+        hits = [f for f in files if f["filename"] not in registered]
+        if hits:
+            unregistered[mtype] = hits
+    return ok(unregistered)
+
+
+async def _register_model(request):
+    """Register a model file manually with optional metadata."""
+    body = await request.json()
+    filename = body.get("filename", "").strip()
+    model_type = body.get("model_type", "").strip()
+    if not filename or not model_type:
+        return err("filename and model_type are required", 400)
+
+    base_model = body.get("base_model", "").strip()
+    tags = body.get("tags") or []
+    description = body.get("description", "")
+
+    # Validate the file exists inside an expected directory
+    resolved = model_paths.find_file(model_type, filename)
+    if resolved is None:
+        return err("file_not_found", 404)
+
+    model_id = await model_repo.register_model(
+        filename=filename,
+        model_type=model_type,
+        base_model=base_model,
+        tags=tags,
+        description=description,
+    )
+    return ok({"model_id": model_id})
+
+
 def add_model_routes(routes):
     routes.get("/tiny-model-manager/api/models")(json_route(_list_models))
+    routes.get("/tiny-model-manager/api/models/unregistered")(json_route(_get_unregistered_files))
+    routes.post("/tiny-model-manager/api/models/register")(json_route(_register_model))
     routes.delete("/tiny-model-manager/api/models/{model_type}/{path:.*}")(
         json_route(_delete_model)
     )

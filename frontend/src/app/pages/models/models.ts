@@ -11,6 +11,8 @@ import {
   ModelMeta,
   CatalogEntry,
   CatalogListResponse,
+  UnregisteredFile,
+  RegisterModelRequest,
 } from '../../services/model';
 import { WorkflowService } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
@@ -20,6 +22,15 @@ import { mediaUrl } from '../../utils/media';
 import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover';
 const UNKNOWN_BASE_MODEL = '__unknown__';
 const UNKNOWN_SOURCE = '__unknown_source__';
+
+interface RegisterForm {
+  modelType: string;
+  baseModel: string;
+  description: string;
+  tags: string;
+  saving: boolean;
+  error: string;
+}
 
 @Component({
   selector: 'app-models',
@@ -128,6 +139,21 @@ export class Models implements OnInit {
 
   // Legacy: keep modelsByType for the organize feature
   modelsByType = signal<Record<string, ModelFile[]>>({});
+
+  unregisteredFiles = signal<Record<string, UnregisteredFile[]>>({});
+  unregisteredTypeKeys = computed(() => Object.keys(this.unregisteredFiles()));
+  hasAnyUnregistered = computed(() => this.unregisteredTypeKeys().length > 0);
+  scanLoading = signal(false);
+  unregisteredExpanded = signal(false);
+  registerFormFile = signal<{ type: string; file: UnregisteredFile } | null>(null);
+  registerForm = signal<RegisterForm>({
+    modelType: '',
+    baseModel: '',
+    description: '',
+    tags: '',
+    saving: false,
+    error: '',
+  });
 
   private readonly destroyRef = inject(DestroyRef);
   private readonly pollTrigger = new Subject<void>();
@@ -333,6 +359,81 @@ export class Models implements OnInit {
       },
       error: (err) =>
         this.notifService.show('error', 'Organization failed: ' + (err as Error).message),
+    });
+  }
+
+  scan(): void {
+    this.scanLoading.set(true);
+    this.modelService.getUnregistered().subscribe({
+      next: (data) => {
+        this.unregisteredFiles.set(data);
+        this.unregisteredExpanded.set(true);
+        this.scanLoading.set(false);
+      },
+      error: () => {
+        this.scanLoading.set(false);
+        this.notifService.show('error', this.translate.instant('models.unregistered.scan_failed'));
+      },
+    });
+  }
+
+  toggleUnregistered(): void {
+    this.unregisteredExpanded.update((v) => !v);
+  }
+
+  openRegisterForm(type: string, file: UnregisteredFile): void {
+    this.registerFormFile.set({ type, file });
+    this.registerForm.set({
+      modelType: type,
+      baseModel: '',
+      description: '',
+      tags: '',
+      saving: false,
+      error: '',
+    });
+  }
+
+  cancelRegister(): void {
+    this.registerFormFile.set(null);
+  }
+
+  submitRegister(): void {
+    const formFile = this.registerFormFile();
+    if (!formFile) return;
+    const form = this.registerForm();
+    const req: RegisterModelRequest = {
+      filename: formFile.file.filename,
+      model_type: form.modelType,
+    };
+    if (form.baseModel) req.base_model = form.baseModel;
+    if (form.description) req.description = form.description;
+    const tags = form.tags
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+    if (tags.length > 0) req.tags = tags;
+    this.registerForm.update((f) => ({ ...f, saving: true, error: '' }));
+    this.modelService.registerModel(req).subscribe({
+      next: () => {
+        // Remove the file from the unregistered list
+        const mtype = formFile.type;
+        const fname = formFile.file.filename;
+        this.unregisteredFiles.update((prev) => {
+          const updated = { ...prev };
+          updated[mtype] = (updated[mtype] ?? []).filter((f) => f.filename !== fname);
+          if (updated[mtype].length === 0) delete updated[mtype];
+          return updated;
+        });
+        this.registerFormFile.set(null);
+        this.load();
+      },
+      error: (err) => {
+        const msg =
+          err?.error?.error === 'file_not_found'
+            ? this.translate.instant('models.unregistered.file_gone')
+            : this.translate.instant('models.unregistered.register_failed');
+        this.registerForm.update((f) => ({ ...f, saving: false, error: msg }));
+      },
     });
   }
 }

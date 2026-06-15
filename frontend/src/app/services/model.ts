@@ -128,6 +128,21 @@ export interface CatalogListResponse {
   unknown_files: Record<string, ModelFile[]>;
 }
 
+export interface UnregisteredFile {
+  filename: string;
+  base_dir: string;
+  size_bytes: number;
+  modified_at: number;
+}
+
+export interface RegisterModelRequest {
+  filename: string;
+  model_type: string;
+  base_model?: string;
+  tags?: string[];
+  description?: string;
+}
+
 const API = '/tiny-model-manager/api';
 
 @Injectable({ providedIn: 'root' })
@@ -278,5 +293,20 @@ export class ModelService {
           return { removed: false as const, meta: r.data as ModelMeta };
         }),
       );
+  }
+
+  getUnregistered(): Observable<Record<string, UnregisteredFile[]>> {
+    return this.http
+      .get<{
+        success: boolean;
+        data: Record<string, UnregisteredFile[]>;
+      }>(`${API}/models/unregistered`)
+      .pipe(map((r) => r.data));
+  }
+
+  registerModel(body: RegisterModelRequest): Observable<{ model_id: number }> {
+    return this.http
+      .post<{ success: boolean; data: { model_id: number } }>(`${API}/models/register`, body)
+      .pipe(map((r) => r.data));
   }
 }

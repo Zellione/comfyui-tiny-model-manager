@@ -10,8 +10,8 @@ py/                    # Python backend
   config.py            # ext_dir initialisation (call cfg.init(path) in tests)
   background.py        # background task runner
   db/
-    database.py        # SQLite init (init_db), schema
-    model_repo.py      # main persistence layer (includes search_tags)
+    database.py        # SQLite init (init_db), schema, _COLUMN_ADDITIONS list (idempotent ALTER TABLE)
+    model_repo.py      # main persistence layer (includes search_tags, get_registered_filenames, register_model)
     keyword_repo.py    # trigger-word persistence
   routes/              # aiohttp route handlers: catalog, download, metadata, models, settings, workflow, notifications, static, tags, _helpers
   services/            # business logic: downloader, metadata_fetcher, model_paths, reconciler, reorganizer, url_guard, backend_notifier
@@ -28,6 +28,21 @@ conftest.py            # root conftest: installs ComfyUI stubs (server, folder_p
 tests/conftest.py      # ext_dir fixture: tmp_path + init_db; route tests use aiohttp_client + ext_dir
 web/                   # compiled frontend output (git-ignored; each worktree has its own)
 ```
+
+## Database schema notes
+
+- `models` table has a `file_hash TEXT DEFAULT NULL` column (added in F-89 via `_COLUMN_ADDITIONS`).
+- New columns go in `py/db/database.py` → `_COLUMN_ADDITIONS` list as `"ALTER TABLE models ADD COLUMN ..."` — processed idempotently by `_add_new_columns()` (silently ignores "column already exists").
+
+## Key model_repo functions (F-89)
+
+- `get_registered_filenames() -> set[str]` — returns all `filename` values from the `models` table as a set; O(1) membership checks.
+- `register_model(filename, model_type, base_model, tags, description) -> int` — minimal registration via `_upsert_model_row` + `_set_model_tags`; returns `model_id`.
+
+## Key routes (F-89)
+
+- `GET /tiny-model-manager/api/models/unregistered` — scans all model dirs (same logic as `_list_models`) and returns files not in the `models` table, grouped by type. Returns `ok({modelType: [{filename, base_dir, size_bytes, modified_at}]})`.
+- `POST /tiny-model-manager/api/models/register` — body: `{filename, model_type, base_model?, tags?, description?}`; validates file existence via `model_paths.find_file()`; returns `ok({model_id})`.
 
 ## Invariants
 
