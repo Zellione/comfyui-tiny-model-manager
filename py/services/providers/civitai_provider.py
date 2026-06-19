@@ -199,6 +199,6 @@ class CivitaiProvider(ModelProvider):
             "tags": model.get("tags") or [],
             "trigger_words": data.get("trainedWords") or [],
             "version_name": data.get("name", ""),
-            "civitai_version_id": str(data.get("id", "")),
-            "civitai_model_id": str(data.get("modelId", "")),
+            "civitai_version_id": str(data.get("id") or ""),
+            "civitai_model_id": str(data.get("modelId") or ""),
         }
