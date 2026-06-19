@@ -361,3 +361,65 @@ class TestGetVersionFiles:
         filenames = [f["filename"] for f in files]
         assert "training_data.zip" not in filenames
         assert "dataset_captions.zip" not in filenames
+
+
+# ---------------------------------------------------------------------------
+# lookup_by_hash
+# ---------------------------------------------------------------------------
+
+
+class TestLookupByHash:
+    async def test_found_returns_metadata(self, provider, monkeypatch):
+        version_data = {
+            "id": 12345,
+            "name": "v2.0",
+            "modelId": 789,
+            "baseModel": "SD 1.5",
+            "description": "A great model",
+            "trainedWords": ["portrait"],
+            "images": [{"url": "https://example.com/img.jpg"}],
+            "model": {"name": "Great LoRA", "tags": ["portrait", "realistic"]},
+        }
+        transport = _make_transport({"model-versions/by-hash": (200, version_data)})
+        _orig = httpx.AsyncClient
+        monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _orig(transport=transport, **kw))
+        result = await provider.lookup_by_hash("deadbeef")
+        assert result is not None
+        assert result["name"] == "Great LoRA"
+        assert result["base_model"] == "SD 1.5"
+        assert result["description"] == "A great model"
+        assert result["trigger_words"] == ["portrait"]
+        assert result["tags"] == ["portrait", "realistic"]
+        assert result["version_name"] == "v2.0"
+        assert result["civitai_version_id"] == "12345"
+        assert result["civitai_model_id"] == "789"
+
+    async def test_not_found_returns_none(self, provider, monkeypatch):
+        transport = _make_transport({"model-versions/by-hash": (404, {"error": "not found"})})
+        _orig = httpx.AsyncClient
+        monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _orig(transport=transport, **kw))
+        result = await provider.lookup_by_hash("notexist")
+        assert result is None
+
+    async def test_server_error_propagates(self, provider, monkeypatch):
+        transport = _make_transport({"model-versions/by-hash": (500, {"error": "oops"})})
+        _orig = httpx.AsyncClient
+        monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _orig(transport=transport, **kw))
+        with pytest.raises(httpx.HTTPStatusError):
+            await provider.lookup_by_hash("abc123")
+
+    async def test_empty_optional_fields_default(self, provider, monkeypatch):
+        version_data = {
+            "id": 1,
+            "modelId": 2,
+            "model": {},
+        }
+        transport = _make_transport({"model-versions/by-hash": (200, version_data)})
+        _orig = httpx.AsyncClient
+        monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _orig(transport=transport, **kw))
+        result = await provider.lookup_by_hash("abc")
+        assert result["name"] == ""
+        assert result["base_model"] == ""
+        assert result["description"] == ""
+        assert result["tags"] == []
+        assert result["trigger_words"] == []
