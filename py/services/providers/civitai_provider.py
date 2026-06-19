@@ -76,8 +76,9 @@ class CivitaiProvider(ModelProvider):
             return resp.json()
 
     async def get_model_versions(self, model_id: int) -> dict:
+        safe_id = int(model_id)
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(f"{_BASE}/models/{model_id}", headers=self.auth_headers())
+            resp = await client.get(f"{_BASE}/models/{safe_id}", headers=self.auth_headers())
             if not resp.is_success:
                 raise httpx.HTTPStatusError(
                     f"{resp.status_code} {resp.reason_phrase}: {resp.text}",
