@@ -358,3 +358,126 @@ class TestRegisterModel:
         data = await resp.json()
         assert data["success"] is False
         assert "required" in data["error"]
+
+    async def test_register_stores_file_hash_and_civitai_ids(self, client, checkpoints_dir):
+        from py.db import model_repo
+
+        model_file = os.path.join(checkpoints_dir, "linked.safetensors")
+        open(model_file, "wb").close()
+
+        resp = await client.post(
+            "/tiny-model-manager/api/models/register",
+            json={
+                "filename": "linked.safetensors",
+                "model_type": "checkpoints",
+                "file_hash": "abc123",
+                "source_platform": "civitai",
+                "source_id": "9999",
+                "civitai_model_id": "8888",
+            },
+        )
+        assert resp.status == 200
+        row = await model_repo.get_model_by_filename("linked.safetensors")
+        assert row["file_hash"] == "abc123"
+        assert row["source_platform"] == "civitai"
+        assert row["source_id"] == "9999"
+
+
+class TestHashLookup:
+    async def test_match_returns_hash_and_metadata(self, client, checkpoints_dir, monkeypatch):
+        model_file = os.path.join(checkpoints_dir, "model.safetensors")
+        open(model_file, "wb").close()
+
+        monkeypatch.setattr(
+            "py.routes.models.asyncio.to_thread",
+            lambda fn, *args: _async_return("deadbeefdeadbeef"),
+        )
+        monkeypatch.setattr(
+            "py.routes.models._civitai_lookup",
+            lambda sha256: _async_return(
+                {
+                    "name": "Cool Model",
+                    "base_model": "SD 1.5",
+                    "description": "Desc",
+                    "tags": ["tag1"],
+                    "trigger_words": ["word"],
+                    "version_name": "v1",
+                    "civitai_version_id": "111",
+                    "civitai_model_id": "222",
+                }
+            ),
+        )
+
+        resp = await client.post(
+            "/tiny-model-manager/api/models/hash-lookup",
+            json={"filename": "model.safetensors", "model_type": "checkpoints"},
+        )
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert data["match"] is True
+        assert data["hash"] == "deadbeefdeadbeef"
+        assert data["metadata"]["name"] == "Cool Model"
+        assert data["metadata"]["base_model"] == "SD 1.5"
+
+    async def test_no_match_returns_match_false(self, client, checkpoints_dir, monkeypatch):
+        model_file = os.path.join(checkpoints_dir, "nohit.safetensors")
+        open(model_file, "wb").close()
+
+        monkeypatch.setattr(
+            "py.routes.models.asyncio.to_thread",
+            lambda fn, *args: _async_return("aaaa"),
+        )
+        monkeypatch.setattr(
+            "py.routes.models._civitai_lookup",
+            lambda sha256: _async_return(None),
+        )
+
+        resp = await client.post(
+            "/tiny-model-manager/api/models/hash-lookup",
+            json={"filename": "nohit.safetensors", "model_type": "checkpoints"},
+        )
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert data["match"] is False
+        assert data["hash"] == "aaaa"
+        assert data.get("metadata") is None
+
+    async def test_file_not_found_returns_404(self, client):
+        resp = await client.post(
+            "/tiny-model-manager/api/models/hash-lookup",
+            json={"filename": "missing.safetensors", "model_type": "checkpoints"},
+        )
+        assert resp.status == 404
+
+    async def test_missing_fields_returns_400(self, client):
+        resp = await client.post(
+            "/tiny-model-manager/api/models/hash-lookup",
+            json={"filename": "model.safetensors"},
+        )
+        assert resp.status == 400
+
+    async def test_civitai_unavailable_returns_503(self, client, checkpoints_dir, monkeypatch):
+        import httpx as _httpx
+
+        model_file = os.path.join(checkpoints_dir, "err.safetensors")
+        open(model_file, "wb").close()
+
+        monkeypatch.setattr(
+            "py.routes.models.asyncio.to_thread",
+            lambda fn, *args: _async_return("bbbb"),
+        )
+
+        async def _raise(_):
+            raise _httpx.HTTPError("network error")
+
+        monkeypatch.setattr("py.routes.models._civitai_lookup", _raise)
+
+        resp = await client.post(
+            "/tiny-model-manager/api/models/hash-lookup",
+            json={"filename": "err.safetensors", "model_type": "checkpoints"},
+        )
+        assert resp.status == 503
+
+
+async def _async_return(value):
+    return value
