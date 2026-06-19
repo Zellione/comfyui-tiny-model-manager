@@ -55,12 +55,15 @@ async def _upsert_model_row(
     media_hash: str,
     readme_html: str = "",
     civitai_version_name: str = "",
+    file_hash: str = "",
 ) -> int:
     """Insert/update the models row and return its id (does not commit)."""
+    # Convert empty string to None for file_hash (we want NULL in database, not empty string)
+    file_hash_val = file_hash if file_hash else None
     cursor = await db.execute(
         """
-        INSERT INTO models (filename, model_type, source_platform, source_id, description, base_model, civitai_model_id, civitai_version_name, media_hash, readme_html)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO models (filename, model_type, source_platform, source_id, description, base_model, civitai_model_id, civitai_version_name, media_hash, readme_html, file_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(filename) DO UPDATE SET
             model_type = excluded.model_type,
             source_platform = excluded.source_platform,
@@ -70,7 +73,8 @@ async def _upsert_model_row(
             civitai_model_id = excluded.civitai_model_id,
             civitai_version_name = excluded.civitai_version_name,
             media_hash = excluded.media_hash,
-            readme_html = excluded.readme_html
+            readme_html = excluded.readme_html,
+            file_hash = CASE WHEN excluded.file_hash IS NOT NULL THEN excluded.file_hash ELSE file_hash END
         """,
         (
             filename,
@@ -83,6 +87,7 @@ async def _upsert_model_row(
             civitai_version_name,
             media_hash,
             readme_html[:_MAX_DESCRIPTION],
+            file_hash_val,
         ),
     )
     if cursor.lastrowid:
@@ -1012,6 +1017,10 @@ async def register_model(
     base_model: str = "",
     tags: list[str] | None = None,
     description: str = "",
+    file_hash: str = "",
+    source_platform: str = "",
+    source_id: str = "",
+    civitai_model_id: str = "",
 ) -> int:
     """Register a model file with minimal metadata. Returns the model ID."""
     if tags is None:
@@ -1021,14 +1030,15 @@ async def register_model(
             db,
             filename=filename,
             model_type=model_type,
-            source_platform="",
-            source_id="",
+            source_platform=source_platform,
+            source_id=source_id,
             description=description,
             base_model=base_model,
-            civitai_model_id="",
+            civitai_model_id=civitai_model_id,
             media_hash="",
             readme_html="",
             civitai_version_name="",
+            file_hash=file_hash,
         )
         await _set_model_tags(db, model_id, tags)
         await db.commit()
