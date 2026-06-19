@@ -358,12 +358,38 @@
               </div>
               @if (registerFormFile()?.file?.filename === file.filename) {
                 <div class="register-form-inline">
+                  <!-- Hash lookup status banner -->
+                  @if (registerForm().hashStatus === 'loading') {
+                    <div class="register-lookup-status register-lookup-loading">
+                      <span class="lookup-spinner"></span>
+                      {{ 'models.unregistered.lookup_loading' | translate }}
+                    </div>
+                  } @else if (registerForm().hashStatus === 'found') {
+                    <div class="register-lookup-status register-lookup-found">
+                      {{
+                        'models.unregistered.lookup_found'
+                          | translate: { name: registerForm().name }
+                      }}
+                    </div>
+                  } @else if (registerForm().hashStatus === 'not_found') {
+                    <div class="register-lookup-status register-lookup-not-found">
+                      {{ 'models.unregistered.lookup_not_found' | translate }}
+                    </div>
+                  } @else if (registerForm().hashStatus === 'error') {
+                    <div class="register-lookup-status register-lookup-error">
+                      {{ 'models.unregistered.lookup_error' | translate }}
+                      <button class="btn-retry" (click)="retryHashLookup()">
+                        {{ 'models.unregistered.lookup_retry' | translate }}
+                      </button>
+                    </div>
+                  }
                   <div class="register-form-fields">
                     <label>
                       <span>{{ 'models.unregistered.base_model_label' | translate }}</span>
                       <input
                         type="text"
                         [value]="registerForm().baseModel"
+                        [disabled]="registerForm().hashStatus === 'loading'"
                         (input)="
                           registerForm.update((f) => ({
                             ...f,
@@ -377,6 +403,7 @@
                       <input
                         type="text"
                         [value]="registerForm().tags"
+                        [disabled]="registerForm().hashStatus === 'loading'"
                         (input)="
                           registerForm.update((f) => ({ ...f, tags: $any($event.target).value }))
                         "
@@ -386,6 +413,7 @@
                       <span>{{ 'models.unregistered.description_label' | translate }}</span>
                       <textarea
                         [value]="registerForm().description"
+                        [disabled]="registerForm().hashStatus === 'loading'"
                         (input)="
                           registerForm.update((f) => ({
                             ...f,

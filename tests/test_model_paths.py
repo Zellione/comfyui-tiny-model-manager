@@ -56,7 +56,7 @@ class TestTraversalGuard:
 
 def test_compute_file_hash_returns_sha256(tmp_path):
     import hashlib
-    from pathlib import Path
+
     from py.services.model_paths import compute_file_hash
 
     f = tmp_path / "model.safetensors"
@@ -66,7 +66,6 @@ def test_compute_file_hash_returns_sha256(tmp_path):
 
 
 def test_compute_file_hash_is_64_char_lowercase_hex(tmp_path):
-    from pathlib import Path
     from py.services.model_paths import compute_file_hash
 
     f = tmp_path / "model.safetensors"
