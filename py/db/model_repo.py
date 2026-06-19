@@ -74,7 +74,7 @@ async def _upsert_model_row(
             civitai_version_name = excluded.civitai_version_name,
             media_hash = excluded.media_hash,
             readme_html = excluded.readme_html,
-            file_hash = CASE WHEN excluded.file_hash IS NOT NULL THEN excluded.file_hash ELSE file_hash END
+            file_hash = CASE WHEN excluded.file_hash != '' THEN excluded.file_hash ELSE file_hash END
         """,
         (
             filename,
