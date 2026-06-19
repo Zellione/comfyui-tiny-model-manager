@@ -52,3 +52,26 @@ class TestTraversalGuard:
         # A model_type that is not a clean path segment must not create escaping base dirs.
         assert model_paths.candidate_dirs("../../etc") == []
         assert model_paths.candidate_paths("../../etc", "passwd") == []
+
+
+def test_compute_file_hash_returns_sha256(tmp_path):
+    import hashlib
+    from pathlib import Path
+    from py.services.model_paths import compute_file_hash
+
+    f = tmp_path / "model.safetensors"
+    f.write_bytes(b"hello world")
+    result = compute_file_hash(f)
+    assert result == hashlib.sha256(b"hello world").hexdigest()
+
+
+def test_compute_file_hash_is_64_char_lowercase_hex(tmp_path):
+    from pathlib import Path
+    from py.services.model_paths import compute_file_hash
+
+    f = tmp_path / "model.safetensors"
+    f.write_bytes(b"\x00" * 64)
+    result = compute_file_hash(f)
+    assert len(result) == 64
+    assert result == result.lower()
+    assert all(c in "0123456789abcdef" for c in result)
