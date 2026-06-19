@@ -12,6 +12,37 @@
 - i18n: ngx-translate — all user-visible strings via translation keys.
 - **Form-control labeling (SonarQube `Web:InputWithoutLabelCheck`, a RELIABILITY bug)**: every `<input>` (except submit/button/image/hidden), `<select>` and `<textarea>` must have an associated label. Preferred fix is `[attr.aria-label]="'<key>' | translate"` (no layout change); reuse the placeholder/header translation key where one exists, or bind a meaningful value (e.g. `[attr.aria-label]="f.name"` for per-file checkboxes). Inputs wrapped in a `<label>…</label>` (implicit label) are already compliant.
 
+## Hash-lookup UX pattern (F-90)
+
+When a registration/edit form needs an async pre-fill from an external API (e.g. CivitAI hash lookup):
+
+**Component signals:**
+```typescript
+// In RegisterForm interface:
+hashStatus: 'loading' | 'found' | 'not_found' | 'error';
+name: string;
+
+// Private signals on the component:
+private registerFileHash = signal<string>('');
+private registerCivitaiIds = signal<{ source_id: string; civitai_model_id: string } | null>(null);
+```
+
+**openRegisterForm:** set `hashStatus: 'loading'`, then call `_runHashLookup(filename, modelType)`.
+
+**`_runHashLookup`:** subscribes to `modelService.hashLookup()` (one-shot observable, no takeUntilDestroyed needed); on match sets `hashStatus: 'found'` and pre-fills form fields + stores hash/IDs; on no-match sets `hashStatus: 'not_found'`; error handler sets `hashStatus: 'error'`.
+
+**`retryHashLookup`:** public method; resets `hashStatus: 'loading'`, clears error state, re-calls `_runHashLookup` from `registerFormFile()`.
+
+**Template states (use `@if` / `@else if` / `@else`):**
+- `loading`: spinner div + `| translate` key; all form inputs `[disabled]="registerForm().hashStatus === 'loading'"`; **submit button** also `[disabled]="registerForm().saving || registerForm().hashStatus === 'loading'"`
+- `found`: green badge with interpolated model name (`| translate: { name: registerForm().name }`)
+- `not_found`: neutral note
+- `error`: red message + `<button (click)="retryHashLookup()">` with Retry label
+
+**submitRegister:** include `file_hash`, `source_platform: 'civitai'`, `source_id`, `civitai_model_id` when `registerFileHash()` is truthy.
+
+**Tests:** use `new Subject<HashLookupResult>()` (never resolves) to test loading state; set default `mockModelService.hashLookup.mockReturnValue(of({ hash: '', match: false, metadata: null }))` in `beforeEach` so existing tests aren't broken.
+
 ## Angular service HTTP pattern
 
 All `ModelService` (and other services) methods that call the backend **must** wrap with the typed response and extract `.data`:
@@ -152,6 +183,8 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
 - `cfg.init(path)` must be called before `init_db()` in any test that touches the DB.
 - ComfyUI `INPUT_TYPES` default-arg pattern intentionally violates B008 (ignored in ruff config).
 - Ruff quote-style: double; indent: space.
+- **`asyncio.to_thread` for sync IO**: synchronous file operations (e.g. `compute_file_hash`) must be called via `await asyncio.to_thread(fn, arg)` inside async route handlers to avoid blocking the event loop.
+- **Monkeypatch wrapper for external HTTP calls**: wrap CivitAI/HuggingFace calls in a module-level `async def _provider_method(args)` function (e.g. `_civitai_lookup` in `models.py`) so tests can monkeypatch the module-level name rather than the provider class. Pattern: `monkeypatch.setattr("py.routes.models._civitai_lookup", _async_return(result))`.
 
 ## Security Patterns (SonarQube-compliant)
 
