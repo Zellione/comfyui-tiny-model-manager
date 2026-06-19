@@ -1,0 +1,292 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]: τ
+      - generic [ref=e6]: Tiny Model Manager
+    - navigation [ref=e7]:
+      - link "Catalog" [ref=e8] [cursor=pointer]:
+        - /url: /tiny-model-manager/catalog
+      - link "Download" [ref=e9] [cursor=pointer]:
+        - /url: /tiny-model-manager/download
+      - link "Settings" [ref=e10] [cursor=pointer]:
+        - /url: /tiny-model-manager/settings
+    - button "☀" [ref=e12] [cursor=pointer]
+  - main [ref=e13]:
+    - generic [ref=e14]:
+      - heading "Download Models" [level=2] [ref=e15]
+      - generic [ref=e16]:
+        - button "Active" [ref=e17] [cursor=pointer]
+        - button "History" [ref=e18] [cursor=pointer]
+      - generic [ref=e20]:
+        - heading "Paste a link" [level=3] [ref=e21]
+        - textbox "https://huggingface.co/… or https://civitai.com/models/…" [ref=e23]
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - generic [ref=e26]:
+            - button "CivitAI" [ref=e27] [cursor=pointer]
+            - button "HuggingFace" [ref=e28] [cursor=pointer]
+          - textbox "Search models…" [ref=e29]: Disney Princess
+          - combobox [ref=e31]:
+            - option "checkpoints"
+            - option "loras" [selected]
+            - option "embeddings"
+            - option "vae"
+            - option "controlnet"
+            - option "upscale_models"
+            - option "hypernetworks"
+            - option "clip_vision"
+            - option "style_models"
+            - option "gligen"
+            - option "diffusion_models"
+            - option "text_encoders"
+            - option "photomaker"
+            - option "vae_approx"
+            - option "unet"
+            - option "clip"
+          - button "Search" [ref=e32] [cursor=pointer]
+          - generic [ref=e33]:
+            - combobox [ref=e34]:
+              - option "All base models" [selected]
+              - option "SD 1.5"
+              - option "SD 2.1"
+              - option "SDXL 1.0"
+              - option "Pony"
+              - option "Illustrious"
+              - option "Flux.1 D"
+              - option "Flux.1 S"
+              - option "Stable Cascade"
+              - option "SDXL Turbo"
+              - option "Chroma"
+              - option "Qwen"
+            - combobox [ref=e35]:
+              - option "Default sort" [selected]
+              - option "Most Downloaded"
+              - option "Highest Rated"
+              - option "Newest"
+            - combobox [ref=e36]:
+              - option "All formats" [selected]
+              - option ".safetensors"
+              - option ".gguf"
+              - option ".ckpt"
+              - option ".pt"
+              - option ".bin"
+          - textbox "Filter by tag…" [ref=e41]
+        - generic [ref=e48]:
+          - generic [ref=e49]:
+            - generic [ref=e50]:
+              - generic [ref=e53] [cursor=pointer]:
+                - generic [ref=e54]: De-Sloppify - Negative Quality Modifier
+                - generic [ref=e55]:
+                  - generic [ref=e56]: LORA
+                  - generic [ref=e57]: Illustrious
+                  - generic [ref=e58]: style
+                  - generic [ref=e59]: ai slop
+              - generic [ref=e62] [cursor=pointer]:
+                - generic [ref=e63]: Disney 3d style — Anima
+                - generic [ref=e64]:
+                  - generic [ref=e65]: LORA
+                  - generic [ref=e66]: Anima
+                  - generic [ref=e67]: disney
+                  - generic [ref=e68]: 3d
+              - generic [ref=e71] [cursor=pointer]:
+                - generic [ref=e72]: Jane Porter - Tarzan | Illustrious
+                - generic [ref=e73]:
+                  - generic [ref=e74]: LORA
+                  - generic [ref=e75]: Illustrious
+                  - generic [ref=e76]: character
+                  - generic [ref=e77]: disney
+              - generic [ref=e80] [cursor=pointer]:
+                - generic [ref=e81]: Anna - Disney's Frozen
+                - generic [ref=e82]:
+                  - generic [ref=e83]: LORA
+                  - generic [ref=e84]: Illustrious
+                  - generic [ref=e85]: character
+                  - generic [ref=e86]: frozen
+              - generic [ref=e89] [cursor=pointer]:
+                - generic [ref=e90]: Princess Jasmine - Aladdin | Illustrious
+                - generic [ref=e91]:
+                  - generic [ref=e92]: LORA
+                  - generic [ref=e93]: Illustrious
+                  - generic [ref=e94]: character
+                  - generic [ref=e95]: disney
+              - generic [ref=e98] [cursor=pointer]:
+                - generic [ref=e99]: Ariel - The Little Mermaid | Anima Base v1
+                - generic [ref=e100]:
+                  - generic [ref=e101]: LORA
+                  - generic [ref=e102]: Anima
+                  - generic [ref=e103]: character
+                  - generic [ref=e104]: disney
+              - generic [ref=e107] [cursor=pointer]:
+                - generic [ref=e108]: Roxanne Rover (A Goofy Movie 1995) (IL 2.0)
+                - generic [ref=e109]:
+                  - generic [ref=e110]: LORA
+                  - generic [ref=e111]: Illustrious
+                  - generic [ref=e112]: character
+                  - generic [ref=e113]: disney
+              - generic [ref=e116] [cursor=pointer]:
+                - generic [ref=e117]: Princess Jasmine - Aladdin | Anima Base v1
+                - generic [ref=e118]:
+                  - generic [ref=e119]: LORA
+                  - generic [ref=e120]: Anima
+                  - generic [ref=e121]: character
+                  - generic [ref=e122]: disney
+              - generic [ref=e125] [cursor=pointer]:
+                - generic [ref=e126]: "Gadget Hackwrench (Chip & Dale: Rescue Rangers) (IL 2.0)"
+                - generic [ref=e127]:
+                  - generic [ref=e128]: LORA
+                  - generic [ref=e129]: Illustrious
+                  - generic [ref=e130]: character
+                  - generic [ref=e131]: disney
+              - generic [ref=e134] [cursor=pointer]:
+                - generic [ref=e135]: March Hare - Disney Alice in wonderland (on-model)
+                - generic [ref=e136]:
+                  - generic [ref=e137]: LORA
+                  - generic [ref=e138]: Illustrious
+                  - generic [ref=e139]: character
+                  - generic [ref=e140]: disney
+              - generic [ref=e143] [cursor=pointer]:
+                - generic [ref=e144]: Jane Porter - Tarzan | Anima Base v1
+                - generic [ref=e145]:
+                  - generic [ref=e146]: LORA
+                  - generic [ref=e147]: Anima
+                  - generic [ref=e148]: character
+                  - generic [ref=e149]: disney
+              - generic [ref=e152] [cursor=pointer]:
+                - generic [ref=e153]: Disney - Pocahontas (2 outfits)
+                - generic [ref=e154]:
+                  - generic [ref=e155]: LORA
+                  - generic [ref=e156]: Illustrious
+                  - generic [ref=e157]: character
+              - generic [ref=e160] [cursor=pointer]:
+                - generic [ref=e161]: "Queenie (Chip & Dale : Rescue Rangers)"
+                - generic [ref=e162]:
+                  - generic [ref=e163]: LORA
+                  - generic [ref=e164]: Illustrious
+                  - generic [ref=e165]: character
+                  - generic [ref=e166]: disney
+              - generic [ref=e169] [cursor=pointer]:
+                - generic [ref=e170]: Maria Vaz / Rosinha - Zé Carioca (Brazilian Disney Comics)
+                - generic [ref=e171]:
+                  - generic [ref=e172]: LORA
+                  - generic [ref=e173]: Illustrious
+                  - generic [ref=e174]: character
+                  - generic [ref=e175]: disney
+              - generic [ref=e178] [cursor=pointer]:
+                - generic [ref=e179]: Ellen [Disney Pixar’s Hoppers]
+                - generic [ref=e180]:
+                  - generic [ref=e181]: LORA
+                  - generic [ref=e182]: Illustrious
+                  - generic [ref=e183]: character
+                  - generic [ref=e184]: disney
+              - generic [ref=e187] [cursor=pointer]:
+                - generic [ref=e188]: Mrs. Hare (Bambi)
+                - generic [ref=e189]:
+                  - generic [ref=e190]: LORA
+                  - generic [ref=e191]: Illustrious
+                  - generic [ref=e192]: character
+                  - generic [ref=e193]: disney
+              - generic [ref=e196] [cursor=pointer]:
+                - generic [ref=e197]: Disney[Pocahontas] - John Smith (2 outfits)
+                - generic [ref=e198]:
+                  - generic [ref=e199]: LORA
+                  - generic [ref=e200]: Illustrious
+                  - generic [ref=e201]: character
+                  - generic [ref=e202]: man
+              - generic [ref=e205] [cursor=pointer]:
+                - generic [ref=e206]: Anna (Frozen) — Anima
+                - generic [ref=e207]:
+                  - generic [ref=e208]: LORA
+                  - generic [ref=e209]: Anima
+                  - generic [ref=e210]: character
+                  - generic [ref=e211]: disney
+              - generic [ref=e214] [cursor=pointer]:
+                - generic [ref=e215]: "Kidd Video: Carla"
+                - generic [ref=e216]:
+                  - generic [ref=e217]: LORA
+                  - generic [ref=e218]: Illustrious
+                  - generic [ref=e219]: character
+              - generic [ref=e222] [cursor=pointer]:
+                - generic [ref=e223]: Goofy - Disney
+                - generic [ref=e224]:
+                  - generic [ref=e225]: LORA
+                  - generic [ref=e226]: Anima
+                  - generic [ref=e227]: character
+                  - generic [ref=e228]: furry
+            - button "Load more" [ref=e229] [cursor=pointer]
+          - generic [ref=e230]:
+            - generic [ref=e231]:
+              - generic [ref=e232]:
+                - heading "De-Sloppify - Negative Quality Modifier" [level=2] [ref=e233]
+                - link "CivitAI ↗" [ref=e234] [cursor=pointer]:
+                  - /url: https://civitai.com/models/2512450
+              - generic [ref=e235]:
+                - generic [ref=e236]: LORA
+                - generic [ref=e237]: Illustrious
+                - generic [ref=e238]: by Szosheel
+                - generic [ref=e239]: 532 downloads
+            - generic [ref=e249]:
+              - generic [ref=e250]:
+                - heading "Versions" [level=3] [ref=e251]
+                - button "Download selected (1)" [ref=e252] [cursor=pointer]
+              - generic [ref=e253]:
+                - generic [ref=e254]:
+                  - strong [ref=e255]: V1
+                  - generic [ref=e256]: Illustrious
+                - generic [ref=e257]:
+                  - generic [ref=e258]:
+                    - checkbox [checked] [ref=e259] [cursor=pointer]
+                    - generic [ref=e260]: G0DF2V15252RV34HH1M4MYC5A0.safetensors
+                  - generic [ref=e261]:
+                    - generic [ref=e262]:
+                      - generic [ref=e263]: SafeTensor
+                      - generic [ref=e264]: 228.5 MB
+                    - generic [ref=e265]:
+                      - combobox [ref=e267]:
+                        - option "checkpoints"
+                        - option "loras" [selected]
+                        - option "embeddings"
+                        - option "vae"
+                        - option "controlnet"
+                        - option "upscale_models"
+                        - option "hypernetworks"
+                        - option "clip_vision"
+                        - option "style_models"
+                        - option "gligen"
+                        - option "diffusion_models"
+                        - option "text_encoders"
+                        - option "photomaker"
+                        - option "vae_approx"
+                        - option "unet"
+                        - option "clip"
+                      - generic [ref=e269]:
+                        - textbox "Base model" [ref=e270]: Illustrious
+                        - button "Show base models" [ref=e271] [cursor=pointer]: ▾
+                      - button "Download" [ref=e272] [cursor=pointer]
+            - generic [ref=e273]:
+              - generic [ref=e274]: Tags
+              - generic [ref=e275]:
+                - generic [ref=e276]: style
+                - generic [ref=e277]: ai slop
+                - generic [ref=e278]: quality modifier
+            - generic [ref=e279]:
+              - generic [ref=e280]: Trigger words
+              - generic [ref=e281]:
+                - generic [ref=e282]: put these in negative prompt
+                - generic [ref=e283]: sloppifynegative, 2.5d, 3d, volumetric lighting, blurry, bloom, high contrast, disney pixar, ai generated
+                - generic [ref=e284]: backlit, shaded face
+            - generic [ref=e285]:
+              - paragraph [ref=e286]:
+                - text: Use in combination with "
+                - link "De-Sloppify - Positive Quality Modifier" [ref=e287] [cursor=pointer]:
+                  - /url: https://civitai.com/models/2512451?modelVersionId=2824034
+                - text: "\" for best results."
+              - paragraph [ref=e288]:
+                - img [ref=e289]
+                - text: Reduces features over represented in AI training making output look "less like ai" and you can get back the features you like such as overly large bosom, high gloss and saturation using other loras while still retaining the 'un-ai' look.
+              - paragraph
+              - heading "How to:" [level=1] [ref=e290]
+              - paragraph [ref=e291]:
+                - text: Set to negative values in order to de-slop your generations and make them look a little more like art, which works even better when you use it in combination with
+                - link "De-Sloppify - Positive Quality Modifier" [ref=e292] [cursor=pointer]:
+                  - /url: https://civitai.com/models/2512451?modelVersionId=2824034
+                - text: . Alternatively, use this set to positive values in order to achieve maximum levels of sloppage never before seen!

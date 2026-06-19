@@ -430,7 +430,7 @@
                     <button
                       class="btn-primary btn-small"
                       (click)="submitRegister()"
-                      [disabled]="registerForm().saving"
+                      [disabled]="registerForm().saving || registerForm().hashStatus === 'loading'"
                     >
                       {{ 'models.unregistered.save' | translate }}
                     </button>

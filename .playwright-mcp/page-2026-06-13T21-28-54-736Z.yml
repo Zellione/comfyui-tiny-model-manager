@@ -1,0 +1,471 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]: τ
+      - generic [ref=e6]: Tiny Model Manager
+    - navigation [ref=e7]:
+      - link "Catalog" [ref=e8] [cursor=pointer]:
+        - /url: /tiny-model-manager/catalog
+      - link "Download" [ref=e9] [cursor=pointer]:
+        - /url: /tiny-model-manager/download
+      - link "Settings" [ref=e10] [cursor=pointer]:
+        - /url: /tiny-model-manager/settings
+    - button "☀" [ref=e12] [cursor=pointer]
+  - main [ref=e13]:
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - heading "Installed Models" [level=1] [ref=e18]
+        - generic [ref=e19]:
+          - button "Rescan" [ref=e20] [cursor=pointer]
+          - button "Organize into subfolders" [ref=e22] [cursor=pointer]
+      - generic [ref=e23]:
+        - generic [ref=e24] [cursor=pointer]:
+          - generic [ref=e25]: Base
+          - combobox [ref=e26]:
+            - option "All" [selected]
+            - option "Unknown"
+            - option "Anima"
+            - option "Flux"
+            - option "Flux1-dev"
+            - option "Illustrious"
+            - option "Illustrious XL"
+            - option "Pony"
+            - option "SD 1.5"
+            - option "SDXL 1.0"
+          - generic: ▾
+        - generic [ref=e27] [cursor=pointer]:
+          - generic [ref=e28]: Source
+          - combobox [ref=e29]:
+            - option "All sources" [selected]
+            - option "CivitAI"
+            - option "HuggingFace"
+            - option "Unknown"
+          - generic: ▾
+        - generic [ref=e30] [cursor=pointer]:
+          - generic [ref=e31]: Sort
+          - combobox [ref=e32]:
+            - option "Name A→Z" [selected]
+            - option "Name Z→A"
+            - option "Date added (newest)"
+            - option "Date added (oldest)"
+          - generic: ▾
+        - generic [ref=e33] [cursor=pointer]:
+          - checkbox "Show empty" [ref=e34]
+          - generic [ref=e35]: Show empty
+        - button "Reset" [disabled] [ref=e36]
+      - generic [ref=e37]:
+        - generic [ref=e38]:
+          - heading "loras" [level=2] [ref=e39]
+          - generic [ref=e40]: "21"
+        - generic [ref=e42]:
+          - generic [ref=e43]:
+            - generic [ref=e44]:
+              - link [ref=e45] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=1328071
+              - generic [ref=e47]: CIVITAI
+            - generic [ref=e48]:
+              - generic "[IL] Minori Kushieda - Toradora!" [ref=e49]
+              - generic [ref=e50]:
+                - generic [ref=e51]: 1 file(s)
+                - generic [ref=e53]: Illustrious
+                - generic [ref=e55]: v1.0il
+              - generic [ref=e56]:
+                - link "View details" [ref=e57] [cursor=pointer]:
+                  - /url: /tiny-model-manager/catalog/civitai?pageId=1328071
+                  - img [ref=e58]
+                - button "Copy trigger words" [ref=e61] [cursor=pointer]:
+                  - img [ref=e62]
+          - generic [ref=e65]:
+            - generic [ref=e66]:
+              - link [ref=e67] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=929497
+              - generic [ref=e69]: CIVITAI
+            - generic [ref=e70]:
+              - generic "Aesthetic Quality Modifiers - Masterpiece" [ref=e71]
+              - generic [ref=e72]:
+                - generic [ref=e73]: 1 file(s)
+                - generic [ref=e75]: Anima
+              - generic [ref=e76]:
+                - link "View details" [ref=e77] [cursor=pointer]:
+                  - /url: /tiny-model-manager/catalog/civitai?pageId=929497
+                  - img [ref=e78]
+                - button "Copy trigger words" [ref=e81] [cursor=pointer]:
+                  - img [ref=e82]
+          - generic [ref=e85]:
+            - generic [ref=e86]:
+              - link [ref=e87] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=212532
+              - generic [ref=e89]: CIVITAI
+            - generic [ref=e90]:
+              - generic "All Disney Princess XL LoRA Model from Ralph Breaks the Internet" [ref=e91]
+              - generic [ref=e92]:
+                - generic [ref=e93]: 2 file(s)
+                - generic [ref=e95]: SDXL 1.0
+              - link "View details" [ref=e97] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=212532
+                - img [ref=e98]
+          - generic [ref=e101]:
+            - generic [ref=e102]:
+              - link [ref=e103] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=16014
+              - generic [ref=e105]: CIVITAI
+            - generic [ref=e106]:
+              - generic "Anime Lineart / Manga-like (线稿/線画/マンガ風/漫画风) Style" [ref=e107]
+              - generic [ref=e108]:
+                - generic [ref=e109]: 1 file(s)
+                - generic [ref=e111]: SD 1.5
+              - generic [ref=e112]:
+                - link "View details" [ref=e113] [cursor=pointer]:
+                  - /url: /tiny-model-manager/catalog/civitai?pageId=16014
+                  - img [ref=e114]
+                - button "Copy trigger words" [ref=e117] [cursor=pointer]:
+                  - img [ref=e118]
+          - generic [ref=e121]:
+            - generic [ref=e122]:
+              - link [ref=e123] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/huggingface?pageId=Keltezaa%2Fanna-kendrick-flux
+              - generic [ref=e125]: HF
+            - generic [ref=e126]:
+              - generic "anna-kendrick-flux" [ref=e127]
+              - generic [ref=e129]: 1 file(s)
+              - link "View details" [ref=e131] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/huggingface?pageId=Keltezaa%2Fanna-kendrick-flux
+                - img [ref=e132]
+          - generic [ref=e135]:
+            - generic [ref=e136]:
+              - link [ref=e137] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/huggingface?pageId=Keltezaa%2FBonnieWright
+              - generic [ref=e139]: HF
+            - generic [ref=e140]:
+              - generic "BonnieWright" [ref=e141]
+              - generic [ref=e143]: 1 file(s)
+              - link "View details" [ref=e145] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/huggingface?pageId=Keltezaa%2FBonnieWright
+                - img [ref=e146]
+          - generic [ref=e149]:
+            - generic [ref=e150]:
+              - link [ref=e151] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=2138070
+              - generic [ref=e153]: CIVITAI
+            - generic [ref=e154]:
+              - generic "Chizuru Mizuhara - Kanojo Okarishimasu/Rent-A-Girlfriend - All Chizuru’s Collection!" [ref=e155]
+              - generic [ref=e156]:
+                - generic [ref=e157]: 4 file(s)
+                - generic [ref=e159]: Illustrious
+              - generic [ref=e160]:
+                - link "View details" [ref=e161] [cursor=pointer]:
+                  - /url: /tiny-model-manager/catalog/civitai?pageId=2138070
+                  - img [ref=e162]
+                - button "Copy trigger words" [ref=e165] [cursor=pointer]:
+                  - img [ref=e166]
+          - generic [ref=e169]:
+            - generic [ref=e170]:
+              - link [ref=e171] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=122359
+              - generic [ref=e173]: CIVITAI
+            - generic [ref=e174]:
+              - generic "Detail Tweaker XL" [ref=e175]
+              - generic [ref=e176]:
+                - generic [ref=e177]: 2 file(s)
+                - generic [ref=e179]: SDXL 1.0
+              - link "View details" [ref=e181] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=122359
+                - img [ref=e182]
+          - generic [ref=e185]:
+            - generic [ref=e186]:
+              - link [ref=e187] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=13941
+              - generic [ref=e189]: CIVITAI
+            - generic [ref=e190]:
+              - generic "epi_noiseoffset" [ref=e191]
+              - generic [ref=e192]:
+                - generic [ref=e193]: 1 file(s)
+                - generic [ref=e195]: SD 1.5
+              - link "View details" [ref=e197] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=13941
+                - img [ref=e198]
+          - generic [ref=e201]:
+            - generic [ref=e202]:
+              - link [ref=e203] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/huggingface?pageId=Keltezaa%2FEvannaLynch
+              - generic [ref=e205]: HF
+            - generic [ref=e206]:
+              - generic "EvannaLynch" [ref=e207]
+              - generic [ref=e208]:
+                - generic [ref=e209]: 1 file(s)
+                - generic [ref=e211]: Flux1-dev
+              - link "View details" [ref=e213] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/huggingface?pageId=Keltezaa%2FEvannaLynch
+                - img [ref=e214]
+          - generic [ref=e217]:
+            - generic [ref=e218]:
+              - link [ref=e219] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/huggingface?pageId=punzel%2Fflux_emma_stone
+              - generic [ref=e221]: HF
+            - generic [ref=e222]:
+              - generic "flux_emma_stone" [ref=e223]
+              - generic [ref=e225]: 1 file(s)
+              - link "View details" [ref=e227] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/huggingface?pageId=punzel%2Fflux_emma_stone
+                - img [ref=e228]
+          - generic [ref=e231]:
+            - generic [ref=e232]:
+              - link [ref=e233] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/huggingface?pageId=hanamori-ai%2Fhanamori-lora
+              - generic [ref=e235]: HF
+            - generic [ref=e236]:
+              - generic "hanamori-lora" [ref=e237]
+              - generic [ref=e239]: 1 file(s)
+              - link "View details" [ref=e241] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/huggingface?pageId=hanamori-ai%2Fhanamori-lora
+                - img [ref=e242]
+          - generic [ref=e245]:
+            - generic [ref=e246]:
+              - link [ref=e247] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=2512837
+              - generic [ref=e249]: CIVITAI
+            - generic [ref=e250]:
+              - generic "Hayase Nagatoro (Goblin) - Ijiranaide, Nagatoro-san" [ref=e251]
+              - generic [ref=e252]:
+                - generic [ref=e253]: 3 file(s)
+                - generic [ref=e255]: Illustrious
+              - generic [ref=e256]:
+                - link "View details" [ref=e257] [cursor=pointer]:
+                  - /url: /tiny-model-manager/catalog/civitai?pageId=2512837
+                  - img [ref=e258]
+                - button "Copy trigger words" [ref=e261] [cursor=pointer]:
+                  - img [ref=e262]
+          - generic [ref=e265]:
+            - generic [ref=e266]:
+              - link [ref=e267] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/huggingface?pageId=tylopez52%2FJennaOrtegaPONY.safetensor
+              - generic [ref=e269]: HF
+            - generic [ref=e270]:
+              - generic "JennaOrtegaPONY.safetensor" [ref=e271]
+              - generic [ref=e273]: 1 file(s)
+              - link "View details" [ref=e275] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/huggingface?pageId=tylopez52%2FJennaOrtegaPONY.safetensor
+                - img [ref=e276]
+          - generic [ref=e279]:
+            - generic [ref=e280]:
+              - link [ref=e281] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=1404405
+              - generic [ref=e283]: CIVITAI
+            - generic [ref=e284]:
+              - generic "Kofune Mio [6 outfits] | Illustrious | Summertime Render" [ref=e285]
+              - generic [ref=e286]:
+                - generic [ref=e287]: 1 file(s)
+                - generic [ref=e289]: Illustrious
+              - generic [ref=e290]:
+                - link "View details" [ref=e291] [cursor=pointer]:
+                  - /url: /tiny-model-manager/catalog/civitai?pageId=1404405
+                  - img [ref=e292]
+                - button "Copy trigger words" [ref=e295] [cursor=pointer]:
+                  - img [ref=e296]
+          - generic [ref=e299]:
+            - generic [ref=e300]:
+              - link [ref=e301] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=1405410
+              - generic [ref=e303]: CIVITAI
+            - generic [ref=e304]:
+              - generic "Kofune Ushio [4 outfits] | Illustrious | Summertime Render" [ref=e305]
+              - generic [ref=e306]:
+                - generic [ref=e307]: 1 file(s)
+                - generic [ref=e309]: Illustrious
+              - generic [ref=e310]:
+                - link "View details" [ref=e311] [cursor=pointer]:
+                  - /url: /tiny-model-manager/catalog/civitai?pageId=1405410
+                  - img [ref=e312]
+                - button "Copy trigger words" [ref=e315] [cursor=pointer]:
+                  - img [ref=e316]
+          - generic [ref=e319]:
+            - generic [ref=e320]:
+              - link [ref=e321] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=2622185
+              - generic [ref=e323]: CIVITAI
+            - generic [ref=e324]:
+              - generic "LeagueOFLegend Character pack 0.1Anima&Illustrious(Ahri,MsFortune,Akali,caitlyn,Vi,jinx,Riven,Evelynn,Katarina,)" [ref=e325]
+              - generic [ref=e326]:
+                - generic [ref=e327]: 2 file(s)
+                - generic [ref=e329]: Illustrious
+              - generic [ref=e330]:
+                - link "View details" [ref=e331] [cursor=pointer]:
+                  - /url: /tiny-model-manager/catalog/civitai?pageId=2622185
+                  - img [ref=e332]
+                - button "Copy trigger words" [ref=e335] [cursor=pointer]:
+                  - img [ref=e336]
+          - generic [ref=e339]:
+            - generic [ref=e340]:
+              - link [ref=e341] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/huggingface?pageId=Keltezaa%2Fmillie-bobby-brown-flux-d
+              - generic [ref=e343]: HF
+            - generic [ref=e344]:
+              - generic "millie-bobby-brown-flux-d" [ref=e345]
+              - generic [ref=e347]: 1 file(s)
+              - generic [ref=e348]:
+                - link "View details" [ref=e349] [cursor=pointer]:
+                  - /url: /tiny-model-manager/catalog/huggingface?pageId=Keltezaa%2Fmillie-bobby-brown-flux-d
+                  - img [ref=e350]
+                - button "Copy trigger words" [ref=e353] [cursor=pointer]:
+                  - img [ref=e354]
+          - generic [ref=e357]:
+            - generic [ref=e358]:
+              - link [ref=e359] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=1912934
+              - generic [ref=e361]: CIVITAI
+            - generic [ref=e362]:
+              - generic "Mine | Akame ga Kill! | アカメが斬る!" [ref=e363]
+              - generic [ref=e364]:
+                - generic [ref=e365]: 1 file(s)
+                - generic [ref=e367]: Illustrious
+              - generic [ref=e368]:
+                - link "View details" [ref=e369] [cursor=pointer]:
+                  - /url: /tiny-model-manager/catalog/civitai?pageId=1912934
+                  - img [ref=e370]
+                - button "Copy trigger words" [ref=e373] [cursor=pointer]:
+                  - img [ref=e374]
+          - generic [ref=e377]:
+            - generic [ref=e378]:
+              - link [ref=e379] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=1400090
+              - generic [ref=e381]: CIVITAI
+            - generic [ref=e382]:
+              - 'generic "People''s Works: SDXL" [ref=e383]'
+              - generic [ref=e384]:
+                - generic [ref=e385]: 3 file(s)
+                - generic [ref=e387]: Illustrious
+              - generic [ref=e388]:
+                - link "View details" [ref=e389] [cursor=pointer]:
+                  - /url: /tiny-model-manager/catalog/civitai?pageId=1400090
+                  - img [ref=e390]
+                - button "Copy trigger words" [ref=e393] [cursor=pointer]:
+                  - img [ref=e394]
+          - generic [ref=e397]:
+            - generic [ref=e398]:
+              - link [ref=e399] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=2185290
+              - generic [ref=e401]: CIVITAI
+            - generic [ref=e402]:
+              - generic "Rent-a-Girlfriend (Kanojo, Okarishimasu) (彼女、お借りします) - Poses" [ref=e403]
+              - generic [ref=e404]:
+                - generic [ref=e405]: 4 file(s)
+                - generic [ref=e407]: Illustrious
+              - generic [ref=e408]:
+                - link "View details" [ref=e409] [cursor=pointer]:
+                  - /url: /tiny-model-manager/catalog/civitai?pageId=2185290
+                  - img [ref=e410]
+                - button "Copy trigger words" [ref=e413] [cursor=pointer]:
+                  - img [ref=e414]
+      - generic [ref=e417]:
+        - generic [ref=e418]:
+          - heading "unet" [level=2] [ref=e419]
+          - generic [ref=e420]: "1"
+        - generic [ref=e423]:
+          - generic [ref=e424]:
+            - link [ref=e425] [cursor=pointer]:
+              - /url: /tiny-model-manager/catalog/huggingface?pageId=city96%2FFLUX.1-dev-gguf
+            - generic [ref=e427]: HF
+          - generic [ref=e428]:
+            - generic "FLUX.1-dev-gguf" [ref=e429]
+            - generic [ref=e430]:
+              - generic [ref=e431]: 1 file(s)
+              - generic [ref=e433]: Flux
+            - link "View details" [ref=e435] [cursor=pointer]:
+              - /url: /tiny-model-manager/catalog/huggingface?pageId=city96%2FFLUX.1-dev-gguf
+              - img [ref=e436]
+      - generic [ref=e439]:
+        - generic [ref=e440]:
+          - heading "checkpoints" [level=2] [ref=e441]
+          - generic [ref=e442]: "7"
+        - generic [ref=e444]:
+          - generic [ref=e445]:
+            - generic [ref=e446]:
+              - link [ref=e447] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=1025051
+              - generic [ref=e449]: CIVITAI
+            - generic [ref=e450]:
+              - generic "Illustrij" [ref=e451]
+              - generic [ref=e452]:
+                - generic [ref=e453]: 1 file(s)
+                - generic [ref=e455]: Illustrious
+              - link "View details" [ref=e457] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=1025051
+                - img [ref=e458]
+          - generic [ref=e461]:
+            - generic [ref=e462]:
+              - link [ref=e463] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/huggingface?pageId=calcuis%2Fillustrious
+              - generic [ref=e465]: HF
+            - generic [ref=e466]:
+              - generic "illustrious" [ref=e467]
+              - generic [ref=e468]:
+                - generic [ref=e469]: 1 file(s)
+                - generic [ref=e471]: Illustrious XL
+              - link "View details" [ref=e473] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/huggingface?pageId=calcuis%2Fillustrious
+                - img [ref=e474]
+          - generic [ref=e477]:
+            - generic [ref=e478]:
+              - link [ref=e479] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=795765
+              - generic [ref=e481]: CIVITAI
+            - generic [ref=e482]:
+              - generic "Illustrious-XL" [ref=e483]
+              - generic [ref=e484]:
+                - generic [ref=e485]: 1 file(s)
+                - generic [ref=e487]: Illustrious
+              - link "View details" [ref=e489] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=795765
+                - img [ref=e490]
+          - generic [ref=e493]:
+            - generic [ref=e494]:
+              - link [ref=e495] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=1110783
+              - generic [ref=e497]: CIVITAI
+            - generic [ref=e498]:
+              - generic "iLustMix" [ref=e499]
+              - generic [ref=e500]:
+                - generic [ref=e501]: 1 file(s)
+                - generic [ref=e503]: Illustrious
+              - link "View details" [ref=e505] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=1110783
+                - img [ref=e506]
+          - generic [ref=e509]:
+            - generic [ref=e510]:
+              - link [ref=e511] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=43331
+              - generic [ref=e513]: CIVITAI
+            - generic [ref=e514]:
+              - generic "majicMIX realistic 麦橘写实" [ref=e515]
+              - generic [ref=e516]:
+                - generic [ref=e517]: 1 file(s)
+                - generic [ref=e519]: SD 1.5
+              - link "View details" [ref=e521] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=43331
+                - img [ref=e522]
+          - generic [ref=e525]:
+            - generic [ref=e526]:
+              - link [ref=e527] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=376130
+              - generic [ref=e529]: CIVITAI
+            - generic [ref=e530]:
+              - generic "Nova Anime XL" [ref=e531]
+              - generic [ref=e532]:
+                - generic [ref=e533]: 1 file(s)
+                - generic [ref=e535]: Illustrious
+              - link "View details" [ref=e537] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=376130
+                - img [ref=e538]
+          - generic [ref=e541]:
+            - generic [ref=e542]:
+              - link [ref=e543] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=257749
+              - generic [ref=e545]: CIVITAI
+            - generic [ref=e546]:
+              - generic "Pony Diffusion V6 XL" [ref=e547]
+              - generic [ref=e548]:
+                - generic [ref=e549]: 1 file(s)
+                - generic [ref=e551]: Pony
+              - link "View details" [ref=e553] [cursor=pointer]:
+                - /url: /tiny-model-manager/catalog/civitai?pageId=257749
+                - img [ref=e554]

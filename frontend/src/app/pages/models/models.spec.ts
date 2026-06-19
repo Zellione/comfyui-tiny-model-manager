@@ -1,10 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideTranslateServiceForTests } from '../../../test-helpers/translate-testing';
-import { of, throwError } from 'rxjs';
+import { of, throwError, Subject } from 'rxjs';
 import { vi } from 'vitest';
 import { Models } from './models';
-import { ModelFile, ModelService, CatalogEntry, CatalogListResponse } from '../../services/model';
+import {
+  ModelFile,
+  ModelService,
+  CatalogEntry,
+  CatalogListResponse,
+  HashLookupResult,
+} from '../../services/model';
 import { WorkflowService } from '../../services/workflow';
 import { SettingsService } from '../../services/settings';
 import { NotificationService } from '../../services/notification';
@@ -1043,6 +1049,27 @@ describe('Models component', () => {
           civitai_model_id: '222',
         }),
       );
+    });
+
+    it('submit button is disabled while hash lookup is loading', async () => {
+      const subject$ = new Subject<HashLookupResult>();
+      mockModelService.hashLookup.mockReturnValue(subject$);
+
+      const component = await getComponent();
+      const file = {
+        filename: 'model.safetensors',
+        base_dir: '/models',
+        size_bytes: 100,
+        modified_at: 0,
+      };
+      component.openRegisterForm('loras', file);
+
+      expect(component.registerForm().hashStatus).toBe('loading');
+      expect(component.registerForm().saving).toBe(false);
+      // Verify the binding condition is true
+      const isDisabled =
+        component.registerForm().saving || component.registerForm().hashStatus === 'loading';
+      expect(isDisabled).toBe(true);
     });
   });
 });

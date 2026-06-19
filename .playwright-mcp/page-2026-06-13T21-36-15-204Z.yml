@@ -1,0 +1,300 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]: τ
+      - generic [ref=e6]: Tiny Model Manager
+    - navigation [ref=e7]:
+      - link "Catalog" [ref=e8] [cursor=pointer]:
+        - /url: /tiny-model-manager/catalog
+      - link "Download" [ref=e9] [cursor=pointer]:
+        - /url: /tiny-model-manager/download
+      - link "Settings" [ref=e10] [cursor=pointer]:
+        - /url: /tiny-model-manager/settings
+    - button "☀" [ref=e12] [cursor=pointer]
+  - main [ref=e13]:
+    - generic [ref=e14]:
+      - heading "Download Models" [level=2] [ref=e15]
+      - generic [ref=e16]:
+        - button "Active" [ref=e17] [cursor=pointer]
+        - button "History" [ref=e18] [cursor=pointer]
+      - generic [ref=e20]:
+        - heading "Paste a link" [level=3] [ref=e21]
+        - textbox "https://huggingface.co/… or https://civitai.com/models/…" [ref=e23]
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - generic [ref=e26]:
+            - button "CivitAI" [ref=e27] [cursor=pointer]
+            - button "HuggingFace" [ref=e28] [cursor=pointer]
+          - textbox "Search models…" [ref=e29]: Disney Princess
+          - combobox [ref=e31]:
+            - option "checkpoints"
+            - option "loras" [selected]
+            - option "embeddings"
+            - option "vae"
+            - option "controlnet"
+            - option "upscale_models"
+            - option "hypernetworks"
+            - option "clip_vision"
+            - option "style_models"
+            - option "gligen"
+            - option "diffusion_models"
+            - option "text_encoders"
+            - option "photomaker"
+            - option "vae_approx"
+            - option "unet"
+            - option "clip"
+          - button "Search" [ref=e32] [cursor=pointer]
+          - generic [ref=e33]:
+            - combobox [ref=e34]:
+              - option "All base models" [selected]
+              - option "SD 1.5"
+              - option "SD 2.1"
+              - option "SDXL 1.0"
+              - option "Pony"
+              - option "Illustrious"
+              - option "Flux.1 D"
+              - option "Flux.1 S"
+              - option "Stable Cascade"
+              - option "SDXL Turbo"
+              - option "Chroma"
+              - option "Qwen"
+            - combobox [ref=e35]:
+              - option "Default sort" [selected]
+              - option "Most Downloaded"
+              - option "Highest Rated"
+              - option "Newest"
+            - combobox [ref=e36]:
+              - option "All formats" [selected]
+              - option ".safetensors"
+              - option ".gguf"
+              - option ".ckpt"
+              - option ".pt"
+              - option ".bin"
+          - textbox "Filter by tag…" [ref=e41]
+        - generic [ref=e45]:
+          - generic [ref=e46]:
+            - generic [ref=e47]:
+              - generic [ref=e50] [cursor=pointer]:
+                - generic [ref=e51]: De-Sloppify - Negative Quality Modifier
+                - generic [ref=e52]:
+                  - generic [ref=e53]: LORA
+                  - generic [ref=e54]: Illustrious
+                  - generic [ref=e55]: style
+                  - generic [ref=e56]: ai slop
+              - generic [ref=e59] [cursor=pointer]:
+                - generic [ref=e60]: Disney 3d style — Anima
+                - generic [ref=e61]:
+                  - generic [ref=e62]: LORA
+                  - generic [ref=e63]: Anima
+                  - generic [ref=e64]: disney
+                  - generic [ref=e65]: 3d
+              - generic [ref=e68] [cursor=pointer]:
+                - generic [ref=e69]: Jane Porter - Tarzan | Illustrious
+                - generic [ref=e70]:
+                  - generic [ref=e71]: LORA
+                  - generic [ref=e72]: Illustrious
+                  - generic [ref=e73]: character
+                  - generic [ref=e74]: disney
+              - generic [ref=e77] [cursor=pointer]:
+                - generic [ref=e78]: Anna - Disney's Frozen
+                - generic [ref=e79]:
+                  - generic [ref=e80]: LORA
+                  - generic [ref=e81]: Illustrious
+                  - generic [ref=e82]: character
+                  - generic [ref=e83]: frozen
+              - generic [ref=e86] [cursor=pointer]:
+                - generic [ref=e87]: Princess Jasmine - Aladdin | Illustrious
+                - generic [ref=e88]:
+                  - generic [ref=e89]: LORA
+                  - generic [ref=e90]: Illustrious
+                  - generic [ref=e91]: character
+                  - generic [ref=e92]: disney
+              - generic [ref=e95] [cursor=pointer]:
+                - generic [ref=e96]: Ariel - The Little Mermaid | Anima Base v1
+                - generic [ref=e97]:
+                  - generic [ref=e98]: LORA
+                  - generic [ref=e99]: Anima
+                  - generic [ref=e100]: character
+                  - generic [ref=e101]: disney
+              - generic [ref=e104] [cursor=pointer]:
+                - generic [ref=e105]: Roxanne Rover (A Goofy Movie 1995) (IL 2.0)
+                - generic [ref=e106]:
+                  - generic [ref=e107]: LORA
+                  - generic [ref=e108]: Illustrious
+                  - generic [ref=e109]: character
+                  - generic [ref=e110]: disney
+              - generic [ref=e113] [cursor=pointer]:
+                - generic [ref=e114]: Princess Jasmine - Aladdin | Anima Base v1
+                - generic [ref=e115]:
+                  - generic [ref=e116]: LORA
+                  - generic [ref=e117]: Anima
+                  - generic [ref=e118]: character
+                  - generic [ref=e119]: disney
+              - generic [ref=e122] [cursor=pointer]:
+                - generic [ref=e123]: "Gadget Hackwrench (Chip & Dale: Rescue Rangers) (IL 2.0)"
+                - generic [ref=e124]:
+                  - generic [ref=e125]: LORA
+                  - generic [ref=e126]: Illustrious
+                  - generic [ref=e127]: character
+                  - generic [ref=e128]: disney
+              - generic [ref=e131] [cursor=pointer]:
+                - generic [ref=e132]: March Hare - Disney Alice in wonderland (on-model)
+                - generic [ref=e133]:
+                  - generic [ref=e134]: LORA
+                  - generic [ref=e135]: Illustrious
+                  - generic [ref=e136]: character
+                  - generic [ref=e137]: disney
+              - generic [ref=e140] [cursor=pointer]:
+                - generic [ref=e141]: Jane Porter - Tarzan | Anima Base v1
+                - generic [ref=e142]:
+                  - generic [ref=e143]: LORA
+                  - generic [ref=e144]: Anima
+                  - generic [ref=e145]: character
+                  - generic [ref=e146]: disney
+              - generic [ref=e149] [cursor=pointer]:
+                - generic [ref=e150]: Disney - Pocahontas (2 outfits)
+                - generic [ref=e151]:
+                  - generic [ref=e152]: LORA
+                  - generic [ref=e153]: Illustrious
+                  - generic [ref=e154]: character
+              - generic [ref=e157] [cursor=pointer]:
+                - generic [ref=e158]: "Queenie (Chip & Dale : Rescue Rangers)"
+                - generic [ref=e159]:
+                  - generic [ref=e160]: LORA
+                  - generic [ref=e161]: Illustrious
+                  - generic [ref=e162]: character
+                  - generic [ref=e163]: disney
+              - generic [ref=e166] [cursor=pointer]:
+                - generic [ref=e167]: Maria Vaz / Rosinha - Zé Carioca (Brazilian Disney Comics)
+                - generic [ref=e168]:
+                  - generic [ref=e169]: LORA
+                  - generic [ref=e170]: Illustrious
+                  - generic [ref=e171]: character
+                  - generic [ref=e172]: disney
+              - generic [ref=e175] [cursor=pointer]:
+                - generic [ref=e176]: Ellen [Disney Pixar’s Hoppers]
+                - generic [ref=e177]:
+                  - generic [ref=e178]: LORA
+                  - generic [ref=e179]: Illustrious
+                  - generic [ref=e180]: character
+                  - generic [ref=e181]: disney
+              - generic [ref=e184] [cursor=pointer]:
+                - generic [ref=e185]: Mrs. Hare (Bambi)
+                - generic [ref=e186]:
+                  - generic [ref=e187]: LORA
+                  - generic [ref=e188]: Illustrious
+                  - generic [ref=e189]: character
+                  - generic [ref=e190]: disney
+              - generic [ref=e193] [cursor=pointer]:
+                - generic [ref=e194]: Disney[Pocahontas] - John Smith (2 outfits)
+                - generic [ref=e195]:
+                  - generic [ref=e196]: LORA
+                  - generic [ref=e197]: Illustrious
+                  - generic [ref=e198]: character
+                  - generic [ref=e199]: man
+              - generic [ref=e202] [cursor=pointer]:
+                - generic [ref=e203]: Anna (Frozen) — Anima
+                - generic [ref=e204]:
+                  - generic [ref=e205]: LORA
+                  - generic [ref=e206]: Anima
+                  - generic [ref=e207]: character
+                  - generic [ref=e208]: disney
+              - generic [ref=e211] [cursor=pointer]:
+                - generic [ref=e212]: "Kidd Video: Carla"
+                - generic [ref=e213]:
+                  - generic [ref=e214]: LORA
+                  - generic [ref=e215]: Illustrious
+                  - generic [ref=e216]: character
+              - generic [ref=e219] [cursor=pointer]:
+                - generic [ref=e220]: Goofy - Disney
+                - generic [ref=e221]:
+                  - generic [ref=e222]: LORA
+                  - generic [ref=e223]: Anima
+                  - generic [ref=e224]: character
+                  - generic [ref=e225]: furry
+            - button "Load more" [ref=e226] [cursor=pointer]
+          - generic [ref=e227]:
+            - generic [ref=e228]:
+              - generic [ref=e229]:
+                - heading "Anna - Disney's Frozen" [level=2] [ref=e290]
+                - link "CivitAI ↗" [ref=e231] [cursor=pointer]:
+                  - /url: https://civitai.com/models/2561161
+              - generic [ref=e232]:
+                - generic [ref=e233]: LORA
+                - generic [ref=e234]: Illustrious
+                - generic [ref=e235]: by lbccdl
+                - generic [ref=e236]: 254 downloads
+            - generic [ref=e246]:
+              - generic [ref=e247]:
+                - heading "Versions" [level=3] [ref=e248]
+                - button "Download selected (1)" [ref=e294] [cursor=pointer]
+              - generic [ref=e295]:
+                - generic [ref=e296]:
+                  - strong [ref=e297]: v1.0
+                  - generic [ref=e298]: Illustrious
+                - generic [ref=e299]:
+                  - generic [ref=e300]:
+                    - checkbox [checked] [ref=e301] [cursor=pointer]
+                    - generic [ref=e302]: Anna_disney.safetensors
+                  - generic [ref=e303]:
+                    - generic [ref=e304]:
+                      - generic [ref=e305]: SafeTensor
+                      - generic [ref=e306]: 340.8 MB
+                    - generic [ref=e307]:
+                      - combobox [ref=e309]:
+                        - option "checkpoints"
+                        - option "loras" [selected]
+                        - option "embeddings"
+                        - option "vae"
+                        - option "controlnet"
+                        - option "upscale_models"
+                        - option "hypernetworks"
+                        - option "clip_vision"
+                        - option "style_models"
+                        - option "gligen"
+                        - option "diffusion_models"
+                        - option "text_encoders"
+                        - option "photomaker"
+                        - option "vae_approx"
+                        - option "unet"
+                        - option "clip"
+                      - generic [ref=e311]:
+                        - textbox "Base model" [ref=e312]: Illustrious
+                        - button "Show base models" [ref=e313] [cursor=pointer]: ▾
+                      - button "Download" [ref=e314] [cursor=pointer]
+            - generic [ref=e270]:
+              - generic [ref=e271]: Tags
+              - generic [ref=e272]:
+                - generic [ref=e315]: character
+                - generic [ref=e316]: frozen
+                - generic [ref=e317]: movie character
+            - generic [ref=e276]:
+              - generic [ref=e277]: Trigger words
+              - generic [ref=e278]:
+                - generic [ref=e318]: 1girl,blue eyes,freckles,orange hair,brown hair,lips,long hair
+                - generic [ref=e319]: braid,twin braids,makeup,cape,boots,dress,long skirt,skirt
+                - generic [ref=e320]: ponytail,boots,cape,dress,black footwear,cloak,long sleeves,high heels,knee boots
+                - generic [ref=e321]: braid,twin braids,dress,long sleeves,skirt
+            - generic [ref=e282]:
+              - paragraph [ref=e322]:
+                - strong [ref=e323]: Anna from Disney's Frozen
+              - paragraph [ref=e324]:
+                - strong [ref=e325]: "Appearance:"
+              - paragraph [ref=e326]: 1girl,blue eyes,freckles,orange hair,brown hair,lips,long hair
+              - paragraph [ref=e327]:
+                - img [ref=e328]
+              - paragraph [ref=e329]:
+                - strong [ref=e330]: "Outfit 1:"
+              - paragraph [ref=e331]: braid,twin braids,makeup,cape,boots,dress,long skirt,skirt
+              - paragraph [ref=e332]:
+                - img [ref=e333]
+              - paragraph [ref=e334]:
+                - strong [ref=e335]: "Outfit 2:"
+              - paragraph [ref=e336]: ponytail,boots,cape,dress,black footwear,cloak,long sleeves,high heels,knee boots
+              - paragraph [ref=e337]:
+                - img [ref=e338]
+              - paragraph [ref=e339]:
+                - strong [ref=e340]: "Outfit 3:"
+              - paragraph [ref=e341]: braid,twin braids,dress,long sleeves,skirt
+              - paragraph [ref=e342]:
+                - img [ref=e343]
