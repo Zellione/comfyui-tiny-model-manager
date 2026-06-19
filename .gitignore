@@ -10,3 +10,6 @@ __pycache__/
 _test_models/
 .coverage
 coverage.xml
+.playwright-mcp/
+playwright-report/
+test-results/
