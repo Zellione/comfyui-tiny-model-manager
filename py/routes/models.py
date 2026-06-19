@@ -297,6 +297,11 @@ async def _civitai_lookup(sha256: str) -> dict | None:
     return await CivitaiProvider().lookup_by_hash(sha256)
 
 
+async def _hash_file(path: str) -> str:
+    """Thin wrapper so tests can monkeypatch file hashing without patching asyncio globally."""
+    return await asyncio.to_thread(model_paths.compute_file_hash, path)
+
+
 async def _hash_lookup(request):
     """Compute SHA-256 of a model file and look it up on CivitAI."""
     body = await request.json()
@@ -309,7 +314,7 @@ async def _hash_lookup(request):
     if resolved is None:
         return err("file_not_found", 404)
 
-    file_hash = await asyncio.to_thread(model_paths.compute_file_hash, resolved)
+    file_hash = await _hash_file(resolved)
 
     try:
         metadata = await _civitai_lookup(file_hash)

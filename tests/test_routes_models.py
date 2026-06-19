@@ -389,8 +389,8 @@ class TestHashLookup:
         open(model_file, "wb").close()
 
         monkeypatch.setattr(
-            "py.routes.models.asyncio.to_thread",
-            lambda fn, *args: _async_return("deadbeefdeadbeef"),
+            "py.routes.models._hash_file",
+            lambda path: _async_return("deadbeefdeadbeef"),
         )
         monkeypatch.setattr(
             "py.routes.models._civitai_lookup",
@@ -424,8 +424,8 @@ class TestHashLookup:
         open(model_file, "wb").close()
 
         monkeypatch.setattr(
-            "py.routes.models.asyncio.to_thread",
-            lambda fn, *args: _async_return("aaaa"),
+            "py.routes.models._hash_file",
+            lambda path: _async_return("aaaa"),
         )
         monkeypatch.setattr(
             "py.routes.models._civitai_lookup",
@@ -463,8 +463,8 @@ class TestHashLookup:
         open(model_file, "wb").close()
 
         monkeypatch.setattr(
-            "py.routes.models.asyncio.to_thread",
-            lambda fn, *args: _async_return("bbbb"),
+            "py.routes.models._hash_file",
+            lambda path: _async_return("bbbb"),
         )
 
         async def _raise(_):
