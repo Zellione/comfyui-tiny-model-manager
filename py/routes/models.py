@@ -1,7 +1,9 @@
+import asyncio
 import os
 import shutil
 
 import folder_paths
+import httpx
 
 from .. import config as cfg
 from ..db import model_repo
@@ -265,8 +267,11 @@ async def _register_model(request):
     base_model = body.get("base_model", "").strip()
     tags = body.get("tags") or []
     description = body.get("description", "")
+    file_hash = body.get("file_hash", "").strip()
+    source_platform = body.get("source_platform", "").strip()
+    source_id = body.get("source_id", "").strip()
+    civitai_model_id = body.get("civitai_model_id", "").strip()
 
-    # Validate the file exists inside an expected directory
     resolved = model_paths.find_file(model_type, filename)
     if resolved is None:
         return err("file_not_found", 404)
@@ -277,14 +282,55 @@ async def _register_model(request):
         base_model=base_model,
         tags=tags,
         description=description,
+        file_hash=file_hash,
+        source_platform=source_platform,
+        source_id=source_id,
+        civitai_model_id=civitai_model_id,
     )
     return ok({"model_id": model_id})
+
+
+async def _civitai_lookup(sha256: str) -> dict | None:
+    """Thin wrapper so tests can monkeypatch the CivitAI call without touching the provider."""
+    from ..services.providers.civitai_provider import CivitaiProvider
+
+    return await CivitaiProvider().lookup_by_hash(sha256)
+
+
+async def _hash_file(path: str) -> str:
+    """Thin wrapper so tests can monkeypatch file hashing without patching asyncio globally."""
+    return await asyncio.to_thread(model_paths.compute_file_hash, path)
+
+
+async def _hash_lookup(request):
+    """Compute SHA-256 of a model file and look it up on CivitAI."""
+    body = await request.json()
+    filename = body.get("filename", "").strip()
+    model_type = body.get("model_type", "").strip()
+    if not filename or not model_type:
+        return err("filename and model_type are required", 400)
+
+    resolved = model_paths.find_file(model_type, filename)
+    if resolved is None:
+        return err("file_not_found", 404)
+
+    file_hash = await _hash_file(resolved)
+
+    try:
+        metadata = await _civitai_lookup(file_hash)
+    except httpx.HTTPError:
+        return err("civitai_unavailable", 503)
+
+    if metadata is None:
+        return ok({"hash": file_hash, "match": False})
+    return ok({"hash": file_hash, "match": True, "metadata": metadata})
 
 
 def add_model_routes(routes):
     routes.get("/tiny-model-manager/api/models")(json_route(_list_models))
     routes.get("/tiny-model-manager/api/models/unregistered")(json_route(_get_unregistered_files))
     routes.post("/tiny-model-manager/api/models/register")(json_route(_register_model))
+    routes.post("/tiny-model-manager/api/models/hash-lookup")(json_route(_hash_lookup))
     routes.delete("/tiny-model-manager/api/models/{model_type}/{path:.*}")(
         json_route(_delete_model)
     )

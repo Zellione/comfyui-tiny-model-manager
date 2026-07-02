@@ -34,15 +34,21 @@ web/                   # compiled frontend output (git-ignored; each worktree ha
 - `models` table has a `file_hash TEXT DEFAULT NULL` column (added in F-89 via `_COLUMN_ADDITIONS`).
 - New columns go in `py/db/database.py` → `_COLUMN_ADDITIONS` list as `"ALTER TABLE models ADD COLUMN ..."` — processed idempotently by `_add_new_columns()` (silently ignores "column already exists").
 
-## Key model_repo functions (F-89)
+## Key model_repo functions
 
 - `get_registered_filenames() -> set[str]` — returns all `filename` values from the `models` table as a set; O(1) membership checks.
-- `register_model(filename, model_type, base_model, tags, description) -> int` — minimal registration via `_upsert_model_row` + `_set_model_tags`; returns `model_id`.
+- `register_model(filename, model_type, base_model, tags, description, file_hash, source_platform, source_id, civitai_model_id) -> int` — upserts via `_upsert_model_row` + `_set_model_tags`; returns `model_id`. All new fields default to `""`. ON CONFLICT uses `CASE WHEN excluded.field != '' THEN excluded.field ELSE field END` (preserves existing value when new value is empty — same pattern as `base_model`).
 
-## Key routes (F-89)
+## Key routes (models)
 
-- `GET /tiny-model-manager/api/models/unregistered` — scans all model dirs (same logic as `_list_models`) and returns files not in the `models` table, grouped by type. Returns `ok({modelType: [{filename, base_dir, size_bytes, modified_at}]})`.
-- `POST /tiny-model-manager/api/models/register` — body: `{filename, model_type, base_model?, tags?, description?}`; validates file existence via `model_paths.find_file()`; returns `ok({model_id})`.
+- `GET /tiny-model-manager/api/models/unregistered` — scans all model dirs and returns files not in `models` table, grouped by type.
+- `POST /tiny-model-manager/api/models/register` — body: `{filename, model_type, base_model?, tags?, description?, file_hash?, source_platform?, source_id?, civitai_model_id?}`; validates file existence via `model_paths.find_file()`; returns `ok({model_id})`.
+- `POST /tiny-model-manager/api/models/hash-lookup` — body: `{filename, model_type}`; computes SHA-256 via `asyncio.to_thread(compute_file_hash, path)`, queries CivitAI; returns `ok({hash, match: true, metadata: {...}})` or `ok({hash, match: false})`; 404 on file not found, 503 on CivitAI error.
+
+## Key utility functions
+
+- `compute_file_hash(path)` in `py/services/model_paths.py` — synchronous SHA-256 (1 MB chunks), always called via `asyncio.to_thread`.
+- `CivitaiProvider.lookup_by_hash(sha256)` in `py/services/providers/civitai_provider.py` — `GET /v1/model-versions/by-hash/{sha256}`; returns parsed dict or `None` on 404; raises `httpx.HTTPError` on other failures.
 
 ## Invariants
 

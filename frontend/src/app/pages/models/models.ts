@@ -30,6 +30,8 @@ interface RegisterForm {
   tags: string;
   saving: boolean;
   error: string;
+  hashStatus: 'loading' | 'found' | 'not_found' | 'error';
+  name: string;
 }
 
 @Component({
@@ -153,7 +155,15 @@ export class Models implements OnInit {
     tags: '',
     saving: false,
     error: '',
+    hashStatus: 'loading',
+    name: '',
   });
+
+  private readonly registerFileHash = signal<string>('');
+  private readonly registerCivitaiIds = signal<{
+    source_id: string;
+    civitai_model_id: string;
+  } | null>(null);
 
   private readonly destroyRef = inject(DestroyRef);
   private readonly pollTrigger = new Subject<void>();
@@ -390,11 +400,51 @@ export class Models implements OnInit {
       tags: '',
       saving: false,
       error: '',
+      hashStatus: 'loading',
+      name: '',
     });
+    this.registerFileHash.set('');
+    this.registerCivitaiIds.set(null);
+    this._runHashLookup(file.filename, type);
   }
 
   cancelRegister(): void {
     this.registerFormFile.set(null);
+  }
+
+  private _runHashLookup(filename: string, modelType: string): void {
+    this.modelService.hashLookup(filename, modelType).subscribe({
+      next: (result) => {
+        this.registerFileHash.set(result.hash);
+        if (result.match && result.metadata) {
+          const m = result.metadata;
+          this.registerCivitaiIds.set({
+            source_id: m.civitai_version_id,
+            civitai_model_id: m.civitai_model_id,
+          });
+          this.registerForm.update((f) => ({
+            ...f,
+            hashStatus: 'found',
+            name: m.name,
+            baseModel: m.base_model,
+            description: m.description,
+            tags: m.tags.join(', '),
+          }));
+        } else {
+          this.registerForm.update((f) => ({ ...f, hashStatus: 'not_found' }));
+        }
+      },
+      error: () => {
+        this.registerForm.update((f) => ({ ...f, hashStatus: 'error' }));
+      },
+    });
+  }
+
+  retryHashLookup(): void {
+    const formFile = this.registerFormFile();
+    if (!formFile) return;
+    this.registerForm.update((f) => ({ ...f, hashStatus: 'loading', error: '' }));
+    this._runHashLookup(formFile.file.filename, formFile.type);
   }
 
   submitRegister(): void {
@@ -412,10 +462,21 @@ export class Models implements OnInit {
       .map((t) => t.trim())
       .filter(Boolean);
     if (tags.length > 0) req.tags = tags;
+
+    const hash = this.registerFileHash();
+    const ids = this.registerCivitaiIds();
+    if (hash) {
+      req.file_hash = hash;
+      if (ids) {
+        req.source_platform = 'civitai';
+        req.source_id = ids.source_id;
+        req.civitai_model_id = ids.civitai_model_id;
+      }
+    }
+
     this.registerForm.update((f) => ({ ...f, saving: true, error: '' }));
     this.modelService.registerModel(req).subscribe({
       next: () => {
-        // Remove the file from the unregistered list
         const mtype = formFile.type;
         const fname = formFile.file.filename;
         this.unregisteredFiles.update((prev) => {

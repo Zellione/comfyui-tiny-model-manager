@@ -573,3 +573,43 @@ class TestRegisterModel:
         await model_repo.register_model("notags.safetensors", "checkpoints", tags=[])
         row = await model_repo.get_model_by_filename("notags.safetensors")
         assert row["tags"] == []
+
+
+async def test_register_model_stores_file_hash(ext_dir):
+    from py.db import model_repo
+
+    model_id = await model_repo.register_model(
+        filename="hashed.safetensors",
+        model_type="checkpoints",
+        file_hash="aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899",
+    )
+    assert isinstance(model_id, int)
+    row = await model_repo.get_model_by_filename("hashed.safetensors")
+    assert row["file_hash"] == "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899"
+
+
+async def test_register_model_stores_civitai_ids(ext_dir):
+    from py.db import model_repo
+
+    await model_repo.register_model(
+        filename="civitai_linked.safetensors",
+        model_type="loras",
+        source_platform="civitai",
+        source_id="12345",
+        civitai_model_id="789",
+    )
+    row = await model_repo.get_model_by_filename("civitai_linked.safetensors")
+    assert row["source_platform"] == "civitai"
+    assert row["source_id"] == "12345"
+    assert row["civitai_model_id"] == "789"
+
+
+async def test_register_model_file_hash_defaults_to_none(ext_dir):
+    from py.db import model_repo
+
+    await model_repo.register_model(
+        filename="no_hash.safetensors",
+        model_type="checkpoints",
+    )
+    row = await model_repo.get_model_by_filename("no_hash.safetensors")
+    assert row["file_hash"] is None

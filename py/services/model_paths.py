@@ -108,3 +108,14 @@ def file_stat(model_type: str, *parts: str) -> dict | None:
         except OSError:
             pass
     return None
+
+
+def compute_file_hash(path) -> str:
+    """Return the lowercase hex SHA-256 of a file. Synchronous; call via asyncio.to_thread."""
+    import hashlib
+
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()

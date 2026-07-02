@@ -1,10 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideTranslateServiceForTests } from '../../../test-helpers/translate-testing';
-import { of, throwError } from 'rxjs';
+import { of, throwError, Subject } from 'rxjs';
 import { vi } from 'vitest';
 import { Models } from './models';
-import { ModelFile, ModelService, CatalogEntry, CatalogListResponse } from '../../services/model';
+import {
+  ModelFile,
+  ModelService,
+  CatalogEntry,
+  CatalogListResponse,
+  HashLookupResult,
+} from '../../services/model';
 import { WorkflowService } from '../../services/workflow';
 import { SettingsService } from '../../services/settings';
 import { NotificationService } from '../../services/notification';
@@ -35,6 +41,7 @@ const mockModelService = {
   getPendingQueue: vi.fn(),
   getUnregistered: vi.fn(),
   registerModel: vi.fn(),
+  hashLookup: vi.fn(),
 };
 
 const mockWorkflowService = {
@@ -74,6 +81,7 @@ describe('Models component', () => {
     vi.clearAllMocks();
     mockModelService.listCatalog.mockReturnValue(of(emptyCatalog));
     mockModelService.getPendingQueue.mockReturnValue(of([]));
+    mockModelService.hashLookup.mockReturnValue(of({ hash: '', match: false, metadata: null }));
     mockSettingsService.getOrganizeEnabled.mockReturnValue(of(false));
 
     await TestBed.configureTestingModule({
@@ -915,6 +923,153 @@ describe('Models component', () => {
       expect(component.unregisteredExpanded()).toBe(true);
       component.toggleUnregistered();
       expect(component.unregisteredExpanded()).toBe(false);
+    });
+
+    it('openRegisterForm() triggers hash lookup and sets hashStatus found on match', async () => {
+      const matchResult = {
+        hash: 'abc123',
+        match: true,
+        metadata: {
+          name: 'Great LoRA',
+          base_model: 'SD 1.5',
+          description: 'A great model',
+          tags: ['portrait'],
+          trigger_words: ['portrait'],
+          version_name: 'v2',
+          civitai_version_id: '111',
+          civitai_model_id: '222',
+        },
+      };
+      mockModelService.hashLookup.mockReturnValue(of(matchResult));
+
+      const component = await getComponent();
+      const file = {
+        filename: 'model.safetensors',
+        base_dir: '/models',
+        size_bytes: 100,
+        modified_at: 0,
+      };
+      component.openRegisterForm('loras', file);
+
+      expect(component.registerForm().hashStatus).toBe('found');
+      expect(component.registerForm().name).toBe('Great LoRA');
+      expect(component.registerForm().baseModel).toBe('SD 1.5');
+      expect(component.registerForm().description).toBe('A great model');
+      expect(component.registerForm().tags).toBe('portrait');
+    });
+
+    it('openRegisterForm() sets hashStatus not_found when no match', async () => {
+      mockModelService.hashLookup.mockReturnValue(
+        of({ hash: 'xyz', match: false, metadata: null }),
+      );
+
+      const component = await getComponent();
+      const file = {
+        filename: 'model.safetensors',
+        base_dir: '/models',
+        size_bytes: 100,
+        modified_at: 0,
+      };
+      component.openRegisterForm('loras', file);
+
+      expect(component.registerForm().hashStatus).toBe('not_found');
+      expect(component.registerForm().name).toBe('');
+    });
+
+    it('openRegisterForm() sets hashStatus error on lookup failure', async () => {
+      mockModelService.hashLookup.mockReturnValue(throwError(() => new Error('network')));
+
+      const component = await getComponent();
+      const file = {
+        filename: 'model.safetensors',
+        base_dir: '/models',
+        size_bytes: 100,
+        modified_at: 0,
+      };
+      component.openRegisterForm('loras', file);
+
+      expect(component.registerForm().hashStatus).toBe('error');
+    });
+
+    it('retryHashLookup() re-runs the lookup', async () => {
+      mockModelService.hashLookup.mockReturnValue(
+        of({ hash: 'xyz', match: false, metadata: null }),
+      );
+
+      const component = await getComponent();
+      const file = {
+        filename: 'model.safetensors',
+        base_dir: '/models',
+        size_bytes: 100,
+        modified_at: 0,
+      };
+      component.openRegisterForm('loras', file);
+      const callsBefore = mockModelService.hashLookup.mock.calls.length;
+      component.retryHashLookup();
+
+      expect(mockModelService.hashLookup.mock.calls.length).toBe(callsBefore + 1);
+    });
+
+    it('submitRegister() includes file_hash and CivitAI IDs when a match was found', async () => {
+      mockModelService.hashLookup.mockReturnValue(
+        of({
+          hash: 'abc123',
+          match: true,
+          metadata: {
+            name: 'Great LoRA',
+            base_model: 'SD 1.5',
+            description: '',
+            tags: [],
+            trigger_words: [],
+            version_name: 'v2',
+            civitai_version_id: '111',
+            civitai_model_id: '222',
+          },
+        }),
+      );
+      mockModelService.registerModel.mockReturnValue(of({ model_id: 1 }));
+      mockModelService.listCatalog.mockReturnValue(of(emptyCatalog));
+
+      const component = await getComponent();
+      const file = {
+        filename: 'model.safetensors',
+        base_dir: '/models',
+        size_bytes: 100,
+        modified_at: 0,
+      };
+      component.unregisteredFiles.set({ loras: [file] });
+      component.openRegisterForm('loras', file);
+      component.submitRegister();
+
+      expect(mockModelService.registerModel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          file_hash: 'abc123',
+          source_platform: 'civitai',
+          source_id: '111',
+          civitai_model_id: '222',
+        }),
+      );
+    });
+
+    it('submit button is disabled while hash lookup is loading', async () => {
+      const subject$ = new Subject<HashLookupResult>();
+      mockModelService.hashLookup.mockReturnValue(subject$);
+
+      const component = await getComponent();
+      const file = {
+        filename: 'model.safetensors',
+        base_dir: '/models',
+        size_bytes: 100,
+        modified_at: 0,
+      };
+      component.openRegisterForm('loras', file);
+
+      expect(component.registerForm().hashStatus).toBe('loading');
+      expect(component.registerForm().saving).toBe(false);
+      // Verify the binding condition is true
+      const isDisabled =
+        component.registerForm().saving || component.registerForm().hashStatus === 'loading';
+      expect(isDisabled).toBe(true);
     });
   });
 });

@@ -135,12 +135,33 @@ export interface UnregisteredFile {
   modified_at: number;
 }
 
+export interface HashLookupMetadata {
+  name: string;
+  base_model: string;
+  description: string;
+  tags: string[];
+  trigger_words: string[];
+  version_name: string;
+  civitai_version_id: string;
+  civitai_model_id: string;
+}
+
+export interface HashLookupResult {
+  hash: string;
+  match: boolean;
+  metadata: HashLookupMetadata | null;
+}
+
 export interface RegisterModelRequest {
   filename: string;
   model_type: string;
   base_model?: string;
   tags?: string[];
   description?: string;
+  file_hash?: string;
+  source_platform?: string;
+  source_id?: string;
+  civitai_model_id?: string;
 }
 
 const API = '/tiny-model-manager/api';
@@ -307,6 +328,15 @@ export class ModelService {
   registerModel(body: RegisterModelRequest): Observable<{ model_id: number }> {
     return this.http
       .post<{ success: boolean; data: { model_id: number } }>(`${API}/models/register`, body)
+      .pipe(map((r) => r.data));
+  }
+
+  hashLookup(filename: string, modelType: string): Observable<HashLookupResult> {
+    return this.http
+      .post<{
+        success: boolean;
+        data: HashLookupResult;
+      }>(`${API}/models/hash-lookup`, { filename, model_type: modelType })
       .pipe(map((r) => r.data));
   }
 }

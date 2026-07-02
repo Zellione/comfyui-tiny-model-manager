@@ -10,7 +10,38 @@
 - New services: mock `activeTasks$` as `of([])` and `completedTasks$` as `EMPTY` when testing components that inject `DownloadService`.
 - When testing components that inject `TagService`, provide `{ provide: TagService, useValue: mockTagService }` where `mockTagService = { searchTags: vi.fn().mockReturnValue(EMPTY) }`.
 - i18n: ngx-translate — all user-visible strings via translation keys.
-- **Form-control labeling (SonarQube `Web:InputWithoutLabelCheck`, a RELIABILITY bug)**: every `<input>` (except submit/button/image/hidden), `<select>` and `<textarea>` must have an associated label. Preferred fix is `[attr.aria-label]="'<key>' | translate"` (no layout change); reuse the placeholder/header translation key where one exists, or bind a meaningful value (e.g. `[attr.aria-label]="f.name"` for per-file checkboxes). Inputs wrapped in a `<label>…</label>` (implicit label) are already compliant.
+- **Form-control labeling (SonarQube `Web:InputWithoutLabelCheck`, a RELIABILITY bug)**: every `<input>` (except submit/button/image/hidden), `<select>` and `<textarea>` must have an associated label. Preferred fix is `[attr.aria-label]=\"'<key>' | translate\"` (no layout change); reuse the placeholder/header translation key where one exists, or bind a meaningful value (e.g. `[attr.aria-label]=\"f.name\"` for per-file checkboxes). Inputs wrapped in a `<label>…</label>` (implicit label) are already compliant.
+
+## Hash-lookup UX pattern (F-90)
+
+When a registration/edit form needs an async pre-fill from an external API (e.g. CivitAI hash lookup):
+
+**Component signals:**
+```typescript
+// In RegisterForm interface:
+hashStatus: 'loading' | 'found' | 'not_found' | 'error';
+name: string;
+
+// Private signals on the component:
+private registerFileHash = signal<string>('');
+private registerCivitaiIds = signal<{ source_id: string; civitai_model_id: string } | null>(null);
+```
+
+**openRegisterForm:** set `hashStatus: 'loading'`, then call `_runHashLookup(filename, modelType)`.
+
+**`_runHashLookup`:** subscribes to `modelService.hashLookup()` (one-shot observable, no takeUntilDestroyed needed); on match sets `hashStatus: 'found'` and pre-fills form fields + stores hash/IDs; on no-match sets `hashStatus: 'not_found'`; error handler sets `hashStatus: 'error'`.
+
+**`retryHashLookup`:** public method; resets `hashStatus: 'loading'`, clears error state, re-calls `_runHashLookup` from `registerFormFile()`.
+
+**Template states (use `@if` / `@else if` / `@else`):**
+- `loading`: spinner div + `| translate` key; all form inputs `[disabled]="registerForm().hashStatus === 'loading'"`; **submit button** also `[disabled]="registerForm().saving || registerForm().hashStatus === 'loading'"`
+- `found`: green badge with interpolated model name (`| translate: { name: registerForm().name }`)
+- `not_found`: neutral note
+- `error`: red message + `<button (click)="retryHashLookup()">` with Retry label
+
+**submitRegister:** include `file_hash`, `source_platform: 'civitai'`, `source_id`, `civitai_model_id` when `registerFileHash()` is truthy.
+
+**Tests:** use `new Subject<HashLookupResult>()` (never resolves) to test loading state; set default `mockModelService.hashLookup.mockReturnValue(of({ hash: '', match: false, metadata: null }))` in `beforeEach` so existing tests aren't broken.
 
 ## Angular service HTTP pattern
 
@@ -152,12 +183,27 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
 - `cfg.init(path)` must be called before `init_db()` in any test that touches the DB.
 - ComfyUI `INPUT_TYPES` default-arg pattern intentionally violates B008 (ignored in ruff config).
 - Ruff quote-style: double; indent: space.
+- **`asyncio.to_thread` for sync IO**: synchronous file operations (e.g. `compute_file_hash`) must be called via `await asyncio.to_thread(fn, arg)` inside async route handlers to avoid blocking the event loop.
+- **Monkeypatch wrapper for external HTTP calls and sync IO**: wrap CivitAI/HuggingFace calls AND `asyncio.to_thread` calls in dedicated module-level `async def _xxx()` functions (e.g. `_civitai_lookup`, `_hash_file` in `models.py`) so tests can monkeypatch the module-level name. **NEVER patch `asyncio.to_thread` directly** — it modifies the global `asyncio` module object, corrupting the `pytest-asyncio` event loop in CI and causing the entire test run to hang indefinitely. Pattern:
+  ```python
+  # In models.py — patchable wrapper around asyncio.to_thread
+  async def _hash_file(path: str) -> str:
+      return await asyncio.to_thread(model_paths.compute_file_hash, path)
+
+  # In tests — patch the wrapper, not asyncio.to_thread
+  monkeypatch.setattr("py.routes.models._hash_file", lambda path: _async_return("deadbeef"))
+  ```
+  The lambda for `_hash_file` takes `path: str`; the lambda for `_civitai_lookup` takes `sha256: str`.
 
 ## Security Patterns (SonarQube-compliant)
 
 ### S7044 — URL path traversal (SSRF)
-- **Only `urllib.parse.quote(value, safe="/")` is recognized** as a sanitizer by SonarQube's taint engine. Custom regex validators alone are NOT sufficient.
-- The return value of `quote()` must be **assigned back** (`repo_id = _validate_repo_id(repo_id)`) and used in URL construction; discarding the return value leaves the original variable tainted.
+- **For string parameters**: `urllib.parse.quote(value, safe="/")` is recognized as a sanitizer by SonarQube's taint engine. Custom regex validators alone are NOT sufficient. The return value of `quote()` must be **assigned back** and used in URL construction.
+- **For integer parameters**: assign `safe_id = int(model_id)` before using in the f-string; the explicit `int()` cast breaks the taint chain. Example in `civitai_provider.py::get_model_versions`:
+  ```python
+  safe_id = int(model_id)
+  resp = await client.get(f"{_BASE}/models/{safe_id}", ...)
+  ```
 - Pattern in `huggingface_provider.py`: `_validate_repo_id()` validates with a strict regex AND returns `urllib.parse.quote(repo_id, safe="/")`.
 
 ### S2083 / S6549 — Filesystem path traversal
@@ -174,6 +220,12 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
 - New spec files go beside the file under test (`foo.spec.ts` next to `foo.ts`)
 - Path traversal tests: add `test_*_path_traversal_rejected` to route test classes that accept user-supplied filenames (e.g. `TestRegisterModel.test_path_traversal_rejected`).
 - Whitespace input tests: add `test_*_whitespace_only_*_returns_400` when handler strips required fields.
+- **`_async_return` helper**: define at module level in test files that need to return coroutines from monkeypatched lambdas:
+  ```python
+  async def _async_return(value):
+      return value
+  ```
+  Use as `lambda path: _async_return("hash")` — NOT `lambda fn, *args: _async_return(...)` (the latter is the asyncio.to_thread signature, which we no longer patch).
 - **V8 function coverage for service methods**: Angular services are fully mocked in component tests, so their method bodies get 0% V8 function coverage. **Each new service method must have a dedicated test in `<service>.spec.ts` using `HttpTestingController`** — e.g., `provideHttpClientTesting()` + `TestBed.inject(HttpTestingController)` → `ctrl.expectOne(url).flush(response)`. Without this, the frontend function-coverage gate (≥62%) will fail.
 - **V8 coverage for computed signal callbacks**: `computed(() => expr)` arrow functions are separate function entries in V8. Access each computed signal at least once in a test to execute its callback and count it as covered.
 - **Reassigning Observable mock properties without `no-explicit-any`**: when a spec-file mock object has a typed `obs$: Observable<T>` property and a test needs to swap it for a `Subject<T>`, use `as unknown as typeof mockX.obs$` instead of `(mockX as any).obs$ = ...`:

@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ModelService } from './model';
+import { ModelService, HashLookupResult } from './model';
 
 describe('ModelService', () => {
   let service: ModelService;
@@ -135,5 +135,33 @@ describe('ModelService', () => {
     expect(req.request.body).toEqual({ filename: 'foo.safetensors', model_type: 'checkpoints' });
     req.flush({ success: true, data: { model_id: 42 } });
     expect(result).toEqual({ model_id: 42 });
+  });
+
+  describe('hashLookup', () => {
+    it('calls POST /hash-lookup and returns result', () => {
+      const mockResult: HashLookupResult = {
+        hash: 'abc123',
+        match: true,
+        metadata: {
+          name: 'Cool LoRA',
+          base_model: 'SD 1.5',
+          description: 'A description',
+          tags: ['portrait'],
+          trigger_words: ['portrait, detailed'],
+          version_name: 'v2',
+          civitai_version_id: '111',
+          civitai_model_id: '222',
+        },
+      };
+
+      let result: unknown;
+      service.hashLookup('model.safetensors', 'loras').subscribe((r) => (result = r));
+
+      const req = http.expectOne('/tiny-model-manager/api/models/hash-lookup');
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual({ filename: 'model.safetensors', model_type: 'loras' });
+      req.flush({ success: true, data: mockResult });
+      expect(result).toEqual(mockResult);
+    });
   });
 });

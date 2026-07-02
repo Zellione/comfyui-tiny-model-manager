@@ -67,7 +67,12 @@
       "registered_ok": "{{filename}} registered.",
       "register_failed": "Registration failed.",
       "file_gone": "File no longer exists on disk.",
-      "scan_failed": "Scan failed."
+      "scan_failed": "Scan failed.",
+      "lookup_loading": "Looking up on CivitAI…",
+      "lookup_found": "Found on CivitAI: {{name}}",
+      "lookup_not_found": "Not found on CivitAI — fill in details manually.",
+      "lookup_error": "CivitAI lookup failed.",
+      "lookup_retry": "Retry"
     },
     "notify": {
       "queued": "Model queued for workflow insertion.",
