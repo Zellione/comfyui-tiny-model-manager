@@ -7,7 +7,7 @@ import httpx
 
 from .. import config as cfg
 from ..db import model_repo
-from ..services import model_paths
+from ..services import link_resolver, model_paths
 from ..services.reorganizer import _sanitize_subfolder_name
 from ._helpers import err, json_route, ok
 from .metadata import _derive_source_url
@@ -326,11 +326,43 @@ async def _hash_lookup(request):
     return ok({"hash": file_hash, "match": True, "metadata": metadata})
 
 
+async def _resolve_model_link(parsed):
+    """Thin wrapper so tests can monkeypatch the provider call without touching the resolver."""
+    return await link_resolver.resolve(parsed)
+
+
+async def _resolve_link(request):
+    """Resolve a pasted CivitAI/HuggingFace model URL into registration metadata."""
+    body = await request.json()
+    url = (body.get("url") or "").strip()
+    if not url:
+        return err("url is required", 400)
+
+    parsed = link_resolver.parse_model_link(url)
+    if parsed is None:
+        return err("invalid_url", 400)
+
+    try:
+        metadata = await _resolve_model_link(parsed)
+    except httpx.HTTPError:
+        return err("provider_unavailable", 503)
+
+    if metadata is None:
+        return err("not_found", 404)
+
+    if parsed.platform == link_resolver.HUGGINGFACE:
+        source_id = parsed.repo_id
+    else:
+        source_id = metadata.get("civitai_version_id") or parsed.version_id
+    return ok({"platform": parsed.platform, "source_id": source_id, "metadata": metadata})
+
+
 def add_model_routes(routes):
     routes.get("/tiny-model-manager/api/models")(json_route(_list_models))
     routes.get("/tiny-model-manager/api/models/unregistered")(json_route(_get_unregistered_files))
     routes.post("/tiny-model-manager/api/models/register")(json_route(_register_model))
     routes.post("/tiny-model-manager/api/models/hash-lookup")(json_route(_hash_lookup))
+    routes.post("/tiny-model-manager/api/models/resolve-link")(json_route(_resolve_link))
     routes.delete("/tiny-model-manager/api/models/{model_type}/{path:.*}")(
         json_route(_delete_model)
     )

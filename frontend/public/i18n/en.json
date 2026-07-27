@@ -72,7 +72,16 @@
       "lookup_found": "Found on CivitAI: {{name}}",
       "lookup_not_found": "Not found on CivitAI — fill in details manually.",
       "lookup_error": "CivitAI lookup failed.",
-      "lookup_retry": "Retry"
+      "lookup_retry": "Retry",
+      "link_label": "CivitAI or HuggingFace link",
+      "link_placeholder": "https://civitai.com/models/…",
+      "link_resolve": "Resolve",
+      "link_resolving": "Resolving…",
+      "link_found": "Filled from {{platform}}.",
+      "link_invalid": "Not a supported CivitAI or HuggingFace model link.",
+      "link_not_found": "No model found for that link.",
+      "link_unavailable": "Could not reach the provider. Try again later.",
+      "link_failed": "Link resolution failed."
     },
     "notify": {
       "queued": "Model queued for workflow insertion.",

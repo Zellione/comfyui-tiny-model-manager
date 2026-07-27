@@ -22,55 +22,55 @@ def _patch_client(monkeypatch, transport: httpx.MockTransport) -> None:
 
 
 # ---------------------------------------------------------------------------
-# _validate_repo_id
+# validate_repo_id
 # ---------------------------------------------------------------------------
 
 
 class TestValidateRepoId:
     def test_accepts_valid_repo_id(self):
-        from py.services.providers.huggingface_provider import _validate_repo_id
+        from py.services.providers.huggingface_provider import validate_repo_id
 
-        assert _validate_repo_id("user/repo") == "user/repo"
+        assert validate_repo_id("user/repo") == "user/repo"
 
     def test_valid_single_segment(self):
-        from py.services.providers.huggingface_provider import _validate_repo_id
+        from py.services.providers.huggingface_provider import validate_repo_id
 
-        assert _validate_repo_id("bert-base-uncased") == "bert-base-uncased"
+        assert validate_repo_id("bert-base-uncased") == "bert-base-uncased"
 
     def test_valid_with_dots_and_hyphens(self):
-        from py.services.providers.huggingface_provider import _validate_repo_id
+        from py.services.providers.huggingface_provider import validate_repo_id
 
-        assert _validate_repo_id("meta-llama/Llama-3.1-8B") == "meta-llama/Llama-3.1-8B"
+        assert validate_repo_id("meta-llama/Llama-3.1-8B") == "meta-llama/Llama-3.1-8B"
 
     def test_rejects_path_traversal(self):
-        from py.services.providers.huggingface_provider import _validate_repo_id
+        from py.services.providers.huggingface_provider import validate_repo_id
 
         with pytest.raises(ValueError):
-            _validate_repo_id("../../etc/passwd")
+            validate_repo_id("../../etc/passwd")
 
     def test_rejects_double_slash(self):
-        from py.services.providers.huggingface_provider import _validate_repo_id
+        from py.services.providers.huggingface_provider import validate_repo_id
 
         with pytest.raises(ValueError):
-            _validate_repo_id("user/repo/subdir")
+            validate_repo_id("user/repo/subdir")
 
     def test_rejects_empty_string(self):
-        from py.services.providers.huggingface_provider import _validate_repo_id
+        from py.services.providers.huggingface_provider import validate_repo_id
 
         with pytest.raises(ValueError):
-            _validate_repo_id("")
+            validate_repo_id("")
 
     def test_rejects_absolute_path(self):
-        from py.services.providers.huggingface_provider import _validate_repo_id
+        from py.services.providers.huggingface_provider import validate_repo_id
 
         with pytest.raises(ValueError):
-            _validate_repo_id("/etc/passwd")
+            validate_repo_id("/etc/passwd")
 
     def test_rejects_leading_dot(self):
-        from py.services.providers.huggingface_provider import _validate_repo_id
+        from py.services.providers.huggingface_provider import validate_repo_id
 
         with pytest.raises(ValueError):
-            _validate_repo_id(".hidden/repo")
+            validate_repo_id(".hidden/repo")
 
     async def test_fetch_metadata_rejects_invalid_source_id(self, provider):
         with pytest.raises(ValueError):
@@ -367,3 +367,81 @@ class TestSearch:
         _patch_client(monkeypatch, httpx.MockTransport(handler))
         await provider.search("test")
         assert captured_filters == []
+
+
+# ---------------------------------------------------------------------------
+# lookup_by_repo_id
+# ---------------------------------------------------------------------------
+
+
+class TestLookupByRepoId:
+    REPO_DATA = {
+        "id": "owner/cool-lora",
+        "tags": ["diffusers", "lora", "text-to-image"],
+        "cardData": {
+            "base_model": ["stabilityai/stable-diffusion-xl-base-1.0"],
+            "description": "A cool LoRA",
+            "instance_prompt": "cool style",
+        },
+        "siblings": [
+            {"rfilename": "README.md"},
+            {"rfilename": "preview.png"},
+            {"rfilename": "second.png"},
+        ],
+    }
+
+    async def test_maps_card_data(self, provider, monkeypatch):
+        _patch_client(monkeypatch, _mock(self.REPO_DATA))
+        result = await provider.lookup_by_repo_id("owner/cool-lora")
+        assert result is not None
+        assert result["name"] == "cool-lora"
+        assert result["base_model"] == "stabilityai/stable-diffusion-xl-base-1.0"
+        assert result["description"] == "A cool LoRA"
+        assert result["tags"] == ["diffusers", "lora", "text-to-image"]
+        assert result["trigger_words"] == ["cool style"]
+        assert result["model_type"] == "loras"
+        assert (
+            result["thumbnail"] == "https://huggingface.co/owner/cool-lora/resolve/main/preview.png"
+        )
+        assert result["civitai_version_id"] == ""
+        assert result["civitai_model_id"] == ""
+        assert result["version_name"] == ""
+
+    async def test_base_model_as_plain_string(self, provider, monkeypatch):
+        _patch_client(monkeypatch, _mock({"cardData": {"base_model": "SD 1.5"}, "tags": []}))
+        result = await provider.lookup_by_repo_id("owner/repo")
+        assert result["base_model"] == "SD 1.5"
+
+    async def test_non_lora_repo_defaults_to_checkpoints(self, provider, monkeypatch):
+        _patch_client(monkeypatch, _mock({"tags": ["text-to-image"], "cardData": {}}))
+        result = await provider.lookup_by_repo_id("owner/repo")
+        assert result["model_type"] == "checkpoints"
+        assert result["thumbnail"] == ""
+
+    async def test_trigger_field_used_when_no_instance_prompt(self, provider, monkeypatch):
+        _patch_client(monkeypatch, _mock({"tags": [], "cardData": {"trigger": ["a", "b"]}}))
+        result = await provider.lookup_by_repo_id("owner/repo")
+        assert result["trigger_words"] == ["a", "b"]
+
+    async def test_missing_fields_default_to_empty(self, provider, monkeypatch):
+        _patch_client(monkeypatch, _mock({}))
+        result = await provider.lookup_by_repo_id("bert-base-uncased")
+        assert result["name"] == "bert-base-uncased"
+        assert result["base_model"] == ""
+        assert result["description"] == ""
+        assert result["tags"] == []
+        assert result["trigger_words"] == []
+
+    async def test_not_found_returns_none(self, provider, monkeypatch):
+        _patch_client(monkeypatch, _mock({"error": "not found"}, status=404))
+        assert await provider.lookup_by_repo_id("owner/missing") is None
+
+    async def test_server_error_propagates(self, provider, monkeypatch):
+        _patch_client(monkeypatch, _mock({"error": "oops"}, status=500))
+        with pytest.raises(httpx.HTTPStatusError):
+            await provider.lookup_by_repo_id("owner/repo")
+
+    async def test_invalid_repo_id_raises(self, provider, monkeypatch):
+        _patch_client(monkeypatch, _mock({}))
+        with pytest.raises(ValueError):
+            await provider.lookup_by_repo_id("../../etc/passwd")

@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ModelService, HashLookupResult } from './model';
+import { ModelService, HashLookupResult, ResolveLinkResult } from './model';
 
 describe('ModelService', () => {
   let service: ModelService;
@@ -160,6 +160,36 @@ describe('ModelService', () => {
       const req = http.expectOne('/tiny-model-manager/api/models/hash-lookup');
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual({ filename: 'model.safetensors', model_type: 'loras' });
+      req.flush({ success: true, data: mockResult });
+      expect(result).toEqual(mockResult);
+    });
+  });
+
+  describe('resolveLink', () => {
+    it('calls POST /resolve-link and returns result', () => {
+      const mockResult: ResolveLinkResult = {
+        platform: 'civitai',
+        source_id: '900',
+        metadata: {
+          name: 'Cool LoRA',
+          base_model: 'SD 1.5',
+          description: 'A description',
+          tags: ['portrait'],
+          trigger_words: ['portrait'],
+          version_name: 'v2',
+          civitai_version_id: '900',
+          civitai_model_id: '77',
+          model_type: 'loras',
+          thumbnail: 'https://example.com/a.jpg',
+        },
+      };
+
+      let result: unknown;
+      service.resolveLink('https://civitai.com/models/77').subscribe((r) => (result = r));
+
+      const req = http.expectOne('/tiny-model-manager/api/models/resolve-link');
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual({ url: 'https://civitai.com/models/77' });
       req.flush({ success: true, data: mockResult });
       expect(result).toEqual(mockResult);
     });

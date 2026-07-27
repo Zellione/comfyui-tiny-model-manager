@@ -204,7 +204,7 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
   safe_id = int(model_id)
   resp = await client.get(f"{_BASE}/models/{safe_id}", ...)
   ```
-- Pattern in `huggingface_provider.py`: `_validate_repo_id()` validates with a strict regex AND returns `urllib.parse.quote(repo_id, safe="/")`.
+- Pattern in `huggingface_provider.py`: `validate_repo_id()` validates with a strict regex AND returns `urllib.parse.quote(repo_id, safe="/")`.
 
 ### S2083 / S6549 — Filesystem path traversal
 - **`os.path.realpath()` is the recognized S2083 sanitizer.** Applying it before `os.makedirs` / `open` breaks the taint chain.

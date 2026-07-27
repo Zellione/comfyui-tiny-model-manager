@@ -144,6 +144,14 @@ export interface HashLookupMetadata {
   version_name: string;
   civitai_version_id: string;
   civitai_model_id: string;
+  model_type?: string;
+  thumbnail?: string;
+}
+
+export interface ResolveLinkResult {
+  platform: string;
+  source_id: string;
+  metadata: HashLookupMetadata;
 }
 
 export interface HashLookupResult {
@@ -337,6 +345,15 @@ export class ModelService {
         success: boolean;
         data: HashLookupResult;
       }>(`${API}/models/hash-lookup`, { filename, model_type: modelType })
+      .pipe(map((r) => r.data));
+  }
+
+  resolveLink(url: string): Observable<ResolveLinkResult> {
+    return this.http
+      .post<{
+        success: boolean;
+        data: ResolveLinkResult;
+      }>(`${API}/models/resolve-link`, { url })
       .pipe(map((r) => r.data));
   }
 }

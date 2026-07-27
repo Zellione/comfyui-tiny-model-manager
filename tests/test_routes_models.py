@@ -481,3 +481,100 @@ class TestHashLookup:
 
 async def _async_return(value):
     return value
+
+
+class TestResolveLink:
+    async def test_civitai_url_returns_metadata(self, client, monkeypatch):
+        captured = {}
+
+        async def _resolve(parsed):
+            captured["parsed"] = parsed
+            return {
+                "name": "Great LoRA",
+                "base_model": "SD 1.5",
+                "description": "Desc",
+                "tags": ["tag1"],
+                "trigger_words": ["word"],
+                "version_name": "v1",
+                "civitai_version_id": "900",
+                "civitai_model_id": "77",
+                "model_type": "loras",
+                "thumbnail": "https://example.com/a.jpg",
+            }
+
+        monkeypatch.setattr("py.routes.models._resolve_model_link", _resolve)
+
+        resp = await client.post(
+            "/tiny-model-manager/api/models/resolve-link",
+            json={"url": "https://civitai.com/models/77"},
+        )
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert data["platform"] == "civitai"
+        assert data["source_id"] == "900"
+        assert data["metadata"]["name"] == "Great LoRA"
+        assert captured["parsed"].model_id == "77"
+
+    async def test_huggingface_url_returns_repo_id_as_source(self, client, monkeypatch):
+        async def _resolve(parsed):
+            return {
+                "name": "cool-lora",
+                "base_model": "SDXL",
+                "description": "",
+                "tags": [],
+                "trigger_words": [],
+                "version_name": "",
+                "civitai_version_id": "",
+                "civitai_model_id": "",
+                "model_type": "loras",
+                "thumbnail": "",
+            }
+
+        monkeypatch.setattr("py.routes.models._resolve_model_link", _resolve)
+
+        resp = await client.post(
+            "/tiny-model-manager/api/models/resolve-link",
+            json={"url": "https://huggingface.co/owner/cool-lora"},
+        )
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert data["platform"] == "huggingface"
+        assert data["source_id"] == "owner/cool-lora"
+
+    async def test_missing_url_returns_400(self, client):
+        resp = await client.post("/tiny-model-manager/api/models/resolve-link", json={})
+        assert resp.status == 400
+
+    async def test_invalid_url_returns_400(self, client):
+        resp = await client.post(
+            "/tiny-model-manager/api/models/resolve-link",
+            json={"url": "https://example.com/models/1"},
+        )
+        assert resp.status == 400
+        assert (await resp.json())["error"] == "invalid_url"
+
+    async def test_no_match_returns_404(self, client, monkeypatch):
+        monkeypatch.setattr(
+            "py.routes.models._resolve_model_link", lambda parsed: _async_return(None)
+        )
+        resp = await client.post(
+            "/tiny-model-manager/api/models/resolve-link",
+            json={"url": "https://civitai.com/models/12345"},
+        )
+        assert resp.status == 404
+        assert (await resp.json())["error"] == "not_found"
+
+    async def test_provider_error_returns_503(self, client, monkeypatch):
+        import httpx as _httpx
+
+        async def _raise(parsed):
+            raise _httpx.HTTPError("network error")
+
+        monkeypatch.setattr("py.routes.models._resolve_model_link", _raise)
+
+        resp = await client.post(
+            "/tiny-model-manager/api/models/resolve-link",
+            json={"url": "https://civitai.com/models/12345"},
+        )
+        assert resp.status == 503
+        assert (await resp.json())["error"] == "provider_unavailable"

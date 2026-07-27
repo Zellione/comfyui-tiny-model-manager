@@ -24,7 +24,7 @@ _HF_REPO_ID_RE = re.compile(
 )
 
 
-def _validate_repo_id(repo_id: str) -> str:
+def validate_repo_id(repo_id: str) -> str:
     """Validate a HuggingFace repo ID and return it URL-encoded for safe use in URL paths."""
     if not _HF_REPO_ID_RE.fullmatch(repo_id):
         raise ValueError(f"Invalid HuggingFace repo ID: {repo_id!r}")
@@ -33,6 +33,21 @@ def _validate_repo_id(repo_id: str) -> str:
 
 def _file_ext(name: str) -> str:
     return ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
+
+
+def _as_str_list(value) -> list[str]:
+    """Normalise a card-data field that may be a string, a list or missing into a list."""
+    if isinstance(value, str):
+        return [value] if value else []
+    if isinstance(value, list):
+        return [str(v) for v in value if v]
+    return []
+
+
+def _first_str(value) -> str:
+    """Return the first entry of a card-data field that may be a string, a list or missing."""
+    items = _as_str_list(value)
+    return items[0] if items else ""
 
 
 def _build_search_params(
@@ -133,7 +148,7 @@ class HuggingFaceProvider(ModelProvider):
 
     async def get_model_files(self, repo_id: str) -> list[dict]:
         """Returns model files (.safetensors etc.) from a HuggingFace repo."""
-        repo_id = _validate_repo_id(repo_id)
+        repo_id = validate_repo_id(repo_id)
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(
                 f"{_API}/models/{repo_id}", params={"blobs": "true"}, headers=self.auth_headers()
@@ -170,7 +185,7 @@ class HuggingFaceProvider(ModelProvider):
 
     async def get_readme(self, repo_id: str) -> str:
         """Fetches README.md and returns its body as HTML with YAML front matter stripped."""
-        repo_id = _validate_repo_id(repo_id)
+        repo_id = validate_repo_id(repo_id)
         url = f"{_BASE}/{repo_id}/resolve/main/README.md"
         async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
             resp = await client.get(url, headers=self.auth_headers())
@@ -185,7 +200,7 @@ class HuggingFaceProvider(ModelProvider):
 
     async def resolve_direct_link(self, repo_id: str) -> dict:
         """Returns preview image URLs for a HuggingFace repo for direct link preview."""
-        repo_id = _validate_repo_id(repo_id)
+        repo_id = validate_repo_id(repo_id)
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(f"{_API}/models/{repo_id}", headers=self.auth_headers())
             resp.raise_for_status()
@@ -194,7 +209,7 @@ class HuggingFaceProvider(ModelProvider):
 
     async def fetch_metadata(self, source_id: str) -> ProviderMetadata:
         """Returns description, readme HTML, tags, and preview image URLs from a HuggingFace model card."""
-        source_id = _validate_repo_id(source_id)
+        source_id = validate_repo_id(source_id)
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(f"{_API}/models/{source_id}", headers=self.auth_headers())
             resp.raise_for_status()
@@ -212,3 +227,34 @@ class HuggingFaceProvider(ModelProvider):
             display_name=display_name,
             readme_html=readme_html,
         )
+
+    async def lookup_by_repo_id(self, repo_id: str) -> dict | None:
+        """Look up a HuggingFace repo and return registration metadata.
+
+        Mirrors the key set of ``CivitaiProvider`` lookups so both platforms feed the same
+        registration form. Returns None when the repo does not exist.
+        """
+        safe_id = validate_repo_id(repo_id)
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(f"{_API}/models/{safe_id}", headers=self.auth_headers())
+            if resp.status_code == 404:
+                return None
+            resp.raise_for_status()
+            data = resp.json()
+        card_data = data.get("cardData") or {}
+        tags = data.get("tags") or []
+        image_urls = _image_urls_from_siblings(safe_id, data, limit=1)
+        return {
+            "name": repo_id.rsplit("/", 1)[-1],
+            "base_model": _first_str(card_data.get("base_model")),
+            "description": card_data.get("description") or "",
+            "tags": tags,
+            "trigger_words": _as_str_list(
+                card_data.get("instance_prompt") or card_data.get("trigger")
+            ),
+            "version_name": "",
+            "civitai_version_id": "",
+            "civitai_model_id": "",
+            "model_type": "loras" if any("lora" in t.lower() for t in tags) else "checkpoints",
+            "thumbnail": image_urls[0] if image_urls else "",
+        }
