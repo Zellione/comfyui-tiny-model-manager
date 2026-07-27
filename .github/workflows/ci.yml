@@ -10,6 +10,8 @@ jobs:
   backend:
     name: Backend — tests & lint
     runs-on: ubuntu-latest
+    # Normally ~30s. A ceiling keeps an async hang from running to GitHub's 6-hour default.
+    timeout-minutes: 10
 
     env:
       # Prevent Python from prepending CWD to sys.path so that pytest's own
@@ -46,6 +48,7 @@ jobs:
   frontend:
     name: Frontend — tests, lint & build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     defaults:
       run:
@@ -84,6 +87,7 @@ jobs:
   sonarcloud:
     name: SonarCloud analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [backend, frontend]
     steps:
       - uses: actions/checkout@v6
