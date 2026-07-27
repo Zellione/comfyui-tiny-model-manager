@@ -145,6 +145,22 @@ class TestGetModelFiles:
         files = await provider.get_model_files("user/repo")
         assert files[0]["url"] == "https://huggingface.co/user/repo/resolve/main/m.safetensors"
 
+    async def test_exposes_lfs_oid_as_sha256(self, provider, monkeypatch):
+        """F-92: the LFS oid is the SHA-256 auto-migration matches on."""
+        repo_data = {
+            "siblings": [{"rfilename": "m.safetensors", "size": 500, "lfs": {"oid": "abc123"}}]
+        }
+        _patch_client(monkeypatch, _mock(repo_data))
+        files = await provider.get_model_files("user/repo")
+        assert files[0]["sha256"] == "abc123"
+
+    async def test_sha256_empty_without_lfs_block(self, provider, monkeypatch):
+        """Plain git blobs carry a SHA-1 blob_id, which must not be mistaken for a hash."""
+        repo_data = {"siblings": [{"rfilename": "m.safetensors", "size": 500, "blob_id": "sha1"}]}
+        _patch_client(monkeypatch, _mock(repo_data))
+        files = await provider.get_model_files("user/repo")
+        assert files[0]["sha256"] == ""
+
 
 # ---------------------------------------------------------------------------
 # get_readme — YAML front-matter stripping

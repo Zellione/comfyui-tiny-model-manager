@@ -14,7 +14,7 @@ py/                    # Python backend
     model_repo.py      # main persistence layer (includes search_tags, get_registered_filenames, register_model)
     keyword_repo.py    # trigger-word persistence
   routes/              # aiohttp route handlers: catalog, download, metadata, models, settings, workflow, notifications, static, tags, _helpers
-  services/            # business logic: downloader, metadata_fetcher, model_paths, reconciler, reorganizer, url_guard, backend_notifier
+  services/            # business logic: downloader, metadata_fetcher, model_paths, reconciler, reorganizer, url_guard, backend_notifier, disk_scanner, auto_migrator
     providers/         # civitai_provider, huggingface_provider (both implement base.py)
   nodes/               # ComfyUI nodes: lora_loader_with_triggers, checkpoint_loader_with_triggers, vae_loader, controlnet_loader, embedding_helper, upscale_model_loader
 frontend/              # Angular SPA (builds to ../web/)
@@ -71,6 +71,39 @@ civitai_version_id, civitai_model_id, model_type, thumbnail}`.
   The pasted URL is never fetched — only the extracted IDs are sent to a provider API.
 - `huggingface_provider.validate_repo_id` is **public** (was `_validate_repo_id`) so
   `link_resolver` can reuse it.
+
+## Disk scanning & auto-migration (F-92)
+
+- `py/services/disk_scanner.py` — `scan_all() -> {model_type: [{filename, base_dir,
+  size_bytes, modified_at}]}`. Extracted from `routes/models.py`; `_list_models` and
+  `_get_unregistered_files` are now thin callers. `catalog.py` still has its own
+  near-duplicate scan helpers (deliberately not unified).
+- `py/services/auto_migrator.py` — silently registers unregistered on-disk files whose
+  SHA-256 matches a hash returned by a CivitAI/HF fetch.
+  - `RemoteFile` dataclass + `from_civitai_versions(dict | list)` /
+    `from_hf_files(repo_id, files)` normalisers. `from_civitai_versions` tolerates a bare
+    version list because it runs directly on a provider payload.
+  - Matching is **name gate → size gate (64 KB tolerance) → SHA-256 verify**. Never hash
+    a file that failed the first two gates — that guard is what keeps the feature
+    affordable on a large library, and there is a test asserting `compute_file_hash` is
+    not called on a size mismatch.
+  - Bounded FIFO hash cache keyed by `(path, size, mtime)`, cap `_HASH_CACHE_MAX = 256`.
+  - On match: `register_model(...)` with the verified `file_hash`, source linkage, and the
+    base_model/description/trigger_words already in the provider payload.
+  - **Never call `fetch_and_store` from the migrator.** It re-enters `_fetch_repo_files`
+    → `schedule` → `migrate` (a cycle), and with `organize_into_subfolders` on it
+    relocates the file and upserts under the new path, orphaning the row `register_model`
+    just wrote (one file, two records). The stored source linkage means "Re-fetch
+    metadata" fills in the rest on demand.
+  - `schedule(files)` is fire-and-forget via `background.spawn`; no request blocks on
+    hashing. Returns `None` on an empty list, else the `asyncio.Task` — tests must await
+    that task, never drain `background._background_tasks` (it holds the downloader's
+    `while True` worker, which never completes and will hang the suite).
+- **Hook points** (4): `routes/download.py` → `civitai_versions`, `hf_files`;
+  `services/metadata_fetcher.py` → `_fetch_repo_files` (only the `get_model_versions`
+  branch — `get_version_files` returns no hashes) and `refetch_catalog_metadata`.
+- `HuggingFaceProvider.get_model_files` exposes `sha256` from `siblings[].lfs.oid`
+  (`""` for non-LFS blobs, whose `blob_id` is a SHA-1 and unusable).
 
 ## Invariants
 

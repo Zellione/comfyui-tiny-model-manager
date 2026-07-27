@@ -407,6 +407,27 @@ class TestHfFilesRoute:
         resp = await client.get("/tiny-model-manager/api/search/huggingface/files")
         assert resp.status == 400
 
+    async def test_schedules_auto_migration(self, client, monkeypatch):
+        """F-92: browsing a repo's files hands its LFS hashes to the auto-migrator."""
+        from py.services import auto_migrator
+        from py.services.providers import huggingface as hf_provider
+
+        scheduled = []
+
+        async def mock_get_files(repo_id):
+            return [{"filename": "model.safetensors", "size": 1000, "sha256": "abc"}]
+
+        monkeypatch.setattr(hf_provider, "get_model_files", mock_get_files)
+        monkeypatch.setattr(auto_migrator, "schedule", scheduled.append)
+
+        resp = await client.get(
+            "/tiny-model-manager/api/search/huggingface/files", params={"repo": "user/myrepo"}
+        )
+        assert resp.status == 200
+        assert len(scheduled) == 1
+        assert [f.sha256 for f in scheduled[0]] == ["abc"]
+        assert scheduled[0][0].source_id == "user/myrepo"
+
 
 class TestCivitaiVersionsRoute:
     async def test_returns_versions_list(self, client, monkeypatch):
@@ -421,6 +442,39 @@ class TestCivitaiVersionsRoute:
         data = await resp.json()
         assert data["success"] is True
         assert data["data"][0]["id"] == 1
+
+    async def test_schedules_auto_migration(self, client, monkeypatch):
+        """F-92: browsing versions hands their per-file hashes to the auto-migrator."""
+        from py.services import auto_migrator
+        from py.services.providers import civitai as civitai_provider
+
+        scheduled = []
+
+        async def mock_get_versions(model_id):
+            return {
+                "versions": [
+                    {
+                        "id": 9,
+                        "modelId": 42,
+                        "files": [
+                            {
+                                "type": "Model",
+                                "name": "v.safetensors",
+                                "hashes": {"SHA256": "abc"},
+                            }
+                        ],
+                    }
+                ]
+            }
+
+        monkeypatch.setattr(civitai_provider, "get_model_versions", mock_get_versions)
+        monkeypatch.setattr(auto_migrator, "schedule", scheduled.append)
+
+        resp = await client.get("/tiny-model-manager/api/civitai/versions/42")
+        assert resp.status == 200
+        assert len(scheduled) == 1
+        assert [f.filename for f in scheduled[0]] == ["v.safetensors"]
+        assert scheduled[0][0].source_id == "9"
 
 
 class TestHfReadmeRoute:

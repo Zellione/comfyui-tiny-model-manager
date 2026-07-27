@@ -208,12 +208,17 @@ async def _fetch_repo_files(
     platform: str, source_id: str, civitai_model_id: str
 ) -> list[dict] | None:
     """Fetch sibling files for the model from the upstream provider, or None if unsupported."""
+    from . import auto_migrator
+
     if platform == "civitai":
         from .providers.civitai_provider import CivitaiProvider
 
         civitai = CivitaiProvider()
         if civitai_model_id:
             model_data = await civitai.get_model_versions(int(civitai_model_id))
+            # F-92: this response carries per-file SHA-256 hashes; the flattened
+            # get_version_files() fallback below does not, so only hook here.
+            auto_migrator.schedule(auto_migrator.from_civitai_versions(model_data))
             return _civitai_repo_files(model_data, f"https://civitai.com/models/{civitai_model_id}")
         return await civitai.get_version_files(int(source_id))
     if platform == "huggingface":
@@ -221,6 +226,7 @@ async def _fetch_repo_files(
 
         hf = HuggingFaceProvider()
         raw = await hf.get_model_files(source_id)
+        auto_migrator.schedule(auto_migrator.from_hf_files(source_id, raw))
         return hf._model_files_for_storage(source_id, raw)
     return None
 
@@ -439,6 +445,9 @@ async def refetch_catalog_metadata(platform: str, page_id: str) -> dict | None:
         versions = model_data.get("versions", [])
         if not versions:
             return None
+        from . import auto_migrator
+
+        auto_migrator.schedule(auto_migrator.from_civitai_versions(model_data))
         source_id = str(versions[0].get("id", ""))
         source_page_url = f"https://civitai.com/models/{page_id}"
         version_name_map = {str(v["id"]): v.get("name", "") for v in versions}
