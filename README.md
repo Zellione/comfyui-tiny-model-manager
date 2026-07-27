@@ -100,7 +100,7 @@ All nodes are available under the `tiny-model-manager` category in the ComfyUI n
 | **Embedding Helper** | `embedding_name` | `embedding_ref` (formatted string for prompt use) |
 | **Upscale Model Loader** | `model_name` | `upscale_model` |
 
-The dashboard's "+" button on any model card (and the "Add to Workflow" button on the detail page) creates the matching node at the centre of the currently open workflow.
+The dashboard's "+" button on any model card (and the "Add to Workflow" button on the detail page) creates the matching node at the centre of the currently open workflow. ComfyUI's model lists are refreshed first, so a model downloaded after the ComfyUI tab was opened is immediately selectable in the new node's dropdown without reloading the page.
 
 ---
 
