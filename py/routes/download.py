@@ -3,6 +3,7 @@ import os
 from aiohttp import web
 
 from ..db import model_repo
+from ..services import auto_migrator
 from ..services import downloader as dl
 from ..services.providers import civitai, huggingface
 from ..services.url_guard import is_allowed_url
@@ -59,6 +60,9 @@ def _register_search_routes(routes):
         if not repo_id:
             return err(_MISSING_REPO, status=400)
         files = await huggingface.get_model_files(repo_id)
+        # F-92: the listing carries LFS hashes, so any matching unregistered file on
+        # disk can be turned into a model card in the background.
+        auto_migrator.schedule(auto_migrator.from_hf_files(repo_id, files))
         return ok(files)
 
     @routes.get("/tiny-model-manager/api/civitai/versions/{model_id}")
@@ -66,6 +70,7 @@ def _register_search_routes(routes):
     async def civitai_versions(request):
         model_id = int(request.match_info["model_id"])
         versions = await civitai.get_model_versions(model_id)
+        auto_migrator.schedule(auto_migrator.from_civitai_versions(versions))
         return ok(versions)
 
     @routes.get("/tiny-model-manager/api/huggingface/readme")

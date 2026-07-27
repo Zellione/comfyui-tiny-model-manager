@@ -384,6 +384,45 @@ class TestFetchRepoFilesAllVersions:
         assert "model-v1.safetensors" in filenames
         assert "dataset.zip" not in filenames
 
+    async def test_schedules_auto_migration_from_versions(self, ext_dir, monkeypatch):
+        """F-92: the model-versions branch carries hashes, so it feeds the auto-migrator."""
+        from py.services import auto_migrator
+        from py.services.metadata_fetcher import _fetch_and_store_repo_files
+
+        scheduled = []
+        monkeypatch.setattr(auto_migrator, "schedule", scheduled.append)
+
+        versions = [
+            {
+                "id": 200,
+                "modelId": 44,
+                "files": [
+                    {
+                        "name": "hashed.safetensors",
+                        "type": "Model",
+                        "sizeKB": 512,
+                        "hashes": {"SHA256": "abc"},
+                        "downloadUrl": "https://civitai.com/dl/v2",
+                    }
+                ],
+            }
+        ]
+        catalog_entry_id = await self._make_catalog_entry("44")
+        mock_cls, _ = self._make_civitai_mock(versions)
+        with patch("py.services.providers.civitai_provider.CivitaiProvider", mock_cls):
+            await _fetch_and_store_repo_files(
+                "hashed.safetensors",
+                "loras",
+                "civitai",
+                "200",
+                civitai_model_id="44",
+                catalog_entry_id=catalog_entry_id,
+            )
+
+        assert len(scheduled) == 1
+        assert [f.filename for f in scheduled[0]] == ["hashed.safetensors"]
+        assert scheduled[0][0].sha256 == "abc"
+
     async def test_source_page_url_includes_version_id(self, ext_dir):
         from py.db import model_repo
         from py.services.metadata_fetcher import _fetch_and_store_repo_files
@@ -476,6 +515,51 @@ class TestRefetchCatalogMetadata:
 
         result = await refetch_catalog_metadata("unknown", "some/id")
         assert result is None
+
+    async def test_civitai_refetch_schedules_auto_migration(self, ext_dir, monkeypatch):
+        """F-92: catalog re-fetch does not route through _fetch_repo_files, so it hooks itself."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from py.services import auto_migrator
+        from py.services.metadata_fetcher import refetch_catalog_metadata
+        from py.services.providers.base import ProviderMetadata
+
+        scheduled = []
+        monkeypatch.setattr(auto_migrator, "schedule", scheduled.append)
+
+        mock_civitai_cls = MagicMock()
+        mock_civitai_inst = AsyncMock()
+        mock_civitai_inst.get_model_versions = AsyncMock(
+            return_value={
+                "versions": [
+                    {
+                        "id": 301,
+                        "modelId": 99,
+                        "files": [
+                            {
+                                "type": "Model",
+                                "name": "catalog.safetensors",
+                                "hashes": {"SHA256": "abc"},
+                            }
+                        ],
+                    }
+                ],
+                "model_type": "loras",
+            }
+        )
+        mock_civitai_cls.return_value = mock_civitai_inst
+
+        mock_provider = AsyncMock()
+        mock_provider.fetch_metadata = AsyncMock(return_value=ProviderMetadata())
+
+        with (
+            patch("py.services.providers.civitai_provider.CivitaiProvider", mock_civitai_cls),
+            patch("py.services.metadata_fetcher.get_provider", return_value=mock_provider),
+        ):
+            await refetch_catalog_metadata("civitai", "99")
+
+        assert len(scheduled) == 1
+        assert [f.filename for f in scheduled[0]] == ["catalog.safetensors"]
 
     async def test_civitai_updates_version_names_on_refetch(self, ext_dir, loras_dir):
         """F-96: refetch_catalog_metadata updates civitai_version_name for installed files."""

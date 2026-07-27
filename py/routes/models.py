@@ -5,66 +5,11 @@ import shutil
 import folder_paths
 import httpx
 
-from .. import config as cfg
 from ..db import model_repo
-from ..services import link_resolver, model_paths
+from ..services import disk_scanner, link_resolver, model_paths
 from ..services.reorganizer import _sanitize_subfolder_name
 from ._helpers import err, json_route, ok
 from .metadata import _derive_source_url
-
-_BROAD_EXTENSIONS = {".safetensors", ".ckpt", ".pt", ".bin", ".gguf", ".pth"}
-_SKIP_TYPES = {"configs", "custom_nodes"}
-
-
-def _scan_dir(base_dir: str, extensions: set) -> list:
-    """Walk base_dir and return model file entries for matching extensions."""
-    entries = []
-    if not os.path.isdir(base_dir):
-        return entries
-    for root, _, files in os.walk(base_dir):
-        for fname in files:
-            if os.path.splitext(fname)[1].lower() in extensions:
-                full = os.path.join(root, fname)
-                rel = os.path.relpath(full, base_dir).replace("\\", "/")
-                stat = os.stat(full)
-                entries.append(
-                    {
-                        "filename": rel,
-                        "base_dir": base_dir,
-                        "size_bytes": stat.st_size,
-                        "modified_at": stat.st_mtime,
-                    }
-                )
-    return entries
-
-
-def _scan_registered_types(result: dict, scanned: set) -> None:
-    """Phase 1: scan every registered ComfyUI folder type into result."""
-    for folder_type, (dirs, extensions) in folder_paths.folder_names_and_paths.items():
-        if folder_type in _SKIP_TYPES:
-            continue
-        models = []
-        for base_dir in dirs:
-            scanned.add(os.path.normpath(base_dir))
-            models.extend(_scan_dir(base_dir, set(extensions) | _BROAD_EXTENSIONS))
-        if models:
-            result[folder_type] = models
-
-
-def _scan_root_subdirs(result: dict, scanned: set, root: str, skip_types: bool) -> None:
-    """Scan each subfolder of ``root`` not already covered, grouping files by folder name."""
-    if not os.path.isdir(root):
-        return
-    for name in sorted(os.listdir(root)):
-        if skip_types and name in _SKIP_TYPES:
-            continue
-        physical = os.path.normpath(os.path.join(root, name))
-        if not os.path.isdir(physical) or physical in scanned:
-            continue
-        scanned.add(physical)
-        models = _scan_dir(physical, _BROAD_EXTENSIONS)
-        if models:
-            result.setdefault(name, []).extend(models)
 
 
 def _attach_model_metadata(result: dict, meta_map: dict) -> None:
@@ -92,15 +37,7 @@ def _attach_model_metadata(result: dict, meta_map: dict) -> None:
 
 
 async def _list_models(request):
-    result: dict = {}
-    # Track every physical directory already covered so we don't double-count.
-    scanned: set[str] = set()
-    _scan_registered_types(result, scanned)
-    # Physical subfolders of models_dir not covered by any registered path (e.g. "unet"/"clip"),
-    # then the legacy data_dir/models/<type> location used by older plugin versions.
-    _scan_root_subdirs(result, scanned, folder_paths.models_dir, skip_types=True)
-    _scan_root_subdirs(result, scanned, os.path.join(cfg.data_dir(), "models"), skip_types=False)
-
+    result = disk_scanner.scan_all()
     all_filenames = [f["filename"] for files in result.values() for f in files]
     meta_map = await model_repo.get_metadata_by_filenames(all_filenames)
     _attach_model_metadata(result, meta_map)
@@ -241,12 +178,7 @@ async def _get_pending_reorganize(request):
 
 async def _get_unregistered_files(request):
     """Scan all model dirs and return files not yet in the models table."""
-    result: dict = {}
-    scanned: set[str] = set()
-    _scan_registered_types(result, scanned)
-    _scan_root_subdirs(result, scanned, folder_paths.models_dir, skip_types=True)
-    _scan_root_subdirs(result, scanned, os.path.join(cfg.data_dir(), "models"), skip_types=False)
-
+    result = disk_scanner.scan_all()
     registered = await model_repo.get_registered_filenames()
     unregistered: dict = {}
     for mtype, files in result.items():

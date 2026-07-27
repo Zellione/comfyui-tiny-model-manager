@@ -167,6 +167,9 @@ class HuggingFaceProvider(ModelProvider):
                         "size": f.get("size", 0),
                         "url": f"{_BASE}/{repo_id}/resolve/main/{name}",
                         "source_page_url": source_page_url,
+                        # LFS oid is the SHA-256 for LFS-backed files; "" for plain
+                        # git blobs, whose blob_id is a SHA-1 and therefore unusable.
+                        "sha256": (f.get("lfs") or {}).get("oid", ""),
                     }
                 )
         return result
