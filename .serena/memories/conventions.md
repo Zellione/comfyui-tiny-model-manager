@@ -12,36 +12,62 @@
 - i18n: ngx-translate — all user-visible strings via translation keys.
 - **Form-control labeling (SonarQube `Web:InputWithoutLabelCheck`, a RELIABILITY bug)**: every `<input>` (except submit/button/image/hidden), `<select>` and `<textarea>` must have an associated label. Preferred fix is `[attr.aria-label]=\"'<key>' | translate\"` (no layout change); reuse the placeholder/header translation key where one exists, or bind a meaningful value (e.g. `[attr.aria-label]=\"f.name\"` for per-file checkboxes). Inputs wrapped in a `<label>…</label>` (implicit label) are already compliant.
 
-## Hash-lookup UX pattern (F-90)
+## External pre-fill UX pattern (register form — F-90 hash lookup, F-91 link resolution)
 
-When a registration/edit form needs an async pre-fill from an external API (e.g. CivitAI hash lookup):
+When a registration/edit form pre-fills itself from an external API, the register form on the
+Models page carries **two independent pre-fill paths** that share one source signal.
 
-**Component signals:**
+**Component state:**
 ```typescript
 // In RegisterForm interface:
-hashStatus: 'loading' | 'found' | 'not_found' | 'error';
+hashStatus: 'loading' | 'found' | 'not_found' | 'error';   // automatic, on open
+linkStatus: 'idle' | 'loading' | 'found' | 'error';        // manual, on Resolve
 name: string;
+link: string;
+linkMessage: string;                                       // resolved i18n string
 
 // Private signals on the component:
 private registerFileHash = signal<string>('');
-private registerCivitaiIds = signal<{ source_id: string; civitai_model_id: string } | null>(null);
+private registerSource = signal<{
+  platform: string; source_id: string; civitai_model_id: string;
+} | null>(null);
 ```
 
-**openRegisterForm:** set `hashStatus: 'loading'`, then call `_runHashLookup(filename, modelType)`.
+`registerSource` is **platform-agnostic** — it is set by `_runHashLookup` (`platform: 'civitai'`)
+*and* by `resolveLink` (whatever the API returns). Do not reintroduce a CivitAI-only signal.
 
-**`_runHashLookup`:** subscribes to `modelService.hashLookup()` (one-shot observable, no takeUntilDestroyed needed); on match sets `hashStatus: 'found'` and pre-fills form fields + stores hash/IDs; on no-match sets `hashStatus: 'not_found'`; error handler sets `hashStatus: 'error'`.
+**Hash path (automatic):** `openRegisterForm` sets `hashStatus: 'loading'` and calls
+`_runHashLookup(filename, modelType)` — a one-shot observable, no `takeUntilDestroyed` needed.
+On match → `hashStatus: 'found'` + pre-fill + store hash/source; no match → `'not_found'`;
+error → `'error'`. `retryHashLookup()` resets to `'loading'` and re-calls from `registerFormFile()`.
 
-**`retryHashLookup`:** public method; resets `hashStatus: 'loading'`, clears error state, re-calls `_runHashLookup` from `registerFormFile()`.
+**Link path (manual, F-91):** `resolveLink()` reads `registerForm().link`, no-ops when blank,
+sets `linkStatus: 'loading'`, then calls `modelService.resolveLink(url)`. Success **overwrites**
+`name`/`baseModel`/`description`/`tags` and replaces `registerSource` (the user asked for it).
+Errors map backend codes through a module-level `LINK_ERROR_KEYS` record
+(`invalid_url` / `not_found` / `provider_unavailable`) with a `link_failed` fallback, storing the
+translated text in `linkMessage`.
+
+**`model_type` is never overwritten by either path** — the file's directory fixes its type. The
+API returns the provider's `model_type` for other consumers (auto-migration), not for the form.
 
 **Template states (use `@if` / `@else if` / `@else`):**
-- `loading`: spinner div + `| translate` key; all form inputs `[disabled]="registerForm().hashStatus === 'loading'"`; **submit button** also `[disabled]="registerForm().saving || registerForm().hashStatus === 'loading'"`
-- `found`: green badge with interpolated model name (`| translate: { name: registerForm().name }`)
-- `not_found`: neutral note
-- `error`: red message + `<button (click)="retryHashLookup()">` with Retry label
+- hash `loading`: spinner div + `| translate`; all form inputs `[disabled]="…hashStatus === 'loading'"`;
+  submit also `[disabled]="registerForm().saving || registerForm().hashStatus === 'loading'"`
+- hash `found`: green badge, `| translate: { name: registerForm().name }`
+- hash `not_found`: neutral note; hash `error`: red message + `<button (click)="retryHashLookup()">`
+- link row is **always visible** (above the metadata fields), never gated on `hashStatus`
+- link `found` / `error`: `<p class="register-link-status register-link-found|error">{{ linkMessage }}</p>`
 
-**submitRegister:** include `file_hash`, `source_platform: 'civitai'`, `source_id`, `civitai_model_id` when `registerFileHash()` is truthy.
+**submitRegister:** attach `file_hash` when `registerFileHash()` is truthy, and attach
+`source_platform` / `source_id` / `civitai_model_id` from `registerSource()` **independently** —
+a link-resolved source must be sent even when the hash lookup found nothing.
 
-**Tests:** use `new Subject<HashLookupResult>()` (never resolves) to test loading state; set default `mockModelService.hashLookup.mockReturnValue(of({ hash: '', match: false, metadata: null }))` in `beforeEach` so existing tests aren't broken.
+**Tests:** use `new Subject<HashLookupResult>()` (never resolves) for the loading state; set a
+default `mockModelService.hashLookup.mockReturnValue(of({ hash: '', match: false, metadata: null }))`
+in `beforeEach` so existing tests aren't broken; `it.each` over the error codes covers the
+`LINK_ERROR_KEYS` mapping (the real `en.json` is loaded by `provideTranslateServiceForTests`, so
+assert the actual English string).
 
 ## Angular service HTTP pattern
 
@@ -194,6 +220,10 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
   monkeypatch.setattr("py.routes.models._hash_file", lambda path: _async_return("deadbeef"))
   ```
   The lambda for `_hash_file` takes `path: str`; the lambda for `_civitai_lookup` takes `sha256: str`.
+  `_resolve_model_link(parsed)` in `models.py` is the same seam for `link_resolver.resolve()`.
+- **Never fetch a user-supplied URL server-side.** For pasted provider links, parse the URL,
+  gate it on `url_guard.is_allowed_url()`, extract only the IDs, and call the provider API with
+  those IDs (see `py/services/link_resolver.py`). The pasted URL itself is never requested.
 
 ## Security Patterns (SonarQube-compliant)
 
