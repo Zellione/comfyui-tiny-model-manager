@@ -43,6 +43,37 @@ class RemoteFile:
     description: str = ""
 
 
+def _version_file(f: dict, shared: dict) -> RemoteFile | None:
+    """One CivitAI file entry as a RemoteFile, or None if it is not hashed weights."""
+    if f.get("type") != "Model":
+        return None
+    sha256 = ((f.get("hashes") or {}).get("SHA256") or "").strip()
+    name = (f.get("name") or "").strip()
+    if not sha256 or not name:
+        return None
+    return RemoteFile(
+        filename=name,
+        sha256=sha256,
+        size_bytes=int((f.get("sizeKB") or 0) * 1024),
+        **shared,
+    )
+
+
+def _version_files(version: dict) -> list[RemoteFile]:
+    """Every hashed weights file in one CivitAI model-version object."""
+    if not isinstance(version, dict):
+        return []
+    shared = {
+        "base_model": version.get("baseModel", ""),
+        "source_platform": "civitai",
+        "source_id": str(version.get("id") or ""),
+        "civitai_model_id": str(version.get("modelId") or ""),
+        "trigger_words": [w for w in (version.get("trainedWords") or []) if w],
+        "description": version.get("description") or "",
+    }
+    return [rf for f in (version.get("files") or []) if (rf := _version_file(f, shared))]
+
+
 def from_civitai_versions(model_data: dict | list) -> list[RemoteFile]:
     """Normalise the ``{versions, model_type}`` dict returned by ``get_model_versions``.
 
@@ -55,36 +86,7 @@ def from_civitai_versions(model_data: dict | list) -> list[RemoteFile]:
         versions = model_data
     else:
         return []
-    files: list[RemoteFile] = []
-    for version in versions:
-        if not isinstance(version, dict):
-            continue
-        version_id = version.get("id")
-        base_model = version.get("baseModel", "")
-        civitai_model_id = str(version.get("modelId") or "")
-        trigger_words = [w for w in (version.get("trainedWords") or []) if w]
-        description = version.get("description") or ""
-        for f in version.get("files") or []:
-            if f.get("type") != "Model":
-                continue
-            sha256 = ((f.get("hashes") or {}).get("SHA256") or "").strip()
-            name = (f.get("name") or "").strip()
-            if not sha256 or not name:
-                continue
-            files.append(
-                RemoteFile(
-                    filename=name,
-                    sha256=sha256,
-                    size_bytes=int((f.get("sizeKB") or 0) * 1024),
-                    base_model=base_model,
-                    source_platform="civitai",
-                    source_id=str(version_id or ""),
-                    civitai_model_id=civitai_model_id,
-                    trigger_words=trigger_words,
-                    description=description,
-                )
-            )
-    return files
+    return [rf for version in versions for rf in _version_files(version)]
 
 
 def from_hf_files(repo_id: str, files: list[dict]) -> list[RemoteFile]:
@@ -178,6 +180,24 @@ async def _register_match(entry: dict, model_type: str, match: RemoteFile, diges
     return True
 
 
+async def _match_entry(entry: dict, candidates: list[RemoteFile]) -> tuple[RemoteFile, str] | None:
+    """Size-gate then hash-verify one on-disk file. Returns (match, digest) or None."""
+    sized = [c for c in candidates if _size_matches(c.size_bytes, entry["size_bytes"])]
+    if not sized:
+        return None
+
+    path = os.path.join(entry["base_dir"], entry["filename"])
+    try:
+        digest = (await _hash_file(path, entry["size_bytes"], entry["modified_at"])).lower()
+    except OSError:
+        # File vanished or became unreadable between the scan and the hash.
+        _log.warning("Auto-migration could not read %s", path, exc_info=True)
+        return None
+
+    match = next((c for c in sized if c.sha256.lower() == digest), None)
+    return (match, digest) if match else None
+
+
 async def migrate(remote_files: list[RemoteFile]) -> list[str]:
     """Register every unregistered on-disk file whose hash matches one of ``remote_files``.
 
@@ -201,24 +221,8 @@ async def migrate(remote_files: list[RemoteFile]) -> list[str]:
             candidates = by_name.get(os.path.basename(filename).lower())
             if not candidates:
                 continue
-            sized = [c for c in candidates if _size_matches(c.size_bytes, entry["size_bytes"])]
-            if not sized:
-                continue
-
-            path = os.path.join(entry["base_dir"], filename)
-            try:
-                digest = await _hash_file(path, entry["size_bytes"], entry["modified_at"])
-            except OSError:
-                # File vanished or became unreadable between the scan and the hash.
-                _log.warning("Auto-migration could not read %s", path, exc_info=True)
-                continue
-
-            digest = digest.lower()
-            match = next((c for c in sized if c.sha256.lower() == digest), None)
-            if match is None:
-                continue
-
-            if await _register_match(entry, model_type, match, digest):
+            found = await _match_entry(entry, candidates)
+            if found and await _register_match(entry, model_type, *found):
                 registered.add(filename)
                 migrated.append(filename)
 
