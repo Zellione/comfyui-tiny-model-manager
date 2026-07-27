@@ -23,6 +23,12 @@ import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover
 const UNKNOWN_BASE_MODEL = '__unknown__';
 const UNKNOWN_SOURCE = '__unknown_source__';
 
+const LINK_ERROR_KEYS: Record<string, string> = {
+  invalid_url: 'models.unregistered.link_invalid',
+  not_found: 'models.unregistered.link_not_found',
+  provider_unavailable: 'models.unregistered.link_unavailable',
+};
+
 interface RegisterForm {
   modelType: string;
   baseModel: string;
@@ -32,6 +38,9 @@ interface RegisterForm {
   error: string;
   hashStatus: 'loading' | 'found' | 'not_found' | 'error';
   name: string;
+  link: string;
+  linkStatus: 'idle' | 'loading' | 'found' | 'error';
+  linkMessage: string;
 }
 
 @Component({
@@ -157,10 +166,14 @@ export class Models implements OnInit {
     error: '',
     hashStatus: 'loading',
     name: '',
+    link: '',
+    linkStatus: 'idle',
+    linkMessage: '',
   });
 
   private readonly registerFileHash = signal<string>('');
-  private readonly registerCivitaiIds = signal<{
+  private readonly registerSource = signal<{
+    platform: string;
     source_id: string;
     civitai_model_id: string;
   } | null>(null);
@@ -402,9 +415,12 @@ export class Models implements OnInit {
       error: '',
       hashStatus: 'loading',
       name: '',
+      link: '',
+      linkStatus: 'idle',
+      linkMessage: '',
     });
     this.registerFileHash.set('');
-    this.registerCivitaiIds.set(null);
+    this.registerSource.set(null);
     this._runHashLookup(file.filename, type);
   }
 
@@ -418,7 +434,8 @@ export class Models implements OnInit {
         this.registerFileHash.set(result.hash);
         if (result.match && result.metadata) {
           const m = result.metadata;
-          this.registerCivitaiIds.set({
+          this.registerSource.set({
+            platform: 'civitai',
             source_id: m.civitai_version_id,
             civitai_model_id: m.civitai_model_id,
           });
@@ -447,6 +464,41 @@ export class Models implements OnInit {
     this._runHashLookup(formFile.file.filename, formFile.type);
   }
 
+  resolveLink(): void {
+    const url = this.registerForm().link.trim();
+    if (!url) return;
+    this.registerForm.update((f) => ({ ...f, linkStatus: 'loading', linkMessage: '' }));
+    this.modelService.resolveLink(url).subscribe({
+      next: (result) => {
+        const m = result.metadata;
+        this.registerSource.set({
+          platform: result.platform,
+          source_id: result.source_id,
+          civitai_model_id: m.civitai_model_id,
+        });
+        this.registerForm.update((f) => ({
+          ...f,
+          name: m.name,
+          baseModel: m.base_model,
+          description: m.description,
+          tags: m.tags.join(', '),
+          linkStatus: 'found',
+          linkMessage: this.translate.instant('models.unregistered.link_found', {
+            platform: result.platform,
+          }),
+        }));
+      },
+      error: (err) => {
+        const key = LINK_ERROR_KEYS[err?.error?.error] ?? 'models.unregistered.link_failed';
+        this.registerForm.update((f) => ({
+          ...f,
+          linkStatus: 'error',
+          linkMessage: this.translate.instant(key),
+        }));
+      },
+    });
+  }
+
   submitRegister(): void {
     const formFile = this.registerFormFile();
     if (!formFile) return;
@@ -464,14 +516,13 @@ export class Models implements OnInit {
     if (tags.length > 0) req.tags = tags;
 
     const hash = this.registerFileHash();
-    const ids = this.registerCivitaiIds();
-    if (hash) {
-      req.file_hash = hash;
-      if (ids) {
-        req.source_platform = 'civitai';
-        req.source_id = ids.source_id;
-        req.civitai_model_id = ids.civitai_model_id;
-      }
+    if (hash) req.file_hash = hash;
+
+    const source = this.registerSource();
+    if (source) {
+      req.source_platform = source.platform;
+      req.source_id = source.source_id;
+      req.civitai_model_id = source.civitai_model_id;
     }
 
     this.registerForm.update((f) => ({ ...f, saving: true, error: '' }));

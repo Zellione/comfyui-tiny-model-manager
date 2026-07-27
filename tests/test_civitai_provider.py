@@ -423,3 +423,118 @@ class TestLookupByHash:
         assert result["description"] == ""
         assert result["tags"] == []
         assert result["trigger_words"] == []
+
+
+# ---------------------------------------------------------------------------
+# lookup_by_version_id / lookup_by_model_id
+# ---------------------------------------------------------------------------
+
+
+def _patch_civitai_client(monkeypatch, transport: httpx.MockTransport) -> None:
+    _orig = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _orig(transport=transport, **kw))
+
+
+class TestLookupByVersionId:
+    async def test_found_returns_metadata(self, provider, monkeypatch):
+        version_data = {
+            "id": 555,
+            "name": "v3",
+            "modelId": 42,
+            "baseModel": "SDXL 1.0",
+            "description": "Version notes",
+            "trainedWords": ["magic"],
+            "images": [{"url": "https://example.com/preview.jpg"}],
+            "model": {"name": "Magic LoRA", "tags": ["magic"], "type": "LORA"},
+        }
+        _patch_civitai_client(
+            monkeypatch, _make_transport({"model-versions/555": (200, version_data)})
+        )
+        result = await provider.lookup_by_version_id("555")
+        assert result is not None
+        assert result["name"] == "Magic LoRA"
+        assert result["base_model"] == "SDXL 1.0"
+        assert result["civitai_version_id"] == "555"
+        assert result["civitai_model_id"] == "42"
+        assert result["model_type"] == "loras"
+        assert result["thumbnail"] == "https://example.com/preview.jpg"
+
+    async def test_not_found_returns_none(self, provider, monkeypatch):
+        _patch_civitai_client(monkeypatch, _make_transport({"model-versions/1": (404, {})}))
+        assert await provider.lookup_by_version_id("1") is None
+
+    async def test_server_error_propagates(self, provider, monkeypatch):
+        _patch_civitai_client(monkeypatch, _make_transport({"model-versions/2": (500, {})}))
+        with pytest.raises(httpx.HTTPStatusError):
+            await provider.lookup_by_version_id("2")
+
+
+class TestLookupByModelId:
+    MODEL_DATA = {
+        "id": 77,
+        "name": "Great Checkpoint",
+        "type": "Checkpoint",
+        "tags": ["photo"],
+        "description": "Model page description",
+        "modelVersions": [
+            {
+                "id": 900,
+                "name": "v2",
+                "baseModel": "SD 1.5",
+                "trainedWords": ["newest"],
+                "images": [{"url": "https://example.com/v2.jpg"}],
+            },
+            {
+                "id": 800,
+                "name": "v1",
+                "baseModel": "SD 1.0",
+                "trainedWords": ["older"],
+                "images": [{"url": "https://example.com/v1.jpg"}],
+            },
+        ],
+    }
+
+    async def test_uses_first_version_by_default(self, provider, monkeypatch):
+        _patch_civitai_client(monkeypatch, _make_transport({"models/77": (200, self.MODEL_DATA)}))
+        result = await provider.lookup_by_model_id("77")
+        assert result is not None
+        assert result["name"] == "Great Checkpoint"
+        assert result["version_name"] == "v2"
+        assert result["base_model"] == "SD 1.5"
+        assert result["civitai_version_id"] == "900"
+        assert result["civitai_model_id"] == "77"
+        assert result["model_type"] == "checkpoints"
+        assert result["tags"] == ["photo"]
+        assert result["trigger_words"] == ["newest"]
+        assert result["thumbnail"] == "https://example.com/v2.jpg"
+
+    async def test_selects_requested_version(self, provider, monkeypatch):
+        _patch_civitai_client(monkeypatch, _make_transport({"models/77": (200, self.MODEL_DATA)}))
+        result = await provider.lookup_by_model_id("77", "800")
+        assert result["version_name"] == "v1"
+        assert result["civitai_version_id"] == "800"
+
+    async def test_unknown_version_falls_back_to_first(self, provider, monkeypatch):
+        _patch_civitai_client(monkeypatch, _make_transport({"models/77": (200, self.MODEL_DATA)}))
+        result = await provider.lookup_by_model_id("77", "12345")
+        assert result["civitai_version_id"] == "900"
+
+    async def test_description_falls_back_to_model_page(self, provider, monkeypatch):
+        _patch_civitai_client(monkeypatch, _make_transport({"models/77": (200, self.MODEL_DATA)}))
+        result = await provider.lookup_by_model_id("77")
+        assert result["description"] == "Model page description"
+
+    async def test_no_versions_returns_none(self, provider, monkeypatch):
+        _patch_civitai_client(
+            monkeypatch, _make_transport({"models/78": (200, {"id": 78, "modelVersions": []})})
+        )
+        assert await provider.lookup_by_model_id("78") is None
+
+    async def test_not_found_returns_none(self, provider, monkeypatch):
+        _patch_civitai_client(monkeypatch, _make_transport({"models/79": (404, {})}))
+        assert await provider.lookup_by_model_id("79") is None
+
+    async def test_server_error_propagates(self, provider, monkeypatch):
+        _patch_civitai_client(monkeypatch, _make_transport({"models/80": (500, {})}))
+        with pytest.raises(httpx.HTTPStatusError):
+            await provider.lookup_by_model_id("80")

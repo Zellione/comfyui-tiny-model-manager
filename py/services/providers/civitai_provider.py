@@ -26,6 +26,29 @@ CIVITAI_REVERSE_TYPE_MAP = {
 }
 
 
+def _version_to_metadata(data: dict) -> dict:
+    """Flatten a CivitAI model-version response into the registration metadata shape.
+
+    Shared by every lookup entry point (hash, version ID, model page) so the API and the
+    frontend only ever see one dict shape.
+    """
+    model = data.get("model") or {}
+    images = data.get("images") or []
+    thumbnail = next((img.get("url", "") for img in images if img.get("url")), "")
+    return {
+        "name": model.get("name", ""),
+        "base_model": data.get("baseModel", ""),
+        "description": data.get("description") or model.get("description") or "",
+        "tags": model.get("tags") or [],
+        "trigger_words": data.get("trainedWords") or [],
+        "version_name": data.get("name", ""),
+        "civitai_version_id": str(data.get("id") or ""),
+        "civitai_model_id": str(data.get("modelId") or ""),
+        "model_type": CIVITAI_REVERSE_TYPE_MAP.get(model.get("type", ""), "checkpoints"),
+        "thumbnail": thumbnail,
+    }
+
+
 class CivitaiProvider(ModelProvider):
     name = "civitai"
 
@@ -192,14 +215,50 @@ class CivitaiProvider(ModelProvider):
                 return None
             resp.raise_for_status()
             data = resp.json()
-        model = data.get("model") or {}
-        return {
-            "name": model.get("name", ""),
-            "base_model": data.get("baseModel", ""),
-            "description": data.get("description") or "",
-            "tags": model.get("tags") or [],
-            "trigger_words": data.get("trainedWords") or [],
-            "version_name": data.get("name", ""),
-            "civitai_version_id": str(data.get("id") or ""),
-            "civitai_model_id": str(data.get("modelId") or ""),
+        return _version_to_metadata(data)
+
+    async def lookup_by_version_id(self, version_id: str | int) -> dict | None:
+        """Look up a model version by its CivitAI version ID. Returns None if not found."""
+        safe_id = int(version_id)
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                f"{_BASE}/model-versions/{safe_id}", headers=self.auth_headers()
+            )
+            if resp.status_code == 404:
+                return None
+            resp.raise_for_status()
+            data = resp.json()
+        return _version_to_metadata(data)
+
+    async def lookup_by_model_id(self, model_id: str | int, version_id: str = "") -> dict | None:
+        """Look up a model page by its CivitAI model ID.
+
+        ``version_id`` selects a specific version; without it the first (newest) version
+        of the model is used. Returns None if the model is unknown or has no versions.
+        """
+        safe_id = int(model_id)
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(f"{_BASE}/models/{safe_id}", headers=self.auth_headers())
+            if resp.status_code == 404:
+                return None
+            resp.raise_for_status()
+            data = resp.json()
+        versions = data.get("modelVersions") or []
+        if not versions:
+            return None
+        version = versions[0]
+        if version_id:
+            version = next((v for v in versions if str(v.get("id")) == version_id), version)
+        # The versions embedded in a model response carry no back-reference to their
+        # parent, so splice in the model-level fields _version_to_metadata expects.
+        merged = {
+            **version,
+            "modelId": data.get("id", safe_id),
+            "model": {
+                "name": data.get("name", ""),
+                "tags": data.get("tags") or [],
+                "type": data.get("type", ""),
+                "description": data.get("description") or "",
+            },
         }
+        return _version_to_metadata(merged)

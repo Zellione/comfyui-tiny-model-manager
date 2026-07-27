@@ -383,6 +383,40 @@
                       </button>
                     </div>
                   }
+                  <div class="register-link-row">
+                    <label class="register-link-label">
+                      <span>{{ 'models.unregistered.link_label' | translate }}</span>
+                      <input
+                        type="url"
+                        [value]="registerForm().link"
+                        [placeholder]="'models.unregistered.link_placeholder' | translate"
+                        (input)="
+                          registerForm.update((f) => ({ ...f, link: $any($event.target).value }))
+                        "
+                        (keyup.enter)="resolveLink()"
+                      />
+                    </label>
+                    <button
+                      class="btn-secondary btn-small"
+                      (click)="resolveLink()"
+                      [disabled]="registerForm().linkStatus === 'loading' || !registerForm().link"
+                    >
+                      @if (registerForm().linkStatus === 'loading') {
+                        {{ 'models.unregistered.link_resolving' | translate }}
+                      } @else {
+                        {{ 'models.unregistered.link_resolve' | translate }}
+                      }
+                    </button>
+                  </div>
+                  @if (registerForm().linkStatus === 'found') {
+                    <p class="register-link-status register-link-found">
+                      {{ registerForm().linkMessage }}
+                    </p>
+                  } @else if (registerForm().linkStatus === 'error') {
+                    <p class="register-link-status register-link-error">
+                      {{ registerForm().linkMessage }}
+                    </p>
+                  }
                   <div class="register-form-fields">
                     <label>
                       <span>{{ 'models.unregistered.base_model_label' | translate }}</span>

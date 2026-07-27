@@ -42,6 +42,7 @@ const mockModelService = {
   getUnregistered: vi.fn(),
   registerModel: vi.fn(),
   hashLookup: vi.fn(),
+  resolveLink: vi.fn(),
 };
 
 const mockWorkflowService = {
@@ -794,6 +795,13 @@ describe('Models component', () => {
   });
 
   describe('disk scanner', () => {
+    const unregisteredFile = {
+      filename: 'model.safetensors',
+      base_dir: '/models',
+      size_bytes: 100,
+      modified_at: 0,
+    };
+
     it('scan() populates unregisteredFiles and sets expanded true', async () => {
       const unregisteredData = {
         checkpoints: [
@@ -1049,6 +1057,121 @@ describe('Models component', () => {
           civitai_model_id: '222',
         }),
       );
+    });
+
+    it('resolveLink() fills the form from the resolved metadata', async () => {
+      mockModelService.hashLookup.mockReturnValue(
+        of({ hash: 'xyz', match: false, metadata: null }),
+      );
+      mockModelService.resolveLink.mockReturnValue(
+        of({
+          platform: 'huggingface',
+          source_id: 'owner/cool-lora',
+          metadata: {
+            name: 'cool-lora',
+            base_model: 'SDXL 1.0',
+            description: 'From the model card',
+            tags: ['lora', 'anime'],
+            trigger_words: [],
+            version_name: '',
+            civitai_version_id: '',
+            civitai_model_id: '',
+          },
+        }),
+      );
+
+      const component = await getComponent();
+      component.openRegisterForm('loras', unregisteredFile);
+      component.registerForm.update((f) => ({
+        ...f,
+        link: 'https://huggingface.co/owner/cool-lora',
+      }));
+      component.resolveLink();
+
+      expect(mockModelService.resolveLink).toHaveBeenCalledWith(
+        'https://huggingface.co/owner/cool-lora',
+      );
+      expect(component.registerForm().linkStatus).toBe('found');
+      expect(component.registerForm().name).toBe('cool-lora');
+      expect(component.registerForm().baseModel).toBe('SDXL 1.0');
+      expect(component.registerForm().description).toBe('From the model card');
+      expect(component.registerForm().tags).toBe('lora, anime');
+      expect(component.registerForm().linkMessage).toBe('Filled from huggingface.');
+    });
+
+    it('resolveLink() does nothing when the link field is empty', async () => {
+      mockModelService.hashLookup.mockReturnValue(
+        of({ hash: 'xyz', match: false, metadata: null }),
+      );
+
+      const component = await getComponent();
+      component.openRegisterForm('loras', unregisteredFile);
+      component.resolveLink();
+
+      expect(mockModelService.resolveLink).not.toHaveBeenCalled();
+      expect(component.registerForm().linkStatus).toBe('idle');
+    });
+
+    it.each([
+      ['invalid_url', 'Not a supported CivitAI or HuggingFace model link.'],
+      ['not_found', 'No model found for that link.'],
+      ['provider_unavailable', 'Could not reach the provider. Try again later.'],
+      ['something_else', 'Link resolution failed.'],
+    ])('resolveLink() maps the %s error to its message', async (code, message) => {
+      mockModelService.hashLookup.mockReturnValue(
+        of({ hash: 'xyz', match: false, metadata: null }),
+      );
+      mockModelService.resolveLink.mockReturnValue(throwError(() => ({ error: { error: code } })));
+
+      const component = await getComponent();
+      component.openRegisterForm('loras', unregisteredFile);
+      component.registerForm.update((f) => ({ ...f, link: 'https://civitai.com/models/1' }));
+      component.resolveLink();
+
+      expect(component.registerForm().linkStatus).toBe('error');
+      expect(component.registerForm().linkMessage).toBe(message);
+    });
+
+    it('submitRegister() sends the source resolved from a link even without a hash match', async () => {
+      mockModelService.hashLookup.mockReturnValue(of({ hash: '', match: false, metadata: null }));
+      mockModelService.resolveLink.mockReturnValue(
+        of({
+          platform: 'huggingface',
+          source_id: 'owner/cool-lora',
+          metadata: {
+            name: 'cool-lora',
+            base_model: 'SDXL 1.0',
+            description: '',
+            tags: [],
+            trigger_words: [],
+            version_name: '',
+            civitai_version_id: '',
+            civitai_model_id: '',
+          },
+        }),
+      );
+      mockModelService.registerModel.mockReturnValue(of({ model_id: 1 }));
+      mockModelService.listCatalog.mockReturnValue(of(emptyCatalog));
+
+      const component = await getComponent();
+      component.unregisteredFiles.set({ loras: [unregisteredFile] });
+      component.openRegisterForm('loras', unregisteredFile);
+      component.registerForm.update((f) => ({
+        ...f,
+        link: 'https://huggingface.co/owner/cool-lora',
+      }));
+      component.resolveLink();
+      component.submitRegister();
+
+      expect(mockModelService.registerModel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source_platform: 'huggingface',
+          source_id: 'owner/cool-lora',
+          civitai_model_id: '',
+          base_model: 'SDXL 1.0',
+        }),
+      );
+      expect(mockModelService.registerModel.mock.calls[0][0].file_hash).toBeUndefined();
     });
 
     it('submit button is disabled while hash lookup is loading', async () => {

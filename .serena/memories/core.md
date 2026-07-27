@@ -44,11 +44,33 @@ web/                   # compiled frontend output (git-ignored; each worktree ha
 - `GET /tiny-model-manager/api/models/unregistered` — scans all model dirs and returns files not in `models` table, grouped by type.
 - `POST /tiny-model-manager/api/models/register` — body: `{filename, model_type, base_model?, tags?, description?, file_hash?, source_platform?, source_id?, civitai_model_id?}`; validates file existence via `model_paths.find_file()`; returns `ok({model_id})`.
 - `POST /tiny-model-manager/api/models/hash-lookup` — body: `{filename, model_type}`; computes SHA-256 via `asyncio.to_thread(compute_file_hash, path)`, queries CivitAI; returns `ok({hash, match: true, metadata: {...}})` or `ok({hash, match: false})`; 404 on file not found, 503 on CivitAI error.
+- `POST /tiny-model-manager/api/models/resolve-link` — body: `{url}`; parses a CivitAI/HuggingFace model URL and fetches its metadata (F-91). Returns `ok({platform, source_id, metadata})`. Errors: 400 `invalid_url`, 404 `not_found`, 503 `provider_unavailable`. Test seam: monkeypatch `py.routes.models._resolve_model_link`.
 
 ## Key utility functions
 
 - `compute_file_hash(path)` in `py/services/model_paths.py` — synchronous SHA-256 (1 MB chunks), always called via `asyncio.to_thread`.
 - `CivitaiProvider.lookup_by_hash(sha256)` in `py/services/providers/civitai_provider.py` — `GET /v1/model-versions/by-hash/{sha256}`; returns parsed dict or `None` on 404; raises `httpx.HTTPError` on other failures.
+
+## Registration metadata lookup (shared shape)
+
+All three provider lookups return the **same dict shape**, so the register form has one
+contract to handle: `{name, base_model, description, tags, trigger_words, version_name,
+civitai_version_id, civitai_model_id, model_type, thumbnail}`.
+
+- `civitai_provider._version_to_metadata(data)` — module-level flattener for any CivitAI
+  model-version response; every CivitAI lookup goes through it.
+- `CivitaiProvider.lookup_by_hash / lookup_by_version_id / lookup_by_model_id(model_id, version_id="")`
+  — `lookup_by_model_id` picks the requested version (or `modelVersions[0]`) and splices the
+  model-level `{name, tags, type, description}` back in before flattening.
+- `HuggingFaceProvider.lookup_by_repo_id(repo_id)` — `GET /api/models/{repo}`; maps `cardData`
+  (`base_model`, `description`, `instance_prompt`/`trigger`) into the same shape; `None` on 404.
+- `py/services/link_resolver.py` — `parse_model_link(url) -> ParsedLink | None` (gated on
+  `url_guard.is_allowed_url`; handles `civitai.com/models/{id}[?modelVersionId=]`,
+  `/api/download/models/{vid}`, `/model-versions/{vid}`, and `huggingface.co/{owner}/{repo}`
+  with `/tree|/blob|/resolve|/raw|…` suffixes stripped) plus `async resolve(parsed)`.
+  The pasted URL is never fetched — only the extracted IDs are sent to a provider API.
+- `huggingface_provider.validate_repo_id` is **public** (was `_validate_repo_id`) so
+  `link_resolver` can reuse it.
 
 ## Invariants
 
