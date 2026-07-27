@@ -52,18 +52,6 @@ def _remote(name, digest, size=0, **kw):
     )
 
 
-@pytest.fixture()
-def no_enrich(monkeypatch):
-    """Stub out fetch_and_store so migration tests never touch the network."""
-    calls = []
-
-    async def fake_fetch_and_store(*args, **kwargs):
-        calls.append((args, kwargs))
-
-    monkeypatch.setattr("py.services.metadata_fetcher.fetch_and_store", fake_fetch_and_store)
-    return calls
-
-
 class TestFromCivitaiVersions:
     def test_extracts_all_fields(self):
         from py.services.auto_migrator import from_civitai_versions
@@ -182,7 +170,7 @@ class TestFromHfFiles:
 
 
 class TestMigrate:
-    async def test_registers_matching_file(self, models_root, no_enrich):
+    async def test_registers_matching_file(self, models_root):
         from py.db import model_repo
         from py.services.auto_migrator import migrate
 
@@ -199,7 +187,7 @@ class TestMigrate:
         assert record["model_type"] == "checkpoints"
         assert record["base_model"] == "SDXL 1.0"
 
-    async def test_matches_case_insensitively_on_hash(self, models_root, no_enrich):
+    async def test_matches_case_insensitively_on_hash(self, models_root):
         from py.services.auto_migrator import migrate
 
         _, digest, size = _write_model(models_root, "loras", "upper.safetensors")
@@ -208,7 +196,7 @@ class TestMigrate:
 
         assert migrated == ["upper.safetensors"]
 
-    async def test_skips_already_registered_file(self, models_root, no_enrich):
+    async def test_skips_already_registered_file(self, models_root):
         from py.db import model_repo
         from py.services.auto_migrator import migrate
 
@@ -236,7 +224,7 @@ class TestMigrate:
 
         assert migrated == []
 
-    async def test_size_within_tolerance_still_hashes(self, models_root, no_enrich):
+    async def test_size_within_tolerance_still_hashes(self, models_root):
         """CivitAI rounds sizeKB, so near-misses must survive the size gate."""
         from py.services.auto_migrator import migrate
 
@@ -246,7 +234,7 @@ class TestMigrate:
 
         assert migrated == ["rounded.safetensors"]
 
-    async def test_hash_mismatch_does_not_register(self, models_root, no_enrich):
+    async def test_hash_mismatch_does_not_register(self, models_root):
         from py.db import model_repo
         from py.services.auto_migrator import migrate
 
@@ -257,7 +245,7 @@ class TestMigrate:
         assert migrated == []
         assert await model_repo.get_model_by_filename("other.safetensors") is None
 
-    async def test_name_mismatch_does_not_register(self, models_root, no_enrich):
+    async def test_name_mismatch_does_not_register(self, models_root):
         from py.services.auto_migrator import migrate
 
         _, digest, size = _write_model(models_root, "checkpoints", "local-name.safetensors")
@@ -298,7 +286,7 @@ class TestMigrate:
         assert len(calls) == 1
         assert digest  # sanity: the file really was hashable
 
-    async def test_unreadable_file_is_skipped(self, models_root, monkeypatch, no_enrich):
+    async def test_unreadable_file_is_skipped(self, models_root, monkeypatch):
         from py.services import auto_migrator
 
         _, digest, size = _write_model(models_root, "checkpoints", "gone.safetensors")
@@ -310,7 +298,7 @@ class TestMigrate:
 
         assert await auto_migrator.migrate([_remote("gone.safetensors", digest, size)]) == []
 
-    async def test_pushes_notification(self, models_root, no_enrich):
+    async def test_pushes_notification(self, models_root):
         from py.services import backend_notifier
         from py.services.auto_migrator import migrate
 
@@ -323,9 +311,7 @@ class TestMigrate:
         assert pending[0]["type"] == "info"
         assert "noticed.safetensors" in pending[0]["message"]
 
-    async def test_registration_failure_does_not_abort_batch(
-        self, models_root, monkeypatch, no_enrich
-    ):
+    async def test_registration_failure_does_not_abort_batch(self, models_root, monkeypatch):
         from py.db import model_repo
         from py.services import auto_migrator
 
@@ -350,45 +336,55 @@ class TestMigrate:
 
         assert migrated == ["b.safetensors"]
 
-    async def test_enrichment_runs_and_preserves_file_hash(self, models_root, monkeypatch):
-        """fetch_and_store must not wipe the verified hash written by register_model."""
-        from py.db import model_repo
+    async def test_never_calls_fetch_and_store(self, models_root, monkeypatch):
+        """Enrichment would re-enter _fetch_repo_files and schedule another pass."""
         from py.services.auto_migrator import migrate
 
-        _, digest, size = _write_model(models_root, "checkpoints", "enriched.safetensors")
-        seen = {}
+        _, digest, size = _write_model(models_root, "checkpoints", "noloop.safetensors")
 
-        async def fake_fetch_and_store(filename, model_type, platform, source_id, **kwargs):
-            seen["args"] = (filename, model_type, platform, source_id)
-            # Mirror what the real pipeline does: upsert the row without a file_hash.
-            await model_repo.upsert_model_with_meta(
-                filename, model_type, platform, source_id, "desc", [], ["tag"]
-            )
+        async def explode(*args, **kwargs):
+            raise AssertionError("migration must not re-enter the metadata pipeline")
 
-        monkeypatch.setattr("py.services.metadata_fetcher.fetch_and_store", fake_fetch_and_store)
+        monkeypatch.setattr("py.services.metadata_fetcher.fetch_and_store", explode)
 
-        await migrate([_remote("enriched.safetensors", digest, size, source_id="55")])
+        assert await migrate([_remote("noloop.safetensors", digest, size, source_id="55")]) == [
+            "noloop.safetensors"
+        ]
 
-        assert seen["args"] == ("enriched.safetensors", "checkpoints", "civitai", "55")
-        record = await model_repo.get_model_by_filename("enriched.safetensors")
+    async def test_stores_metadata_from_version_payload(self, models_root):
+        """The card is built from the payload already in hand, not a second fetch."""
+        from py.db import model_repo
+        from py.services.auto_migrator import from_civitai_versions, migrate
+
+        _, digest, size = _write_model(models_root, "loras", "rich.safetensors")
+        remote = from_civitai_versions(
+            {
+                "versions": [
+                    {
+                        "id": 55,
+                        "modelId": 12,
+                        "baseModel": "SDXL 1.0",
+                        "trainedWords": ["magicword"],
+                        "description": "from the version payload",
+                        "files": [
+                            {
+                                "type": "Model",
+                                "name": "rich.safetensors",
+                                "sizeKB": size / 1024,
+                                "hashes": {"SHA256": digest},
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+
+        assert await migrate(remote) == ["rich.safetensors"]
+        record = await model_repo.get_model_by_filename("rich.safetensors")
+        assert record["description"] == "from the version payload"
+        assert record["base_model"] == "SDXL 1.0"
+        assert record["trigger_words"] == ["magicword"]
         assert record["file_hash"] == digest
-        assert record["description"] == "desc"
-
-    async def test_enrichment_failure_still_counts_as_migrated(self, models_root, monkeypatch):
-        from py.db import model_repo
-        from py.services.auto_migrator import migrate
-
-        _, digest, size = _write_model(models_root, "checkpoints", "halfway.safetensors")
-
-        async def boom(*args, **kwargs):
-            raise RuntimeError("provider down")
-
-        monkeypatch.setattr("py.services.metadata_fetcher.fetch_and_store", boom)
-
-        migrated = await migrate([_remote("halfway.safetensors", digest, size, source_id="55")])
-
-        assert migrated == ["halfway.safetensors"]
-        assert await model_repo.get_model_by_filename("halfway.safetensors") is not None
 
 
 class TestSchedule:
@@ -399,21 +395,19 @@ class TestSchedule:
             raise AssertionError("schedule must not spawn a task for an empty list")
 
         monkeypatch.setattr("py.background.spawn", explode)
-        auto_migrator.schedule([])
+        assert auto_migrator.schedule([]) is None
 
-    async def test_spawns_background_task(self, models_root, no_enrich):
+    async def test_spawns_background_task(self, models_root):
         from py.db import model_repo
         from py.services import auto_migrator
 
         _, digest, size = _write_model(models_root, "checkpoints", "spawned.safetensors")
 
-        auto_migrator.schedule([_remote("spawned.safetensors", digest, size)])
-
-        # Drain the fire-and-forget task set.
-        import py.background as background
-
-        for task in list(background._background_tasks):
-            await task
+        # Await only our own task. The global background task set also holds the
+        # downloader's `while True` worker, which never completes.
+        task = auto_migrator.schedule([_remote("spawned.safetensors", digest, size)])
+        assert task is not None
+        await task
 
         assert await model_repo.get_model_by_filename("spawned.safetensors") is not None
 

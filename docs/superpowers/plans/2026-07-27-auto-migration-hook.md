@@ -124,7 +124,7 @@ for model_type, entries in scanned.items():
         digest = await _hash_file(...)          # OSError -> skip
         match = next((r for r in sized if r.sha256.lower() == digest), None)
         if not match: continue
-        register + enrich + notify + log        # each wrapped
+        register + notify + log                 # wrapped
         registered.add(entry["filename"])
         migrated.append(entry["filename"])
 return migrated
@@ -144,15 +144,20 @@ await model_repo.register_model(
 )
 ```
 
-Then enrich via `background.spawn(fetch_and_store(...))` inside try/except. Confirm
-during implementation that `upsert_model_with_meta` does not clear `file_hash` — it does
-not list that column, and SQLite `ON CONFLICT DO UPDATE` only touches listed columns, but
-verify with a test that reads the hash back after enrichment.
+Trigger words go in via `model_repo.set_trigger_words(model_id, ...)`.
 
-### `schedule(remote_files) -> None`
+**No `fetch_and_store` enrichment.** Calling it from here re-enters `_fetch_repo_files`
+and schedules another migration pass (a cycle), and with `organize_into_subfolders`
+enabled it relocates the file and upserts under the new path, orphaning the row written
+above. The stored `source_platform`/`source_id` mean "Re-fetch metadata" can fill in the
+rest on demand.
 
-No-op on empty. Otherwise `background.spawn(_run(remote_files))` where `_run` wraps
-`migrate` in try/except so a failure never escapes into the event loop.
+### `schedule(remote_files) -> asyncio.Task | None`
+
+Returns `None` on empty, otherwise `background.spawn(_run(remote_files))` where `_run`
+wraps `migrate` in try/except so a failure never escapes into the event loop. Returning
+the task lets tests await their own work instead of draining
+`background._background_tasks`, which also holds the downloader's `while True` worker.
 
 ---
 
@@ -178,8 +183,8 @@ auto_migrator.schedule(auto_migrator.from_hf_files(repo_id, files))
 - `refetch_catalog_metadata` — after `model_data = await ...get_model_versions(...)`,
   schedule from `model_data`.
 
-Imports stay local to the function where the module already uses deferred imports, to
-avoid an import cycle (`auto_migrator` imports `metadata_fetcher` for enrichment).
+Imports stay local to the function, matching the deferred-import style the module already
+uses.
 
 ---
 

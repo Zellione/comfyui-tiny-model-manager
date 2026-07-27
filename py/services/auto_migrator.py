@@ -39,6 +39,7 @@ class RemoteFile:
     source_id: str = ""
     civitai_model_id: str = ""
     tags: list[str] = field(default_factory=list)
+    trigger_words: list[str] = field(default_factory=list)
     description: str = ""
 
 
@@ -61,6 +62,8 @@ def from_civitai_versions(model_data: dict | list) -> list[RemoteFile]:
         version_id = version.get("id")
         base_model = version.get("baseModel", "")
         civitai_model_id = str(version.get("modelId") or "")
+        trigger_words = [w for w in (version.get("trainedWords") or []) if w]
+        description = version.get("description") or ""
         for f in version.get("files") or []:
             if f.get("type") != "Model":
                 continue
@@ -77,6 +80,8 @@ def from_civitai_versions(model_data: dict | list) -> list[RemoteFile]:
                     source_platform="civitai",
                     source_id=str(version_id or ""),
                     civitai_model_id=civitai_model_id,
+                    trigger_words=trigger_words,
+                    description=description,
                 )
             )
     return files
@@ -131,10 +136,16 @@ def _index_by_name(remote_files: list[RemoteFile]) -> dict[str, list[RemoteFile]
 
 
 async def _register_match(entry: dict, model_type: str, match: RemoteFile, digest: str) -> bool:
-    """Create the model card and enrich it from the provider. False if registration failed."""
+    """Create the model card from the fetched metadata. False if registration failed.
+
+    Deliberately does NOT call ``fetch_and_store``: that would re-enter ``_fetch_repo_files``
+    and schedule another migration pass, and when ``organize_into_subfolders`` is enabled it
+    relocates the file and upserts under the new path, orphaning the row written here.
+    The card carries the source linkage, so "Re-fetch metadata" fills in the rest on demand.
+    """
     filename = entry["filename"]
     try:
-        await model_repo.register_model(
+        model_id = await model_repo.register_model(
             filename=filename,
             model_type=model_type,
             base_model=match.base_model,
@@ -145,6 +156,8 @@ async def _register_match(entry: dict, model_type: str, match: RemoteFile, diges
             source_id=match.source_id,
             civitai_model_id=match.civitai_model_id,
         )
+        if match.trigger_words:
+            await model_repo.set_trigger_words(model_id, match.trigger_words)
     except Exception:
         _log.warning("Auto-migration failed to register %s", filename, exc_info=True)
         return False
@@ -162,24 +175,6 @@ async def _register_match(entry: dict, model_type: str, match: RemoteFile, diges
         f"Registered '{os.path.basename(filename)}' automatically "
         f"from {match.source_platform} metadata.",
     )
-
-    # Enrich the stub into a full card (description, tags, trigger words, previews)
-    # by reusing the normal metadata pipeline rather than duplicating it here.
-    if match.source_id:
-        try:
-            from .metadata_fetcher import fetch_and_store
-
-            await fetch_and_store(
-                filename,
-                model_type,
-                match.source_platform,
-                match.source_id,
-                hint_base_model=match.base_model,
-            )
-        except Exception:
-            _log.warning(
-                "Auto-migration registered %s but could not enrich it", filename, exc_info=True
-            )
     return True
 
 
@@ -239,10 +234,15 @@ async def _run(remote_files: list[RemoteFile]) -> list[str]:
         return []
 
 
-def schedule(remote_files: list[RemoteFile]) -> None:
-    """Fire-and-forget a migration pass so callers never block on hashing."""
+def schedule(remote_files: list[RemoteFile]) -> "asyncio.Task | None":
+    """Fire-and-forget a migration pass so callers never block on hashing.
+
+    Returns the spawned task (None when there was nothing to do). Callers ignore it;
+    it exists so tests can await their own task rather than the global task set, which
+    also holds never-completing workers.
+    """
     if not remote_files:
-        return
+        return None
     from ..background import spawn
 
-    spawn(_run(remote_files))
+    return spawn(_run(remote_files))

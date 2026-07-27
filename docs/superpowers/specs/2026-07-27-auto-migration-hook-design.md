@@ -94,6 +94,9 @@ class RemoteFile:
     source_platform: str = ""
     source_id: str = ""
     civitai_model_id: str = ""
+    tags: list[str] = field(default_factory=list)
+    trigger_words: list[str] = field(default_factory=list)
+    description: str = ""
 ```
 
 Public surface:
@@ -103,7 +106,7 @@ Public surface:
 | `from_civitai_versions(model_data)` | Normalise `{versions, model_type}` from `get_model_versions` |
 | `from_hf_files(repo_id, files)` | Normalise the output of `get_model_files` |
 | `async migrate(remote_files) -> list[str]` | The algorithm; returns migrated filenames |
-| `schedule(remote_files) -> None` | Fire-and-forget wrapper over `background.spawn` |
+| `schedule(remote_files) -> Task \| None` | Fire-and-forget wrapper over `background.spawn`; returns the task so tests can await their own rather than the global set |
 
 `from_civitai_versions` walks `versions[].files[]`, keeps only `type == "Model"`, and
 skips entries with no `hashes.SHA256`. Each `RemoteFile` carries the version id as
@@ -114,13 +117,24 @@ id as `source_id`.
 
 `migrate` calls `disk_scanner.scan_all()` and `model_repo.get_registered_filenames()`
 once each, then applies the three gates per candidate. On a match it calls
-`register_model(...)` with the verified `file_hash` and the source linkage, then spawns
-`metadata_fetcher.fetch_and_store(...)` to enrich the stub into a full card with
-description, tags, trigger words and preview images. Reusing the existing pipeline avoids
-duplicating metadata logic here.
+`register_model(...)` with the verified `file_hash`, the source linkage, and the
+base model / description / trigger words already present in the provider payload.
 
-Both the registration and the enrichment are individually wrapped, so one unreadable or
-unwritable file cannot abort the rest of the batch.
+**It deliberately does not call `fetch_and_store`.** An earlier revision did, to enrich
+the stub into a full card. That was wrong on two counts:
+
+1. **Re-entrancy.** `fetch_and_store` → `_fetch_repo_files` → `schedule()` → `migrate` →
+   `_register_match` → `fetch_and_store` is a cycle. It happens to terminate once the row
+   is registered, but it is a loop that should not exist.
+2. **Duplicate rows.** With `organize_into_subfolders` enabled, `fetch_and_store`
+   relocates the file and upserts under the *new* path, orphaning the row written by
+   `register_model` at the old path — one file, two records.
+
+Since the card stores `source_platform` and `source_id`, the existing "Re-fetch metadata"
+action fills in images and the remaining fields on demand. That keeps migration a single
+cheap DB write with no side effects on the file system.
+
+Registration is wrapped so one unreadable or unwritable file cannot abort the batch.
 
 `schedule` short-circuits on an empty list so the common case (a model with no hashes, or
 a library with nothing unregistered) costs nothing.
@@ -152,7 +166,7 @@ costs one line.
 
 - Unknown platform, missing hashes, empty file list → no-op, no log noise.
 - File vanishes between scan and hash → `OSError` caught per candidate, skipped.
-- `register_model` or `fetch_and_store` raises → logged at warning, batch continues.
+- `register_model` raises → logged at warning, batch continues.
 - Whole migration raises → caught inside the background task; a browse request that
   already returned successfully is never retroactively failed.
 

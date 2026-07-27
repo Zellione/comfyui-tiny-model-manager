@@ -88,12 +88,17 @@ civitai_version_id, civitai_model_id, model_type, thumbnail}`.
     affordable on a large library, and there is a test asserting `compute_file_hash` is
     not called on a size mismatch.
   - Bounded FIFO hash cache keyed by `(path, size, mtime)`, cap `_HASH_CACHE_MAX = 256`.
-  - On match: `register_model(...)` with the verified `file_hash`, then
-    `fetch_and_store(...)` to enrich the stub into a full card. `_upsert_model_row`
-    preserves an existing `file_hash` (`CASE WHEN excluded.file_hash != ''`), so
-    enrichment does not wipe it.
+  - On match: `register_model(...)` with the verified `file_hash`, source linkage, and the
+    base_model/description/trigger_words already in the provider payload.
+  - **Never call `fetch_and_store` from the migrator.** It re-enters `_fetch_repo_files`
+    → `schedule` → `migrate` (a cycle), and with `organize_into_subfolders` on it
+    relocates the file and upserts under the new path, orphaning the row `register_model`
+    just wrote (one file, two records). The stored source linkage means "Re-fetch
+    metadata" fills in the rest on demand.
   - `schedule(files)` is fire-and-forget via `background.spawn`; no request blocks on
-    hashing. No-op on an empty list.
+    hashing. Returns `None` on an empty list, else the `asyncio.Task` — tests must await
+    that task, never drain `background._background_tasks` (it holds the downloader's
+    `while True` worker, which never completes and will hang the suite).
 - **Hook points** (4): `routes/download.py` → `civitai_versions`, `hf_files`;
   `services/metadata_fetcher.py` → `_fetch_repo_files` (only the `get_model_versions`
   branch — `get_version_files` returns no hashes) and `refetch_catalog_metadata`.
