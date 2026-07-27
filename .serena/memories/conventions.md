@@ -250,6 +250,28 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
 - New spec files go beside the file under test (`foo.spec.ts` next to `foo.ts`)
 - Path traversal tests: add `test_*_path_traversal_rejected` to route test classes that accept user-supplied filenames (e.g. `TestRegisterModel.test_path_traversal_rejected`).
 - Whitespace input tests: add `test_*_whitespace_only_*_returns_400` when handler strips required fields.
+- **Never reset downloader state by hand in a test.** `tests/conftest.py` owns it via the autouse
+  `reset_downloader_state` fixture. `downloader._queue` is built at import time, and
+  `asyncio.Queue` binds to the first event loop that uses it and refuses any other one after
+  that; `_worker` is an uncancelled `while True` task parked on `await _queue.get()`, and
+  pytest-asyncio (`asyncio_mode = "auto"`, function-scoped loops) hands every test a fresh loop.
+  The old two-line reset (`_tasks.clear()` + `_worker_started = False`) left the stale worker
+  holding a getter on a closed loop, so the queue silently stopped draining — **this hung CI
+  indefinitely and at random** (issue #118). The fixture additionally rebinds
+  `dl._queue = asyncio.Queue()`, which is the load-bearing part, and cancels leftover
+  `background._background_tasks` under `try/except RuntimeError` (their loop is usually already
+  closed, which makes `cancel()` raise). It is deliberately **synchronous** — an async autouse
+  fixture would force a loop onto every test, and `asyncio.Queue()` binds lazily so building it
+  in a sync fixture correctly attaches it to the loop of the test about to run.
+- **Testing loop-binding behaviour**: `asyncio.Queue.get()` only calls `_get_loop()` on the
+  **empty** path — a pre-filled queue short-circuits through `get_nowait()` and never binds. A
+  test that does `put_nowait(x)` then `await get()` therefore proves nothing. Schedule the put
+  instead (`asyncio.get_running_loop().call_later(0.01, q.put_nowait, x)`) so `get()` is awaited
+  on an empty queue, and wrap it in `asyncio.wait_for(..., timeout=1)` so a regression fails fast
+  instead of hanging. See `TestQueueLoopBinding` in `tests/test_downloader.py`.
+- **CI has `timeout-minutes` on every job** (`.github/workflows/ci.yml`: backend 10, frontend 15,
+  sonarcloud 15). Without it a hung async test runs to GitHub's 6-hour default. Keep new jobs
+  bounded.
 - **`_async_return` helper**: define at module level in test files that need to return coroutines from monkeypatched lambdas:
   ```python
   async def _async_return(value):

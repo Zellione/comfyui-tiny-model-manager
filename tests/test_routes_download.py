@@ -6,12 +6,7 @@ from aiohttp import web
 
 @pytest.fixture()
 async def client(aiohttp_client, ext_dir):
-    # Reset downloader state between tests
-    import py.services.downloader as dl
-
-    dl._tasks.clear()
-    dl._worker_started = False
-
+    # Downloader state is reset per test by the autouse reset_downloader_state fixture.
     from py.routes.download import add_download_routes
 
     app = web.Application()

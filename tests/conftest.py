@@ -104,3 +104,42 @@ async def ext_dir(tmp_path):
     cfg.init(str(tmp_path))
     await init_db()
     yield str(tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# Per-test downloader reset (event-loop isolation)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def reset_downloader_state():
+    """Give every test a download queue bound to its own event loop.
+
+    ``downloader._queue`` is built at import time and ``asyncio.Queue`` binds itself to the
+    first loop that uses it, refusing any other one afterwards.  ``_worker`` is an uncancelled
+    ``while True`` task that parks on ``await _queue.get()``, and pytest-asyncio hands each test
+    a fresh loop — so without this reset the worker from an earlier test keeps a getter on a
+    closed loop and the queue silently stops draining, which hung CI indefinitely.
+
+    Deliberately synchronous: an async autouse fixture would force a loop onto every test, and
+    ``asyncio.Queue()`` binds lazily, so building it here correctly attaches it to the loop of
+    the test that is about to run.
+    """
+    import asyncio
+
+    from py import background
+    from py.services import downloader as dl
+
+    for task in list(background._background_tasks):
+        if not task.done():
+            # The task's loop is usually already closed, which makes cancel() raise.
+            try:
+                task.cancel()
+            except RuntimeError:
+                pass
+    background._background_tasks.clear()
+
+    dl._tasks.clear()
+    dl._worker_started = False
+    dl._queue = asyncio.Queue()
+    yield

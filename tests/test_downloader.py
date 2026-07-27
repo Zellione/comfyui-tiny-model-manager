@@ -335,7 +335,6 @@ class TestEnqueueTraversalGuard:
         import py.services.downloader as dl
 
         monkeypatch.setattr(dl, "_ensure_worker", lambda: None)
-        dl._tasks.clear()
 
         with pytest.raises(ValueError):
             dl.enqueue(
@@ -352,9 +351,6 @@ class TestResumeInterruptedDownloads:
     async def test_enqueues_interrupted_downloads(self, ext_dir, monkeypatch):
         import py.services.downloader as dl
         from py.db import model_repo
-
-        dl._tasks.clear()
-        dl._worker_started = False
 
         history_id = await model_repo.insert_download_history(
             model_name="m.safetensors",
@@ -376,9 +372,6 @@ class TestResumeInterruptedDownloads:
 
         import py.services.downloader as dl
         from py.db import model_repo
-
-        dl._tasks.clear()
-        dl._worker_started = False
 
         await model_repo.insert_download_history(
             model_name="partial.safetensors",
@@ -409,9 +402,6 @@ class TestResumeInterruptedDownloads:
         from py.db import model_repo
         from py.db.database import get_db
 
-        dl._tasks.clear()
-        dl._worker_started = False
-
         await model_repo.insert_download_history(
             model_name="done.safetensors",
             source="civitai",
@@ -431,3 +421,34 @@ class TestResumeInterruptedDownloads:
         await dl.resume_interrupted_downloads()
 
         assert len(dl._tasks) == before_count
+
+
+class TestQueueLoopBinding:
+    """Regression: the module-level queue must be usable from each test's own event loop.
+
+    ``asyncio.Queue`` binds to the first loop that uses it and refuses any other one after
+    that, while pytest-asyncio hands every test a fresh loop. Without a per-test rebind the
+    second of these two tests fails with "bound to a different event loop", and in the real
+    suite the download queue silently stops draining — which used to hang CI indefinitely.
+    """
+
+    @staticmethod
+    async def _roundtrip() -> None:
+        import asyncio
+
+        from py.services import downloader as dl
+
+        sentinel = object()
+        # The queue must be EMPTY when get() is awaited: Queue.get() only touches
+        # _get_loop() (and thus binds) on the empty path — a pre-filled queue short-circuits
+        # through get_nowait() and would never exercise the binding. This mirrors _worker,
+        # which parks on an empty queue.
+        asyncio.get_running_loop().call_later(0.01, dl._queue.put_nowait, sentinel)
+        # wait_for keeps a regression failing fast instead of hanging the suite.
+        assert await asyncio.wait_for(dl._queue.get(), timeout=1) is sentinel
+
+    async def test_queue_usable_in_first_test(self):
+        await self._roundtrip()
+
+    async def test_queue_usable_in_second_test(self):
+        await self._roundtrip()
