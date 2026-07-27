@@ -272,6 +272,26 @@ the module by relative path (`../../../js/workflow-insert.js`). This requires **
 "rootDir": "..",   // it lives outside frontend/; without this TS errors with TS6059
 ```
 
+### Coverage for js/ is not measurable — do not retry it
+
+`@vitest/coverage-v8` cannot report on files outside the Vitest root (`frontend/`). Adding
+`coverageInclude` entries that reach into `../js` — whether a broad `../js/**` or a single
+`../js/workflow-insert.js` — fails with `RollupError: Expression expected` / `PARSE_ERROR, pos: 0`
+inside `V8CoverageProvider.getCoverageMapForUncoveredFiles`, because the provider cannot pull a
+file from outside the root through the Vite transform pipeline. **Both variants were tried and
+both fail; don't spend time on it again.**
+
+Consequence: `js/*.js` produces no lcov entry, so SonarCloud scored the fully tested
+`workflow-insert.js` as 0% and failed the `new_coverage ≥ 80` gate on PR #117. Resolved with
+`sonar.coverage.exclusions=js/**` in `sonar-project.properties`. `js/` stays in `sonar.sources`,
+so it is still analysed for bugs, smells and security hotspots — only the unobtainable coverage
+metric is waived, and the specs still run in CI.
+
+The rejected alternative was relocating the module into `frontend/src` with an `angular.json`
+asset entry to copy it into `web/`: it would yield real coverage and drop the `allowJs`/`rootDir`
+workaround, but splits the extension across two source trees. Keep the extension together in
+`js/`.
+
 ### ComfyUI model-list refresh
 
 `app.refreshComboInNodes()` (comfyui_frontend_package ≥0.24) re-fetches `/object_info` and rewrites
