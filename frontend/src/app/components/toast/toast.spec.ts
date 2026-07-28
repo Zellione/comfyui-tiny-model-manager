@@ -65,18 +65,18 @@ describe('ToastComponent', () => {
     it('dismisses a success toast after 3000ms', () => {
       notifService.show('success', 'bye');
       fixture.detectChanges();
-      expect(notifService.toasts().length).toBe(1);
+      expect(notifService.toasts()).toHaveLength(1);
       vi.advanceTimersByTime(3000);
-      expect(notifService.toasts().length).toBe(0);
+      expect(notifService.toasts()).toHaveLength(0);
     });
 
     it('does not dismiss an error toast before 6000ms', () => {
       notifService.show('error', 'err');
       fixture.detectChanges();
       vi.advanceTimersByTime(5999);
-      expect(notifService.toasts().length).toBe(1);
+      expect(notifService.toasts()).toHaveLength(1);
       vi.advanceTimersByTime(1);
-      expect(notifService.toasts().length).toBe(0);
+      expect(notifService.toasts()).toHaveLength(0);
     });
 
     it('cleans up timer entry when a toast is dismissed early', () => {
@@ -86,7 +86,7 @@ describe('ToastComponent', () => {
       notifService.dismiss(id);
       fixture.detectChanges();
       vi.advanceTimersByTime(3000);
-      expect(notifService.toasts().length).toBe(0);
+      expect(notifService.toasts()).toHaveLength(0);
     });
   });
 
@@ -97,7 +97,7 @@ describe('ToastComponent', () => {
       const id = notifService.toasts()[0].id;
       component.pauseTimer(id);
       vi.advanceTimersByTime(3000);
-      expect(notifService.toasts().length).toBe(1);
+      expect(notifService.toasts()).toHaveLength(1);
     });
   });
 
@@ -122,9 +122,9 @@ describe('ToastComponent', () => {
       component.resumeTimer(id);
       fixture.detectChanges();
       vi.advanceTimersByTime(2999);
-      expect(notifService.toasts().length).toBe(1);
+      expect(notifService.toasts()).toHaveLength(1);
       vi.advanceTimersByTime(1);
-      expect(notifService.toasts().length).toBe(0);
+      expect(notifService.toasts()).toHaveLength(0);
     });
 
     it('is a no-op when toast id is not found', () => {

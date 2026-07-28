@@ -89,9 +89,9 @@ describe('DownloadQueue component', () => {
   it('displayTasks excludes cancelled ids', async () => {
     const fixture = await createFixture();
     const c = fixture.componentInstance;
-    expect(c.displayTasks().length).toBe(1);
+    expect(c.displayTasks()).toHaveLength(1);
     c.onCancelTask('task-1');
-    expect(c.displayTasks().length).toBe(0);
+    expect(c.displayTasks()).toHaveLength(0);
   });
 
   it('onCancelAll cancels every display task', async () => {
