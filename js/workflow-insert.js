@@ -13,6 +13,14 @@ export const NODE_TYPE_MAP = {
 };
 
 // Strip ComfyUI's " (N)" disambiguation suffix from a filename's stem.
+//
+// The original `\s*\(\d+\)$` has no start anchor, so the engine retries it at every position, and
+// the unbounded `\s*` then makes a long whitespace run cost O(n²) (sonar javascript:S8786).
+// Matching only the parenthesised counter with a bounded quantifier keeps the per-position cost
+// constant, and the preceding whitespace is removed with trimEnd() — linear, and equivalent to
+// `\s*` since both cover the same whitespace set.
+const INDEX_SUFFIX = /\(\d{1,9}\)$/;
+
 export function stripSuffix(s) {
   const slash = Math.max(s.lastIndexOf('/'), s.lastIndexOf('\\'));
   const dir   = slash >= 0 ? s.slice(0, slash + 1) : '';
@@ -20,7 +28,9 @@ export function stripSuffix(s) {
   const dot   = base.lastIndexOf('.');
   const stem  = dot >= 0 ? base.slice(0, dot) : base;
   const ext   = dot >= 0 ? base.slice(dot) : '';
-  return dir + stem.replace(/\s*\(\d+\)$/, '') + ext;
+  const stripped = stem.replace(INDEX_SUFFIX, '');
+  // Only trim when the counter actually matched, mirroring the old single-pattern behaviour.
+  return dir + (stripped === stem ? stem : stripped.trimEnd()) + ext;
 }
 
 // Resolve the best matching option in a COMBO widget for a given filename.

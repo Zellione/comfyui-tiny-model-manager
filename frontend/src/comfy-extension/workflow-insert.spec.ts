@@ -64,6 +64,22 @@ describe('stripSuffix', () => {
   it('leaves untouched names unchanged', () => {
     expect(stripSuffix('model.safetensors')).toBe('model.safetensors');
   });
+
+  it('strips a multi-digit counter and any length of preceding whitespace', () => {
+    expect(stripSuffix('model   (9999).safetensors')).toBe('model.safetensors');
+    expect(stripSuffix('model     (2).safetensors')).toBe('model.safetensors');
+  });
+
+  // The digit quantifier is bounded to keep the pattern linear (javascript:S8786). ComfyUI only
+  // appends a small counter, so this input cannot occur in practice — the test pins the bound so
+  // that widening it later is a deliberate choice.
+  it('leaves a counter longer than the digit bound in place', () => {
+    expect(stripSuffix('model (1234567890).safetensors')).toBe('model (1234567890).safetensors');
+  });
+
+  it('does not trim trailing whitespace when there is no counter to strip', () => {
+    expect(stripSuffix('model .safetensors')).toBe('model .safetensors');
+  });
 });
 
 describe('findWidgetOption', () => {
