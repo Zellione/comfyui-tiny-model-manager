@@ -189,6 +189,30 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
 - **Main panel video in MediaGallery**: `[poster]="videoPosterUrl(m.local_path)"` on the `<video>` element — native HTML5 poster, no JS needed.
 - **Catalog cards**: wrap is not needed (unlike `.gallery-thumb-video-wrap`); ▶ div and img are siblings inside `.thumb-link`. The `img` uses `class="thumb"` (same as normal thumbnails) so it fills the card slot.
 
+## Other recurring SonarQube rules
+
+### S5906 — assert length with the dedicated matcher
+In specs use `expect(x).toHaveLength(n)`, never `expect(x.length).toBe(n)` — the matcher reports
+the actual contents on failure instead of just a number. All 25 pre-existing call sites were
+converted (issue #120); don't reintroduce the old form.
+
+### css:S1874 — `word-break: break-word` is deprecated
+Use `overflow-wrap: break-word`. The deprecated keyword was always defined as an alias for it, so
+rendering is identical. Typically paired with `white-space: pre-wrap` to break long unbreakable
+strings (URLs, hashes).
+
+### S8786 — non-linear regex backtracking
+An **unanchored** pattern is retried at every position, so an unbounded quantifier next to it turns
+into O(n²). `/\s*\(\d+\)$/` in `stripSuffix` was flagged for exactly this.
+
+Fix with a **bounded** quantifier (`\d{1,9}`) and handle any variable-length run outside the regex
+— `trimEnd()` is linear and covers the same whitespace set as `\s*`.
+
+**Trap:** bounding the whitespace instead (`\s{0,4}\(\d+\)$`) looks equivalent and is not. Because
+the pattern is unanchored, a run longer than the bound still matches further along and leaves stray
+characters behind: `"model     (2)"` became `"model "`. A test caught this — always cover a run
+longer than the bound when tightening a quantifier on an unanchored pattern.
+
 ## Cognitive complexity (SonarQube S3776)
 
 - SonarQube enforces a max cognitive complexity of **15** per function (rule `python:S3776`).
