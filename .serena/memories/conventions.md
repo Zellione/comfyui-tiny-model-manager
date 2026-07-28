@@ -299,8 +299,10 @@ longer than the bound when tightening a quantifier on an unanchored pattern.
   that; `_worker` is an uncancelled `while True` task parked on `await _queue.get()`, and
   pytest-asyncio (`asyncio_mode = "auto"`, function-scoped loops) hands every test a fresh loop.
   The old two-line reset (`_tasks.clear()` + `_worker_started = False`) left the stale worker
-  holding a getter on a closed loop, so the queue silently stopped draining — **this hung CI
-  indefinitely and at random** (issue #118). The fixture additionally rebinds
+  holding a getter on a closed loop, so the queue silently stopped draining.
+  **This was a real bug and is fixed, but it was NOT the cause of the CI hang** — the hang
+  recurred on PR #117 with this fixture in place. See "Backend CI hang — unresolved" below.
+  The fixture additionally rebinds
   `dl._queue = asyncio.Queue()`, which is the load-bearing part, and cancels leftover
   `background._background_tasks` under `try/except RuntimeError` (their loop is usually already
   closed, which makes `cancel()` raise). It is deliberately **synchronous** — an async autouse
@@ -315,6 +317,31 @@ longer than the bound when tightening a quantifier on an unanchored pattern.
 - **CI has `timeout-minutes` on every job** (`.github/workflows/ci.yml`: backend 10, frontend 15,
   sonarcloud 15). Without it a hung async test runs to GitHub's 6-hour default. Keep new jobs
   bounded.
+- **Backend CI hang — unresolved (issue #118, reopened)**. The backend job intermittently hangs
+  and is killed by the 10-minute ceiling. Identical signature on every occurrence:
+  ```
+  tests/test_routes_catalog.py ............................. [ 64%]
+  ##[error]The operation was canceled.
+  Terminate orphan process: pid (NNNN) (python)
+  ```
+  It stalls between the end of `test_routes_catalog.py` and the first dot of
+  `test_routes_download.py`; pytest buffers the filename without a trailing newline, so the
+  hanging file emits nothing at all.
+  - **Ruled out:** the queue/loop-binding bug. It is fixed, and `TestQueueLoopBinding` passes in
+    the very runs that hang (`test_downloader.py` shows 21 dots).
+  - **Intermittent** — the same commit passed in 29 s on an earlier run.
+  - **Never reproduced locally**: repeated clean runs at ~6.5 s with the exact CI command. Local
+    is Python 3.14, CI is 3.13.
+  - **Unproven lead:** the first test in the stalling file enqueues a real download of
+    `https://civitai.com/model.safetensors`, and `_DOWNLOAD_TIMEOUT` in
+    `py/services/downloader.py` is `httpx.Timeout(None, connect=30.0, read=120.0)` — the
+    **total** timeout is `None`, i.e. unbounded.
+- **`faulthandler_timeout = 60` in `[tool.pytest.ini_options]`** is instrumentation for the above,
+  not a fix. pytest dumps every thread's stack to stderr when a single test overruns, then lets it
+  continue, so the next stall records exactly where it is stuck. Verified against a deliberately
+  stalling test — the dump names the test function and line. The whole suite runs in ~7 s, so 60 s
+  cannot fire on a healthy run. **When adding a diagnostic, prove it fires** before relying on it;
+  a check that silently never triggers is worse than none.
 - **`_async_return` helper**: define at module level in test files that need to return coroutines from monkeypatched lambdas:
   ```python
   async def _async_return(value):
