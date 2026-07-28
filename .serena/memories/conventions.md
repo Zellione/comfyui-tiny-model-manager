@@ -191,6 +191,25 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
 
 ## Other recurring SonarQube rules
 
+### Validate a rule fix locally before pushing
+`mcp__sonarqube__analyze_code_snippet` runs the real analyzer on a snippet, so a fix can be
+confirmed without a push → CI → analysis round trip. Put the old and new versions in one snippet
+and check which lines come back flagged:
+
+```
+analyze_code_snippet(fileContent="<old impl>\n<new impl>", language="js")
+→ issues: [{ruleKey: "javascript:S8786", textRange: {startLine: 6}}]   # only the old one
+```
+
+Arguments are `fileContent` (not `codeSnippet`) and a short `language` key — `js`/`ts`, **not**
+`javascript`/`typescript`, which errors out.
+
+Also remember that PR annotations reflect the **last completed analysis**: a fix that is committed
+but not pushed will keep showing the old warning. Check for unpushed commits before assuming a fix
+did not work.
+
+
+
 ### S5906 — assert length with the dedicated matcher
 In specs use `expect(x).toHaveLength(n)`, never `expect(x.length).toBe(n)` — the matcher reports
 the actual contents on failure instead of just a number. All 25 pre-existing call sites were
