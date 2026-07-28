@@ -7,6 +7,11 @@ testpaths = ["tests"]
 addopts = "--import-mode=importlib"
 # Make the project root importable as "py.*"
 pythonpath = ["."]
+# Diagnostic for the intermittent backend hang (issue #118): if any single test takes longer
+# than this, pytest dumps every thread's stack to stderr and lets the test continue. The whole
+# suite normally finishes in ~7 s, so this never fires on a healthy run — but when CI stalls,
+# the log gains an exact stack trace instead of going silent until the job timeout.
+faulthandler_timeout = 60
 
 [tool.coverage.run]
 # asyncio + aiohttp workers never report back to the subprocess coverage
