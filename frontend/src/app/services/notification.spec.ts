@@ -11,7 +11,7 @@ describe('NotificationService', () => {
 
   it('show() adds a toast with the correct type and message', () => {
     service.show('success', 'Hello');
-    expect(service.toasts().length).toBe(1);
+    expect(service.toasts()).toHaveLength(1);
     expect(service.toasts()[0].type).toBe('success');
     expect(service.toasts()[0].message).toBe('Hello');
   });
@@ -35,7 +35,7 @@ describe('NotificationService', () => {
     service.show('success', 'first');
     service.show('error', 'second');
     service.show('success', 'third');
-    expect(service.toasts().length).toBe(3);
+    expect(service.toasts()).toHaveLength(3);
     expect(service.toasts().map((t) => t.message)).toEqual(['first', 'second', 'third']);
   });
 
@@ -44,13 +44,13 @@ describe('NotificationService', () => {
     service.show('error', 'remove');
     const removeId = service.toasts()[1].id;
     service.dismiss(removeId);
-    expect(service.toasts().length).toBe(1);
+    expect(service.toasts()).toHaveLength(1);
     expect(service.toasts()[0].message).toBe('keep');
   });
 
   it('dismiss() is a no-op for an unknown id', () => {
     service.show('success', 'toast');
     service.dismiss(9999);
-    expect(service.toasts().length).toBe(1);
+    expect(service.toasts()).toHaveLength(1);
   });
 });

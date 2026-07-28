@@ -156,7 +156,7 @@ describe('Models component', () => {
     };
     mockModelService.listCatalog.mockReturnValue(of(data));
     const fixture = await createFixture();
-    expect(fixture.componentInstance.catalogEntries().length).toBe(1);
+    expect(fixture.componentInstance.catalogEntries()).toHaveLength(1);
     expect(fixture.componentInstance.catalogEntries()[0].display_name).toBe('My Model');
   });
 
@@ -197,7 +197,7 @@ describe('Models component', () => {
     };
     mockModelService.listCatalog.mockReturnValue(of(data));
     const fixture = await createFixture();
-    expect(fixture.componentInstance.filteredEntries().length).toBe(0);
+    expect(fixture.componentInstance.filteredEntries()).toHaveLength(0);
   });
 
   it('empty entries appear when showEmpty is true', async () => {
@@ -222,7 +222,7 @@ describe('Models component', () => {
     mockModelService.listCatalog.mockReturnValue(of(data));
     const fixture = await createFixture();
     fixture.componentInstance.showEmpty.set(true);
-    expect(fixture.componentInstance.filteredEntries().length).toBe(1);
+    expect(fixture.componentInstance.filteredEntries()).toHaveLength(1);
   });
 
   describe('cardTitle()', () => {
@@ -434,7 +434,7 @@ describe('Models component', () => {
       mockModelService.listCatalog.mockReturnValue(of({ entries, unknown_files: {} }));
       const fixture = await createFixture();
       fixture.componentInstance.baseModelFilter.set('__unknown__');
-      expect(fixture.componentInstance.filteredEntries().length).toBe(1);
+      expect(fixture.componentInstance.filteredEntries()).toHaveLength(1);
       expect(fixture.componentInstance.filteredEntries()[0].id).toBe(2);
     });
 
@@ -446,7 +446,7 @@ describe('Models component', () => {
       mockModelService.listCatalog.mockReturnValue(of({ entries, unknown_files: {} }));
       const fixture = await createFixture();
       fixture.componentInstance.baseModelFilter.set('Pony');
-      expect(fixture.componentInstance.filteredEntries().length).toBe(1);
+      expect(fixture.componentInstance.filteredEntries()).toHaveLength(1);
       expect(fixture.componentInstance.filteredEntries()[0].id).toBe(2);
     });
 
@@ -458,7 +458,7 @@ describe('Models component', () => {
       mockModelService.listCatalog.mockReturnValue(of({ entries, unknown_files: {} }));
       const fixture = await createFixture();
       fixture.componentInstance.sourceFilter.set('__unknown_source__');
-      expect(fixture.componentInstance.filteredEntries().length).toBe(1);
+      expect(fixture.componentInstance.filteredEntries()).toHaveLength(1);
       expect(fixture.componentInstance.filteredEntries()[0].id).toBe(2);
     });
 
@@ -470,7 +470,7 @@ describe('Models component', () => {
       mockModelService.listCatalog.mockReturnValue(of({ entries, unknown_files: {} }));
       const fixture = await createFixture();
       fixture.componentInstance.sourceFilter.set('huggingface');
-      expect(fixture.componentInstance.filteredEntries().length).toBe(1);
+      expect(fixture.componentInstance.filteredEntries()).toHaveLength(1);
       expect(fixture.componentInstance.filteredEntries()[0].id).toBe(2);
     });
 
@@ -1015,7 +1015,7 @@ describe('Models component', () => {
       const callsBefore = mockModelService.hashLookup.mock.calls.length;
       component.retryHashLookup();
 
-      expect(mockModelService.hashLookup.mock.calls.length).toBe(callsBefore + 1);
+      expect(mockModelService.hashLookup.mock.calls).toHaveLength(callsBefore + 1);
     });
 
     it('submitRegister() includes file_hash and CivitAI IDs when a match was found', async () => {

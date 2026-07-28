@@ -155,8 +155,8 @@ describe('CatalogDetail component', () => {
       }),
     );
     const fixture = await createFixture();
-    expect(fixture.componentInstance.downloadedFiles().length).toBe(1);
-    expect(fixture.componentInstance.notDownloadedFiles().length).toBe(1);
+    expect(fixture.componentInstance.downloadedFiles()).toHaveLength(1);
+    expect(fixture.componentInstance.notDownloadedFiles()).toHaveLength(1);
   });
 
   it('sourceName is correct for civitai', async () => {
@@ -289,7 +289,7 @@ describe('CatalogDetail component', () => {
     expect(fixture.componentInstance.displayDescription()).toBe('standalone desc');
     expect(fixture.componentInstance.displayTriggerWords()).toEqual(['kw1']);
     expect(fixture.componentInstance.displayTags()).toEqual(['anime']);
-    expect(fixture.componentInstance.displayMedia().length).toBe(1);
+    expect(fixture.componentInstance.displayMedia()).toHaveLength(1);
   });
 
   it('save() does not send base model updates for unchanged files', async () => {
