@@ -22,7 +22,10 @@ frontend/              # Angular SPA (builds to ../web/)
     pages/             # download, catalog-detail, model-detail, models, settings
     components/        # shared UI: toast, media-gallery, edit-meta-form, text-diff-field, tag-autocomplete-input, …
     services/          # Angular services: civitai, huggingface, download, model, keywords, settings, notification, installed-files, workflow, tags
-js/                    # ComfyUI JS extension (topbar button); bundled into web/ by ng build
+js/                    # ComfyUI JS extension; whole folder copied into web/ by ng build
+  extension.js         # registerExtension wiring: settings, topbar button, workflow-insert poll
+  workflow-insert.js   # dependency-injected insert logic (no ComfyUI imports) — unit-testable;
+                       # spec lives at frontend/src/comfy-extension/workflow-insert.spec.ts
 tests/                 # pytest integration + unit tests (includes test_routes_tags.py)
 conftest.py            # root conftest: installs ComfyUI stubs (server, folder_paths, comfy.sd, comfy.utils) at import time
 tests/conftest.py      # ext_dir fixture: tmp_path + init_db; route tests use aiohttp_client + ext_dir

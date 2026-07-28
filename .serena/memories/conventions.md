@@ -244,6 +244,65 @@ longer than the bound when tightening a quantifier on an unanchored pattern.
 
 - `setup()` runs before Vue mounts → use `MutationObserver` on `document.body` for Vue-rendered elements.
 - `legacy-topbar-container` stays hidden unless it has non-empty element grandchildren — insert buttons into its **parent** (`legacy?.parentElement`) using `insertBefore`.
+- The whole `js/` folder is copied to `web/` by `ng build` (angular.json asset entry `input: "../js", output: "/"`), so sibling modules can be split out freely and imported with plain relative paths (`./workflow-insert.js`). CI lints/prettier-checks only `frontend/`, so `js/*.js` is neither linted nor format-checked.
+
+### Testable logic modules (F-93 pattern)
+
+`extension.js` imports `../../scripts/app.js`, which resolves only inside ComfyUI, and calls
+`app.registerExtension()` at module scope — so it can never be imported by a test. Put any logic
+worth testing in a **separate `js/*.js` module with injected dependencies and no side effects on
+load**; `extension.js` stays a thin wiring layer that passes the real globals:
+
+```js
+// js/workflow-insert.js — no ComfyUI imports
+export function createPendingProcessor({ app, liteGraph, api, fetchFn = fetch }) { … }
+
+// js/extension.js
+const processPending = createPendingProcessor({ app, liteGraph: LiteGraph, api: API });
+setInterval(processPending, 500);
+```
+
+Specs for these modules live under `frontend/src/comfy-extension/*.spec.ts` (the
+`@angular/build:unit-test` builder only discovers specs under the frontend project root) and import
+the module by relative path (`../../../js/workflow-insert.js`). This requires **both** settings in
+`frontend/tsconfig.spec.json`:
+
+```jsonc
+"allowJs": true,   // consume the plain-JS module
+"rootDir": "..",   // it lives outside frontend/; without this TS errors with TS6059
+```
+
+### Coverage for js/ is not measurable — do not retry it
+
+`@vitest/coverage-v8` cannot report on files outside the Vitest root (`frontend/`). Adding
+`coverageInclude` entries that reach into `../js` — whether a broad `../js/**` or a single
+`../js/workflow-insert.js` — fails with `RollupError: Expression expected` / `PARSE_ERROR, pos: 0`
+inside `V8CoverageProvider.getCoverageMapForUncoveredFiles`, because the provider cannot pull a
+file from outside the root through the Vite transform pipeline. **Both variants were tried and
+both fail; don't spend time on it again.**
+
+Consequence: `js/*.js` produces no lcov entry, so SonarCloud scored the fully tested
+`workflow-insert.js` as 0% and failed the `new_coverage ≥ 80` gate on PR #117. Resolved with
+`sonar.coverage.exclusions=js/**` in `sonar-project.properties`. `js/` stays in `sonar.sources`,
+so it is still analysed for bugs, smells and security hotspots — only the unobtainable coverage
+metric is waived, and the specs still run in CI.
+
+The rejected alternative was relocating the module into `frontend/src` with an `angular.json`
+asset entry to copy it into `web/`: it would yield real coverage and drop the `allowJs`/`rootDir`
+workaround, but splits the extension across two source trees. Keep the extension together in
+`js/`.
+
+### ComfyUI model-list refresh
+
+`app.refreshComboInNodes()` (comfyui_frontend_package ≥0.24) re-fetches `/object_info` and rewrites
+every COMBO widget's option list. Call it before inserting a loader node so a model downloaded after
+the ComfyUI tab loaded is selectable without a page reload. Always best-effort — guard with
+`typeof app?.refreshComboInNodes === "function"` and try/catch, since older frontends lack it and a
+failed refresh must never block the insert.
+
+The `/workflow/pending` poll needs a **re-entrancy guard** (`let running = false`): pending items are
+only dropped on ack, and the refresh can outlast the 500 ms interval, so an overlapping tick would
+insert the same node twice.
 
 ## Backend (Python)
 
