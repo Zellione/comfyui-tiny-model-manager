@@ -186,7 +186,11 @@ async def _worker():
 
 # No overall deadline (model files are large and download for a long time), but a
 # stalled socket must abort the worker instead of hanging the whole queue forever.
-_DOWNLOAD_TIMEOUT = httpx.Timeout(None, connect=30.0, read=120.0)
+# httpx has no total timeout: the first argument is only the default for the categories
+# left unset, so passing None there left `write` and `pool` unbounded. Both are now given
+# explicit ceilings — a wedged write or an unavailable connection slot would otherwise park
+# the single download worker forever and stall every queued download behind it.
+_DOWNLOAD_TIMEOUT = httpx.Timeout(None, connect=30.0, read=120.0, write=120.0, pool=30.0)
 
 
 async def _stream_file(task: DownloadTask, headers: dict) -> None:
