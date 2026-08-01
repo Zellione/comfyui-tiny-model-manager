@@ -360,7 +360,8 @@ insert the same node twice.
   The old two-line reset (`_tasks.clear()` + `_worker_started = False`) left the stale worker
   holding a getter on a closed loop, so the queue silently stopped draining.
   **This was a real bug and is fixed, but it was NOT the cause of the CI hang** — the hang
-  recurred on PR #117 with this fixture in place. See "Backend CI hang — unresolved" below.
+  recurred on PR #117 with this fixture in place. The actual cause was real DNS in the test
+  suite; see the `block_network` entry below.
   The fixture additionally rebinds
   `dl._queue = asyncio.Queue()`, which is the load-bearing part, and cancels leftover
   `background._background_tasks` under `try/except RuntimeError` (their loop is usually already
@@ -376,27 +377,40 @@ insert the same node twice.
 - **CI has `timeout-minutes` on every job** (`.github/workflows/ci.yml`: backend 10, frontend 15,
   sonarcloud 15). Without it a hung async test runs to GitHub's 6-hour default. Keep new jobs
   bounded.
-- **Backend CI hang — unresolved (issue #118, reopened)**. The backend job intermittently hangs
-  and is killed by the 10-minute ceiling. Identical signature on every occurrence:
-  ```
-  tests/test_routes_catalog.py ............................. [ 64%]
-  ##[error]The operation was canceled.
-  Terminate orphan process: pid (NNNN) (python)
-  ```
-  It stalls between the end of `test_routes_catalog.py` and the first dot of
-  `test_routes_download.py`; pytest buffers the filename without a trailing newline, so the
-  hanging file emits nothing at all.
-  - **Ruled out:** the queue/loop-binding bug. It is fixed, and `TestQueueLoopBinding` passes in
-    the very runs that hang (`test_downloader.py` shows 21 dots).
-  - **Intermittent** — the same commit passed in 29 s on an earlier run.
-  - **Never reproduced locally**: repeated clean runs at ~6.5 s with the exact CI command. Local
-    is Python 3.14, CI is 3.13.
-  - **Unproven lead:** the first test in the stalling file enqueues a real download of
-    `https://civitai.com/model.safetensors`, and `_DOWNLOAD_TIMEOUT` in
-    `py/services/downloader.py` is `httpx.Timeout(None, connect=30.0, read=120.0)` — the
-    **total** timeout is `None`, i.e. unbounded.
-- **`faulthandler_timeout = 60` in `[tool.pytest.ini_options]`** is instrumentation for the above,
-  not a fix. pytest dumps every thread's stack to stderr when a single test overruns, then lets it
+- **Tests must never touch the real network — enforced by `block_network` (issue #118, RESOLVED)**.
+  This was the cause of the long-running intermittent backend CI hang. Root cause, confirmed with
+  a captured stack trace and a deterministic reproduction:
+
+  A real DNS lookup is performed by `loop.getaddrinfo`, which runs in asyncio's **default
+  `ThreadPoolExecutor`**. pytest-asyncio tears down its per-test loop with
+  `asyncio.Runner.close()`, which calls `loop.shutdown_default_executor()` **without a timeout**,
+  so it `join()`s that worker thread forever. When a CI runner's resolver stalls on a name, the
+  suite wedges *in teardown* — which is why no dot was ever printed for the hanging test, why the
+  process survived as an orphan, and why the 10-minute job ceiling was the only thing ending it.
+  `httpx`'s `connect=30.0` cannot interrupt it: the block is inside a C call on a thread, not on
+  the event loop, so no asyncio timeout applies.
+
+  `tests/conftest.py` now has an autouse `block_network` fixture that raises
+  `RealNetworkAccessError` on any non-loopback `getaddrinfo` / `connect` / `connect_ex`. Loopback
+  stays open so aiohttp's test server keeps working. `tests/test_network_isolation.py` guards the
+  guard.
+
+  **Mock every outbound request.** Two traps found while fixing this:
+  - The download tests relied on a real request to `civitai.com` being slow enough that the task
+    was still `downloading` when they asserted on it. `tests/test_routes_download.py` now has an
+    autouse `stub_transfer` fixture replacing `downloader._stream_file` with a coroutine that
+    never completes, which reproduces that state deterministically and offline.
+  - A network call can hide behind a mocked seam: `refetch_catalog_metadata` had
+    `get_provider` patched, but `_fetch_hf_repo_files_safe` calls the HuggingFace API directly and
+    its "safe" wrapper swallows the failure, so a real request went out with the test still green.
+    Patch the *called* function, and re-check with a socket spy rather than trusting a passing test.
+
+  Ruled out along the way (don't re-investigate): the queue/loop-binding bug (#119, real and fixed
+  but not the cause), the Python 3.13-vs-3.14 difference (22 clean local runs on 3.13), coverage
+  instrumentation, blocking loop teardown on in-flight sockets, and retry loops in the downloader.
+- **`faulthandler_timeout = 60` in `[tool.pytest.ini_options]`** is instrumentation, not a fix —
+  and it is what finally cracked #118: it produced the teardown stack naming
+  `shutdown_default_executor`. Keep it. pytest dumps every thread's stack to stderr when a single test overruns, then lets it
   continue, so the next stall records exactly where it is stuck. Verified against a deliberately
   stalling test — the dump names the test function and line. The whole suite runs in ~7 s, so 60 s
   cannot fire on a healthy run. **When adding a diagnostic, prove it fires** before relying on it;

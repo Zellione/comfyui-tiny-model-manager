@@ -143,3 +143,70 @@ def reset_downloader_state():
     dl._worker_started = False
     dl._queue = asyncio.Queue()
     yield
+
+
+# ---------------------------------------------------------------------------
+# Network isolation (issue #118)
+# ---------------------------------------------------------------------------
+
+
+class RealNetworkAccessError(RuntimeError):
+    """Raised when a test tries to reach a host outside the loopback interface."""
+
+
+def _loopback(host) -> bool:
+    if isinstance(host, bytes):
+        host = host.decode("utf-8", "replace")
+    host = str(host)
+    return host in ("localhost", "127.0.0.1", "::1", "0.0.0.0", "") or host.startswith("127.")
+
+
+@pytest.fixture(autouse=True)
+def block_network(monkeypatch):
+    """Fail loudly on any real outbound connection instead of hanging CI.
+
+    A real DNS lookup is resolved by ``loop.getaddrinfo``, which runs in asyncio's default
+    ``ThreadPoolExecutor``.  pytest-asyncio tears down its per-test loop with
+    ``asyncio.Runner.close()``, which calls ``loop.shutdown_default_executor()`` **without a
+    timeout** — so it joins that worker thread forever.  When a CI runner's resolver stalls on
+    a name, the whole suite wedges mid-test with no output and an orphan Python process, which
+    is the intermittent backend hang tracked in issue #118.  ``httpx``'s ``connect`` timeout
+    cannot interrupt it: the block is inside a C call on a thread, not on the event loop.
+
+    Tests must therefore mock every outbound request.  Loopback stays open so aiohttp's test
+    server keeps working.
+    """
+    import socket
+
+    real_getaddrinfo = socket.getaddrinfo
+    real_connect = socket.socket.connect
+    real_connect_ex = socket.socket.connect_ex
+
+    def guarded_getaddrinfo(host, port, *args, **kwargs):
+        if not _loopback(host):
+            raise RealNetworkAccessError(
+                f"Test attempted a real DNS lookup for {host!r}:{port}. "
+                "Mock the request — real network calls hang CI (issue #118)."
+            )
+        return real_getaddrinfo(host, port, *args, **kwargs)
+
+    def guarded_connect(self, address):
+        if isinstance(address, tuple) and not _loopback(address[0]):
+            raise RealNetworkAccessError(
+                f"Test attempted a real connection to {address!r}. "
+                "Mock the request — real network calls hang CI (issue #118)."
+            )
+        return real_connect(self, address)
+
+    def guarded_connect_ex(self, address):
+        if isinstance(address, tuple) and not _loopback(address[0]):
+            raise RealNetworkAccessError(
+                f"Test attempted a real connection to {address!r}. "
+                "Mock the request — real network calls hang CI (issue #118)."
+            )
+        return real_connect_ex(self, address)
+
+    monkeypatch.setattr(socket, "getaddrinfo", guarded_getaddrinfo)
+    monkeypatch.setattr(socket.socket, "connect", guarded_connect)
+    monkeypatch.setattr(socket.socket, "connect_ex", guarded_connect_ex)
+    yield

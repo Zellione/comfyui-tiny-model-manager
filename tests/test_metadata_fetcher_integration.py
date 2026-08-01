@@ -504,7 +504,15 @@ class TestRefetchCatalogMetadata:
         mock_provider = AsyncMock()
         mock_provider.fetch_metadata = AsyncMock(return_value=mock_meta)
 
-        with patch("py.services.metadata_fetcher.get_provider", return_value=mock_provider):
+        with (
+            patch("py.services.metadata_fetcher.get_provider", return_value=mock_provider),
+            # Bypasses get_provider and calls the HuggingFace API directly; its "safe"
+            # wrapper swallows the failure, so a real request went out unnoticed (issue #118).
+            patch(
+                "py.services.metadata_fetcher._fetch_hf_repo_files_safe",
+                AsyncMock(return_value=[]),
+            ),
+        ):
             result = await refetch_catalog_metadata("huggingface", "user/repo")
 
         assert result is not None

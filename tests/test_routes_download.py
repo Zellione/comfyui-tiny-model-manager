@@ -1,7 +1,26 @@
 """Integration tests for py/routes/download.py (search, resolve, enqueue)."""
 
+import asyncio
+
 import pytest
 from aiohttp import web
+
+
+@pytest.fixture(autouse=True)
+def stub_transfer(monkeypatch):
+    """Hold every enqueued download in-flight without touching the network (issue #118).
+
+    These tests cover enqueue bookkeeping — task ids, history rows, cancel semantics — and
+    never assert on the transfer itself.  Previously they relied on a real request to
+    ``civitai.com`` being slow enough to still be running, which made the suite depend on the
+    runner's DNS and hung CI.  A transfer that never finishes reproduces that state exactly,
+    and is cancelled with the event loop at teardown.
+    """
+
+    async def never_completes(task, headers):
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr("py.services.downloader._stream_file", never_completes)
 
 
 @pytest.fixture()

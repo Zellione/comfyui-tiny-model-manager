@@ -63,22 +63,22 @@ emits a line per file as it completes. Go there before theorising. In F-92 the l
 pointed at `test_routes_download.py`, which ruled out the plausible-but-wrong suspect in
 a different file.
 
-**This is a recurring, still-unresolved flake — see issue #118 and the "Backend CI hang"
-entry in `mem:conventions`.** It has now appeared across F-92 and F-93, always stalling at
-the same place: the end of `tests/test_routes_catalog.py`, with `test_routes_download.py`
-emitting nothing (pytest buffers a file's name without a trailing newline, so the hanging
-file looks absent rather than incomplete). It is intermittent — the same commit can pass in
-~30 s — and has never reproduced locally.
+**RESOLVED (issue #118).** Root cause: the test suite performed real DNS lookups. `getaddrinfo`
+runs in asyncio's default `ThreadPoolExecutor`, and pytest-asyncio's per-test loop teardown calls
+`loop.shutdown_default_executor()` **without a timeout**, joining that thread forever when a CI
+resolver stalls. The hang was therefore in *teardown*, which is why the stalling test never printed
+a dot and why an orphan Python process was left behind.
 
-Two things are already in place, so don't re-add them:
-- `timeout-minutes` on every CI job, so a hang dies in 10 minutes rather than 6 hours.
-- `faulthandler_timeout = 60` in `pyproject.toml`, so the next stall dumps every thread's
-  stack into the log. **When it next hangs, read that stack first** — it names the stuck
-  test and line, which is the evidence the investigation has been missing.
+The fix is the autouse `block_network` fixture in `tests/conftest.py`: any non-loopback
+`getaddrinfo`/`connect` raises instead of hanging. **Mock every outbound request** — see
+`mem:conventions` for the two traps (tests relying on a slow real request to stay `downloading`,
+and a network call hiding behind an already-mocked seam in `refetch_catalog_metadata`).
 
-Beware of declaring this fixed. A queue/event-loop bug found while chasing it (#119) was
-real, was fixed, and did **not** stop the hang; it was reported as resolved and then
-recurred on the next PR.
+Two earlier attempts did *not* fix it and should not be retried: the queue/event-loop binding fix
+(#119, a real bug but not this one) and bounding `_DOWNLOAD_TIMEOUT` (httpx timeouts cannot
+interrupt a blocked `getaddrinfo` on a thread). `faulthandler_timeout = 60` (#122) is what finally
+produced the decisive stack trace — when a stall is intermittent and unreproducible, invest in
+instrumentation rather than another candidate fix.
 
 ## GitHub Project board
 
