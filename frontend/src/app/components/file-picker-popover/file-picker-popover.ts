@@ -1,13 +1,5 @@
-import {
-  Component,
-  ElementRef,
-  HostListener,
-  computed,
-  inject,
-  input,
-  output,
-} from '@angular/core';
-import { PopoverService } from '../../services/popover.service';
+import { Component, input, output } from '@angular/core';
+import { PopoverTrigger } from '../popover-trigger';
 
 // Minimal structural shape of a pickable file. Both `InstalledFile` and `RepoFile`
 // satisfy it, so the popover works with either without importing their types.
@@ -21,42 +13,10 @@ export interface PickableFile {
   templateUrl: './file-picker-popover.html',
   styleUrl: './file-picker-popover.scss',
 })
-export class FilePickerPopover {
+export class FilePickerPopover extends PopoverTrigger {
   readonly heading = input<string>('');
   readonly files = input<PickableFile[]>([]);
   readonly picked = output<PickableFile>();
-
-  readonly id = crypto.randomUUID();
-
-  private readonly service = inject(PopoverService);
-  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
-
-  readonly isOpen = computed(() => this.service.activeId() === this.id);
-
-  @HostListener('click')
-  onHostClick() {
-    if (this.isOpen()) {
-      this.service.deactivate(this.id);
-    } else {
-      this.service.activate(this.id);
-    }
-  }
-
-  @HostListener('document:click', ['$event'])
-  onDocClick(ev: MouseEvent) {
-    if (
-      this.isOpen() &&
-      ev.target instanceof Node &&
-      !this.host.nativeElement.contains(ev.target)
-    ) {
-      this.service.deactivate(this.id);
-    }
-  }
-
-  @HostListener('document:keydown.escape')
-  onEscape() {
-    this.service.deactivate(this.id);
-  }
 
   basename(path: string): string {
     return path.split('/').pop() ?? path;
@@ -72,7 +32,7 @@ export class FilePickerPopover {
 
   onPick(ev: MouseEvent, file: PickableFile) {
     ev.stopPropagation();
-    this.service.deactivate(this.id);
+    this.close();
     this.picked.emit(file);
   }
 }
