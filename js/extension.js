@@ -68,6 +68,7 @@ app.registerExtension({
     app.ui.settings.setSettingValue("TinyModelManager.hf_token",                 data.hf_token                 ?? "");
     app.ui.settings.setSettingValue("TinyModelManager.media_dir",                data.media_dir                ?? "");
     app.ui.settings.setSettingValue("TinyModelManager.organize_into_subfolders", data.organize_into_subfolders ?? false);
+    app.ui.settings.setSettingValue("TinyModelManager.cleanup_stale_media_on_start", data.cleanup_stale_media_on_start ?? false);
     _initialized = true;
   },
   settings: [
@@ -174,6 +175,23 @@ app.registerExtension({
           );
           _revertingOrganize = false;
         }
+      },
+    },
+    {
+      id: "TinyModelManager.cleanup_stale_media_on_start",
+      name: "Clean up stale media on server start",
+      category: ["Tiny Model Manager", "Storage", "Clean up stale media on start"],
+      type(_name, setter, value) {
+        return makeToggle(value, (checked) => {
+          setter(checked);
+        });
+      },
+      defaultVal: false,
+      tooltip:
+        "When enabled, preview images and videos that no longer belong to any model or catalog entry are deleted on every ComfyUI start.",
+      async onChange(value) {
+        if (!_initialized) return;
+        await putSetting("cleanup_stale_media_on_start", value);
       },
     },
   ],

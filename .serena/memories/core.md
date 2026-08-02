@@ -124,6 +124,30 @@ civitai_version_id, civitai_model_id, model_type, thumbnail}`.
 - Models page cards: 1 insertable file → direct insert; 2+ → `app-file-picker-popover`. Always
   use the **file's** `model_type`, never the entry's — one catalog entry can mix types.
 
+## Media cleanup (F-95)
+
+- `py/services/media_cleanup.py` owns the canonical `media_subdir(media_hash)` (path-traversal
+  guard); `metadata_fetcher._media_subdir` is now just an alias to it — do not re-implement.
+- **A model and its catalog entry usually share one media directory.** `fetch_and_store` passes
+  the model's `media_hash` straight into `_store_catalog_entry`, and `_list_catalog_media` lists
+  the whole directory so the gallery survives uninstall. Therefore every deletion is gated on
+  `model_repo.get_live_media_hashes()` (union of `models.media_hash` + `catalog_entries.media_hash`)
+  read **after** the model row is gone. For CivitAI, extra versions get their own hash
+  (`sha1("civitai:<version_id>")`) and *are* cleaned; the one the catalog adopted is not.
+- `cleanup_model_media(media_hash, paths)` — called from `routes/models.py::_delete_model` after
+  `delete_model_record`. Media info must be read *before* the delete (`get_model_media_info`):
+  `model_media` rows cascade away with the model. Hash-less (pre-F-58) rows fall back to
+  per-path deletion filtered by `get_all_media_paths()`.
+- `cleanup_stale_media()` — opt-in via the `cleanup_stale_media_on_start` setting, run from
+  `routes/__init__.py::_startup` right after `prune_stale_models()` so records that vanished
+  free their media in the same pass. Directory granularity (a dir whose name is no live hash),
+  which is what also sweeps cached `*_poster.jpg` files — they have no `model_media` row.
+  Loose files in the media root go only if unreferenced. Logs + pushes a backend notification.
+- There are **no metadata sidecar files** in this project; all metadata is in SQLite and the
+  child rows already cascade. "Metadata cleanup" means the media files only.
+- The settings toggle lives in the **ComfyUI settings panel** (`js/extension.js`), not the
+  Angular settings page — that page only manages filename keywords.
+
 ## Popovers
 
 - `services/popover.service.ts` → `PopoverService` (renamed from `ConfirmPopoverService` in

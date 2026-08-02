@@ -613,3 +613,46 @@ async def test_register_model_file_hash_defaults_to_none(ext_dir):
     )
     row = await model_repo.get_model_by_filename("no_hash.safetensors")
     assert row["file_hash"] is None
+
+
+async def test_get_model_media_info_returns_hash_and_paths(ext_dir):
+    from py.db import model_repo
+
+    model_id = await model_repo.upsert_model_with_meta(
+        "with_media.safetensors", "loras", "civitai", "1", "", [], [], media_hash="abc123"
+    )
+    await model_repo.add_media(model_id, "image", "/tmp/media/abc123/0.jpg")
+
+    info = await model_repo.get_model_media_info("with_media.safetensors")
+    assert info == {"media_hash": "abc123", "paths": ["/tmp/media/abc123/0.jpg"]}
+
+
+async def test_get_model_media_info_returns_none_for_unknown_model(ext_dir):
+    from py.db import model_repo
+
+    assert await model_repo.get_model_media_info("nope.safetensors") is None
+
+
+async def test_get_live_media_hashes_covers_models_and_catalog_entries(ext_dir):
+    from py.db import model_repo
+
+    await model_repo.upsert_model_with_meta(
+        "a.safetensors", "loras", "civitai", "1", "", [], [], media_hash="model-hash"
+    )
+    await model_repo.upsert_model_with_meta("b.safetensors", "loras", "", "", "", [], [])
+    await model_repo.upsert_catalog_entry(
+        "civitai", "42", "", "Entry", "", "", media_hash="catalog-hash"
+    )
+
+    assert await model_repo.get_live_media_hashes() == {"model-hash", "catalog-hash"}
+
+
+async def test_get_all_media_paths_resolves_paths(ext_dir):
+    import os
+
+    from py.db import model_repo
+
+    model_id = await model_repo.upsert_model_with_meta("a.safetensors", "loras", "", "", "", [], [])
+    await model_repo.add_media(model_id, "image", "/tmp/media/0.jpg")
+
+    assert await model_repo.get_all_media_paths() == {os.path.realpath("/tmp/media/0.jpg")}

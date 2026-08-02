@@ -888,6 +888,46 @@ async def get_model_media(model_id: int) -> list[dict]:
         return [dict(r) for r in rows]
 
 
+async def get_model_media_info(filename: str) -> dict | None:
+    """Return ``{"media_hash", "paths"}`` for a model, or None when it has no row.
+
+    Read before deleting the model so the media files can be cleaned up afterwards —
+    ``model_media`` rows go away with the model via ON DELETE CASCADE.
+    """
+    async with get_db() as db:
+        row = await (
+            await db.execute("SELECT id, media_hash FROM models WHERE filename = ?", (filename,))
+        ).fetchone()
+        if not row:
+            return None
+        rows = await (
+            await db.execute("SELECT local_path FROM model_media WHERE model_id = ?", (row["id"],))
+        ).fetchall()
+        return {
+            "media_hash": row["media_hash"] or "",
+            "paths": [r["local_path"] for r in rows],
+        }
+
+
+async def get_live_media_hashes() -> set[str]:
+    """Every media_hash still claimed by a model row or a catalog entry."""
+    async with get_db() as db:
+        rows = await (
+            await db.execute(
+                "SELECT media_hash FROM models WHERE media_hash != ''"
+                " UNION SELECT media_hash FROM catalog_entries WHERE media_hash != ''"
+            )
+        ).fetchall()
+        return {r["media_hash"] for r in rows}
+
+
+async def get_all_media_paths() -> set[str]:
+    """Resolved paths of every file a model_media row points at."""
+    async with get_db() as db:
+        rows = await (await db.execute("SELECT local_path FROM model_media")).fetchall()
+        return {os.path.realpath(r["local_path"]) for r in rows}
+
+
 async def delete_media_row(media_id: int) -> None:
     async with get_db() as db:
         await db.execute("DELETE FROM model_media WHERE id = ?", (media_id,))

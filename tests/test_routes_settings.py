@@ -55,6 +55,10 @@ class TestGetSettings:
         data = (await (await client.get("/tiny-model-manager/api/settings")).json())["data"]
         assert data["organize_into_subfolders"] is False
 
+    async def test_get_returns_cleanup_stale_media_default_false(self, client):
+        data = (await (await client.get("/tiny-model-manager/api/settings")).json())["data"]
+        assert data["cleanup_stale_media_on_start"] is False
+
 
 class TestPutSettings:
     async def test_put_saves_civitai_key(self, client, ext_dir):
@@ -102,6 +106,29 @@ class TestPutSettings:
         resp = await client.put("/tiny-model-manager/api/settings", json={})
         assert resp.status == 200
         assert (await resp.json())["success"] is True
+
+    async def test_put_saves_cleanup_stale_media_on_start(self, client, ext_dir):
+        from py import config as cfg
+
+        resp = await client.put(
+            "/tiny-model-manager/api/settings",
+            json={"cleanup_stale_media_on_start": True},
+        )
+
+        assert resp.status == 200
+        assert cfg.load_settings()["cleanup_stale_media_on_start"] is True
+
+    async def test_put_can_turn_cleanup_stale_media_back_off(self, client, ext_dir):
+        from py import config as cfg
+
+        cfg.save_settings({"cleanup_stale_media_on_start": True})
+
+        await client.put(
+            "/tiny-model-manager/api/settings",
+            json={"cleanup_stale_media_on_start": False},
+        )
+
+        assert cfg.load_settings()["cleanup_stale_media_on_start"] is False
 
     async def test_toggling_organize_off_enqueues_deorganize_jobs(self, client, ext_dir):
         from unittest.mock import patch

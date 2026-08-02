@@ -4,7 +4,6 @@ import asyncio
 import hashlib
 import logging
 import os
-import re
 import shutil
 from pathlib import Path
 
@@ -13,6 +12,7 @@ import httpx
 from .. import config as cfg
 from ..db import model_repo
 from ..video_poster import extract_video_poster
+from . import media_cleanup
 from .providers import get_provider
 from .providers.base import ProviderMetadata
 from .url_guard import is_allowed_url
@@ -25,18 +25,8 @@ def _compute_media_hash(platform: str, source_id: str, filename: str) -> str:
     return hashlib.sha1(key.encode()).hexdigest()
 
 
-def _media_subdir(media_hash: str) -> str:
-    """Return the per-model media directory, guarding against path traversal."""
-    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", media_hash):
-        raise ValueError(f"Invalid media hash: {media_hash!r}")
-    base = os.path.realpath(cfg.media_dir())
-    resolved = os.path.realpath(os.path.join(base, media_hash))
-    # Defense-in-depth: the allowlist above already rejects separators, but
-    # explicitly confirm the resolved path stays inside the media directory so
-    # the safe boundary is enforced at the point where the path is constructed.
-    if resolved != base and not resolved.startswith(base + os.sep):
-        raise ValueError(f"Invalid media hash: {media_hash!r}")
-    return resolved
+# Shared with the cleanup service so both sides agree on the layout and the guard.
+_media_subdir = media_cleanup.media_subdir
 
 
 async def fetch_metadata_only(platform: str, source_id: str) -> ProviderMetadata:
