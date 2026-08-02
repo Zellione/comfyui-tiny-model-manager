@@ -29,7 +29,7 @@ from .. import config as cfg
 from ..db import workflow_repo
 from . import media_cleanup, model_paths
 from .providers import civitai
-from .url_guard import is_allowed_url
+from .url_guard import RedirectNotAllowed, guarded_stream, is_allowed_url
 
 _log = logging.getLogger("tiny-model-manager")
 
@@ -161,11 +161,12 @@ async def _fetch_archive(url: str, dest: str, headers: dict) -> None:
     """Stream ``url`` to ``dest``, aborting past the archive ceiling.
 
     Wrapped in its own coroutine so tests can monkeypatch this module-level name instead
-    of the HTTP client.
+    of the HTTP client. Redirects are resolved by ``guarded_stream``, which re-checks each
+    hop against the allowlist and drops the CivitAI key once the origin changes.
     """
     written = 0
-    async with httpx.AsyncClient(timeout=httpx.Timeout(120.0), follow_redirects=True) as client:
-        async with client.stream("GET", url, headers=headers) as resp:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
+        async with guarded_stream(client, "GET", url, headers=headers) as resp:
             resp.raise_for_status()
             with open(dest, "wb") as f:
                 async for chunk in resp.aiter_bytes(65536):
@@ -252,7 +253,12 @@ async def download_workflow(model_id: str, version_id: str = "") -> dict:
     media_hash = workflow_media_hash("civitai", str(model_id))
     with tempfile.TemporaryDirectory() as tmp:
         payload = os.path.join(tmp, "payload.bin")
-        await _fetch_archive(url, payload, civitai.auth_headers())
+        try:
+            await _fetch_archive(url, payload, civitai.auth_headers())
+        except RedirectNotAllowed as exc:
+            # Surfaced as a plain rejection rather than a 500: it means CivitAI pointed
+            # the download at a host outside the allowlist.
+            raise ValueError(str(exc)) from exc
         graphs = extract_graphs(payload)
 
     image_urls = _version_image_urls(version)

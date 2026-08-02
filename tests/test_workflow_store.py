@@ -9,9 +9,11 @@ import os
 import zipfile
 
 import folder_paths
+import httpx
 import pytest
 
 from py.services import workflow_store as ws
+from py.services.url_guard import RedirectNotAllowed
 
 GRAPH = {
     "last_node_id": 2,
@@ -359,6 +361,52 @@ class TestDownloadWorkflow:
         monkeypatch.setattr(ws.civitai, "get_model_page", fake_page)
         with pytest.raises(ws.WorkflowPayloadError):
             await ws.download_workflow("123")
+
+
+class TestFetchArchive:
+    """Exercises the real _fetch_archive wiring (the other tests patch it out)."""
+
+    @staticmethod
+    def _patched_client(monkeypatch, handler):
+        real = httpx.AsyncClient
+        monkeypatch.setattr(
+            ws.httpx,
+            "AsyncClient",
+            lambda **_kw: real(transport=httpx.MockTransport(handler)),
+        )
+
+    async def test_writes_the_payload(self, tmp_path, monkeypatch):
+        self._patched_client(monkeypatch, lambda _r: httpx.Response(200, content=b"zipbytes"))
+        dest = str(tmp_path / "payload.bin")
+        await ws._fetch_archive("https://civitai.com/api/download/models/1", dest, {})
+        assert open(dest, "rb").read() == b"zipbytes"
+
+    async def test_follows_a_redirect_inside_the_allowlist(self, tmp_path, monkeypatch):
+        def handler(request):
+            if request.url.host == "civitai.com":
+                return httpx.Response(302, headers={"location": "https://b2.civitai.com/x.zip"})
+            return httpx.Response(200, content=b"zipbytes")
+
+        self._patched_client(monkeypatch, handler)
+        dest = str(tmp_path / "payload.bin")
+        await ws._fetch_archive("https://civitai.com/api/download/models/1", dest, {})
+        assert open(dest, "rb").read() == b"zipbytes"
+
+    async def test_rejects_a_redirect_off_the_allowlist(self, tmp_path, monkeypatch):
+        self._patched_client(
+            monkeypatch,
+            lambda _r: httpx.Response(302, headers={"location": "http://169.254.169.254/meta"}),
+        )
+        dest = str(tmp_path / "payload.bin")
+        with pytest.raises(RedirectNotAllowed):
+            await ws._fetch_archive("https://civitai.com/api/download/models/1", dest, {})
+
+    async def test_aborts_past_the_size_ceiling(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(ws, "_MAX_ARCHIVE_BYTES", 4)
+        self._patched_client(monkeypatch, lambda _r: httpx.Response(200, content=b"much too long"))
+        dest = str(tmp_path / "payload.bin")
+        with pytest.raises(ws.WorkflowTooLargeError):
+            await ws._fetch_archive("https://civitai.com/api/download/models/1", dest, {})
 
 
 class TestListEntryMedia:

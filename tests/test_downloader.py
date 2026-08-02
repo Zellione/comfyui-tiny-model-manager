@@ -50,10 +50,12 @@ class TestStreamFile:
 
         mock_file = AsyncMock()
         mock_client = MagicMock()
-        mock_client.stream = MagicMock(return_value=_AsyncCM(mock_resp))
 
         with patch("py.services.downloader.httpx.AsyncClient", return_value=_AsyncCM(mock_client)):
-            with patch("py.services.downloader.aiofiles.open", return_value=_AsyncCM(mock_file)):
+            with (
+                patch("py.services.downloader.guarded_stream", return_value=_AsyncCM(mock_resp)),
+                patch("py.services.downloader.aiofiles.open", return_value=_AsyncCM(mock_file)),
+            ):
                 await _stream_file(task, {})
 
         assert task.total_bytes == 200
@@ -74,10 +76,12 @@ class TestStreamFile:
 
         mock_file = AsyncMock()
         mock_client = MagicMock()
-        mock_client.stream = MagicMock(return_value=_AsyncCM(mock_resp))
 
         with patch("py.services.downloader.httpx.AsyncClient", return_value=_AsyncCM(mock_client)):
-            with patch("py.services.downloader.aiofiles.open", return_value=_AsyncCM(mock_file)):
+            with (
+                patch("py.services.downloader.guarded_stream", return_value=_AsyncCM(mock_resp)),
+                patch("py.services.downloader.aiofiles.open", return_value=_AsyncCM(mock_file)),
+            ):
                 with pytest.raises(_Cancelled):
                     await _stream_file(task, {})
 
@@ -97,16 +101,21 @@ class TestStreamFile:
 
         mock_file = AsyncMock()
         mock_client = MagicMock()
-        mock_client.stream = MagicMock(return_value=_AsyncCM(mock_resp))
 
         def fake_client(**kwargs):
             captured.update(kwargs)
             return _AsyncCM(mock_client)
 
         with patch("py.services.downloader.httpx.AsyncClient", fake_client):
-            with patch("py.services.downloader.aiofiles.open", return_value=_AsyncCM(mock_file)):
+            with (
+                patch("py.services.downloader.guarded_stream", return_value=_AsyncCM(mock_resp)),
+                patch("py.services.downloader.aiofiles.open", return_value=_AsyncCM(mock_file)),
+            ):
                 await _stream_file(task, {})
 
+        # Redirects are resolved by guarded_stream, so the client itself must not follow
+        # them — otherwise a hop could skip the per-hop allowlist check.
+        assert captured.get("follow_redirects") in (None, False)
         # A stalled connection must eventually abort rather than hang the worker forever.
         timeout = captured.get("timeout")
         assert timeout is not None
@@ -127,10 +136,12 @@ class TestStreamFile:
 
         mock_file = AsyncMock()
         mock_client = MagicMock()
-        mock_client.stream = MagicMock(return_value=_AsyncCM(mock_resp))
 
         with patch("py.services.downloader.httpx.AsyncClient", return_value=_AsyncCM(mock_client)):
-            with patch("py.services.downloader.aiofiles.open", return_value=_AsyncCM(mock_file)):
+            with (
+                patch("py.services.downloader.guarded_stream", return_value=_AsyncCM(mock_resp)),
+                patch("py.services.downloader.aiofiles.open", return_value=_AsyncCM(mock_file)),
+            ):
                 await _stream_file(task, {})
 
         assert task.progress == 0.0

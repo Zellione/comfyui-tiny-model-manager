@@ -165,6 +165,24 @@ class TestDownload:
         resp = await client.post(f"{_API}/download", json={"model_id": "123"})
         assert resp.status == 400
 
+    async def test_redirect_off_the_allowlist_returns_400(self, client, monkeypatch):
+        """CivitAI bouncing the download to another host is a rejection, not a 500."""
+        from py.services.url_guard import RedirectNotAllowed
+
+        async def fake_page(model_id):
+            return _PAGE
+
+        async def blocked(url, dest, headers):
+            raise RedirectNotAllowed("Redirect target host is not allowed: '169.254.169.254'")
+
+        from py.routes import workflows as route_mod
+
+        monkeypatch.setattr(route_mod.workflow_store.civitai, "get_model_page", fake_page)
+        monkeypatch.setattr(route_mod.workflow_store, "_fetch_archive", blocked)
+        resp = await client.post(f"{_API}/download", json={"model_id": "123"})
+        assert resp.status == 400
+        assert "not allowed" in (await resp.json())["error"]
+
     async def test_oversize_archive_returns_413(self, client, monkeypatch):
         async def fake_page(model_id):
             return _PAGE

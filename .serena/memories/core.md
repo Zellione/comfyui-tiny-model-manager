@@ -178,6 +178,9 @@ in `routes/__init__.py` and must not be conflated.
     `__MACOSX`, absolute/`..` member names (zip-slip), oversized members; keep only dicts with a
     `nodes` list. Non-zip → parse whole file. Empty → `WorkflowPayloadError("no_workflow_json")`.
   - `_fetch_archive(url, dest, headers)` is the monkeypatch seam (never patch httpx directly).
+    It streams through `url_guard.guarded_stream`, which validates every redirect hop — see
+    the redirect-guard entry in `mem:conventions`. A blocked hop is remapped to `ValueError`
+    so the route answers 400 rather than 500.
   - `workflow_subdir()` copies `media_cleanup.media_subdir`'s guard shape; the version id is
     forced to digits before it becomes a directory name. Nothing is written/deleted by a raw
     request path.

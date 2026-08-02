@@ -13,6 +13,7 @@ from ..background import spawn
 from ..db import model_repo
 from . import model_paths
 from .providers import get_provider
+from .url_guard import guarded_stream
 
 SUPPORTED_TYPES = {
     "checkpoints": "checkpoints",
@@ -194,8 +195,11 @@ _DOWNLOAD_TIMEOUT = httpx.Timeout(None, connect=30.0, read=120.0, write=120.0, p
 
 
 async def _stream_file(task: DownloadTask, headers: dict) -> None:
-    async with httpx.AsyncClient(timeout=_DOWNLOAD_TIMEOUT, follow_redirects=True) as client:
-        async with client.stream("GET", task.url, headers=headers) as resp:
+    # No follow_redirects on the client: guarded_stream resolves the chain itself so
+    # every hop is re-checked against the provider allowlist (both CivitAI and
+    # HuggingFace redirect downloads to their CDNs).
+    async with httpx.AsyncClient(timeout=_DOWNLOAD_TIMEOUT) as client:
+        async with guarded_stream(client, "GET", task.url, headers=headers) as resp:
             resp.raise_for_status()
             total = int(resp.headers.get("content-length", 0))
             task.total_bytes = total
