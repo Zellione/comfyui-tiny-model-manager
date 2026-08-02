@@ -139,6 +139,32 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
 - **Video-only indicator (download search page)**: when `civitaiIsVideoOnly(model)` is true (all items are `type=video` or have video URLs, and there is at least one item), the card thumbnail shows a `▶` play icon (`.video-only-icon` div inside `.row-thumb`) instead of a blank dark placeholder. Pattern: `@else if (civitaiIsVideoOnly(model)) { <div class="video-only-icon">▶</div> }`.
 - `civitaiIsVideoOnly()`: `images.length > 0 && images.every((img) => img.type === 'video' || isVideo(img.url))`.
 
+## CivitAI response shapes — description and tags (PR #133)
+
+`GET /model-versions/{id}` and `GET /model-versions/by-hash/{hash}` do **not** contain the model
+description or its tags:
+
+- top-level `description` is the **version changelog** (often `null`), not the model description
+- the nested `model` object holds only `{name, type, nsfw, poi}` — no `description`, no `tags`
+
+Both live on the model page (`GET /models/{modelId}`) and need a **second request**. This is why
+`lookup_by_hash` / `lookup_by_version_id` call `_fetch_model_page(data["modelId"])` and splice
+`description` + `tags` into the version payload via `_enrich_version` before handing it to
+`_version_to_metadata`. A failed model page degrades to the version payload — never raises.
+
+`_compose_description(model_description, version_description)` is the single place that joins the
+two: model description first, changelog appended after `<hr><h3>Version notes</h3>`, either side
+alone when the other is missing. **Never write `data["description"] or model["description"]`** —
+that precedence is the bug PR #133 fixed (changelog shadowed the real description, or the field
+came back empty).
+
+The heading is baked into stored text at import time, so it cannot go through ngx-translate — it
+is English regardless of UI language. Descriptions render through `[innerHTML] | safeHtml`, so the
+markup displays correctly on model-detail and catalog-detail.
+
+Only `lookup_by_model_id` starts from the model page and already has both fields; it still routes
+through `_compose_description` so the changelog is appended rather than dropped.
+
 ## Catalog page thumbnail fallback (installed models)
 
 - `catalog_entries.thumbnail_url` can contain a stale video path (`.mp4`/`.webm`/`.mov`) if it was stored before the video-skip fix in `_download_catalog_images`.
