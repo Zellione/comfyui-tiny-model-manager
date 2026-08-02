@@ -87,13 +87,13 @@
     <div class="list-pane">
       <div class="list-scroll">
         @for (image of filteredResults(); track image.id) {
-          <div
+          <!-- A real <button>, not a div with role="button": keyboard and assistive-tech
+               behaviour comes for free (Web:S6819). -->
+          <button
+            type="button"
             class="list-row"
             [class.selected]="selected()?.id === image.id"
             (click)="select(image)"
-            (keyup.enter)="select(image)"
-            tabindex="0"
-            role="button"
           >
             <div class="row-thumb">
               @if (isVideoItem(image)) {
@@ -123,7 +123,7 @@
                 }
               </div>
             </div>
-          </div>
+          </button>
         }
       </div>
       @if (hasMore()) {
@@ -164,7 +164,9 @@
         <div class="detail-body">
           <div class="detail-media">
             @if (isVideoItem(image)) {
-              <video class="detail-main-media" [src]="image.url" controls></video>
+              <video class="detail-main-media" [src]="image.url" controls>
+                <track kind="captions" />
+              </video>
             } @else {
               <img
                 class="detail-main-media"

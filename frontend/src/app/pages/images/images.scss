@@ -105,9 +105,15 @@
 }
 
 .list-row {
+  // A real <button> (Web:S6819), so the UA button styling has to be reset back to the
+  // row look the other search views use.
   display: flex;
   gap: 0.65rem;
   align-items: center;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
   padding: 0.55rem 0.6rem;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -116,6 +122,11 @@
   transition:
     background var(--dur),
     border-color var(--dur);
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
 
   &:hover {
     background: var(--surface-hi);

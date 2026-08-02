@@ -215,6 +215,29 @@ describe('Images', () => {
       ]);
     });
 
+    it('skips non-primitive values instead of printing [object Object]', async () => {
+      // CivitAI adds meta keys without notice; some are objects or arrays.
+      mockImageService.search.mockReturnValue(
+        of(
+          searchResult([
+            makeImage({
+              meta: {
+                Model: { name: 'nested' } as unknown as string,
+                sampler: 'Euler a',
+                steps: 0,
+              },
+            }),
+          ]),
+        ),
+      );
+      const c = await createComponent();
+      const rows = c.selectedParams();
+      expect(rows.map((r) => r.key)).toEqual(['images.param.sampler', 'images.param.steps']);
+      expect(rows.some((r) => r.value.includes('[object'))).toBe(false);
+      // 0 is a real value and must survive the emptiness check.
+      expect(rows.find((r) => r.key === 'images.param.steps')?.value).toBe('0');
+    });
+
     it('is empty when the image has no metadata', async () => {
       mockImageService.search.mockReturnValue(
         of(searchResult([makeImage({ recreatable: '', meta: null })])),

@@ -107,9 +107,12 @@ export class Images {
     const meta = this.selected()?.meta;
     if (!meta) return [];
     const rows: { key: string; value: string }[] = [];
+    // `meta` is an open index signature, so a value can legitimately be an object or an
+    // array (CivitAI adds keys without notice). Only primitives are rendered — stringifying
+    // the rest would print "[object Object]" at the user (typescript:S6551).
     const push = (key: string, value: unknown) => {
-      if (value !== undefined && value !== null && value !== '') {
-        rows.push({ key, value: String(value) });
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        if (value !== '') rows.push({ key, value: String(value) });
       }
     };
     push('images.param.model', meta['Model']);
