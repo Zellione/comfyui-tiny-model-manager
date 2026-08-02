@@ -86,6 +86,9 @@ export class DownloadSearch {
     'SDXL Turbo',
     'Chroma',
     'Qwen',
+    // Exact CivitAI `baseModels` filter values — a typo here silently returns no results.
+    // 'Krea 2' is its own base model, distinct from the older 'Flux.1 Krea'.
+    'Krea 2',
   ];
 
   platform = signal<Platform>('civitai');

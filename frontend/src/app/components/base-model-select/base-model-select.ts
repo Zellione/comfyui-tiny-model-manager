@@ -22,6 +22,7 @@ export const BASE_MODEL_PRESETS = [
   'Illustrious XL',
   'NoobAI XL',
   'Hunyuan Video',
+  'Krea 2',
 ];
 
 /**

@@ -52,6 +52,7 @@ export class WorkflowsBrowse {
     'Flux.1 Kontext',
     'Wan Video 2.2 I2V-A14B',
     'Qwen',
+    'Krea 2',
   ];
 
   query = signal('');
