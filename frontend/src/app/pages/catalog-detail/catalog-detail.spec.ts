@@ -169,14 +169,14 @@ describe('CatalogDetail component', () => {
     expect(fixture.componentInstance.sourceName()).toBe('HuggingFace');
   });
 
-  it('removeFromCatalog calls service and navigates to /catalog', async () => {
+  it('removeFromCatalog calls service and navigates to /models', async () => {
     mockModelService.removeCatalogEntry.mockReturnValue(of(undefined));
     const fixture = await createFixture();
     const router = TestBed.inject(Router);
     const navigateSpy = vi.spyOn(router, 'navigate');
     fixture.componentInstance.removeFromCatalog();
     expect(mockModelService.removeCatalogEntry).toHaveBeenCalledWith('civitai', '123');
-    expect(navigateSpy).toHaveBeenCalledWith(['/catalog']);
+    expect(navigateSpy).toHaveBeenCalledWith(['/models']);
   });
 
   it('sets primaryType and primaryPath from first installed file', async () => {

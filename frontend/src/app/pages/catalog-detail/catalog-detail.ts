@@ -432,7 +432,7 @@ export class CatalogDetail implements OnInit {
           'success',
           this.translate.instant('catalog_detail.notify.removed', { name }),
         );
-        this.router.navigate(['/catalog']);
+        this.router.navigate(['/models']);
       },
       error: (err) => {
         this.removing.set(false);

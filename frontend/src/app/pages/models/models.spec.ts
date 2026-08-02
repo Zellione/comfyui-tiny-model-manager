@@ -328,7 +328,7 @@ describe('Models component', () => {
           { filename: 'my.safetensors', model_type: 'loras', size_bytes: 0, modified_at: 0 },
         ],
       };
-      expect(c.cardDetailRoute(entry)).toEqual(['/catalog', 'civitai']);
+      expect(c.cardDetailRoute(entry)).toEqual(['/models', 'civitai']);
       expect(c.cardDetailQuery(entry)).toEqual({ pageId: '123' });
     });
 
@@ -347,7 +347,7 @@ describe('Models component', () => {
         is_empty: true,
         installed_files: [],
       };
-      expect(c.cardDetailRoute(entry)).toEqual(['/catalog', 'huggingface']);
+      expect(c.cardDetailRoute(entry)).toEqual(['/models', 'huggingface']);
       expect(c.cardDetailQuery(entry)).toEqual({ pageId: 'user/repo' });
     });
   });
@@ -609,7 +609,7 @@ describe('Models component', () => {
         is_empty: true,
         installed_files: [],
       };
-      expect(c.cardDetailRoute(entry)).toEqual(['/catalog']);
+      expect(c.cardDetailRoute(entry)).toEqual(['/models']);
     });
   });
 

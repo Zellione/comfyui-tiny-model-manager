@@ -10,6 +10,21 @@
 - New services: mock `activeTasks$` as `of([])` and `completedTasks$` as `EMPTY` when testing components that inject `DownloadService`.
 - When testing components that inject `TagService`, provide `{ provide: TagService, useValue: mockTagService }` where `mockTagService = { searchTags: vi.fn().mockReturnValue(EMPTY) }`.
 - i18n: ngx-translate — all user-visible strings via translation keys.
+- **A string `redirectTo` drops the query string.** Angular's `createQueryParams` builds the
+  redirect target's query params *only* from what is written into the `redirectTo` string,
+  consulting the incoming URL solely for explicit `:name` back-references. So
+  `{ path: 'catalog/:platform', redirectTo: 'models/:platform' }` silently loses `?pageId=`.
+  When a legacy path carries query params, use a `RedirectFunction` (runs in an injection
+  context; its snapshot has both `params` and `queryParams`; returning a `UrlTree` is honoured):
+  ```typescript
+  redirectTo: (r) =>
+    inject(Router).createUrlTree(['/models', r.params['platform']], { queryParams: r.queryParams }),
+  ```
+- **Testing routes without instantiating pages**: map the real `routes` array onto a stub
+  component (`routes.map((r) => ('component' in r ? { ...r, component: StubPage } : r))`), then
+  `provideRouter(testRoutes)` + `provideLocationMocks()` (`@angular/common/testing`) +
+  `RouterTestingHarness.create()` and assert `router.url` after `navigateByUrl`. Redirects and
+  path matching are exercised for real; no page service mocks needed. See `app.routes.spec.ts`.
 - **Form-control labeling (SonarQube `Web:InputWithoutLabelCheck`, a RELIABILITY bug)**: every `<input>` (except submit/button/image/hidden), `<select>` and `<textarea>` must have an associated label. Preferred fix is `[attr.aria-label]=\"'<key>' | translate\"` (no layout change); reuse the placeholder/header translation key where one exists, or bind a meaningful value (e.g. `[attr.aria-label]=\"f.name\"` for per-file checkboxes). Inputs wrapped in a `<label>…</label>` (implicit label) are already compliant.
 
 ## External pre-fill UX pattern (register form — F-90 hash lookup, F-91 link resolution)

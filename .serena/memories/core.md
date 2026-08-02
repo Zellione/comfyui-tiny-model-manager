@@ -158,6 +158,28 @@ civitai_version_id, civitai_model_id, model_type, thumbnail}`.
 - The settings toggle lives in the **ComfyUI settings panel** (`js/extension.js`), not the
   Angular settings page — that page only manages filename keywords.
 
+## Frontend routes (F-128)
+
+The nav tab set is **Models / Download / Settings** (`frontend/src/app/app.html`); #129 and #130
+add Workflows and Images next to Models. `frontend/src/app/app.routes.ts`:
+
+| path | component |
+|---|---|
+| `''` | → `models` |
+| `models` | `Models` (the library page) |
+| `models/:platform` | `CatalogDetail` — takes `?pageId=` |
+| `models/:type/:path` | `ModelDetail` (`:path` is a filename that may contain `/`, so `routerLink` array form encodes it) |
+| `download`, `settings` | `Download`, `Settings` |
+| `catalog`, `catalog/:platform` | legacy redirects → `models…` |
+
+Catalog detail and model detail are told apart purely by **segment count** (2 vs 3) — do not add a
+two-segment `models/…` route without checking that.
+
+The **"Catalog" name still means the catalog-entry domain concept everywhere else** and was
+deliberately not renamed: `/tiny-model-manager/api/catalog/*`, `py/routes/catalog.py`, the
+`catalog_entries` table, `CatalogEntry*` in `services/model.ts`, and the `pages/catalog-detail/`
+component. Only the tab label, the routes and the two user-visible strings moved.
+
 ## Popovers
 
 - `services/popover.service.ts` → `PopoverService` (renamed from `ConfirmPopoverService` in
