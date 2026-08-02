@@ -74,7 +74,7 @@ export class WorkflowsBrowse {
   hasMore = signal(false);
   downloadingVersionId = signal<number | null>(null);
 
-  private cursor = signal('');
+  private readonly cursor = signal('');
 
   /** CivitAI applies only the first tag server-side; the rest are filtered here. */
   readonly filteredResults = computed(() => {

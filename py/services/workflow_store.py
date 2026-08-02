@@ -44,6 +44,7 @@ _MAX_ARCHIVE_BYTES = 100 * 1024 * 1024
 _MAX_GRAPH_BYTES = 8 * 1024 * 1024
 _MAX_GRAPHS = 50
 
+_JSON_EXT = ".json"
 _HASH_RE = re.compile(r"[A-Za-z0-9]{1,128}")
 _UNSAFE_NAME_RE = re.compile(r"[^A-Za-z0-9._ -]")
 _DEFAULT_USER = "default"
@@ -88,12 +89,12 @@ def _safe_graph_filename(name: str) -> str:
     the result can neither be empty nor a traversal component.
     """
     base = os.path.basename(name.replace("\\", "/")).strip()
-    if base.lower().endswith(".json"):
-        base = base[: -len(".json")]
+    if base.lower().endswith(_JSON_EXT):
+        base = base[: -len(_JSON_EXT)]
     cleaned = _UNSAFE_NAME_RE.sub("_", base).strip(" .")
     if not cleaned:
         cleaned = "workflow"
-    return f"{cleaned[:120]}.json"
+    return f"{cleaned[:120]}{_JSON_EXT}"
 
 
 def _is_comfy_graph(data: object) -> bool:
@@ -108,9 +109,25 @@ def _is_comfy_graph(data: object) -> bool:
 def _graph_from_bytes(raw: bytes) -> dict | None:
     try:
         parsed = json.loads(raw)
-    except (ValueError, UnicodeDecodeError):
+    except ValueError:
+        # UnicodeDecodeError is a ValueError subclass, so undecodable bytes land here too.
         return None
     return parsed if _is_comfy_graph(parsed) else None
+
+
+def _is_graph_member(info: zipfile.ZipInfo) -> bool:
+    """True for an archive member worth parsing as a ComfyUI graph."""
+    name = info.filename
+    if info.is_dir() or not name.lower().endswith(_JSON_EXT):
+        return False
+    if name.startswith("__MACOSX/") or os.path.basename(name).startswith("._"):
+        return False
+    # Zip-slip: a member named ../../x.json or /etc/x.json is dropped outright rather
+    # than normalised, so a hostile archive cannot even influence a stored name.
+    normalised = name.replace("\\", "/")
+    if normalised.startswith("/") or ".." in normalised.split("/"):
+        return False
+    return info.file_size <= _MAX_GRAPH_BYTES
 
 
 def _extract_from_zip(path: str) -> list[tuple[str, dict]]:
@@ -119,21 +136,11 @@ def _extract_from_zip(path: str) -> list[tuple[str, dict]]:
         for info in archive.infolist():
             if len(graphs) >= _MAX_GRAPHS:
                 break
-            name = info.filename
-            if info.is_dir() or not name.lower().endswith(".json"):
-                continue
-            if name.startswith("__MACOSX/") or os.path.basename(name).startswith("._"):
-                continue
-            # Zip-slip: a member named ../../x.json or /etc/x.json is dropped outright
-            # rather than normalised, so a hostile archive cannot even influence a name.
-            normalised = name.replace("\\", "/")
-            if normalised.startswith("/") or ".." in normalised.split("/"):
-                continue
-            if info.file_size > _MAX_GRAPH_BYTES:
+            if not _is_graph_member(info):
                 continue
             graph = _graph_from_bytes(archive.read(info))
             if graph is not None:
-                graphs.append((_safe_graph_filename(name), graph))
+                graphs.append((_safe_graph_filename(info.filename), graph))
     return graphs
 
 
@@ -217,7 +224,7 @@ async def _store_graphs(entry_id: int, media_hash: str, version: dict, graphs: l
             await f.write(json.dumps(graph))
         workflow_id = await workflow_repo.upsert_workflow(
             entry_id=entry_id,
-            name=filename[: -len(".json")],
+            name=filename[: -len(_JSON_EXT)],
             local_path=os.path.join(media_hash, version_dir, filename),
             version_id=version_id,
             version_name=version_name,
@@ -226,7 +233,7 @@ async def _store_graphs(entry_id: int, media_hash: str, version: dict, graphs: l
         stored.append(
             {
                 "id": workflow_id,
-                "name": filename[: -len(".json")],
+                "name": filename[: -len(_JSON_EXT)],
                 "version_id": version_id,
                 "version_name": version_name,
                 "node_count": len(graph.get("nodes") or []),

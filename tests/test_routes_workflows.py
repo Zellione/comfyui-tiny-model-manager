@@ -38,7 +38,7 @@ _PAGE = {
 }
 
 
-@pytest.fixture()
+@pytest.fixture
 async def client(aiohttp_client, ext_dir):
     from py.routes.workflow import _pending
     from py.routes.workflows import add_workflows_routes
@@ -51,7 +51,7 @@ async def client(aiohttp_client, ext_dir):
     return await aiohttp_client(app)
 
 
-@pytest.fixture()
+@pytest.fixture
 def stub_civitai(monkeypatch):
     """Stub the provider page fetch and the archive stream (never touches the network)."""
 

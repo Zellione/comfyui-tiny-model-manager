@@ -166,7 +166,7 @@ class TestMediaHash:
 
 
 class TestExportWorkflow:
-    @pytest.fixture()
+    @pytest.fixture
     def user_dir(self, tmp_path, monkeypatch):
         target = tmp_path / "comfy_user"
         monkeypatch.setattr(folder_paths, "user_directory", str(target))
@@ -254,7 +254,7 @@ class TestDeleteEntry:
 
 
 class TestDownloadWorkflow:
-    @pytest.fixture()
+    @pytest.fixture
     def civitai_page(self):
         return {
             "id": 123,
@@ -279,7 +279,7 @@ class TestDownloadWorkflow:
             ],
         }
 
-    @pytest.fixture()
+    @pytest.fixture
     def stub_provider(self, monkeypatch, civitai_page, tmp_path):
         async def fake_page(model_id):
             return civitai_page
