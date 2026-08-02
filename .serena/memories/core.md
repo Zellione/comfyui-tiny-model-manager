@@ -108,6 +108,32 @@ civitai_version_id, civitai_model_id, model_type, thumbnail}`.
 - `HuggingFaceProvider.get_model_files` exposes `sha256` from `siblings[].lfs.oid`
   (`""` for non-LFS blobs, whose `blob_id` is a SHA-1 and unusable).
 
+## Workflow insertion (F-94)
+
+- Pipeline is frontend → backend queue → JS extension: `POST /workflow/insert` appends to the
+  in-memory `_pending` list in `py/routes/workflow.py`; `js/workflow-insert.js` polls
+  `/workflow/pending`, maps `model_type` via `NODE_TYPE_MAP`, creates the node, then acks.
+- **A queued item of a type missing from `NODE_TYPE_MAP` is skipped and never acked**, so it
+  stays in `_pending` forever and the Models page keeps that card under the "processing"
+  overlay (`pendingFilenames`). Hence `WORKFLOW_INSERTABLE_TYPES` / `isWorkflowInsertable()`
+  in `frontend/src/app/services/workflow.ts`: the UI only offers insertion for those 6 types.
+  The frontend cannot import the extension module at runtime, so `workflow.spec.ts` asserts
+  the constant equals `Object.keys(NODE_TYPE_MAP)` — specs *can* import `js/workflow-insert.js`
+  (see `comfy-extension/workflow-insert.spec.ts`), so drift fails the suite instead of silently
+  shipping.
+- Models page cards: 1 insertable file → direct insert; 2+ → `app-file-picker-popover`. Always
+  use the **file's** `model_type`, never the entry's — one catalog entry can mix types.
+
+## Popovers
+
+- `services/popover.service.ts` → `PopoverService` (renamed from `ConfirmPopoverService` in
+  F-94): single-`activeId` registry so only one popover is open at a time, across all types.
+- Two consumers: `components/confirm-popover/` and `components/file-picker-popover/`. Both
+  project their trigger via `<ng-content>`, toggle on host click, and close on outside click
+  and Escape. Copy that shape for any new popover rather than hand-rolling the listeners.
+- `FilePickerPopover` types its input as the structural `PickableFile`
+  (`{filename, model_type}`), so `InstalledFile` and `RepoFile` both fit without an import.
+
 ## Invariants
 
 - `web/` is git-ignored → always run `npx ng build` from **main checkout's** `frontend/` before committing UI changes.
