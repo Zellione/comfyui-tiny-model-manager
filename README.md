@@ -91,6 +91,10 @@ The push is blocked if either threshold is not met.
 | POST | `/tiny-model-manager/api/workflows/{id}/export` | Copy a stored graph into ComfyUI's user workflows directory |
 | GET | `/tiny-model-manager/api/workflows/{id}/file` | Serve a stored graph as raw JSON |
 | POST | `/tiny-model-manager/api/workflows/{id}/open` | Queue a stored graph for the JS extension to load onto the canvas |
+| GET | `/tiny-model-manager/api/images/search` | Browse CivitAI's image feed — params: `sort`, `period`, `nsfw`, `base_model`, `type`, `username`, `model_id`, `cursor`, `limit` (the API has no free-text query) |
+| GET | `/tiny-model-manager/api/images/{id}` | A single image with its generation metadata |
+| POST | `/tiny-model-manager/api/images/{id}/recreate` | Rebuild the workflow behind an image and store it |
+| POST | `/tiny-model-manager/api/images/resolve-resources` | Match an image's referenced models against the local library |
 
 ---
 
@@ -169,8 +173,8 @@ All metadata is stored in `data/models.db` (SQLite). Foreign keys are enforced (
              └───────────────────────────────────────┘
 ```
 
-Workflows downloaded from CivitAI live in their own pair of tables, mirroring the same
-parent/child split. A CivitAI workflow archive usually contains more than one ComfyUI graph, so
+Workflows downloaded from CivitAI — and workflows recreated from a CivitAI image — live in
+their own pair of tables, mirroring the same parent/child split. A CivitAI workflow archive usually contains more than one ComfyUI graph, so
 one `workflow_entries` row (the source page, owning the description, tags and gallery media) has
 many `workflows` rows:
 
@@ -179,7 +183,7 @@ many `workflows` rows:
 │                  workflow_entries                   │
 ├──────────────────┬──────────────────────────────────┤
 │ id               │ INTEGER  PK AUTOINCREMENT        │
-│ source_platform  │ TEXT     NOT NULL                │  ← "civitai"
+│ source_platform  │ TEXT     NOT NULL                │  ← "civitai" | "civitai-image"
 │ source_page_id   │ TEXT     NOT NULL                │  ← CivitAI model page ID
 │ display_name     │ TEXT     NOT NULL DEFAULT ''     │
 │ description      │ TEXT     NOT NULL DEFAULT ''     │

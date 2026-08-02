@@ -165,6 +165,39 @@ markup displays correctly on model-detail and catalog-detail.
 Only `lookup_by_model_id` starts from the model page and already has both fields; it still routes
 through `_compose_description` so the changelog is appended rather than dropped.
 
+## CivitAI images API — `/api/v1/images` (F-130)
+
+Everything below was verified against the **live** API while planning #130; the issue text and
+the public docs were wrong or silent on all of it. Do not "simplify" these away.
+
+1. **No free-text search.** `?query=cat` is accepted and silently ignored (returns unrelated
+   results). The feed is filter-only: `sort`, `period`, `nsfw`, `baseModels`, `type`,
+   `username`, `modelId`, `postId`, `imageId`, `limit`, `cursor`. That is why the Images page
+   has no search box.
+2. **No `GET /api/v1/images/{id}`.** Single-image detail is `?imageId=<id>`, returning one item.
+3. **That single-image response double-nests the metadata.** The feed gives
+   `item["meta"] = {…params…}`; the `imageId=` query gives
+   `item["meta"] = {"id": <image id>, "meta": {…params…}}`. Undocumented. Unhandled, it makes
+   *every* single-image lookup look like it has no metadata — which is precisely how Recreate
+   failed until `routes/images.py::_unwrap_meta` was added. Regression tests cover both routes.
+4. **Image ids are a 32-bit signed column.** Anything above `2**31 - 1` gets a CivitAI **500**
+   (`value "…" is out of range for type integer`), which would surface a bad id as a provider
+   outage. `_valid_image_id()` bounds it so it is a 404.
+5. **`withMeta=true` is mandatory.** Without it `meta` comes back empty on many items.
+6. **`meta.comfy` is a JSON string** holding `{"prompt": …, "workflow": …}`, where `workflow`
+   is a complete ComfyUI frontend graph. This is how the embedded graph is obtained — CivitAI
+   re-encodes uploads to `.jpeg` on its CDN, so the PNG tEXt chunks are gone from the file and
+   **there is nothing to parse; no image download and no Pillow dependency is needed.**
+7. **`meta.hashes` values are AutoV2, and AutoV2 is exactly `SHA256[:10]`** (verified:
+   `AutoV2: EB4DD8C612` vs `SHA256[:10]: EB4DD8C612`). Local matching is therefore a prefix
+   compare against the existing `models.file_hash` — no new column, no re-hashing.
+   `/model-versions/by-hash/<AutoV2>` also returns 200, so `lookup_by_hash` accepts it directly.
+8. Auth is **not** required for the images feed (an API key still works and is sent).
+
+Metadata distribution, sampled over 200 live images (Week/SFW) — worth knowing before assuming
+a path is rare: `meta.comfy` ~11 %, A1111-style params only ~56 %, no `meta` at all ~33 %. The
+"Recreatable only" filter defaults to on because of that last third.
+
 ## Catalog page thumbnail fallback (installed models)
 
 - `catalog_entries.thumbnail_url` can contain a stale video path (`.mp4`/`.webm`/`.mov`) if it was stored before the video-skip fix in `_download_catalog_images`.

@@ -1,3 +1,5 @@
+import urllib.parse
+
 import httpx
 
 from ... import config as cfg
@@ -126,6 +128,58 @@ class CivitaiProvider(ModelProvider):
                 )
             return resp.json()
 
+    async def search_images(
+        self,
+        sort: str = "",
+        period: str = "",
+        nsfw: str = "",
+        base_model: str = "",
+        media_type: str = "",
+        username: str = "",
+        model_id: str = "",
+        post_id: str = "",
+        image_id: str = "",
+        cursor: str = "",
+        limit: int = 50,
+    ) -> dict:
+        """Search the CivitAI image feed.
+
+        ``/images`` has no free-text query parameter — a ``query`` value is silently
+        ignored by the API — so this endpoint is filter-driven only.
+
+        ``withMeta`` is always requested: the generation metadata is the entire point of
+        the Images feature, and without the flag ``meta`` comes back empty on many items.
+        """
+        params: dict = {"limit": limit, "withMeta": "true"}
+        if cursor:
+            params["cursor"] = cursor
+        if sort:
+            params["sort"] = sort
+            if period:
+                params["period"] = period
+        if nsfw:
+            params["nsfw"] = nsfw
+        if base_model:
+            params["baseModels"] = base_model
+        if media_type:
+            params["type"] = media_type
+        if username:
+            params["username"] = username
+        # Numeric filters reach a URL, so the explicit int() cast breaks the taint chain
+        # SonarQube's S7044 follows (same pattern as get_model_versions).
+        for key, value in (("modelId", model_id), ("postId", post_id), ("imageId", image_id)):
+            if value:
+                params[key] = int(value)
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.get(f"{_BASE}/images", params=params, headers=self.auth_headers())
+            if not resp.is_success:
+                raise httpx.HTTPStatusError(
+                    f"{resp.status_code} {resp.reason_phrase}: {resp.text}",
+                    request=resp.request,
+                    response=resp,
+                )
+            return resp.json()
+
     async def get_model_page(self, model_id: int) -> dict:
         """Raw CivitAI model-page payload: model-level metadata plus every version.
 
@@ -176,6 +230,49 @@ class CivitaiProvider(ModelProvider):
             "size_kb": primary.get("sizeKB", 0),
             "image_urls": image_urls,
         }
+
+    async def _fetch_download_info(self, path: str) -> dict | None:
+        """One request to a model-version endpoint, flattened for the resolve panel.
+
+        Deliberately does *not* enrich from the model page the way lookup_by_* does: a
+        single recreated workflow can reference a dozen LoRAs, and doubling the request
+        count per resource is not worth a description nobody displays here.
+        """
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(f"{_BASE}/{path}", headers=self.auth_headers())
+            if resp.status_code == 404:
+                return None
+            resp.raise_for_status()
+            data = resp.json()
+        files = data.get("files") or []
+        primary = (
+            next((f for f in files if f.get("primary") and f.get("type") == "Model"), None)
+            or next((f for f in files if f.get("type") == "Model"), None)
+            or (files[0] if files else None)
+        )
+        if not primary or not primary.get("downloadUrl"):
+            return None
+        model = data.get("model") or {}
+        return {
+            "filename": primary.get("name", ""),
+            "download_url": primary.get("downloadUrl", ""),
+            "size_kb": primary.get("sizeKB", 0),
+            "model_type": CIVITAI_REVERSE_TYPE_MAP.get(model.get("type", ""), "checkpoints"),
+            "model_name": model.get("name", ""),
+            "version_name": data.get("name", ""),
+            "base_model": data.get("baseModel", ""),
+            "model_version_id": str(data.get("id") or ""),
+            "model_id": str(data.get("modelId") or ""),
+        }
+
+    async def version_download_info(self, version_id: str | int) -> dict | None:
+        """Download info for a model version, or None when it no longer exists."""
+        return await self._fetch_download_info(f"model-versions/{int(version_id)}")
+
+    async def hash_download_info(self, file_hash: str) -> dict | None:
+        """Download info by hash. AutoV2 (the SHA-256 prefix) is accepted by the API."""
+        safe = urllib.parse.quote(file_hash, safe="")
+        return await self._fetch_download_info(f"model-versions/by-hash/{safe}")
 
     async def get_version_files(self, version_id: int) -> list[dict]:
         """Returns all files in a CivitAI model version for repo-files storage."""

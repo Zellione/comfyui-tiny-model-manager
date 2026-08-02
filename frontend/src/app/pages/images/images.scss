@@ -1,0 +1,451 @@
+// Mirrors the workflows browse layout so all three search views read the same.
+
+.page-hint {
+  margin: 0 0 1rem;
+  font-size: 0.82rem;
+  color: var(--text-3);
+}
+
+.search-bar {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.recreatable-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-2);
+  cursor: pointer;
+  user-select: none;
+
+  input {
+    cursor: pointer;
+  }
+}
+
+.hidden-count {
+  color: var(--text-3);
+  font-size: 0.75rem;
+}
+
+// ── Empty / pre-search state ─────────────────────────────────────────────────
+
+.detail-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 2rem;
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-3);
+  text-align: center;
+
+  .empty-icon {
+    font-size: 2rem;
+    line-height: 1;
+  }
+  p {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+}
+
+// ── Split view ───────────────────────────────────────────────────────────────
+
+.split-view {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.list-pane {
+  display: flex;
+  flex-direction: column;
+}
+
+.list-scroll {
+  // Own max-height rather than flex:1 + min-height:0 — the latter collapses to 0
+  // inside a column with no definite height.
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 2px;
+  }
+}
+
+.list-row {
+  // A real <button> (Web:S6819), so the UA button styling has to be reset back to the
+  // row look the other search views use.
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  padding: 0.55rem 0.6rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: transparent;
+  transition:
+    background var(--dur),
+    border-color var(--dur);
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  &:hover {
+    background: var(--surface-hi);
+    border-color: var(--border);
+  }
+
+  &.selected {
+    background: var(--accent-soft);
+    border-color: color-mix(in oklch, var(--accent) 50%, transparent);
+  }
+}
+
+.row-thumb {
+  width: 60px;
+  height: 60px;
+  border-radius: 5px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--surface-hi);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .video-only-icon {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    color: var(--text-3);
+  }
+}
+
+.row-info {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.row-name {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 0.3rem;
+}
+
+.row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  align-items: center;
+}
+
+.tag-chip {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 10px;
+  font-size: 0.68rem;
+  background: var(--surface-hi);
+  color: var(--text-3);
+  white-space: nowrap;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.badge-accent {
+  background: color-mix(in oklch, var(--success) 18%, transparent);
+  color: var(--success);
+}
+
+.badge-installed {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.load-more-btn {
+  flex-shrink: 0;
+  margin-top: 0.5rem;
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+// ── Detail pane ──────────────────────────────────────────────────────────────
+
+.detail-pane {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  min-height: 200px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.detail-header {
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.detail-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+  flex: 1;
+  min-width: 0;
+}
+
+.source-link {
+  font-size: 0.75rem;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in oklch, var(--accent) 40%, transparent);
+  flex-shrink: 0;
+
+  &:hover {
+    background: var(--accent-soft);
+  }
+}
+
+.detail-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.meta-author,
+.meta-stat {
+  font-size: 0.78rem;
+  color: var(--text-3);
+}
+
+.detail-body {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 1rem;
+  align-items: start;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.detail-media {
+  min-width: 0;
+}
+
+.detail-main-media {
+  width: 100%;
+  height: 300px;
+  object-fit: contain;
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  display: block;
+}
+
+.detail-prompt {
+  margin-top: 0.75rem;
+}
+
+.prompt-text {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-2);
+  line-height: 1.5;
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.detail-side {
+  min-width: 0;
+}
+
+.detail-section-title {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.detail-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-3);
+}
+
+.param-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.2rem 0.75rem;
+  margin: 0;
+  font-size: 0.78rem;
+
+  dt {
+    color: var(--text-3);
+  }
+  dd {
+    margin: 0;
+    color: var(--text-2);
+    overflow-wrap: break-word;
+    min-width: 0;
+  }
+}
+
+// ── Recreate ─────────────────────────────────────────────────────────────────
+
+.recreate-block {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.recreate-btn {
+  width: 100%;
+}
+
+.recreate-disabled {
+  color: var(--warn);
+}
+
+.recreate-error {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  color: var(--danger);
+}
+
+.recreate-result {
+  margin-top: 0.75rem;
+}
+
+.recreate-success {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--success);
+}
+
+.recreate-warning {
+  margin: 0.4rem 0 0;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.75rem;
+  color: var(--warn);
+  background: color-mix(in oklch, var(--warn) 12%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+.resource-list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.resource-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--surface-hi);
+}
+
+.resource-info {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.resource-status {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+
+  &.status-installed {
+    color: var(--success);
+  }
+  &.status-missing {
+    color: var(--accent);
+  }
+  &.status-unresolvable {
+    color: var(--warn);
+  }
+}
+
+.resource-name {
+  font-size: 0.78rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resource-note {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--text-3);
+}
