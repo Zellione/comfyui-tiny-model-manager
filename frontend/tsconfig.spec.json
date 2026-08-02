@@ -4,10 +4,8 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./out-tsc/spec",
-    // The ComfyUI extension under ../js is plain ESM; specs import it directly,
-    // so the source root has to reach above the frontend project directory.
+    // The ComfyUI extension under js/ is plain ESM; specs import it directly.
     "allowJs": true,
-    "rootDir": "..",
     "types": [
       "vitest/globals"
     ]

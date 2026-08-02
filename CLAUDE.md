@@ -17,7 +17,7 @@ Goal: Dashboard to manage Models/LORAs and custom nodes to insert them with thei
 - Angular 21.2 (zoneless, no Zone.js)
 
 #### Build
-ComfyUI serves the compiled output in `web/` (git-ignored). Any change to `frontend/` or `js/`
+ComfyUI serves the compiled output in `web/` (git-ignored). Any change to `frontend/`
 requires a rebuild before it takes effect. Run from the `frontend/` directory:
 
 ```
@@ -31,7 +31,7 @@ npx ng build
 npx ng build --watch --configuration development
 ```
 
-The `js/` ComfyUI extension folder is copied into `web/` as a build asset — it is bundled by
+The `frontend/js/` ComfyUI extension folder is copied into `web/` as a build asset — it is bundled by
 the same `ng build` call and must not be deployed separately.
 
 The Python backend (`py/`) needs no build step; changes take effect after restarting ComfyUI.
@@ -52,11 +52,11 @@ npx ng lint
 # Prettier format check — use npm run to match CI exactly (npx prettier may resolve a different binary)
 npm run format:check
 
-# Production build — REQUIRED after any change to frontend/ or js/
+# Production build — REQUIRED after any change to frontend/
 npx ng build
 ```
 
-**If you changed any file under `frontend/` or `js/`, you MUST run `npx ng build` and confirm it succeeds before committing. A passing test suite does not substitute for a successful build.**
+**If you changed any file under `frontend/`, you MUST run `npx ng build` and confirm it succeeds before committing. A passing test suite does not substitute for a successful build.**
 
 **After creating any new file under `frontend/` with the Write tool, immediately run `npx prettier --write <file>` on it before the final `npm run format:check`. The Write tool does not auto-format, so new files will fail the CI Prettier check unless explicitly formatted.**
 
@@ -223,7 +223,7 @@ If planning and working on a new feature the following steps have to be executed
 3. Wait for approval of plan
 4. If plan was approved implement plan
 5. **Run all tests and lint for both backend and frontend — only proceed when every check passes with zero failures**
-6. **If any file under `frontend/` or `js/` was changed: run `npx ng build` from `frontend/` and confirm it succeeds**
+6. **If any file under `frontend/` was changed: run `npx ng build` from `frontend/` and confirm it succeeds**
 7. If there are no bugs reported: commit changes locally and present the commit to the user
 8. **Move the GitHub project item to Done**: `gh project item-edit --id <item-id> --project-id PVT_kwHOAQaKGc4BZ7ME --field-id PVTSSF_lAHOAQaKGc4BZ7MEzhU2a7U --single-select-option-id 98236657`
 9. **Wait for explicit user approval before pushing to github (origin)**
@@ -254,7 +254,7 @@ If working on a bug during feature development and it was alrady pushed and a pu
 5. Wait for approval of plan
 6. If plan was approved implement plan.
 7. **Run all tests and lint for both backend and frontend — only proceed when every check passes with zero failures**
-8. **If any file under `frontend/` or `js/` was changed: run `npx ng build` from `frontend/` and confirm it succeeds**
+8. **If any file under `frontend/` was changed: run `npx ng build` from `frontend/` and confirm it succeeds**
 9. If there are no bugs reported: commit changes locally and present the commit to the user
 10. **Mark the feature as done (`[x]`) in `README.md` features checklist**
 11. **Wait for explicit user approval before pushing to github (origin)**
