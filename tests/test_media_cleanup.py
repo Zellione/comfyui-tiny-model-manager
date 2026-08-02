@@ -206,3 +206,12 @@ class TestCleanupStaleMedia:
         )
 
         assert await cleanup_stale_media() == {"dirs": 0, "files": 0}
+
+    async def test_relative_media_dir_is_refused(self, ext_dir):
+        from py import config as cfg
+        from py.services.media_cleanup import cleanup_stale_media
+
+        # A relative path would resolve against ComfyUI's CWD, not the intended folder.
+        cfg.save_settings({"cleanup_stale_media_on_start": True, "media_dir": "relative/media"})
+
+        assert await cleanup_stale_media() == {"dirs": 0, "files": 0}

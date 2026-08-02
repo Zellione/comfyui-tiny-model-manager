@@ -42,6 +42,21 @@ def media_subdir(media_hash: str) -> str:
     return resolved
 
 
+def _media_root() -> str | None:
+    """Return the media root to scan, or None when the setting is not usable.
+
+    ``media_dir`` is operator-supplied. A relative value would resolve against
+    ComfyUI's working directory rather than the intended folder, so only an absolute,
+    already-existing directory is ever handed to the scan.
+    """
+    configured = cfg.media_dir()
+    if not os.path.isabs(configured):
+        _log.warning("Ignoring stale-media cleanup: media_dir must be an absolute path")
+        return None
+    root = os.path.realpath(configured)
+    return root if os.path.isdir(root) else None
+
+
 def _remove_file(base: str, name: str) -> int:
     """Delete one file directly inside ``base``. Returns 1 when it was removed."""
     path = model_paths.contained_path(base, name)
@@ -104,8 +119,8 @@ async def cleanup_stale_media() -> dict:
     """
     if not cfg.load_settings().get("cleanup_stale_media_on_start"):
         return dict(_EMPTY_RESULT)
-    base = cfg.media_dir()
-    if not os.path.isdir(base):
+    base = _media_root()
+    if base is None:
         return dict(_EMPTY_RESULT)
 
     live = await model_repo.get_live_media_hashes()
