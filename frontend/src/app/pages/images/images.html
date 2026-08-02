@@ -87,8 +87,8 @@
     <div class="list-pane">
       <div class="list-scroll">
         @for (image of filteredResults(); track image.id) {
-          <!-- A real <button>, not a div with role="button": keyboard and assistive-tech
-               behaviour comes for free (Web:S6819). -->
+          <!-- A real button element rather than a div carrying a button role, so keyboard
+               and assistive-tech behaviour comes from the platform (Web:S6819). -->
           <button
             type="button"
             class="list-row"
