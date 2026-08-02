@@ -13,6 +13,7 @@ is either a hex hash, an integer-checked version id, or a name normalised by
 ``_safe_graph_filename``, and the result is confirmed with ``model_paths.contained_path``.
 """
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -22,6 +23,7 @@ import shutil
 import tempfile
 import zipfile
 
+import aiofiles
 import folder_paths
 import httpx
 
@@ -168,12 +170,12 @@ async def _fetch_archive(url: str, dest: str, headers: dict) -> None:
     async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
         async with guarded_stream(client, "GET", url, headers=headers) as resp:
             resp.raise_for_status()
-            with open(dest, "wb") as f:
+            async with aiofiles.open(dest, "wb") as f:
                 async for chunk in resp.aiter_bytes(65536):
                     written += len(chunk)
                     if written > _MAX_ARCHIVE_BYTES:
                         raise WorkflowTooLargeError("archive_too_large")
-                    f.write(chunk)
+                    await f.write(chunk)
 
 
 def _pick_version(page: dict, version_id: str) -> dict | None:
@@ -211,8 +213,8 @@ async def _store_graphs(entry_id: int, media_hash: str, version: dict, graphs: l
     stored: list[dict] = []
     for filename, graph in graphs:
         dest = os.path.join(dest_dir, filename)
-        with open(dest, "w", encoding="utf-8") as f:
-            json.dump(graph, f)
+        async with aiofiles.open(dest, "w", encoding="utf-8") as f:
+            await f.write(json.dumps(graph))
         workflow_id = await workflow_repo.upsert_workflow(
             entry_id=entry_id,
             name=filename[: -len(".json")],
@@ -378,7 +380,8 @@ async def export_workflow(workflow_id: int) -> str:
     dest = _unique_export_path(dest_dir, _safe_graph_filename(workflow["name"]))
     if dest is None:
         raise FileNotFoundError("export_target_unavailable")
-    shutil.copyfile(source, dest)
+    # Off the event loop, like every other synchronous file operation in the backend.
+    await asyncio.to_thread(shutil.copyfile, source, dest)
     return dest
 
 
