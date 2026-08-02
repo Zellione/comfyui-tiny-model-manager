@@ -92,6 +92,25 @@ class TestCleanupModelMedia:
         assert removed == 0
         assert os.path.isfile(paths[0])
 
+    async def test_keeps_media_owned_by_a_workflow_entry(self, media_root):
+        """F-129: workflow entries must be in the live-hash union.
+
+        Without them, the startup stale-media sweep — which removes any directory whose
+        name is not a live hash — would delete every workflow thumbnail.
+        """
+        from py.db import workflow_repo
+        from py.services.media_cleanup import cleanup_model_media
+
+        paths = _make_media_dir(media_root, "wfshared")
+        await workflow_repo.upsert_workflow_entry(
+            source_platform="civitai", source_page_id="9", media_hash="wfshared"
+        )
+
+        removed = await cleanup_model_media("wfshared")
+
+        assert removed == 0
+        assert os.path.isfile(paths[0])
+
     async def test_hashless_model_deletes_nothing(self, media_root):
         from py.services.media_cleanup import cleanup_model_media
 

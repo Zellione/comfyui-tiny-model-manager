@@ -1,0 +1,251 @@
+<div class="search-bar">
+  <input
+    [ngModel]="query()"
+    (ngModelChange)="query.set($event)"
+    [placeholder]="'workflows.search_placeholder' | translate"
+    [attr.aria-label]="'workflows.search_placeholder' | translate"
+    (keyup.enter)="search()"
+  />
+  <button class="btn-primary" (click)="search()" [disabled]="searching()">
+    {{
+      searching()
+        ? ('download_search.searching' | translate)
+        : ('download_search.search' | translate)
+    }}
+  </button>
+
+  <div class="filter-row">
+    <select
+      [ngModel]="baseModel()"
+      (ngModelChange)="baseModel.set($event)"
+      [attr.aria-label]="'download_search.filter.all_base_models' | translate"
+    >
+      <option value="">{{ 'download_search.filter.all_base_models' | translate }}</option>
+      @for (bm of baseModelOptions; track bm) {
+        <option [value]="bm">{{ bm }}</option>
+      }
+    </select>
+    <select
+      [ngModel]="sort()"
+      (ngModelChange)="sort.set($event)"
+      [attr.aria-label]="'download_search.filter.sort_label' | translate"
+    >
+      <option value="">{{ 'download_search.filter.default_sort' | translate }}</option>
+      @for (o of sortOptions; track o.value) {
+        <option [value]="o.value">{{ o.label | translate }}</option>
+      }
+    </select>
+    @if (sort()) {
+      <select
+        [ngModel]="period()"
+        (ngModelChange)="period.set($event)"
+        [attr.aria-label]="'download_search.filter.period_label' | translate"
+      >
+        @for (o of periodOptions; track o.value) {
+          <option [value]="o.value">{{ o.label | translate }}</option>
+        }
+      </select>
+    }
+  </div>
+
+  <div class="tag-filter-row">
+    <app-tag-autocomplete-input
+      [selectedTags]="tagFilter()"
+      [searchResultTags]="allResultTags()"
+      (tagAdded)="addTag($event)"
+    />
+    @for (tag of tagFilter(); track tag) {
+      <span class="active-tag">
+        {{ tag }}
+        <button class="chip-remove" (click)="removeTag(tag)">×</button>
+      </span>
+    }
+    @if (tagFilter().length > 1) {
+      <button class="clear-tags-btn" (click)="clearTags()">
+        {{ 'download_search.filter.clear_tags' | translate }}
+      </button>
+    }
+  </div>
+</div>
+
+@if (searching()) {
+  <div class="detail-empty">
+    <div class="empty-icon">⟳</div>
+    <p>{{ 'download_search.empty.searching' | translate }}</p>
+  </div>
+} @else if (!hasSearched()) {
+  <div class="detail-empty">
+    <div class="empty-icon">🔍</div>
+    <p>{{ 'workflows.empty.get_started' | translate }}</p>
+  </div>
+} @else if (searchError()) {
+  <!-- Own branch above the empty state: otherwise a failed search hides the whole view. -->
+  <div class="detail-empty">
+    <div class="empty-icon">⚠</div>
+    <p>{{ 'download_search.error.search_failed' | translate: { error: searchError() } }}</p>
+  </div>
+} @else if (filteredResults().length === 0) {
+  <div class="detail-empty">
+    <div class="empty-icon">∅</div>
+    <p>{{ 'download_search.empty.no_results' | translate }}</p>
+  </div>
+} @else {
+  <div class="split-view">
+    <div class="list-pane">
+      <div class="list-scroll">
+        @for (model of filteredResults(); track model.id) {
+          <div
+            class="list-row"
+            [class.selected]="selectedModel()?.id === model.id"
+            (click)="select(model)"
+            (keydown.enter)="select(model)"
+          >
+            <div class="row-thumb">
+              @if (thumb(model)) {
+                <img
+                  [src]="thumb(model)"
+                  alt=""
+                  style="display: none"
+                  (load)="onImgLoad($event)"
+                  (error)="onImgError($event)"
+                />
+              } @else if (isVideoOnly(model)) {
+                <div class="video-only-icon">▶</div>
+              }
+            </div>
+            <div class="row-info">
+              <span class="row-name">{{ model.name }}</span>
+              <div class="row-meta">
+                @if (modelBaseModel(model)) {
+                  <span class="badge badge-accent">{{ modelBaseModel(model) }}</span>
+                }
+                @for (tag of model.tags ?? []; track tag; let i = $index) {
+                  @if (i < 2) {
+                    <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
+                      tag
+                    }}</span>
+                  }
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <button
+        class="btn-secondary load-more-btn"
+        [class.load-more-btn--error]="loadMoreError()"
+        [class.load-more-btn--done]="!loadMoreError() && !hasMore() && !loadingMore()"
+        [disabled]="loadingMore() || (!loadMoreError() && !hasMore())"
+        (click)="loadMore()"
+      >
+        @if (loadingMore()) {
+          {{ 'download_search.load_more.loading' | translate }}
+        } @else if (loadMoreError()) {
+          {{ 'download_search.load_more.failed' | translate }}
+        } @else if (hasMore()) {
+          {{ 'download_search.load_more.load_more' | translate }}
+        } @else {
+          {{ 'download_search.load_more.no_more' | translate }}
+        }
+      </button>
+    </div>
+
+    <div class="detail-pane">
+      @if (selectedModel(); as model) {
+        <div class="detail-header">
+          <div class="detail-title-row">
+            <h2 class="detail-title">{{ model.name }}</h2>
+            <a class="source-link" [href]="sourceUrl(model)" target="_blank" rel="noopener">
+              CivitAI ↗
+            </a>
+          </div>
+          <div class="detail-meta-row">
+            @if (modelBaseModel(model)) {
+              <span class="badge badge-accent">{{ modelBaseModel(model) }}</span>
+            }
+            @if (model.creator.username) {
+              <span class="meta-author">by {{ model.creator.username }}</span>
+            }
+            @if (model.stats.downloadCount) {
+              <span class="meta-stat">{{
+                'download_search.detail.downloads_count'
+                  | translate: { count: model.stats.downloadCount }
+              }}</span>
+            }
+          </div>
+        </div>
+
+        <div class="detail-body">
+          <div class="detail-media">
+            @if (currentGalleryUrl(model)) {
+              @if (isVideo(currentGalleryUrl(model))) {
+                <video class="detail-main-media" [src]="currentGalleryUrl(model)" controls muted>
+                  <track kind="captions" />
+                </video>
+              } @else {
+                <img
+                  class="detail-main-media"
+                  [src]="currentGalleryUrl(model)"
+                  alt=""
+                  (error)="onImgError($event)"
+                />
+              }
+              <div class="detail-thumbs">
+                @for (url of galleryImages(model); track url; let i = $index) {
+                  <button
+                    class="detail-thumb"
+                    [class.active]="galleryIndex() === i"
+                    (click)="setGalleryIndex(i)"
+                  >
+                    @if (isVideo(url)) {
+                      <span class="thumb-video">▶</span>
+                    } @else {
+                      <img [src]="url" alt="" (error)="onImgError($event)" />
+                    }
+                  </button>
+                }
+              </div>
+            }
+            @if (model.description) {
+              <div class="detail-description" [innerHTML]="model.description | safeHtml"></div>
+            }
+          </div>
+
+          <div class="detail-downloads">
+            <h3 class="detail-section-title">{{ 'workflows.versions' | translate }}</h3>
+            <p class="detail-hint">{{ 'workflows.download_hint' | translate }}</p>
+            @for (version of model.modelVersions; track version.id) {
+              <div class="version-row">
+                <div class="version-info">
+                  <span class="version-name">{{ version.name }}</span>
+                  @if (version.baseModel) {
+                    <span class="badge">{{ version.baseModel }}</span>
+                  }
+                  @if (isInstalled(version)) {
+                    <span class="badge badge-installed">{{
+                      'workflows.installed_badge' | translate
+                    }}</span>
+                  }
+                </div>
+                <button
+                  class="btn-primary version-download"
+                  [disabled]="downloadingVersionId() !== null"
+                  (click)="download(model, version)"
+                >
+                  @if (downloadingVersionId() === version.id) {
+                    {{ 'workflows.downloading' | translate }}
+                  } @else if (isInstalled(version)) {
+                    {{ 'workflows.redownload' | translate }}
+                  } @else {
+                    {{ 'workflows.download' | translate }}
+                  }
+                </button>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+}

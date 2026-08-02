@@ -456,6 +456,20 @@ insert the same node twice.
   (component as any).keywords = signal([sdxlKeyword]);
   ```
 
+## Frontend bundle budget
+
+`angular.json`'s initial-bundle `maximumWarning` was raised 650kB → 750kB in F-129 (the Workflows
+page added ~35 kB to a 634 kB baseline). `maximumError` stays at 1MB. Raise the warning again
+rather than letting every build print a budget warning.
+
+## Template coverage on new pages
+
+Component specs that only call methods leave the template at ~10-30% line coverage, which drags a
+new page's directory below SonarCloud's `new_coverage ≥ 80`. Add a `describe('template')` block
+using a `render()` helper (`fixture.detectChanges()` → `await fixture.whenStable()` →
+`detectChanges()`), then assert on `fixture.nativeElement.querySelector(...)` and click real
+buttons. F-129's two page specs went from 54% → 94% lines this way.
+
 ## Git / Commits
 
 - Commits and comments in English.

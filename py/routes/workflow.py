@@ -7,11 +7,23 @@ from ._helpers import json_route, ok
 _pending: list[dict] = []
 
 
+def enqueue_graph(workflow_id: int) -> str:
+    """Queue a stored workflow graph for the JS extension to load onto the canvas.
+
+    Exposed as a function rather than by exporting ``_pending``: ``workflow_ack`` rebinds
+    that list, so a module that imported the name would append to a stale one.
+    """
+    item = {"id": str(uuid.uuid4()), "kind": "graph", "workflow_id": workflow_id}
+    _pending.append(item)
+    return item["id"]
+
+
 @json_route
 async def workflow_insert(request: web.Request) -> web.Response:
     body = await request.json()
     item = {
         "id": str(uuid.uuid4()),
+        "kind": "node",
         "model_type": body.get("model_type", ""),
         "filename": body.get("filename", ""),
     }

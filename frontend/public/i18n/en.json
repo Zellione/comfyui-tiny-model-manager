@@ -9,6 +9,7 @@
   },
   "nav": {
     "models": "Models",
+    "workflows": "Workflows",
     "download": "Download",
     "settings": "Settings",
     "theme_to_light": "Switch to light mode",
@@ -403,5 +404,53 @@
   "media_gallery": {
     "no_preview": "NO PREVIEW",
     "close_preview": "Close preview"
+  },
+  "workflows": {
+    "title": "Workflows",
+    "tabs": {
+      "browse": "Browse CivitAI",
+      "installed": "Installed"
+    },
+    "search_placeholder": "Search CivitAI workflows…",
+    "versions": "Versions",
+    "download_hint": "Downloading unpacks the archive and stores every ComfyUI graph it contains.",
+    "download": "Download",
+    "redownload": "Re-download",
+    "downloading": "Downloading…",
+    "installed_badge": "Downloaded",
+    "load_in_comfy": "Load in ComfyUI",
+    "export": "Export",
+    "export_hint": "Copy into ComfyUI's own workflow browser",
+    "download_json": "Download the raw workflow JSON",
+    "delete": "Delete",
+    "delete_question": "Delete {{name}} and all of its workflows?",
+    "empty": {
+      "get_started": "Search CivitAI to find ComfyUI workflows."
+    },
+    "installed": {
+      "loading": "Loading stored workflows…",
+      "retry": "Retry",
+      "empty": "No workflows downloaded yet. Browse CivitAI to add some.",
+      "summary": "{{entries}} entries · {{graphs}} workflows",
+      "graph_count": "{{count}} workflows",
+      "node_count": "{{count}} nodes"
+    },
+    "notify": {
+      "downloaded": "Stored {{count}} workflow(s) from {{name}}",
+      "queued": "{{name}} is being loaded into ComfyUI",
+      "exported": "{{name}} exported to ComfyUI's workflow browser",
+      "deleted": "Deleted: {{name}}"
+    },
+    "error": {
+      "no_workflow_json": "This download contains no ComfyUI workflow.",
+      "corrupt_archive": "The downloaded archive could not be read.",
+      "no_download_url": "This version has no downloadable file.",
+      "too_large": "The archive is too large to store.",
+      "provider_unavailable": "CivitAI is unreachable right now.",
+      "download_failed": "Download failed.",
+      "open_failed": "Could not hand the workflow to ComfyUI.",
+      "export_failed": "Export failed.",
+      "delete_failed": "Could not delete the workflow."
+    }
   }
 }

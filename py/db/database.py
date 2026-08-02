@@ -128,6 +128,38 @@ CREATE TABLE IF NOT EXISTS filename_keywords (
     model_type TEXT,
     sort_order INTEGER NOT NULL DEFAULT 0
 );
+
+-- F-129: one row per CivitAI workflow *page*, mirroring catalog_entries.  A single
+-- download can yield several graphs (a CivitAI Workflows archive often holds more than
+-- one .json), and they all share this entry's description, tags and gallery media.
+CREATE TABLE IF NOT EXISTS workflow_entries (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_platform  TEXT NOT NULL,
+    source_page_id   TEXT NOT NULL,
+    source_page_url  TEXT NOT NULL DEFAULT '',
+    display_name     TEXT NOT NULL DEFAULT '',
+    description      TEXT NOT NULL DEFAULT '',
+    base_model       TEXT NOT NULL DEFAULT '',
+    tags             TEXT NOT NULL DEFAULT '',
+    thumbnail_url    TEXT NOT NULL DEFAULT '',
+    media_hash       TEXT NOT NULL DEFAULT '',
+    created_at       TEXT DEFAULT (datetime('now')),
+    UNIQUE (source_platform, source_page_id)
+);
+
+-- One row per extracted ComfyUI graph.  UNIQUE (entry_id, local_path) turns a repeat
+-- download of the same version into an upsert instead of a duplicate record.
+CREATE TABLE IF NOT EXISTS workflows (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    entry_id     INTEGER NOT NULL REFERENCES workflow_entries(id) ON DELETE CASCADE,
+    name         TEXT NOT NULL,
+    local_path   TEXT NOT NULL,
+    version_id   TEXT NOT NULL DEFAULT '',
+    version_name TEXT NOT NULL DEFAULT '',
+    node_count   INTEGER NOT NULL DEFAULT 0,
+    created_at   TEXT DEFAULT (datetime('now')),
+    UNIQUE (entry_id, local_path)
+);
 """
 
 

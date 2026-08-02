@@ -1,0 +1,43 @@
+:host {
+  display: block;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 28px 28px 100px;
+}
+
+h2 {
+  margin: 0 0 18px;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.workflows-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.workflows-tab {
+  padding: 10px 18px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+
+  &:hover {
+    color: var(--text);
+  }
+
+  &--active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+}

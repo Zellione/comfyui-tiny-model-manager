@@ -1,0 +1,170 @@
+.state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 2rem;
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-3);
+  text-align: center;
+
+  .empty-icon {
+    font-size: 2rem;
+    line-height: 1;
+  }
+  p {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+}
+
+.installed-summary {
+  margin: 0 0 14px;
+  font-size: 0.8rem;
+  color: var(--text-3);
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+}
+
+.workflow-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition:
+    transform var(--dur) var(--ease),
+    border-color var(--dur);
+
+  &:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-1px);
+  }
+}
+
+.card-media {
+  height: 150px;
+  background: var(--bg-2);
+  overflow: hidden;
+
+  .thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 14px;
+}
+
+.card-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: break-word;
+}
+
+.card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.badge-accent {
+  background: color-mix(in oklch, var(--success) 18%, transparent);
+  color: var(--success);
+}
+
+.card-count {
+  font-size: 0.75rem;
+  color: var(--text-3);
+}
+
+.graph-list {
+  display: flex;
+  flex-direction: column;
+  // Own max-height: a flex:1 + min-height:0 child collapses in this auto-height column.
+  max-height: 260px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+
+.graph-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--surface-hi);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.graph-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.graph-name {
+  font-size: 0.8rem;
+  color: var(--text);
+  overflow-wrap: break-word;
+}
+
+.graph-nodes {
+  font-size: 0.7rem;
+  color: var(--text-3);
+}
+
+.graph-actions {
+  display: flex;
+  gap: 0.3rem;
+  flex-shrink: 0;
+  align-items: center;
+
+  a.btn-secondary {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.source-link {
+  font-size: 0.75rem;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in oklch, var(--accent) 40%, transparent);
+
+  &:hover {
+    background: var(--accent-soft);
+  }
+}

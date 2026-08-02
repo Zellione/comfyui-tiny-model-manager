@@ -1,0 +1,112 @@
+@if (loading()) {
+  <div class="state-box">
+    <div class="empty-icon">⟳</div>
+    <p>{{ 'workflows.installed.loading' | translate }}</p>
+  </div>
+} @else if (error()) {
+  <div class="state-box">
+    <div class="empty-icon">⚠</div>
+    <p>{{ error() }}</p>
+    <button class="btn-secondary btn-small" (click)="load()">
+      {{ 'workflows.installed.retry' | translate }}
+    </button>
+  </div>
+} @else if (entries().length === 0) {
+  <div class="state-box">
+    <div class="empty-icon">∅</div>
+    <p>{{ 'workflows.installed.empty' | translate }}</p>
+  </div>
+} @else {
+  <p class="installed-summary">
+    {{
+      'workflows.installed.summary'
+        | translate: { entries: entries().length, graphs: totalGraphs() }
+    }}
+  </p>
+
+  <div class="card-grid">
+    @for (entry of entries(); track entry.id) {
+      <div class="workflow-card">
+        <div class="card-media">
+          @if (thumbUrl(entry)) {
+            <img
+              class="thumb"
+              [src]="thumbUrl(entry)"
+              alt=""
+              style="display: none"
+              (load)="onImgLoad($event)"
+              (error)="onImgError($event)"
+            />
+          }
+        </div>
+
+        <div class="card-body">
+          <div class="card-title">{{ entry.display_name }}</div>
+          <div class="card-meta">
+            @if (entry.base_model) {
+              <span class="badge badge-accent">{{ entry.base_model }}</span>
+            }
+            <span class="card-count">{{
+              'workflows.installed.graph_count' | translate: { count: entry.items.length }
+            }}</span>
+          </div>
+
+          <div class="graph-list">
+            @for (workflow of entry.items; track workflow.id) {
+              <div class="graph-row">
+                <div class="graph-info">
+                  <span class="graph-name">{{ workflow.name }}</span>
+                  <span class="graph-nodes">{{
+                    'workflows.installed.node_count' | translate: { count: workflow.node_count }
+                  }}</span>
+                </div>
+                <div class="graph-actions">
+                  <button
+                    class="btn-primary btn-small"
+                    [disabled]="busyWorkflowId() === workflow.id"
+                    [title]="'workflows.load_in_comfy' | translate"
+                    (click)="loadInComfy(workflow)"
+                  >
+                    {{ 'workflows.load_in_comfy' | translate }}
+                  </button>
+                  <button
+                    class="btn-secondary btn-small"
+                    [disabled]="busyWorkflowId() === workflow.id"
+                    [title]="'workflows.export_hint' | translate"
+                    (click)="export(workflow)"
+                  >
+                    {{ 'workflows.export' | translate }}
+                  </button>
+                  <a
+                    class="btn-secondary btn-small"
+                    [href]="fileUrl(workflow)"
+                    [download]="workflow.name + '.json'"
+                    [title]="'workflows.download_json' | translate"
+                  >
+                    JSON
+                  </a>
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="card-footer">
+            @if (entry.source_page_url) {
+              <a class="source-link" [href]="entry.source_page_url" target="_blank" rel="noopener">
+                CivitAI ↗
+              </a>
+            }
+            <app-confirm-popover
+              [question]="'workflows.delete_question' | translate: { name: entry.display_name }"
+              (confirmed)="deleteEntry(entry)"
+            >
+              <button class="btn-danger btn-small">
+                {{ 'workflows.delete' | translate }}
+              </button>
+            </app-confirm-popover>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+}
