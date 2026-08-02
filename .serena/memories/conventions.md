@@ -281,57 +281,61 @@ longer than the bound when tightening a quantifier on an unanchored pattern.
 - Module-level constants shared by helpers (e.g. `_VIDEO_PATH_EXTS`) go alongside the other `_UPPER_CASE` constants at the top of the file.
 - Private helpers are not tested directly; coverage comes from route/integration tests that exercise the public function.
 
-## JS Extension (js/)
+## JS Extension (frontend/js/)
 
 - `setup()` runs before Vue mounts → use `MutationObserver` on `document.body` for Vue-rendered elements.
 - `legacy-topbar-container` stays hidden unless it has non-empty element grandchildren — insert buttons into its **parent** (`legacy?.parentElement`) using `insertBefore`.
-- The whole `js/` folder is copied to `web/` by `ng build` (angular.json asset entry `input: "../js", output: "/"`), so sibling modules can be split out freely and imported with plain relative paths (`./workflow-insert.js`). CI lints/prettier-checks only `frontend/`, so `js/*.js` is neither linted nor format-checked.
+- The whole `frontend/js/` folder is copied to `web/` by `ng build` (angular.json asset entry `input: "js", output: "/"`), so sibling modules can be split out freely and imported with plain relative paths (`./workflow-insert.js`).
+- **The folder must stay inside `frontend/`.** `@angular/build` ≥ 21.2.13 rejects any asset whose `input` escapes the Angular workspace root (`The ../js asset path must be within the workspace root.`), so the pre-21.2.13 layout with `js/` at the repo root can never be restored — see "Dependency maintenance" below.
+- Because `frontend/js/` is inside the Prettier scope, `js/*.js` **is** format-checked by `npm run format:check`. ESLint still ignores it (the `ng lint` config only targets `src/`).
 
 ### Testable logic modules (F-93 pattern)
 
 `extension.js` imports `../../scripts/app.js`, which resolves only inside ComfyUI, and calls
 `app.registerExtension()` at module scope — so it can never be imported by a test. Put any logic
-worth testing in a **separate `js/*.js` module with injected dependencies and no side effects on
+worth testing in a **separate `frontend/js/*.js` module with injected dependencies and no side effects on
 load**; `extension.js` stays a thin wiring layer that passes the real globals:
 
 ```js
-// js/workflow-insert.js — no ComfyUI imports
+// frontend/js/workflow-insert.js — no ComfyUI imports
 export function createPendingProcessor({ app, liteGraph, api, fetchFn = fetch }) { … }
 
-// js/extension.js
+// frontend/js/extension.js
 const processPending = createPendingProcessor({ app, liteGraph: LiteGraph, api: API });
 setInterval(processPending, 500);
 ```
 
 Specs for these modules live under `frontend/src/comfy-extension/*.spec.ts` (the
 `@angular/build:unit-test` builder only discovers specs under the frontend project root) and import
-the module by relative path (`../../../js/workflow-insert.js`). This requires **both** settings in
-`frontend/tsconfig.spec.json`:
+the module by relative path (`../../js/workflow-insert.js`). Since the module now lives inside the
+frontend project, `frontend/tsconfig.spec.json` needs only:
 
 ```jsonc
 "allowJs": true,   // consume the plain-JS module
-"rootDir": "..",   // it lives outside frontend/; without this TS errors with TS6059
 ```
 
-### Coverage for js/ is not measurable — do not retry it
+(The former `"rootDir": ".."` escape hatch was required only while `js/` sat at the repo root; it
+was removed when the folder moved under `frontend/`.)
 
-`@vitest/coverage-v8` cannot report on files outside the Vitest root (`frontend/`). Adding
-`coverageInclude` entries that reach into `../js` — whether a broad `../js/**` or a single
-`../js/workflow-insert.js` — fails with `RollupError: Expression expected` / `PARSE_ERROR, pos: 0`
+### Coverage for frontend/js/ is waived in Sonar
+
+History: while the folder lived at the repo root, `@vitest/coverage-v8` could not report on it at
+all — `coverageInclude` entries reaching into `../js` (broad `../js/**` or the single
+`../js/workflow-insert.js`) failed with `RollupError: Expression expected` / `PARSE_ERROR, pos: 0`
 inside `V8CoverageProvider.getCoverageMapForUncoveredFiles`, because the provider cannot pull a
-file from outside the root through the Vite transform pipeline. **Both variants were tried and
-both fail; don't spend time on it again.**
+file from outside the Vitest root through the Vite transform pipeline. That produced no lcov entry,
+so SonarCloud scored the fully tested `workflow-insert.js` as 0% and failed the
+`new_coverage ≥ 80` gate on PR #117.
 
-Consequence: `js/*.js` produces no lcov entry, so SonarCloud scored the fully tested
-`workflow-insert.js` as 0% and failed the `new_coverage ≥ 80` gate on PR #117. Resolved with
-`sonar.coverage.exclusions=js/**` in `sonar-project.properties`. `js/` stays in `sonar.sources`,
-so it is still analysed for bugs, smells and security hotspots — only the unobtainable coverage
-metric is waived, and the specs still run in CI.
+The fix at the time was `sonar.coverage.exclusions=js/**`, now
+`sonar.coverage.exclusions=frontend/js/**`. `frontend/js` stays in `sonar.sources`, so it is still
+analysed for bugs, smells and security hotspots — only the coverage metric is waived, and the specs
+still run in CI.
 
-The rejected alternative was relocating the module into `frontend/src` with an `angular.json`
-asset entry to copy it into `web/`: it would yield real coverage and drop the `allowJs`/`rootDir`
-workaround, but splits the extension across two source trees. Keep the extension together in
-`js/`.
+**The original blocker no longer applies**: the folder now sits *inside* the Vitest root, so a
+`coverageInclude` of `js/**` would likely work. This has not been tried. If the coverage waiver ever
+becomes a problem, that is the first thing to attempt — but expect the added file to shift the
+`new_coverage` numbers, so do it as its own change, not as a rider on something else.
 
 ### ComfyUI model-list refresh
 
@@ -518,6 +522,40 @@ new page's directory below SonarCloud's `new_coverage ≥ 80`. Add a `describe('
 using a `render()` helper (`fixture.detectChanges()` → `await fixture.whenStable()` →
 `detectChanges()`), then assert on `fixture.nativeElement.querySelector(...)` and click real
 buttons. F-129's two page specs went from 54% → 94% lines this way.
+
+## Dependency maintenance (Dependabot / npm audit)
+
+All Dependabot alerts so far have been in `frontend/package-lock.json` (transitive dev deps);
+`dompurify` is the only direct runtime dependency that has ever been flagged. The backend has no
+alerts — `requirements*.txt` is not tracked by Dependabot.
+
+Routine sweep, from `frontend/`:
+
+```bash
+npm audit           # see what is open
+npm audit fix       # non-breaking transitive bumps
+npm update          # pull in-range Angular patch releases (the usual real fix)
+npm audit           # confirm
+```
+
+Most alerts resolve via `npm update`, because Angular pins its tooling deps (`vite`, `piscina`,
+`undici`, `@babel/core`, `esbuild`) to **exact** versions — the patched versions only arrive with a
+new `@angular/build` patch release, not through `npm audit fix` alone.
+
+Two standing gotchas:
+
+- **`@angular/build` ≥ 21.2.13 enforces that asset `input` paths stay within the Angular workspace
+  root** (`frontend/`). This is what forced `js/` → `frontend/js/`. There is no version that has
+  both the security fixes and the old permissive behaviour (21.2.12 is the last permissive one and
+  still ships vulnerable `vite` 7.3.2 / `piscina` 5.1.4), and no config escape hatch. Never move an
+  asset source back outside `frontend/`.
+- **`@hono/node-server` is force-upgraded via an `overrides` entry in `frontend/package.json`.**
+  It reaches the tree as `@angular/cli` → `@modelcontextprotocol/sdk` → `@hono/node-server`, and
+  the advisory (Windows `serve-static` path traversal, GHSA-frvp-7c67-39w9) needs a major bump to
+  ≥ 2.0.5 that no Angular release provides — npm's own suggestion is to *downgrade* the CLI. The
+  override was verified against `ng build`, `ng test`, `ng lint`, `format:check` and `ng mcp --help`.
+  Re-check whether it is still needed after each major Angular upgrade and drop it once upstream
+  catches up.
 
 ## Git / Commits
 

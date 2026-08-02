@@ -1,4 +1,4 @@
-// Unit tests for the ComfyUI extension's workflow-insert logic (../../../js/workflow-insert.js).
+// Unit tests for the ComfyUI extension's workflow-insert logic (../../js/workflow-insert.js).
 // The module lives outside src/ because ComfyUI loads it directly from web/, but it is written
 // with injected dependencies precisely so it can be exercised here.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -8,7 +8,7 @@ import {
   loadStoredGraph,
   refreshComfyModels,
   stripSuffix,
-} from '../../../js/workflow-insert.js';
+} from '../../js/workflow-insert.js';
 
 const API = '/tiny-model-manager/api';
 

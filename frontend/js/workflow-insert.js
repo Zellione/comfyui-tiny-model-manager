@@ -4,12 +4,12 @@
 // tested outside ComfyUI; `extension.js` injects the real `app` / `LiteGraph`.
 
 export const NODE_TYPE_MAP = {
-  checkpoints:    { node: "TMMCheckpointLoader",    widget: "ckpt_name" },
-  loras:          { node: "TMMLoraLoader",          widget: "lora_name" },
-  vae:            { node: "TMMVaeLoader",           widget: "vae_name" },
-  controlnet:     { node: "TMMControlNetLoader",    widget: "control_net_name" },
-  embeddings:     { node: "TMMEmbeddingHelper",     widget: "embedding_name" },
-  upscale_models: { node: "TMMUpscaleModelLoader",  widget: "model_name" },
+  checkpoints: { node: 'TMMCheckpointLoader', widget: 'ckpt_name' },
+  loras: { node: 'TMMLoraLoader', widget: 'lora_name' },
+  vae: { node: 'TMMVaeLoader', widget: 'vae_name' },
+  controlnet: { node: 'TMMControlNetLoader', widget: 'control_net_name' },
+  embeddings: { node: 'TMMEmbeddingHelper', widget: 'embedding_name' },
+  upscale_models: { node: 'TMMUpscaleModelLoader', widget: 'model_name' },
 };
 
 // Strip ComfyUI's " (N)" disambiguation suffix from a filename's stem.
@@ -23,11 +23,11 @@ const INDEX_SUFFIX = /\(\d{1,9}\)$/;
 
 export function stripSuffix(s) {
   const slash = Math.max(s.lastIndexOf('/'), s.lastIndexOf('\\'));
-  const dir   = slash >= 0 ? s.slice(0, slash + 1) : '';
-  const base  = slash >= 0 ? s.slice(slash + 1) : s;
-  const dot   = base.lastIndexOf('.');
-  const stem  = dot >= 0 ? base.slice(0, dot) : base;
-  const ext   = dot >= 0 ? base.slice(dot) : '';
+  const dir = slash >= 0 ? s.slice(0, slash + 1) : '';
+  const base = slash >= 0 ? s.slice(slash + 1) : s;
+  const dot = base.lastIndexOf('.');
+  const stem = dot >= 0 ? base.slice(0, dot) : base;
+  const ext = dot >= 0 ? base.slice(dot) : '';
   const stripped = stem.replace(INDEX_SUFFIX, '');
   // Only trim when the counter actually matched, mirroring the old single-pattern behaviour.
   return dir + (stripped === stem ? stem : stripped.trimEnd()) + ext;
@@ -42,9 +42,9 @@ export function findWidgetOption(widget, filename) {
 
   const cleanFile = stripSuffix(filename);
   return (
-    options.find(o => stripSuffix(o) === filename)  // option has suffix, we don't
-    ?? options.find(o => o === cleanFile)            // we have suffix, option doesn't
-    ?? filename                                       // fallback
+    options.find((o) => stripSuffix(o) === filename) ?? // option has suffix, we don't
+    options.find((o) => o === cleanFile) ?? // we have suffix, option doesn't
+    filename // fallback
   );
 }
 
@@ -54,7 +54,7 @@ export function findWidgetOption(widget, filename) {
 // never stop us from inserting the node.
 export async function refreshComfyModels(app) {
   try {
-    if (typeof app?.refreshComboInNodes === "function") {
+    if (typeof app?.refreshComboInNodes === 'function') {
       await app.refreshComboInNodes();
     }
   } catch {
@@ -85,8 +85,8 @@ export function createPendingProcessor({ app, liteGraph, api, fetchFn = fetch })
 
   const ack = (id) =>
     fetchFn(`${api}/workflow/ack`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
     });
 
@@ -97,12 +97,12 @@ export function createPendingProcessor({ app, liteGraph, api, fetchFn = fetch })
     if (!mapping) return false;
     const node = liteGraph.createNode(mapping.node);
     if (!node) return false;
-    const widget = node.widgets?.find(w => w.name === mapping.widget);
+    const widget = node.widgets?.find((w) => w.name === mapping.widget);
     if (widget) widget.value = findWidgetOption(widget, item.filename);
     // Place at viewport centre so it's immediately visible
     const c = app.canvas;
     node.pos = [
-      (c.canvas.width  / 2 - c.ds.offset[0]) / c.ds.scale,
+      (c.canvas.width / 2 - c.ds.offset[0]) / c.ds.scale,
       (c.canvas.height / 2 - c.ds.offset[1]) / c.ds.scale,
     ];
     app.graph.add(node);
@@ -128,7 +128,7 @@ export function createPendingProcessor({ app, liteGraph, api, fetchFn = fetch })
       await refreshComfyModels(app);
 
       for (const item of j.data) {
-        if (item.kind === "graph") {
+        if (item.kind === 'graph') {
           // Acked even when the load fails: unlike a node item, a stuck graph item
           // would block every later item and be retried on every poll tick.
           await loadStoredGraph({ app, api, fetchFn }, item.workflow_id);

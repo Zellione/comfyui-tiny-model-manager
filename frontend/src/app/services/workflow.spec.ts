@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 // The extension module lives outside src/ because ComfyUI loads it directly from web/.
-import { NODE_TYPE_MAP } from '../../../../js/workflow-insert.js';
+import { NODE_TYPE_MAP } from '../../../js/workflow-insert.js';
 import { WorkflowService, WORKFLOW_INSERTABLE_TYPES, isWorkflowInsertable } from './workflow';
 
 describe('WorkflowService', () => {
