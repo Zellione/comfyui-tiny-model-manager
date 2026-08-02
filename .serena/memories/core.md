@@ -143,6 +143,11 @@ civitai_version_id, civitai_model_id, model_type, thumbnail}`.
   flags `os.remove`/`shutil.rmtree`/`os.walk` reached by a path built from request or
   settings data, and that guard is the sanitizer it accepts (same shape as `_delete_model`).
   Do not reintroduce a "delete these DB paths" helper.
+- `_media_root()` validates the operator-supplied `media_dir` (absolute + existing) before the
+  scan enumerates it. The two remaining S6549 findings on that enumeration
+  (`os.path.isdir` / `os.listdir`) are **Accepted in SonarCloud** — read-only calls on
+  admin-controlled config, inherent to the feature; rationale is in PR #127. Relocating the
+  scan does not help: Sonar's new-code scope is line-based, not file-based.
 - `cleanup_stale_media()` — opt-in via the `cleanup_stale_media_on_start` setting, run from
   `routes/__init__.py::_startup` right after `prune_stale_models()` so records that vanished
   free their media in the same pass. Directory granularity (a dir whose name is no live hash),
