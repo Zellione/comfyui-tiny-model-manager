@@ -14,12 +14,16 @@ import {
   UnregisteredFile,
   RegisterModelRequest,
 } from '../../services/model';
-import { WorkflowService } from '../../services/workflow';
+import { WorkflowService, isWorkflowInsertable } from '../../services/workflow';
 import { NotificationService } from '../../services/notification';
 import { SettingsService } from '../../services/settings';
 import { formatSize } from '../../utils/format';
 import { mediaUrl } from '../../utils/media';
 import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover';
+import {
+  FilePickerPopover,
+  PickableFile,
+} from '../../components/file-picker-popover/file-picker-popover';
 const UNKNOWN_BASE_MODEL = '__unknown__';
 const UNKNOWN_SOURCE = '__unknown_source__';
 
@@ -45,7 +49,7 @@ interface RegisterForm {
 
 @Component({
   selector: 'app-models',
-  imports: [CommonModule, RouterLink, ConfirmPopover, TranslatePipe],
+  imports: [CommonModule, RouterLink, ConfirmPopover, FilePickerPopover, TranslatePipe],
   templateUrl: './models.html',
   styleUrl: './models.scss',
 })
@@ -293,6 +297,24 @@ export class Models implements OnInit {
 
   entryFileCount(entry: CatalogEntry): number {
     return entry.installed_files.length;
+  }
+
+  // Only files whose type the ComfyUI extension can turn into a loader node. Anything else
+  // would be queued and then silently skipped, leaving the card stuck as "processing".
+  insertableFiles(entry: CatalogEntry): PickableFile[] {
+    return entry.installed_files.filter((f) => isWorkflowInsertable(f.model_type));
+  }
+
+  canInsert(modelType: string): boolean {
+    return isWorkflowInsertable(modelType);
+  }
+
+  isQueued(filename: string): boolean {
+    return this.queuedForWorkflow().has(filename);
+  }
+
+  addFileToWorkflow(file: PickableFile) {
+    this.addToWorkflow(file.model_type, file.filename);
   }
 
   addToWorkflow(type: string, filename: string) {

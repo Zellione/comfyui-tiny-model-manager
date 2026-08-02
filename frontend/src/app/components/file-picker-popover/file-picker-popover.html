@@ -1,0 +1,17 @@
+<ng-content />
+
+@if (isOpen()) {
+  <div class="fp-panel" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
+    @if (heading()) {
+      <span class="fp-heading">{{ heading() }}</span>
+    }
+    <div class="fp-list">
+      @for (file of files(); track file.filename) {
+        <button class="fp-item" (click)="onPick($event, file)" [title]="file.filename">
+          <span class="fp-item-name">{{ basename(file.filename) }}</span>
+          <span class="fp-item-sub">{{ subLabel(file) }}</span>
+        </button>
+      }
+    </div>
+  </div>
+}

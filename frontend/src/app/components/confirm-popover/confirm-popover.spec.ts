@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component } from '@angular/core';
 import { provideTranslateServiceForTests } from '../../../test-helpers/translate-testing';
 import { ConfirmPopover } from './confirm-popover';
-import { ConfirmPopoverService } from '../../services/confirm-popover.service';
+import { PopoverService } from '../../services/popover.service';
 
 @Component({
   template: `<app-confirm-popover [question]="q" (confirmed)="onConfirmed()">
@@ -20,7 +20,7 @@ class TestHost {
 
 describe('ConfirmPopover', () => {
   let fixture: ComponentFixture<TestHost>;
-  let svc: ConfirmPopoverService;
+  let svc: PopoverService;
 
   function getPanel(): HTMLElement | null {
     return fixture.nativeElement.querySelector('.cp-panel');
@@ -36,7 +36,7 @@ describe('ConfirmPopover', () => {
       providers: [provideTranslateServiceForTests()],
     }).compileComponents();
     fixture = TestBed.createComponent(TestHost);
-    svc = TestBed.inject(ConfirmPopoverService);
+    svc = TestBed.inject(PopoverService);
     fixture.detectChanges();
   });
 

@@ -197,6 +197,30 @@
                       </svg>
                     </a>
                   }
+                  @if (insertableFiles(entry).length === 1) {
+                    <button
+                      class="card-action"
+                      (click)="addFileToWorkflow(insertableFiles(entry)[0])"
+                      [class.workflow-active]="isQueued(insertableFiles(entry)[0].filename)"
+                      [title]="'models.add_to_workflow' | translate"
+                    >
+                      <ng-container
+                        *ngTemplateOutlet="
+                          isQueued(insertableFiles(entry)[0].filename) ? queuedIcon : addNodeIcon
+                        "
+                      />
+                    </button>
+                  } @else if (insertableFiles(entry).length > 1) {
+                    <app-file-picker-popover
+                      [heading]="'models.choose_file' | translate"
+                      [files]="insertableFiles(entry)"
+                      (picked)="addFileToWorkflow($event)"
+                    >
+                      <button class="card-action" [title]="'models.add_to_workflow' | translate">
+                        <ng-container *ngTemplateOutlet="addNodeIcon" />
+                      </button>
+                    </app-file-picker-popover>
+                  }
                   @if (entry.trigger_words && entry.trigger_words.length > 0) {
                     <button
                       class="card-action"
@@ -290,6 +314,18 @@
                         <path d="M12 8h.01M11 12h1v4h1" />
                       </svg>
                     </a>
+                    @if (canInsert(type)) {
+                      <button
+                        class="card-action"
+                        (click)="addToWorkflow(type, file.filename)"
+                        [class.workflow-active]="isQueued(file.filename)"
+                        [title]="'models.add_to_workflow' | translate"
+                      >
+                        <ng-container
+                          *ngTemplateOutlet="isQueued(file.filename) ? queuedIcon : addNodeIcon"
+                        />
+                      </button>
+                    }
                     <app-confirm-popover
                       [question]="'models.delete_question' | translate: { filename: file.filename }"
                       (confirmed)="deleteUnknownModel(type, file)"
@@ -481,3 +517,36 @@
     </section>
   }
 </div>
+
+<!-- Shared icons for the "add to workflow" action, used by both card sections. -->
+<ng-template #addNodeIcon>
+  <svg
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.75"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <path d="M12 8v8" />
+    <path d="M8 12h8" />
+  </svg>
+</ng-template>
+
+<ng-template #queuedIcon>
+  <svg
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+</ng-template>

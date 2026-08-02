@@ -39,6 +39,8 @@
     "not_downloaded": "Not downloaded",
     "view_details": "View details",
     "copy_trigger_words": "Copy trigger words",
+    "add_to_workflow": "Add to workflow",
+    "choose_file": "Choose a file",
     "files_count": "{{count}} file(s)",
     "processing": "Processing…",
     "unknown_badge": "Unknown",
