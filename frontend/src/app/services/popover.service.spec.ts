@@ -1,12 +1,12 @@
 import { TestBed } from '@angular/core/testing';
-import { ConfirmPopoverService } from './confirm-popover.service';
+import { PopoverService } from './popover.service';
 
-describe('ConfirmPopoverService', () => {
-  let svc: ConfirmPopoverService;
+describe('PopoverService', () => {
+  let svc: PopoverService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    svc = TestBed.inject(ConfirmPopoverService);
+    svc = TestBed.inject(PopoverService);
   });
 
   it('starts with no active id', () => {

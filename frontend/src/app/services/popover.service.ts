@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
-export class ConfirmPopoverService {
+export class PopoverService {
   private readonly _activeId = signal<string | null>(null);
   readonly activeId = this._activeId.asReadonly();
 

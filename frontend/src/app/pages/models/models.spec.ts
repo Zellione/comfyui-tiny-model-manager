@@ -1195,4 +1195,150 @@ describe('Models component', () => {
       expect(isDisabled).toBe(true);
     });
   });
+
+  describe('add to workflow', () => {
+    const file = (filename: string, model_type: string) => ({
+      filename,
+      model_type,
+      size_bytes: 0,
+      modified_at: 0,
+    });
+
+    const makeEntry = (overrides: Partial<CatalogEntry> = {}): CatalogEntry => ({
+      id: 1,
+      source_platform: 'civitai',
+      source_page_id: '1',
+      source_page_url: '',
+      display_name: 'Test',
+      thumbnail_url: '',
+      base_model: '',
+      created_at: '',
+      model_type: 'loras',
+      is_empty: false,
+      installed_files: [],
+      ...overrides,
+    });
+
+    async function renderCatalog(entries: CatalogEntry[]) {
+      mockModelService.listCatalog.mockReturnValue(of({ entries, unknown_files: {} }));
+      const fixture = await createFixture();
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    function addButtons(el: HTMLElement): HTMLButtonElement[] {
+      return Array.from(el.querySelectorAll<HTMLButtonElement>('button')).filter(
+        (b) => b.title === 'Add to workflow',
+      );
+    }
+
+    it('canInsert() accepts extension-supported types only', async () => {
+      const c = await getComponent();
+      expect(c.canInsert('loras')).toBe(true);
+      expect(c.canInsert('checkpoints')).toBe(true);
+      expect(c.canInsert('clip')).toBe(false);
+    });
+
+    it('insertableFiles() drops files the extension cannot turn into a node', async () => {
+      const c = await getComponent();
+      const entry = makeEntry({
+        installed_files: [file('a.safetensors', 'loras'), file('b.safetensors', 'clip')],
+      });
+      expect(c.insertableFiles(entry)).toEqual([file('a.safetensors', 'loras')]);
+    });
+
+    it("addFileToWorkflow() uses the file's own model type, not the entry's", async () => {
+      mockWorkflowService.addToWorkflow.mockReturnValue(of({}));
+      const c = await getComponent();
+      c.addFileToWorkflow(file('vae/sdxl.safetensors', 'vae'));
+      expect(mockWorkflowService.addToWorkflow).toHaveBeenCalledWith('vae', 'vae/sdxl.safetensors');
+    });
+
+    it('marks the filename queued on success and clears it after the timeout', async () => {
+      vi.useFakeTimers();
+      try {
+        mockWorkflowService.addToWorkflow.mockReturnValue(of({}));
+        const c = await getComponent();
+        c.addToWorkflow('loras', 'a.safetensors');
+        expect(c.isQueued('a.safetensors')).toBe(true);
+        vi.advanceTimersByTime(2000);
+        expect(c.isQueued('a.safetensors')).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not mark the filename queued when the request fails', async () => {
+      mockWorkflowService.addToWorkflow.mockReturnValue(throwError(() => new Error('boom')));
+      const c = await getComponent();
+      c.addToWorkflow('loras', 'a.safetensors');
+      expect(c.isQueued('a.safetensors')).toBe(false);
+      expect(mockNotifService.show).toHaveBeenCalledWith(
+        'error',
+        'Failed to enqueue model for workflow insertion.',
+      );
+    });
+
+    it('renders a direct button for a catalog entry with one insertable file', async () => {
+      mockWorkflowService.addToWorkflow.mockReturnValue(of({}));
+      const fixture = await renderCatalog([
+        makeEntry({ installed_files: [file('sdxl/a.safetensors', 'loras')] }),
+      ]);
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('app-file-picker-popover')).toBeNull();
+      const buttons = addButtons(el);
+      expect(buttons).toHaveLength(1);
+
+      buttons[0].click();
+      expect(mockWorkflowService.addToWorkflow).toHaveBeenCalledWith('loras', 'sdxl/a.safetensors');
+    });
+
+    it('renders the file picker for a catalog entry with several insertable files', async () => {
+      const fixture = await renderCatalog([
+        makeEntry({
+          installed_files: [file('a.safetensors', 'loras'), file('b.safetensors', 'checkpoints')],
+        }),
+      ]);
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('app-file-picker-popover')).not.toBeNull();
+    });
+
+    it('renders no button for a catalog entry without insertable files', async () => {
+      const fixture = await renderCatalog([
+        makeEntry({ installed_files: [file('a.safetensors', 'clip')] }),
+      ]);
+      const el = fixture.nativeElement as HTMLElement;
+      expect(addButtons(el)).toHaveLength(0);
+      expect(el.querySelector('app-file-picker-popover')).toBeNull();
+    });
+
+    it('renders a button on unknown-file cards of a supported type', async () => {
+      mockWorkflowService.addToWorkflow.mockReturnValue(of({}));
+      mockModelService.listCatalog.mockReturnValue(
+        of({
+          entries: [],
+          unknown_files: { loras: [{ filename: 'orphan.safetensors', size_bytes: 1 }] },
+        }),
+      );
+      const fixture = await createFixture();
+      fixture.detectChanges();
+      const buttons = addButtons(fixture.nativeElement as HTMLElement);
+      expect(buttons).toHaveLength(1);
+
+      buttons[0].click();
+      expect(mockWorkflowService.addToWorkflow).toHaveBeenCalledWith('loras', 'orphan.safetensors');
+    });
+
+    it('renders no button on unknown-file cards of an unsupported type', async () => {
+      mockModelService.listCatalog.mockReturnValue(
+        of({
+          entries: [],
+          unknown_files: { clip: [{ filename: 'orphan.safetensors', size_bytes: 1 }] },
+        }),
+      );
+      const fixture = await createFixture();
+      fixture.detectChanges();
+      expect(addButtons(fixture.nativeElement as HTMLElement)).toHaveLength(0);
+    });
+  });
 });
