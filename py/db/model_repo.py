@@ -888,6 +888,38 @@ async def get_model_media(model_id: int) -> list[dict]:
         return [dict(r) for r in rows]
 
 
+async def get_model_media_hash(filename: str) -> str:
+    """Return a model's media_hash, or "" when it has no row or no media directory.
+
+    Read before deleting the model: the hash is what locates the media on disk, and
+    the ``model_media`` rows go away with the model via ON DELETE CASCADE.
+    """
+    async with get_db() as db:
+        row = await (
+            await db.execute("SELECT media_hash FROM models WHERE filename = ?", (filename,))
+        ).fetchone()
+        return row["media_hash"] or "" if row else ""
+
+
+async def get_live_media_hashes() -> set[str]:
+    """Every media_hash still claimed by a model row or a catalog entry."""
+    async with get_db() as db:
+        rows = await (
+            await db.execute(
+                "SELECT media_hash FROM models WHERE media_hash != ''"
+                " UNION SELECT media_hash FROM catalog_entries WHERE media_hash != ''"
+            )
+        ).fetchall()
+        return {r["media_hash"] for r in rows}
+
+
+async def get_all_media_paths() -> set[str]:
+    """Resolved paths of every file a model_media row points at."""
+    async with get_db() as db:
+        rows = await (await db.execute("SELECT local_path FROM model_media")).fetchall()
+        return {os.path.realpath(r["local_path"]) for r in rows}
+
+
 async def delete_media_row(media_id: int) -> None:
     async with get_db() as db:
         await db.execute("DELETE FROM model_media WHERE id = ?", (media_id,))

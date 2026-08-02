@@ -105,6 +105,72 @@ class TestDeleteModel:
         assert resp.status == 404
         assert os.path.exists(victim)
 
+    async def test_delete_removes_the_models_media(self, client, checkpoints_dir, ext_dir):
+        from py import config as cfg
+        from py.db import model_repo
+
+        model_file = os.path.join(checkpoints_dir, "with_media.safetensors")
+        open(model_file, "wb").close()
+        media_dir = os.path.join(cfg.media_dir(), "mediahash")
+        os.makedirs(media_dir, exist_ok=True)
+        preview = os.path.join(media_dir, "0.jpg")
+        open(preview, "wb").close()
+        model_id = await model_repo.upsert_model_with_meta(
+            "with_media.safetensors",
+            "checkpoints",
+            "civitai",
+            "123",
+            "",
+            [],
+            [],
+            media_hash="mediahash",
+        )
+        await model_repo.add_media(model_id, "image", preview)
+
+        resp = await client.delete(
+            "/tiny-model-manager/api/models/checkpoints/with_media.safetensors"
+        )
+
+        assert resp.status == 200
+        assert not os.path.exists(preview)
+        assert not os.path.isdir(media_dir)
+
+    async def test_delete_keeps_media_owned_by_the_catalog_entry(
+        self, client, checkpoints_dir, ext_dir
+    ):
+        from py import config as cfg
+        from py.db import model_repo
+
+        model_file = os.path.join(checkpoints_dir, "shared_media.safetensors")
+        open(model_file, "wb").close()
+        media_dir = os.path.join(cfg.media_dir(), "sharedhash")
+        os.makedirs(media_dir, exist_ok=True)
+        preview = os.path.join(media_dir, "0.jpg")
+        open(preview, "wb").close()
+        model_id = await model_repo.upsert_model_with_meta(
+            "shared_media.safetensors",
+            "checkpoints",
+            "civitai",
+            "123",
+            "",
+            [],
+            [],
+            media_hash="sharedhash",
+        )
+        await model_repo.add_media(model_id, "image", preview)
+        await model_repo.upsert_catalog_entry(
+            "civitai", "123", "", "Entry", "", "", media_hash="sharedhash"
+        )
+
+        resp = await client.delete(
+            "/tiny-model-manager/api/models/checkpoints/shared_media.safetensors"
+        )
+
+        assert resp.status == 200
+        assert not os.path.exists(model_file)
+        # The catalog gallery must survive uninstalling the file.
+        assert os.path.isfile(preview)
+
 
 class TestListModelTypes:
     async def test_returns_types(self, client):

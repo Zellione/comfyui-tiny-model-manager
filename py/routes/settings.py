@@ -13,6 +13,7 @@ def _masked_settings(data: dict) -> dict:
         "hf_token": "***" if data.get("hf_token") else "",
         "media_dir": data.get("media_dir", ""),
         "organize_into_subfolders": data.get("organize_into_subfolders", False),
+        "cleanup_stale_media_on_start": data.get("cleanup_stale_media_on_start", False),
         "media_dir_default": os.path.join(cfg.data_dir(), "media"),
     }
 
@@ -25,6 +26,8 @@ def _apply_masked_updates(existing: dict, body: dict) -> None:
         existing["hf_token"] = body["hf_token"]
     if "media_dir" in body:
         existing["media_dir"] = body["media_dir"]
+    if "cleanup_stale_media_on_start" in body:
+        existing["cleanup_stale_media_on_start"] = bool(body["cleanup_stale_media_on_start"])
 
 
 async def _organize_conflict(enabling: bool) -> str | None:

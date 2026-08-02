@@ -27,12 +27,15 @@ def register_routes(routes, ext_dir: str):
     async def _startup():
         await init_db()
         from ..services.downloader import resume_interrupted_downloads
+        from ..services.media_cleanup import cleanup_stale_media
         from ..services.metadata_fetcher import migrate_existing_media
         from ..services.reconciler import prune_stale_models
         from ..services.reorganizer import process_pending_jobs
 
         await migrate_existing_media()
         await prune_stale_models()
+        # After pruning, so media freed by records that vanished is swept in the same pass.
+        await cleanup_stale_media()
         await process_pending_jobs()
         await resume_interrupted_downloads()
 

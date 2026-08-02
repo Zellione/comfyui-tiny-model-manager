@@ -6,7 +6,7 @@ import folder_paths
 import httpx
 
 from ..db import model_repo
-from ..services import disk_scanner, link_resolver, model_paths
+from ..services import disk_scanner, link_resolver, media_cleanup, model_paths
 from ..services.reorganizer import _sanitize_subfolder_name
 from ._helpers import err, json_route, ok
 from .metadata import _derive_source_url
@@ -54,8 +54,11 @@ async def _delete_model(request):
         if candidate is None:
             continue
         if os.path.isfile(candidate):
+            # Read the media hash first: the row is gone after the delete below.
+            media_hash = await model_repo.get_model_media_hash(rel_path)
             os.remove(candidate)
             await model_repo.delete_model_record(rel_path)
+            await media_cleanup.cleanup_model_media(media_hash)
             await model_repo.update_download_history_status_by_path(model_type, rel_path, "deleted")
             return ok()
     return err("File not found", status=404)

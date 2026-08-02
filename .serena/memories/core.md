@@ -124,6 +124,40 @@ civitai_version_id, civitai_model_id, model_type, thumbnail}`.
 - Models page cards: 1 insertable file → direct insert; 2+ → `app-file-picker-popover`. Always
   use the **file's** `model_type`, never the entry's — one catalog entry can mix types.
 
+## Media cleanup (F-95)
+
+- `py/services/media_cleanup.py` owns the canonical `media_subdir(media_hash)` (path-traversal
+  guard); `metadata_fetcher._media_subdir` is now just an alias to it — do not re-implement.
+- **A model and its catalog entry usually share one media directory.** `fetch_and_store` passes
+  the model's `media_hash` straight into `_store_catalog_entry`, and `_list_catalog_media` lists
+  the whole directory so the gallery survives uninstall. Therefore every deletion is gated on
+  `model_repo.get_live_media_hashes()` (union of `models.media_hash` + `catalog_entries.media_hash`)
+  read **after** the model row is gone. For CivitAI, extra versions get their own hash
+  (`sha1("civitai:<version_id>")`) and *are* cleaned; the one the catalog adopted is not.
+- `cleanup_model_media(media_hash)` — called from `routes/models.py::_delete_model` after
+  `delete_model_record`. The hash must be read *before* the delete (`get_model_media_hash`).
+  A hash-less model is a no-op: `migrate_existing_media` assigns a hash on startup to every
+  model owning media rows, and disk-registered models have neither.
+- **Nothing is deleted by absolute path.** Every destructive call takes `(base, name)` and
+  resolves it through `model_paths.contained_path` — Sonar's taint analysis (S2083/S6549)
+  flags `os.remove`/`shutil.rmtree`/`os.walk` reached by a path built from request or
+  settings data, and that guard is the sanitizer it accepts (same shape as `_delete_model`).
+  Do not reintroduce a "delete these DB paths" helper.
+- `_media_root()` validates the operator-supplied `media_dir` (absolute + existing) before the
+  scan enumerates it. The two remaining S6549 findings on that enumeration
+  (`os.path.isdir` / `os.listdir`) are **Accepted in SonarCloud** — read-only calls on
+  admin-controlled config, inherent to the feature; rationale is in PR #127. Relocating the
+  scan does not help: Sonar's new-code scope is line-based, not file-based.
+- `cleanup_stale_media()` — opt-in via the `cleanup_stale_media_on_start` setting, run from
+  `routes/__init__.py::_startup` right after `prune_stale_models()` so records that vanished
+  free their media in the same pass. Directory granularity (a dir whose name is no live hash),
+  which is what also sweeps cached `*_poster.jpg` files — they have no `model_media` row.
+  Loose files in the media root go only if unreferenced. Logs + pushes a backend notification.
+- There are **no metadata sidecar files** in this project; all metadata is in SQLite and the
+  child rows already cascade. "Metadata cleanup" means the media files only.
+- The settings toggle lives in the **ComfyUI settings panel** (`js/extension.js`), not the
+  Angular settings page — that page only manages filename keywords.
+
 ## Popovers
 
 - `services/popover.service.ts` → `PopoverService` (renamed from `ConfirmPopoverService` in
