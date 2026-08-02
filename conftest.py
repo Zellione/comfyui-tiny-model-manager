@@ -29,6 +29,9 @@ def _make_folder_paths_stub(models_dir: str) -> types.ModuleType:
     mod = types.ModuleType("folder_paths")
     mod.models_dir = models_dir  # type: ignore[attr-defined]
     mod.folder_names_and_paths = {}  # type: ignore[attr-defined]
+    mod.base_path = os.path.dirname(models_dir)  # type: ignore[attr-defined]
+    mod.user_directory = os.path.join(models_dir, "user")  # type: ignore[attr-defined]
+    mod.get_user_directory = lambda: mod.user_directory  # type: ignore[attr-defined]
 
     def get_folder_paths(folder_type: str) -> list[str]:
         info = mod.folder_names_and_paths.get(folder_type)

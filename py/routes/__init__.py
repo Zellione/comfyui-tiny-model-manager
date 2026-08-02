@@ -10,6 +10,7 @@ from .settings import add_settings_routes
 from .static import add_static_routes
 from .tags import add_tag_routes
 from .workflow import register_workflow_routes
+from .workflows import add_workflows_routes
 
 
 def register_routes(routes, ext_dir: str):
@@ -22,7 +23,9 @@ def register_routes(routes, ext_dir: str):
     add_settings_routes(routes)
     add_notification_routes(routes)
     add_tag_routes(routes)
+    # Singular: the ComfyUI node-insertion queue. Plural: the workflow store (F-129).
     register_workflow_routes(routes)
+    add_workflows_routes(routes)
 
     async def _startup():
         await init_db()

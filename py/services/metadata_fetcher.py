@@ -15,7 +15,7 @@ from ..video_poster import extract_video_poster
 from . import media_cleanup
 from .providers import get_provider
 from .providers.base import ProviderMetadata
-from .url_guard import is_allowed_url
+from .url_guard import guarded_stream, is_allowed_url
 
 _log = logging.getLogger("tiny-model-manager")
 
@@ -331,12 +331,15 @@ async def _fetch_url_to_file(
         existing = next(Path(dest_dir).glob(f"{index}.*"), None)
         if existing:
             return str(existing), existing.suffix.lstrip(".")
-        resp = await client.get(url)
-        resp.raise_for_status()
-        content_type = resp.headers.get("content-type", "").split(";")[0].strip().lower()
+        # guarded_stream re-checks every redirect hop; a media URL that bounces off the
+        # allowlist raises and is swallowed below, dropping that one preview.
+        async with guarded_stream(client, "GET", url) as resp:
+            resp.raise_for_status()
+            content_type = resp.headers.get("content-type", "").split(";")[0].strip().lower()
+            content = await resp.aread()
         ext = _CONTENT_TYPE_EXT.get(content_type, "jpg")
         dest = os.path.join(dest_dir, f"{index}.{ext}")
-        await asyncio.to_thread(Path(dest).write_bytes, resp.content)
+        await asyncio.to_thread(Path(dest).write_bytes, content)
         return dest, ext
     except Exception:
         return None
@@ -352,7 +355,7 @@ async def _iter_downloaded_urls(media_hash: str, urls: list[str]) -> list[tuple[
     os.makedirs(dest_dir, exist_ok=True)
     safe_urls = [u for u in urls if is_allowed_url(u)]
     results: list[tuple[str, str]] = []
-    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=30) as client:
         for i, url in enumerate(safe_urls[:5]):
             result = await _fetch_url_to_file(client, url, dest_dir, i)
             if result:

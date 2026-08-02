@@ -84,6 +84,13 @@ The push is blocked if either threshold is not met.
 | POST | `/tiny-model-manager/api/workflow/insert` | Enqueue a 1-click node insert |
 | GET | `/tiny-model-manager/api/workflow/pending` | Pending inserts for the ComfyUI JS extension |
 | POST | `/tiny-model-manager/api/workflow/ack` | Mark a pending insert consumed |
+| GET | `/tiny-model-manager/api/workflows/search` | Search CivitAI's `Workflows` type — params: `q`, `base_model`, `sort`, `period`, `tags`, `page`, `cursor` |
+| POST | `/tiny-model-manager/api/workflows/download` | Download a workflow archive and store every ComfyUI graph inside it |
+| GET | `/tiny-model-manager/api/workflows` | List stored workflow entries with their graphs and gallery media |
+| DELETE | `/tiny-model-manager/api/workflows/{id}` | Delete a workflow entry, its graphs and its media |
+| POST | `/tiny-model-manager/api/workflows/{id}/export` | Copy a stored graph into ComfyUI's user workflows directory |
+| GET | `/tiny-model-manager/api/workflows/{id}/file` | Serve a stored graph as raw JSON |
+| POST | `/tiny-model-manager/api/workflows/{id}/open` | Queue a stored graph for the JS extension to load onto the canvas |
 
 ---
 
@@ -162,6 +169,47 @@ All metadata is stored in `data/models.db` (SQLite). Foreign keys are enforced (
              └───────────────────────────────────────┘
 ```
 
+Workflows downloaded from CivitAI live in their own pair of tables, mirroring the same
+parent/child split. A CivitAI workflow archive usually contains more than one ComfyUI graph, so
+one `workflow_entries` row (the source page, owning the description, tags and gallery media) has
+many `workflows` rows:
+
+```
+┌─────────────────────────────────────────────────────┐
+│                  workflow_entries                   │
+├──────────────────┬──────────────────────────────────┤
+│ id               │ INTEGER  PK AUTOINCREMENT        │
+│ source_platform  │ TEXT     NOT NULL                │  ← "civitai"
+│ source_page_id   │ TEXT     NOT NULL                │  ← CivitAI model page ID
+│ display_name     │ TEXT     NOT NULL DEFAULT ''     │
+│ description      │ TEXT     NOT NULL DEFAULT ''     │
+│ base_model       │ TEXT     NOT NULL DEFAULT ''     │
+│ tags             │ TEXT     NOT NULL DEFAULT ''     │  ← JSON array
+│ thumbnail_url    │ TEXT     NOT NULL DEFAULT ''     │
+│ media_hash       │ TEXT     NOT NULL DEFAULT ''     │  ← media subfolder, as for models
+│ created_at       │ TEXT     DEFAULT datetime('now') │
+│ UNIQUE (source_platform, source_page_id)            │
+└──────────────────┴──────────────────────────────────┘
+          │  1
+          │  N
+          └──────────────────────────────────────────┐
+                            workflows                 │
+             ├───────────────────────────────────────┤
+             │ id          │ INTEGER PK AUTOINCREMENT │
+             │ entry_id    │ INTEGER FK → …entries.id │  ← ON DELETE CASCADE
+             │ name        │ TEXT NOT NULL            │  ← graph name inside the archive
+             │ local_path  │ TEXT NOT NULL            │  ← relative to data/workflows/
+             │ version_id  │ TEXT NOT NULL DEFAULT '' │
+             │ version_name│ TEXT NOT NULL DEFAULT '' │
+             │ node_count  │ INTEGER NOT NULL DEF. 0  │
+             │ UNIQUE (entry_id, local_path)          │  ← re-download upserts
+             └───────────────────────────────────────┘
+```
+
+Graph files are stored under `data/workflows/<media_hash>/<version_id>/<name>.json`. Exporting a
+graph copies it into ComfyUI's own `user/default/workflows/` directory so it shows up in ComfyUI's
+native workflow browser.
+
 ### Field notes
 
 | Field | Source | Notes |
@@ -185,6 +233,7 @@ py/
   db/
     database.py               SQLite schema, migrations, and connection factory
     model_repo.py             async CRUD helpers
+    workflow_repo.py          async CRUD helpers for stored workflows
   nodes/
     _utils.py                 shared DB helper (trigger word lookup)
     lora_loader_with_triggers.py
@@ -200,12 +249,14 @@ py/
     download.py               search and download endpoints
     metadata.py               metadata CRUD and media serving
     settings.py               settings CRUD
-    workflow.py               in-memory queue for 1-click node insert
+    workflow.py               in-memory queue for 1-click node insert / graph load
+    workflows.py              workflow store: search, download, list, export
   services/
     civitai.py                CivitAI API client
     huggingface.py            HuggingFace API client
     downloader.py             async download queue
     metadata_fetcher.py       post-download metadata and image fetch
+    workflow_store.py         workflow archive fetch, graph extraction, export
     providers/
       base.py                 abstract provider interface
       civitai_provider.py     CivitAI metadata fetch implementation
@@ -214,6 +265,7 @@ frontend/
   src/app/
     pages/
       models/                 installed model browser (grid/list, filter, delete)
+      workflows/              browse CivitAI workflows + stored workflow library
       download/               search + paste-a-link download page
       model-detail/           metadata viewer/editor
     services/
@@ -222,6 +274,7 @@ frontend/
       civitai.ts              CivitaiService — search, versions, resolve
       huggingface.ts          HuggingFaceService — search, files, readme
       workflow.ts             WorkflowService — 1-click node insert queue
+      workflow-store.ts       WorkflowStoreService — workflow search, download, export
       notification.ts         NotificationService — signal-based toast queue
     utils/
       link-detector.ts        parse paste-a-link URLs into typed LinkKind objects

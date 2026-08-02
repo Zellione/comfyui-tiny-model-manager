@@ -69,6 +69,7 @@ class CivitaiProvider(ModelProvider):
         sort: str = "",
         period: str = "",
         tags: list[str] | None = None,
+        types: str = "",
         **kwargs,
     ) -> dict:
         params: dict = {"limit": limit}
@@ -78,7 +79,13 @@ class CivitaiProvider(ModelProvider):
             params["cursor"] = cursor
         elif not query:
             params["page"] = page
-        if model_type and model_type in CIVITAI_TYPE_MAP:
+        # ``types`` is the raw CivitAI filter value and wins over the internal
+        # model_type mapping. It exists for CivitAI types that have no model folder of
+        # ours — "Workflows" (F-129) — which therefore must stay out of CIVITAI_TYPE_MAP,
+        # since that map also feeds CIVITAI_REVERSE_TYPE_MAP and the register form.
+        if types:
+            params["types"] = types
+        elif model_type and model_type in CIVITAI_TYPE_MAP:
             params["types"] = CIVITAI_TYPE_MAP[model_type]
         if base_model:
             params["baseModels"] = base_model
@@ -98,7 +105,13 @@ class CivitaiProvider(ModelProvider):
                 )
             return resp.json()
 
-    async def get_model_versions(self, model_id: int) -> dict:
+    async def get_model_page(self, model_id: int) -> dict:
+        """Raw CivitAI model-page payload: model-level metadata plus every version.
+
+        Callers that need the files of a non-Model type (workflow archives, F-129) use
+        this: resolve_direct_link and get_version_files both filter on ``type == "Model"``
+        and would return nothing for them.
+        """
         safe_id = int(model_id)
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(f"{_BASE}/models/{safe_id}", headers=self.auth_headers())
@@ -108,7 +121,10 @@ class CivitaiProvider(ModelProvider):
                     request=resp.request,
                     response=resp,
                 )
-            data = resp.json()
+            return resp.json()
+
+    async def get_model_versions(self, model_id: int) -> dict:
+        data = await self.get_model_page(model_id)
         civitai_type = data.get("type", "")
         return {
             "versions": data.get("modelVersions", []),

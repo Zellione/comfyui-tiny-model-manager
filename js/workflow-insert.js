@@ -62,12 +62,54 @@ export async function refreshComfyModels(app) {
   }
 }
 
+// Load a stored workflow graph (F-129) onto the canvas, replacing the current one.
+// Returns true when the graph was loaded; false leaves the canvas untouched.
+export async function loadStoredGraph({ app, api, fetchFn }, workflowId) {
+  try {
+    const r = await fetchFn(`${api}/workflows/${workflowId}/file`);
+    if (!r.ok) return false;
+    const graph = await r.json();
+    await app.loadGraphData(graph);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Build the poll tick that drains the backend's pending-insert queue.
 export function createPendingProcessor({ app, liteGraph, api, fetchFn = fetch }) {
   // Pending items are only dropped once acked, and the model refresh can take
   // longer than the poll interval — without this guard an overlapping tick
   // would insert the same node twice.
   let running = false;
+
+  const ack = (id) =>
+    fetchFn(`${api}/workflow/ack`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+
+  // Create a loader node for one queued model file. False when the type has no
+  // mapping or the node class is unknown — the caller then leaves it unacked.
+  function insertNode(item) {
+    const mapping = NODE_TYPE_MAP[item.model_type];
+    if (!mapping) return false;
+    const node = liteGraph.createNode(mapping.node);
+    if (!node) return false;
+    const widget = node.widgets?.find(w => w.name === mapping.widget);
+    if (widget) widget.value = findWidgetOption(widget, item.filename);
+    // Place at viewport centre so it's immediately visible
+    const c = app.canvas;
+    node.pos = [
+      (c.canvas.width  / 2 - c.ds.offset[0]) / c.ds.scale,
+      (c.canvas.height / 2 - c.ds.offset[1]) / c.ds.scale,
+    ];
+    app.graph.add(node);
+    app.canvas.selectNode(node);
+    app.graph.setDirtyCanvas(true, true);
+    return true;
+  }
 
   return async function processPending() {
     if (running) return;
@@ -86,26 +128,14 @@ export function createPendingProcessor({ app, liteGraph, api, fetchFn = fetch })
       await refreshComfyModels(app);
 
       for (const item of j.data) {
-        const mapping = NODE_TYPE_MAP[item.model_type];
-        if (!mapping) continue;
-        const node = liteGraph.createNode(mapping.node);
-        if (!node) continue;
-        const widget = node.widgets?.find(w => w.name === mapping.widget);
-        if (widget) widget.value = findWidgetOption(widget, item.filename);
-        // Place at viewport centre so it's immediately visible
-        const c = app.canvas;
-        node.pos = [
-          (c.canvas.width  / 2 - c.ds.offset[0]) / c.ds.scale,
-          (c.canvas.height / 2 - c.ds.offset[1]) / c.ds.scale,
-        ];
-        app.graph.add(node);
-        app.canvas.selectNode(node);
-        app.graph.setDirtyCanvas(true, true);
-        await fetchFn(`${api}/workflow/ack`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: item.id }),
-        });
+        if (item.kind === "graph") {
+          // Acked even when the load fails: unlike a node item, a stuck graph item
+          // would block every later item and be retried on every poll tick.
+          await loadStoredGraph({ app, api, fetchFn }, item.workflow_id);
+          await ack(item.id);
+          continue;
+        }
+        if (insertNode(item)) await ack(item.id);
       }
     } finally {
       running = false;

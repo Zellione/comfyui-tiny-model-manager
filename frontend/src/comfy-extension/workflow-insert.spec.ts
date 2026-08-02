@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   createPendingProcessor,
   findWidgetOption,
+  loadStoredGraph,
   refreshComfyModels,
   stripSuffix,
 } from '../../../js/workflow-insert.js';
@@ -29,6 +30,7 @@ function makeNode(widgetName: string, values: string[] = []): StubNode {
 function makeApp(overrides: Record<string, unknown> = {}) {
   return {
     refreshComboInNodes: vi.fn().mockResolvedValue(undefined),
+    loadGraphData: vi.fn().mockResolvedValue(undefined),
     canvas: {
       canvas: { width: 800, height: 600 },
       ds: { offset: [0, 0], scale: 1 },
@@ -43,6 +45,21 @@ function makeFetch(pending: unknown[]) {
   return vi.fn().mockImplementation((url: string) => {
     if (url.endsWith('/workflow/pending')) {
       return Promise.resolve({ json: () => Promise.resolve({ success: true, data: pending }) });
+    }
+    return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+  });
+}
+
+const GRAPH = { last_node_id: 1, nodes: [{ id: 1, type: 'KSampler' }], links: [] };
+
+/** Like makeFetch, but also serves the stored-graph endpoint used by `kind: "graph"` items. */
+function makeGraphFetch(pending: unknown[], graph: unknown) {
+  return vi.fn().mockImplementation((url: string) => {
+    if (url.endsWith('/workflow/pending')) {
+      return Promise.resolve({ json: () => Promise.resolve({ success: true, data: pending }) });
+    }
+    if (url.includes('/workflows/')) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(graph) });
     }
     return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
   });
@@ -295,5 +312,66 @@ describe('createPendingProcessor', () => {
     await createPendingProcessor({ app, liteGraph, api: API, fetchFn })();
 
     expect(node.pos).toEqual([(800 / 2 - 100) / 2, (600 / 2 - 50) / 2]);
+  });
+
+  // F-129: stored workflows are queued as `kind: "graph"` items and replace the canvas.
+  it('loads a queued graph and acks it', async () => {
+    const app = makeApp({ loadGraphData: vi.fn().mockResolvedValue(undefined) });
+    const fetchFn = makeGraphFetch([{ id: 'g1', kind: 'graph', workflow_id: 7 }], GRAPH);
+
+    await createPendingProcessor({ app, liteGraph, api: API, fetchFn })();
+
+    expect(app.loadGraphData).toHaveBeenCalledWith(GRAPH);
+    expect(liteGraph.createNode).not.toHaveBeenCalled();
+    expect(fetchFn).toHaveBeenCalledWith(`${API}/workflow/ack`, expect.anything());
+  });
+
+  it('acks a graph item even when the load fails, so the queue keeps draining', async () => {
+    const app = makeApp({ loadGraphData: vi.fn().mockRejectedValue(new Error('bad graph')) });
+    const fetchFn = makeGraphFetch([{ id: 'g1', kind: 'graph', workflow_id: 7 }], GRAPH);
+
+    await createPendingProcessor({ app, liteGraph, api: API, fetchFn })();
+
+    expect(fetchFn).toHaveBeenCalledWith(`${API}/workflow/ack`, expect.anything());
+  });
+
+  it('still inserts nodes for items without a kind (pre-F-129 shape)', async () => {
+    const app = makeApp({ loadGraphData: vi.fn() });
+    const fetchFn = makeFetch([{ id: '1', model_type: 'checkpoints', filename: 'a.safetensors' }]);
+
+    await createPendingProcessor({ app, liteGraph, api: API, fetchFn })();
+
+    expect(app.graph.add).toHaveBeenCalled();
+    expect(app.loadGraphData).not.toHaveBeenCalled();
+  });
+});
+
+describe('loadStoredGraph', () => {
+  it('fetches the graph and hands it to ComfyUI', async () => {
+    const app = { loadGraphData: vi.fn().mockResolvedValue(undefined) };
+    const fetchFn = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(GRAPH) });
+
+    await expect(loadStoredGraph({ app, api: API, fetchFn }, 3)).resolves.toBe(true);
+
+    expect(fetchFn).toHaveBeenCalledWith(`${API}/workflows/3/file`);
+    expect(app.loadGraphData).toHaveBeenCalledWith(GRAPH);
+  });
+
+  it('leaves the canvas untouched on a non-ok response', async () => {
+    const app = { loadGraphData: vi.fn() };
+    const fetchFn = vi.fn().mockResolvedValue({ ok: false });
+
+    await expect(loadStoredGraph({ app, api: API, fetchFn }, 3)).resolves.toBe(false);
+
+    expect(app.loadGraphData).not.toHaveBeenCalled();
+  });
+
+  it('leaves the canvas untouched when the request throws', async () => {
+    const app = { loadGraphData: vi.fn() };
+    const fetchFn = vi.fn().mockRejectedValue(new Error('offline'));
+
+    await expect(loadStoredGraph({ app, api: API, fetchFn }, 3)).resolves.toBe(false);
+
+    expect(app.loadGraphData).not.toHaveBeenCalled();
   });
 });

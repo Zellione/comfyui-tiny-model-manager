@@ -8,6 +8,7 @@ def init(ext_dir: str):
     _ext_dir = ext_dir
     os.makedirs(data_dir(), exist_ok=True)
     os.makedirs(media_dir(), exist_ok=True)
+    os.makedirs(workflows_dir(), exist_ok=True)
 
 
 def data_dir() -> str:
@@ -20,6 +21,15 @@ def media_dir() -> str:
     if custom and os.path.isabs(custom):
         return custom
     return os.path.join(data_dir(), "media")
+
+
+def workflows_dir() -> str:
+    """Root for downloaded workflow graphs, one subdirectory per workflow entry.
+
+    Unlike models, workflows never live in a ComfyUI folder_paths directory — they are
+    only copied into ComfyUI's user workflow browser on an explicit export.
+    """
+    return os.path.join(data_dir(), "workflows")
 
 
 def db_path() -> str:

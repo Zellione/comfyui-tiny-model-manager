@@ -902,12 +902,18 @@ async def get_model_media_hash(filename: str) -> str:
 
 
 async def get_live_media_hashes() -> set[str]:
-    """Every media_hash still claimed by a model row or a catalog entry."""
+    """Every media_hash still claimed by a model row, catalog entry or workflow entry.
+
+    Workflow entries must be in this union: cleanup_stale_media() deletes any media
+    directory whose name is not a live hash, so leaving them out would sweep every
+    workflow thumbnail on the next startup.
+    """
     async with get_db() as db:
         rows = await (
             await db.execute(
                 "SELECT media_hash FROM models WHERE media_hash != ''"
                 " UNION SELECT media_hash FROM catalog_entries WHERE media_hash != ''"
+                " UNION SELECT media_hash FROM workflow_entries WHERE media_hash != ''"
             )
         ).fetchall()
         return {r["media_hash"] for r in rows}

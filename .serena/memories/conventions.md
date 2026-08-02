@@ -344,6 +344,29 @@ insert the same node twice.
 
 ## Security Patterns (SonarQube-compliant)
 
+### Redirect hops are validated, not just the initial URL (F-129)
+
+`url_guard.guarded_stream(client, method, url, headers=...)` is the **only** way outbound
+file/media fetches should be made. It follows redirects by hand and re-runs `is_allowed_url`
+on every `Location` before issuing the next request, bounded at 5 hops
+(`RedirectNotAllowed` otherwise). Three call sites: `downloader._stream_file`,
+`metadata_fetcher._fetch_url_to_file`, `workflow_store._fetch_archive`. **None of their
+clients may set `follow_redirects=True`** — that would skip the per-hop check; there is a
+test asserting the downloader's client doesn't.
+
+**The trap:** with `follow_redirects=False` + manual re-issue, httpx's *own* `Authorization`
+stripping (`_client.py::_redirect_headers`) no longer runs, so replaying the caller's headers
+verbatim would leak the CivitAI API key to whatever host a redirect names.
+`url_guard._redirect_headers` reproduces httpx's rule — drop `Authorization` unless the hop is
+same-origin or a plain http→https upgrade on the same host. Do not "simplify" that away.
+
+Both providers redirect and both land inside the allowlist, verified live:
+`civitai.com` → `b2.civitai.com`, `huggingface.co` → `us.aws.cdn.hf.co`. Auth is only needed on
+the first hop (the CDN URL is pre-signed via query param), so stripping it is safe — confirmed
+by a real download through the hardened path. If a provider moves its CDN off these suffixes,
+downloads fail with the blocked host named; add the suffix to `_ALLOWED_HOST_SUFFIXES` rather
+than relaxing the check.
+
 ### S7044 — URL path traversal (SSRF)
 - **For string parameters**: `urllib.parse.quote(value, safe="/")` is recognized as a sanitizer by SonarQube's taint engine. Custom regex validators alone are NOT sufficient. The return value of `quote()` must be **assigned back** and used in URL construction.
 - **For integer parameters**: assign `safe_id = int(model_id)` before using in the f-string; the explicit `int()` cast breaks the taint chain. Example in `civitai_provider.py::get_model_versions`:
@@ -455,6 +478,20 @@ insert the same node twice.
   // WRONG — triggers @typescript-eslint/no-explicit-any
   (component as any).keywords = signal([sdxlKeyword]);
   ```
+
+## Frontend bundle budget
+
+`angular.json`'s initial-bundle `maximumWarning` was raised 650kB → 750kB in F-129 (the Workflows
+page added ~35 kB to a 634 kB baseline). `maximumError` stays at 1MB. Raise the warning again
+rather than letting every build print a budget warning.
+
+## Template coverage on new pages
+
+Component specs that only call methods leave the template at ~10-30% line coverage, which drags a
+new page's directory below SonarCloud's `new_coverage ≥ 80`. Add a `describe('template')` block
+using a `render()` helper (`fixture.detectChanges()` → `await fixture.whenStable()` →
+`detectChanges()`), then assert on `fixture.nativeElement.querySelector(...)` and click real
+buttons. F-129's two page specs went from 54% → 94% lines this way.
 
 ## Git / Commits
 
