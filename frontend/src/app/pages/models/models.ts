@@ -270,12 +270,12 @@ export class Models implements OnInit {
 
   cardDetailRoute(entry: CatalogEntry): string[] {
     if (entry.source_platform && entry.source_page_id) {
-      return ['/catalog', entry.source_platform];
+      return ['/models', entry.source_platform];
     }
     if (entry.installed_files[0]) {
       return ['/models', entry.installed_files[0].model_type, entry.installed_files[0].filename];
     }
-    return ['/catalog'];
+    return ['/models'];
   }
 
   cardDetailQuery(entry: CatalogEntry): Record<string, string> | null {

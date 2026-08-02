@@ -8,7 +8,7 @@
     }
   },
   "nav": {
-    "catalog": "Catalog",
+    "models": "Models",
     "download": "Download",
     "settings": "Settings",
     "theme_to_light": "Switch to light mode",
@@ -141,8 +141,8 @@
     }
   },
   "catalog_detail": {
-    "back": "← Back to Catalog",
-    "catalog": "Catalog",
+    "back": "← Back to Models",
+    "models": "Models",
     "refetch_question": "Re-fetch metadata from source?",
     "refetching": "Fetching…",
     "refetch": "Re-fetch Metadata",
