@@ -1,0 +1,296 @@
+<h2>{{ 'images.title' | translate }}</h2>
+<p class="page-hint">{{ 'images.hint' | translate }}</p>
+
+<div class="search-bar">
+  <div class="filter-row">
+    <select
+      [ngModel]="sort()"
+      (ngModelChange)="sort.set($event)"
+      [attr.aria-label]="'download_search.filter.sort_label' | translate"
+    >
+      @for (o of sortOptions; track o.value) {
+        <option [value]="o.value">{{ o.label | translate }}</option>
+      }
+    </select>
+    <select
+      [ngModel]="period()"
+      (ngModelChange)="period.set($event)"
+      [attr.aria-label]="'download_search.filter.period_label' | translate"
+    >
+      @for (o of periodOptions; track o.value) {
+        <option [value]="o.value">{{ o.label | translate }}</option>
+      }
+    </select>
+    <select
+      [ngModel]="nsfw()"
+      (ngModelChange)="nsfw.set($event)"
+      [attr.aria-label]="'images.filter.nsfw_label' | translate"
+    >
+      @for (o of nsfwOptions; track o.value) {
+        <option [value]="o.value">{{ o.label | translate }}</option>
+      }
+    </select>
+    <select
+      [ngModel]="mediaType()"
+      (ngModelChange)="mediaType.set($event)"
+      [attr.aria-label]="'images.filter.type_label' | translate"
+    >
+      @for (o of typeOptions; track o.value) {
+        <option [value]="o.value">{{ o.label | translate }}</option>
+      }
+    </select>
+    <select
+      [ngModel]="baseModel()"
+      (ngModelChange)="baseModel.set($event)"
+      [attr.aria-label]="'download_search.filter.all_base_models' | translate"
+    >
+      <option value="">{{ 'download_search.filter.all_base_models' | translate }}</option>
+      @for (bm of baseModelOptions; track bm) {
+        <option [value]="bm">{{ bm }}</option>
+      }
+    </select>
+  </div>
+
+  <label class="recreatable-toggle">
+    <input
+      type="checkbox"
+      [ngModel]="recreatableOnly()"
+      (ngModelChange)="recreatableOnly.set($event)"
+    />
+    {{ 'images.filter.recreatable_only' | translate }}
+    @if (recreatableOnly() && hiddenCount() > 0) {
+      <span class="hidden-count">{{
+        'images.filter.hidden_count' | translate: { count: hiddenCount() }
+      }}</span>
+    }
+  </label>
+</div>
+
+@if (searching()) {
+  <div class="detail-empty">
+    <div class="empty-icon">⟳</div>
+    <p>{{ 'download_search.empty.searching' | translate }}</p>
+  </div>
+} @else if (searchError()) {
+  <!-- Own branch above the empty state: otherwise a failed search hides the whole view. -->
+  <div class="detail-empty">
+    <div class="empty-icon">⚠</div>
+    <p>{{ 'download_search.error.search_failed' | translate: { error: searchError() } }}</p>
+  </div>
+} @else if (filteredResults().length === 0) {
+  <div class="detail-empty">
+    <div class="empty-icon">∅</div>
+    <p>{{ 'images.empty.no_results' | translate }}</p>
+  </div>
+} @else {
+  <div class="split-view">
+    <div class="list-pane">
+      <div class="list-scroll">
+        @for (image of filteredResults(); track image.id) {
+          <div
+            class="list-row"
+            [class.selected]="selected()?.id === image.id"
+            (click)="select(image)"
+            (keyup.enter)="select(image)"
+            tabindex="0"
+            role="button"
+          >
+            <div class="row-thumb">
+              @if (isVideoItem(image)) {
+                <div class="video-only-icon">▶</div>
+              } @else {
+                <img
+                  [src]="image.url"
+                  alt=""
+                  style="display: none"
+                  (load)="onImgLoad($event)"
+                  (error)="onImgError($event)"
+                />
+              }
+            </div>
+            <div class="row-info">
+              <span class="row-name">{{ image.username || image.id }}</span>
+              <div class="row-meta">
+                @if (image.recreatable === 'graph') {
+                  <span class="badge badge-accent">{{ 'images.badge.graph' | translate }}</span>
+                } @else if (image.recreatable === 'params') {
+                  <span class="badge badge-installed">{{ 'images.badge.params' | translate }}</span>
+                } @else {
+                  <span class="badge">{{ 'images.badge.none' | translate }}</span>
+                }
+                @if (image.baseModel) {
+                  <span class="tag-chip">{{ image.baseModel }}</span>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+      @if (hasMore()) {
+        <button class="btn-secondary load-more-btn" (click)="loadMore()" [disabled]="loadingMore()">
+          {{
+            loadingMore()
+              ? ('download_search.load_more.loading' | translate)
+              : ('download_search.load_more.load_more' | translate)
+          }}
+        </button>
+      }
+    </div>
+
+    @if (selected(); as image) {
+      <div class="detail-pane">
+        <div class="detail-header">
+          <div class="detail-title-row">
+            <h3 class="detail-title">{{ 'images.detail.title' | translate: { id: image.id } }}</h3>
+            <a
+              class="source-link"
+              [href]="'https://civitai.com/images/' + image.id"
+              target="_blank"
+              rel="noopener"
+              >{{ 'images.detail.view_on_civitai' | translate }}</a
+            >
+          </div>
+          <div class="detail-meta-row">
+            @if (image.baseModel) {
+              <span class="badge badge-accent">{{ image.baseModel }}</span>
+            }
+            @if (image.username) {
+              <span class="meta-author">{{ image.username }}</span>
+            }
+            <span class="meta-stat">{{ image.width }}×{{ image.height }}</span>
+          </div>
+        </div>
+
+        <div class="detail-body">
+          <div class="detail-media">
+            @if (isVideoItem(image)) {
+              <video class="detail-main-media" [src]="image.url" controls></video>
+            } @else {
+              <img
+                class="detail-main-media"
+                [src]="image.url"
+                alt=""
+                (error)="onImgError($event)"
+              />
+            }
+            @if (image.meta?.prompt) {
+              <div class="detail-prompt">
+                <div class="detail-section-title">{{ 'images.detail.prompt' | translate }}</div>
+                <p class="prompt-text">{{ image.meta?.prompt }}</p>
+              </div>
+            }
+            @if (image.meta?.negativePrompt) {
+              <div class="detail-prompt">
+                <div class="detail-section-title">
+                  {{ 'images.detail.negative_prompt' | translate }}
+                </div>
+                <p class="prompt-text">{{ image.meta?.negativePrompt }}</p>
+              </div>
+            }
+          </div>
+
+          <div class="detail-side">
+            @if (selectedParams().length > 0) {
+              <div class="detail-section-title">{{ 'images.detail.parameters' | translate }}</div>
+              <dl class="param-grid">
+                @for (row of selectedParams(); track row.key) {
+                  <dt>{{ row.key | translate }}</dt>
+                  <dd>{{ row.value }}</dd>
+                }
+              </dl>
+            }
+
+            <div class="recreate-block">
+              @if (image.recreatable === '') {
+                <p class="detail-hint recreate-disabled">
+                  {{ 'images.recreate.unavailable' | translate }}
+                </p>
+              } @else {
+                <p class="detail-hint">
+                  {{
+                    image.recreatable === 'graph'
+                      ? ('images.recreate.hint_graph' | translate)
+                      : ('images.recreate.hint_params' | translate)
+                  }}
+                </p>
+              }
+              <button
+                class="btn-primary recreate-btn"
+                (click)="recreate()"
+                [disabled]="image.recreatable === '' || recreating()"
+              >
+                {{
+                  recreating()
+                    ? ('images.recreate.working' | translate)
+                    : ('images.recreate.action' | translate)
+                }}
+              </button>
+              @if (recreateError()) {
+                <p class="recreate-error">{{ recreateError() }}</p>
+              }
+            </div>
+
+            @if (recreated(); as result) {
+              <div class="recreate-result">
+                <p class="recreate-success">
+                  {{ 'images.recreate.stored' | translate: { name: result.workflow.name } }}
+                </p>
+                @if (result.template_warning) {
+                  <p class="recreate-warning">
+                    {{
+                      'images.recreate.template_warning' | translate: { base: result.base_model }
+                    }}
+                  </p>
+                }
+
+                @if (result.resources.length > 0) {
+                  <div class="detail-section-title">
+                    {{ 'images.resources.title' | translate }}
+                  </div>
+                  <div class="resource-list">
+                    @for (resource of result.resources; track resourceKey(resource)) {
+                      <div class="resource-row">
+                        <div class="resource-info">
+                          <span class="resource-status" [class]="'status-' + resource.status">{{
+                            resource.status === 'installed'
+                              ? '✓'
+                              : resource.status === 'missing'
+                                ? '⬇'
+                                : '⚠'
+                          }}</span>
+                          <span class="resource-name">{{ resourceLabel(resource) }}</span>
+                          <span class="tag-chip">{{ resource.kind }}</span>
+                        </div>
+                        @if (resource.status === 'missing') {
+                          <button
+                            class="btn-secondary btn-small"
+                            (click)="downloadResource(resource)"
+                            [disabled]="downloadingResource() === resourceKey(resource)"
+                          >
+                            {{
+                              downloadingResource() === resourceKey(resource)
+                                ? ('images.resources.queuing' | translate)
+                                : ('images.resources.download' | translate)
+                            }}
+                          </button>
+                        } @else if (resource.status === 'unresolvable') {
+                          <span class="resource-note">{{
+                            'images.resources.unresolvable' | translate
+                          }}</span>
+                        }
+                      </div>
+                    }
+                  </div>
+                  @if (missingResources().length > 0) {
+                    <p class="detail-hint">{{ 'images.resources.missing_hint' | translate }}</p>
+                  }
+                }
+                <p class="detail-hint">{{ 'images.recreate.where' | translate }}</p>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+}

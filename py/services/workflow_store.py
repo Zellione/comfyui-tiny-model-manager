@@ -29,7 +29,7 @@ import httpx
 
 from .. import config as cfg
 from ..db import workflow_repo
-from . import media_cleanup, model_paths
+from . import image_recreate, media_cleanup, model_paths
 from .providers import civitai
 from .url_guard import RedirectNotAllowed, guarded_stream, is_allowed_url
 
@@ -97,13 +97,9 @@ def _safe_graph_filename(name: str) -> str:
     return f"{cleaned[:120]}{_JSON_EXT}"
 
 
-def _is_comfy_graph(data: object) -> bool:
-    """True for a ComfyUI frontend workflow graph.
-
-    Real payloads carry ``nodes`` plus ``links``/``last_node_id``; requiring the node list
-    alone is enough to reject readme JSON, package manifests and API-format prompts.
-    """
-    return isinstance(data, dict) and isinstance(data.get("nodes"), list)
+# The graph-shape predicate lives in image_recreate, which has no ComfyUI imports and so
+# stays importable on its own. Re-exported here because extract_graphs is its main user.
+is_comfy_graph = image_recreate.is_comfy_graph
 
 
 def _graph_from_bytes(raw: bytes) -> dict | None:
@@ -112,7 +108,7 @@ def _graph_from_bytes(raw: bytes) -> dict | None:
     except ValueError:
         # UnicodeDecodeError is a ValueError subclass, so undecodable bytes land here too.
         return None
-    return parsed if _is_comfy_graph(parsed) else None
+    return parsed if is_comfy_graph(parsed) else None
 
 
 def _is_graph_member(info: zipfile.ZipInfo) -> bool:
@@ -285,6 +281,42 @@ async def download_workflow(model_id: str, version_id: str = "") -> dict:
     stored = await _store_graphs(entry_id, media_hash, version, graphs)
     await _download_media(media_hash, image_urls)
     return {"entry_id": entry_id, "workflows": stored}
+
+
+async def store_recreated_graph(
+    image_id: str,
+    name: str,
+    graph: dict,
+    base_model: str = "",
+    thumbnail_url: str = "",
+    description: str = "",
+) -> dict:
+    """Store a graph recreated from a CivitAI image (F-130) as a workflow entry.
+
+    Recreated graphs live in the same tables as downloaded ones, so Load-in-ComfyUI,
+    Export and the raw-JSON download all work on them unchanged. The ``civitai-image``
+    platform keeps their media hashes in a separate space from ``civitai`` workflow pages,
+    and re-recreating the same image upserts instead of duplicating — the entry is keyed
+    on (platform, page id) and the graph on (entry, relative path).
+    """
+    media_hash = workflow_media_hash("civitai-image", str(image_id))
+    entry_id = await workflow_repo.upsert_workflow_entry(
+        source_platform="civitai-image",
+        source_page_id=str(image_id),
+        source_page_url=f"https://civitai.com/images/{image_id}",
+        display_name=name,
+        description=description,
+        base_model=base_model,
+        tags=[],
+        thumbnail_url=thumbnail_url,
+        media_hash=media_hash,
+    )
+    stored = await _store_graphs(
+        entry_id, media_hash, {"id": "", "name": ""}, [(_safe_graph_filename(name), graph)]
+    )
+    if thumbnail_url:
+        await _download_media(media_hash, [thumbnail_url])
+    return {"entry_id": entry_id, "workflow": stored[0]}
 
 
 async def _download_media(media_hash: str, image_urls: list[str]) -> None:

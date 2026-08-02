@@ -13,7 +13,8 @@
     "download": "Download",
     "settings": "Settings",
     "theme_to_light": "Switch to light mode",
-    "theme_to_dark": "Switch to dark mode"
+    "theme_to_dark": "Switch to dark mode",
+    "images": "Images"
   },
   "app": {
     "download_complete": "Download complete: {{filename}}",
@@ -451,6 +452,84 @@
       "open_failed": "Could not hand the workflow to ComfyUI.",
       "export_failed": "Export failed.",
       "delete_failed": "Could not delete the workflow."
+    }
+  },
+  "images": {
+    "title": "Images",
+    "hint": "Browse CivitAI's image feed and rebuild the workflow that made an image. CivitAI has no text search for images — use the filters.",
+    "filter": {
+      "nsfw_label": "Content rating",
+      "type_label": "Media type",
+      "recreatable_only": "Recreatable only",
+      "hidden_count": "({{count}} hidden)"
+    },
+    "sort": {
+      "most_reactions": "Most Reactions",
+      "most_comments": "Most Comments",
+      "newest": "Newest"
+    },
+    "nsfw": {
+      "none": "Safe",
+      "soft": "Soft",
+      "mature": "Mature",
+      "x": "X"
+    },
+    "type": {
+      "image": "Images",
+      "video": "Videos"
+    },
+    "badge": {
+      "graph": "Graph",
+      "params": "Params",
+      "none": "No metadata"
+    },
+    "empty": {
+      "no_results": "No images matched these filters."
+    },
+    "detail": {
+      "title": "Image {{id}}",
+      "view_on_civitai": "View on CivitAI",
+      "prompt": "Prompt",
+      "negative_prompt": "Negative prompt",
+      "parameters": "Generation parameters"
+    },
+    "param": {
+      "model": "Model",
+      "sampler": "Sampler",
+      "scheduler": "Scheduler",
+      "steps": "Steps",
+      "cfg": "CFG scale",
+      "seed": "Seed",
+      "clip_skip": "Clip skip"
+    },
+    "recreate": {
+      "action": "Recreate workflow",
+      "working": "Recreating…",
+      "hint_graph": "This image ships its original ComfyUI graph — it is restored exactly.",
+      "hint_params": "This image has generation parameters only, so the workflow is rebuilt from a template.",
+      "unavailable": "This image has no usable generation metadata, so it cannot be recreated.",
+      "stored": "Recreated and stored as \"{{name}}\".",
+      "where": "Find it under Workflows → Installed to load, export or download it.",
+      "template_warning": "The template is shaped for SD/SDXL. \"{{base}}\" needs a different node layout, so this graph will load but is unlikely to run unmodified."
+    },
+    "resources": {
+      "title": "Referenced models",
+      "download": "Download",
+      "queuing": "Queuing…",
+      "unresolvable": "Not found on CivitAI",
+      "missing_hint": "Missing models are downloaded only when you click Download."
+    },
+    "notify": {
+      "recreated": "Recreated workflow: {{name}}",
+      "download_queued": "Queued download: {{name}}"
+    },
+    "error": {
+      "search_failed": "Could not load images.",
+      "not_found": "This image no longer exists on CivitAI.",
+      "no_metadata": "This image has no usable generation metadata.",
+      "provider_unavailable": "CivitAI is unreachable right now.",
+      "recreate_failed": "Could not recreate the workflow.",
+      "download_failed": "Could not queue the download."
     }
   }
 }

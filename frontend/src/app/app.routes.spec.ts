@@ -45,6 +45,12 @@ describe('app routes', () => {
     expect(route?.params['platform']).toBe('civitai');
   });
 
+  it('routes the single-segment /images path without colliding with models/:platform', async () => {
+    await router.navigateByUrl('/images');
+    const route = router.routerState.snapshot.root.firstChild;
+    expect(route?.routeConfig?.path).toBe('images');
+  });
+
   it('routes a three-segment path to the model detail page', async () => {
     await router.navigateByUrl('/models/loras/loras%2Flocal.safetensors');
     const route = router.routerState.snapshot.root.firstChild;

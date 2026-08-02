@@ -14,15 +14,15 @@ py/                    # Python backend
     model_repo.py      # main persistence layer (includes search_tags, get_registered_filenames, register_model)
     workflow_repo.py   # F-129 persistence for workflow_entries + workflows
     keyword_repo.py    # trigger-word persistence
-  routes/              # aiohttp route handlers: catalog, download, metadata, models, settings, workflow (node insert), workflows (workflow store), notifications, static, tags, _helpers
-  services/            # business logic: downloader, metadata_fetcher, model_paths, reconciler, reorganizer, url_guard, backend_notifier, disk_scanner, auto_migrator, workflow_store
+  routes/              # aiohttp route handlers: catalog, download, metadata, models, settings, workflow (node insert), workflows (workflow store), images (F-130), notifications, static, tags, _helpers
+  services/            # business logic: downloader, metadata_fetcher, model_paths, reconciler, reorganizer, url_guard, backend_notifier, disk_scanner, auto_migrator, workflow_store, image_recreate
     providers/         # civitai_provider, huggingface_provider (both implement base.py)
   nodes/               # ComfyUI nodes: lora_loader_with_triggers, checkpoint_loader_with_triggers, vae_loader, controlnet_loader, embedding_helper, upscale_model_loader
 frontend/              # Angular SPA (builds to ../web/)
   src/app/
-    pages/             # download, catalog-detail, model-detail, models, settings, workflows
+    pages/             # download, catalog-detail, model-detail, models, settings, workflows, images
     components/        # shared UI: toast, media-gallery, edit-meta-form, text-diff-field, tag-autocomplete-input, …
-    services/          # Angular services: civitai, huggingface, download, model, keywords, settings, notification, installed-files, workflow (node insert), workflow-store (F-129), tags
+    services/          # Angular services: civitai, huggingface, download, model, keywords, settings, notification, installed-files, workflow (node insert), workflow-store (F-129), image (F-130), tags
 js/                    # ComfyUI JS extension; whole folder copied into web/ by ng build
   extension.js         # registerExtension wiring: settings, topbar button, workflow-insert poll
   workflow-insert.js   # dependency-injected insert logic (no ComfyUI imports) — unit-testable;
@@ -202,10 +202,50 @@ in `routes/__init__.py` and must not be conflated.
 - Test stubs: both conftests' `folder_paths` stub now has `base_path`, `user_directory` and
   `get_user_directory()`; patch the `user_directory` attribute to redirect an export.
 
-## Frontend routes (F-128, F-129)
+## Images → workflow recreation (F-130)
 
-The nav tab set is **Models / Workflows / Download / Settings** (`frontend/src/app/app.html`);
-#130 adds Images next to Workflows. `frontend/src/app/app.routes.ts`:
+Browse CivitAI's image feed and rebuild the generating ComfyUI workflow. **No image is ever
+downloaded and no PNG metadata is parsed** — see the CivitAI images API section in
+`mem:conventions` for the four API facts that shape this whole feature.
+
+- `services/image_recreate.py` — sync + pure, the main unit-test target, and deliberately
+  **free of ComfyUI imports** so it is importable without the `folder_paths` stub. That is
+  why `is_comfy_graph` lives here and `workflow_store` re-exports it (heavy → light, never
+  the reverse). Public API: `classify_meta` (`"graph"`/`"params"`/`""`), `graph_from_comfy`,
+  `parse_lora_tags`, `referenced_resources`, `build_template_graph`, `needs_template_warning`.
+- `build_template_graph` emits the **UI graph format** (`nodes`/`links`/`last_node_id`), not
+  the API/prompt format — both `loadGraphData()` and `is_comfy_graph` want that one. Layout is
+  `CheckpointLoaderSimple → LoraLoader ×N → CLIPTextEncode ×2 → EmptyLatentImage → KSampler →
+  VAEDecode → SaveImage`. It is emitted for **every** base model by decision; callers surface
+  `needs_template_warning(base_model)` so the UI can say it will not run unmodified outside
+  SD/SDXL.
+- `referenced_resources` merges four sources with different vocabularies. **The legacy
+  `resources` array types the checkpoint as `"model"` while `civitaiResources` says
+  `"checkpoint"`** — `_kind_of` folds them, otherwise the same checkpoint is listed twice.
+  `weight` stays `None` until a source actually states one (coerced to 1.0 at the end):
+  defaulting it early lets weightless `hashes` win the merge over the prompt tag that carries
+  the real strength. There is a regression test for exactly that.
+- `workflow_store.store_recreated_graph(image_id, name, graph, …)` reuses the F-129 tables with
+  `source_platform="civitai-image"`, so recreated graphs appear under **Workflows → Installed**
+  with Load/Export/JSON for free, and `UNIQUE (entry_id, local_path)` makes re-recreating an
+  upsert. `get_live_media_hashes()` already unions `workflow_entries`, so their thumbnails
+  survive `cleanup_stale_media()` — there is a test asserting it.
+- `routes/images.py` — `GET /api/images/search`, `GET /api/images/{id}`,
+  `POST /api/images/{id}/recreate`, `POST /api/images/resolve-resources`. Seams to monkeypatch:
+  `_civitai_image_search`, `_civitai_version_info`, `_civitai_hash_info`.
+- **Resource resolution never fails the batch.** Per resource: local hit (AutoV2 prefix vs
+  `model_repo.get_file_hash_map()`) → `installed`; else CivitAI lookup → `missing` with a
+  download URL; lookup returns nothing or raises → `unresolvable`. Missing models are
+  downloaded only on an explicit click, through the existing `POST /api/download`.
+- `CivitaiProvider.version_download_info` / `hash_download_info` are **single-request** lookups
+  (no model-page enrichment, unlike `lookup_by_*`): one recreated workflow can reference a
+  dozen LoRAs and doubling the request count per resource is not worth a description nobody
+  shows.
+
+## Frontend routes (F-128, F-129, F-130)
+
+The nav tab set is **Models / Workflows / Images / Download / Settings**
+(`frontend/src/app/app.html`). `frontend/src/app/app.routes.ts`:
 
 | path | component |
 |---|---|
@@ -214,6 +254,7 @@ The nav tab set is **Models / Workflows / Download / Settings** (`frontend/src/a
 | `models/:platform` | `CatalogDetail` — takes `?pageId=` |
 | `models/:type/:path` | `ModelDetail` (`:path` is a filename that may contain `/`, so `routerLink` array form encodes it) |
 | `workflows` | `Workflows` — shell with a `browse`/`installed` toggle over `WorkflowsBrowse` + `WorkflowsInstalled` |
+| `images` | `Images` (F-130) — single page; the installed side lives in Workflows → Installed |
 | `download`, `settings` | `Download`, `Settings` |
 | `catalog`, `catalog/:platform` | legacy redirects → `models…` |
 

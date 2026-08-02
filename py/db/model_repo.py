@@ -1049,6 +1049,20 @@ async def get_registered_filenames() -> set[str]:
         return {row["filename"] for row in rows}
 
 
+async def get_file_hash_map() -> dict[str, str]:
+    """Map every known SHA-256 (lowercased) to the filename it is registered under.
+
+    CivitAI reports resource hashes as AutoV2, which is literally the first 10 hex
+    characters of the SHA-256 — verified against the API — so callers match with a prefix
+    compare against these keys rather than needing a second hash column.
+    """
+    async with get_db() as db:
+        rows = await (
+            await db.execute("SELECT filename, file_hash FROM models WHERE file_hash != ''")
+        ).fetchall()
+        return {row["file_hash"].lower(): row["filename"] for row in rows if row["file_hash"]}
+
+
 async def register_model(
     filename: str,
     model_type: str,
