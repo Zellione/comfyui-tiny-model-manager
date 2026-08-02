@@ -1287,7 +1287,7 @@ describe('Models component', () => {
       const el = fixture.nativeElement as HTMLElement;
       expect(el.querySelector('app-file-picker-popover')).toBeNull();
       const buttons = addButtons(el);
-      expect(buttons.length).toBe(1);
+      expect(buttons).toHaveLength(1);
 
       buttons[0].click();
       expect(mockWorkflowService.addToWorkflow).toHaveBeenCalledWith('loras', 'sdxl/a.safetensors');
@@ -1308,7 +1308,7 @@ describe('Models component', () => {
         makeEntry({ installed_files: [file('a.safetensors', 'clip')] }),
       ]);
       const el = fixture.nativeElement as HTMLElement;
-      expect(addButtons(el).length).toBe(0);
+      expect(addButtons(el)).toHaveLength(0);
       expect(el.querySelector('app-file-picker-popover')).toBeNull();
     });
 
@@ -1323,7 +1323,7 @@ describe('Models component', () => {
       const fixture = await createFixture();
       fixture.detectChanges();
       const buttons = addButtons(fixture.nativeElement as HTMLElement);
-      expect(buttons.length).toBe(1);
+      expect(buttons).toHaveLength(1);
 
       buttons[0].click();
       expect(mockWorkflowService.addToWorkflow).toHaveBeenCalledWith('loras', 'orphan.safetensors');
@@ -1338,7 +1338,7 @@ describe('Models component', () => {
       );
       const fixture = await createFixture();
       fixture.detectChanges();
-      expect(addButtons(fixture.nativeElement as HTMLElement).length).toBe(0);
+      expect(addButtons(fixture.nativeElement as HTMLElement)).toHaveLength(0);
     });
   });
 });

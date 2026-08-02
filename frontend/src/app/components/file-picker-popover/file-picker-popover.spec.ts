@@ -64,7 +64,7 @@ describe('FilePickerPopover', () => {
     getTriggerHost().click();
     fixture.detectChanges();
     const items = getItems();
-    expect(items.length).toBe(2);
+    expect(items).toHaveLength(2);
     expect(items[0].querySelector('.fp-item-name')!.textContent).toContain('model-a.safetensors');
     expect(items[0].querySelector('.fp-item-sub')!.textContent).toContain('loras');
     expect(items[1].querySelector('.fp-item-name')!.textContent).toContain('model-b.safetensors');
