@@ -54,12 +54,11 @@ async def _delete_model(request):
         if candidate is None:
             continue
         if os.path.isfile(candidate):
-            # Read the media info first: the rows cascade away with the model row.
-            media = await model_repo.get_model_media_info(rel_path)
+            # Read the media hash first: the row is gone after the delete below.
+            media_hash = await model_repo.get_model_media_hash(rel_path)
             os.remove(candidate)
             await model_repo.delete_model_record(rel_path)
-            if media:
-                await media_cleanup.cleanup_model_media(media["media_hash"], media["paths"])
+            await media_cleanup.cleanup_model_media(media_hash)
             await model_repo.update_download_history_status_by_path(model_type, rel_path, "deleted")
             return ok()
     return err("File not found", status=404)

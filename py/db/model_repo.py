@@ -888,25 +888,17 @@ async def get_model_media(model_id: int) -> list[dict]:
         return [dict(r) for r in rows]
 
 
-async def get_model_media_info(filename: str) -> dict | None:
-    """Return ``{"media_hash", "paths"}`` for a model, or None when it has no row.
+async def get_model_media_hash(filename: str) -> str:
+    """Return a model's media_hash, or "" when it has no row or no media directory.
 
-    Read before deleting the model so the media files can be cleaned up afterwards —
-    ``model_media`` rows go away with the model via ON DELETE CASCADE.
+    Read before deleting the model: the hash is what locates the media on disk, and
+    the ``model_media`` rows go away with the model via ON DELETE CASCADE.
     """
     async with get_db() as db:
         row = await (
-            await db.execute("SELECT id, media_hash FROM models WHERE filename = ?", (filename,))
+            await db.execute("SELECT media_hash FROM models WHERE filename = ?", (filename,))
         ).fetchone()
-        if not row:
-            return None
-        rows = await (
-            await db.execute("SELECT local_path FROM model_media WHERE model_id = ?", (row["id"],))
-        ).fetchall()
-        return {
-            "media_hash": row["media_hash"] or "",
-            "paths": [r["local_path"] for r in rows],
-        }
+        return row["media_hash"] or "" if row else ""
 
 
 async def get_live_media_hashes() -> set[str]:

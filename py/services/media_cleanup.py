@@ -6,16 +6,21 @@ model's hash on the catalog entry as well — and the catalog gallery is meant t
 outlive the installed file. Every deletion here is therefore gated on the hash no
 longer being referenced by any ``models`` or ``catalog_entries`` row, so uninstalling
 one model never empties the gallery of the item it came from.
+
+Nothing is deleted by absolute path. Every destructive call takes the media root plus
+a single entry name and resolves it through ``model_paths.contained_path``, so a name
+that escapes the media directory is dropped before it can reach ``os.remove`` or
+``shutil.rmtree``.
 """
 
 import logging
 import os
 import re
 import shutil
-from collections.abc import Iterable
 
 from .. import config as cfg
 from ..db import model_repo
+from . import model_paths
 
 _log = logging.getLogger("tiny-model-manager")
 
@@ -28,58 +33,56 @@ def media_subdir(media_hash: str) -> str:
     """Return the per-model media directory, guarding against path traversal."""
     if not _MEDIA_HASH_RE.fullmatch(media_hash):
         raise ValueError(f"Invalid media hash: {media_hash!r}")
-    base = os.path.realpath(cfg.media_dir())
-    resolved = os.path.realpath(os.path.join(base, media_hash))
-    # Defense-in-depth: the allowlist above already rejects separators, but
-    # explicitly confirm the resolved path stays inside the media directory so
-    # the safe boundary is enforced at the point where the path is constructed.
-    if resolved != base and not resolved.startswith(base + os.sep):
+    # Defense-in-depth: the allowlist above already rejects separators, but the
+    # containment check confirms the resolved path stays inside the media directory
+    # at the point where the path is constructed.
+    resolved = model_paths.contained_path(cfg.media_dir(), media_hash)
+    if resolved is None:
         raise ValueError(f"Invalid media hash: {media_hash!r}")
     return resolved
 
 
-def _remove_files(paths: Iterable[str]) -> int:
-    """Delete the given files, ignoring the ones already gone. Returns the count removed."""
-    removed = 0
-    for path in paths:
-        try:
-            if os.path.isfile(path):
-                os.remove(path)
-                removed += 1
-        except OSError:
-            _log.warning("Could not delete media file %s", path, exc_info=True)
-    return removed
+def _remove_file(base: str, name: str) -> int:
+    """Delete one file directly inside ``base``. Returns 1 when it was removed."""
+    path = model_paths.contained_path(base, name)
+    if path is None or not os.path.isfile(path):
+        return 0
+    try:
+        os.remove(path)
+        return 1
+    except OSError:
+        # The path is in the OSError itself; keep it out of the message so the log
+        # never echoes back a name that came from outside.
+        _log.warning("Could not delete a stale media file", exc_info=True)
+        return 0
 
 
-def _remove_tree(path: str) -> int:
-    """Delete a media directory and return how many files it held."""
-    if not os.path.isdir(path):
+def _remove_tree(base: str, name: str) -> int:
+    """Delete one directory inside ``base`` and return how many files it held."""
+    path = model_paths.contained_path(base, name)
+    if path is None or not os.path.isdir(path):
         return 0
     count = sum(len(files) for _, _, files in os.walk(path))
     shutil.rmtree(path, ignore_errors=True)
     return count
 
 
-async def cleanup_model_media(media_hash: str, media_paths: list[str]) -> int:
+async def cleanup_model_media(media_hash: str) -> int:
     """Delete the media of a just-deleted model. Returns the number of files removed.
 
     Must be called *after* the ``models`` row is gone: the reference check reads the
     post-delete state, so a hash that is still listed belongs to the catalog entry or
     to another model and its files are left alone.
+
+    A model with no hash has nothing to clean — ``migrate_existing_media`` assigns one
+    on startup to every model that owns media rows, and models registered from disk
+    have neither.
     """
-    if media_hash:
-        if media_hash in await model_repo.get_live_media_hashes():
-            return 0
-        try:
-            target = media_subdir(media_hash)
-        except ValueError:
-            _log.warning("Refusing to clean up invalid media hash %r", media_hash)
-            return 0
-        return _remove_tree(target)
-    # Rows predating F-58 have no hash — fall back to the individual files, keeping
-    # any path another model still references.
-    referenced = await model_repo.get_all_media_paths()
-    return _remove_files(p for p in media_paths if os.path.realpath(p) not in referenced)
+    if not media_hash or not _MEDIA_HASH_RE.fullmatch(media_hash):
+        return 0
+    if media_hash in await model_repo.get_live_media_hashes():
+        return 0
+    return _remove_tree(cfg.media_dir(), media_hash)
 
 
 def _report(dirs: int, files: int) -> None:
@@ -101,7 +104,7 @@ async def cleanup_stale_media() -> dict:
     """
     if not cfg.load_settings().get("cleanup_stale_media_on_start"):
         return dict(_EMPTY_RESULT)
-    base = os.path.realpath(cfg.media_dir())
+    base = cfg.media_dir()
     if not os.path.isdir(base):
         return dict(_EMPTY_RESULT)
 
@@ -110,12 +113,14 @@ async def cleanup_stale_media() -> dict:
     dirs = 0
     files = 0
     for name in sorted(os.listdir(base)):
-        full = os.path.join(base, name)
+        full = model_paths.contained_path(base, name)
+        if full is None:
+            continue
         if os.path.isdir(full):
             if name not in live:
-                files += _remove_tree(full)
+                files += _remove_tree(base, name)
                 dirs += 1
-        elif os.path.realpath(full) not in referenced:
-            files += _remove_files([full])
+        elif full not in referenced:
+            files += _remove_file(base, name)
     _report(dirs, files)
     return {"dirs": dirs, "files": files}

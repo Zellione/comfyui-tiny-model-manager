@@ -60,9 +60,9 @@ class TestCleanupModelMedia:
     async def test_deletes_media_dir_when_hash_is_unreferenced(self, media_root):
         from py.services.media_cleanup import cleanup_model_media
 
-        paths = _make_media_dir(media_root, "orphan", "0.jpg", "1.mp4")
+        _make_media_dir(media_root, "orphan", "0.jpg", "1.mp4")
 
-        removed = await cleanup_model_media("orphan", paths)
+        removed = await cleanup_model_media("orphan")
 
         assert removed == 2
         assert not os.path.isdir(os.path.join(media_root, "orphan"))
@@ -76,7 +76,7 @@ class TestCleanupModelMedia:
             "civitai", "123", "", "Entry", "", "", media_hash="shared"
         )
 
-        removed = await cleanup_model_media("shared", paths)
+        removed = await cleanup_model_media("shared")
 
         assert removed == 0
         assert os.path.isfile(paths[0])
@@ -87,32 +87,18 @@ class TestCleanupModelMedia:
         paths = _make_media_dir(media_root, "shared")
         await _register_model("other.safetensors", "shared", paths)
 
-        removed = await cleanup_model_media("shared", paths)
+        removed = await cleanup_model_media("shared")
 
         assert removed == 0
         assert os.path.isfile(paths[0])
 
-    async def test_falls_back_to_listed_paths_without_a_hash(self, media_root):
+    async def test_hashless_model_deletes_nothing(self, media_root):
         from py.services.media_cleanup import cleanup_model_media
 
         legacy = os.path.join(media_root, "legacy.jpg")
         open(legacy, "wb").close()
 
-        removed = await cleanup_model_media("", [legacy])
-
-        assert removed == 1
-        assert not os.path.exists(legacy)
-
-    async def test_fallback_keeps_paths_another_model_references(self, media_root):
-        from py.services.media_cleanup import cleanup_model_media
-
-        legacy = os.path.join(media_root, "legacy.jpg")
-        open(legacy, "wb").close()
-        await _register_model("other.safetensors", "", [legacy])
-
-        removed = await cleanup_model_media("", [legacy])
-
-        assert removed == 0
+        assert await cleanup_model_media("") == 0
         assert os.path.isfile(legacy)
 
     async def test_invalid_hash_deletes_nothing(self, media_root):
@@ -120,7 +106,7 @@ class TestCleanupModelMedia:
 
         victim = _make_media_dir(media_root, "keepme")[0]
 
-        removed = await cleanup_model_media("../keepme", [])
+        removed = await cleanup_model_media("../keepme")
 
         assert removed == 0
         assert os.path.isfile(victim)

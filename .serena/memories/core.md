@@ -134,10 +134,15 @@ civitai_version_id, civitai_model_id, model_type, thumbnail}`.
   `model_repo.get_live_media_hashes()` (union of `models.media_hash` + `catalog_entries.media_hash`)
   read **after** the model row is gone. For CivitAI, extra versions get their own hash
   (`sha1("civitai:<version_id>")`) and *are* cleaned; the one the catalog adopted is not.
-- `cleanup_model_media(media_hash, paths)` — called from `routes/models.py::_delete_model` after
-  `delete_model_record`. Media info must be read *before* the delete (`get_model_media_info`):
-  `model_media` rows cascade away with the model. Hash-less (pre-F-58) rows fall back to
-  per-path deletion filtered by `get_all_media_paths()`.
+- `cleanup_model_media(media_hash)` — called from `routes/models.py::_delete_model` after
+  `delete_model_record`. The hash must be read *before* the delete (`get_model_media_hash`).
+  A hash-less model is a no-op: `migrate_existing_media` assigns a hash on startup to every
+  model owning media rows, and disk-registered models have neither.
+- **Nothing is deleted by absolute path.** Every destructive call takes `(base, name)` and
+  resolves it through `model_paths.contained_path` — Sonar's taint analysis (S2083/S6549)
+  flags `os.remove`/`shutil.rmtree`/`os.walk` reached by a path built from request or
+  settings data, and that guard is the sanitizer it accepts (same shape as `_delete_model`).
+  Do not reintroduce a "delete these DB paths" helper.
 - `cleanup_stale_media()` — opt-in via the `cleanup_stale_media_on_start` setting, run from
   `routes/__init__.py::_startup` right after `prune_stale_models()` so records that vanished
   free their media in the same pass. Directory granularity (a dir whose name is no live hash),
