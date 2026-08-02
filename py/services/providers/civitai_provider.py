@@ -26,6 +26,25 @@ CIVITAI_REVERSE_TYPE_MAP = {
 }
 
 
+_VERSION_NOTES_SEPARATOR = "<hr><h3>Version notes</h3>"
+
+
+def _compose_description(model_description: str, version_description: str) -> str:
+    """Join the model-page description with the version changelog below it.
+
+    CivitAI's ``description`` on a model version is the version changelog, not the model
+    description — they are different texts and both are worth keeping. Either side may be
+    missing, in which case the other is used on its own.
+    """
+    model_description = (model_description or "").strip()
+    version_description = (version_description or "").strip()
+    if not model_description:
+        return version_description
+    if not version_description:
+        return model_description
+    return f"{model_description}{_VERSION_NOTES_SEPARATOR}{version_description}"
+
+
 def _version_to_metadata(data: dict) -> dict:
     """Flatten a CivitAI model-version response into the registration metadata shape.
 
@@ -38,7 +57,9 @@ def _version_to_metadata(data: dict) -> dict:
     return {
         "name": model.get("name", ""),
         "base_model": data.get("baseModel", ""),
-        "description": data.get("description") or model.get("description") or "",
+        "description": _compose_description(
+            model.get("description") or "", data.get("description") or ""
+        ),
         "tags": model.get("tags") or [],
         "trigger_words": data.get("trainedWords") or [],
         "version_name": data.get("name", ""),
@@ -182,6 +203,34 @@ class CivitaiProvider(ModelProvider):
             )
         return result
 
+    async def _fetch_model_page(self, model_id) -> dict:
+        """Fetch the parent model page; returns ``{}`` when it is missing or unreachable.
+
+        The model-version endpoints embed only ``{name, type, nsfw, poi}`` for the parent
+        model — description and tags live on the model page and need a second request.
+        """
+        if not model_id:
+            return {}
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(f"{_BASE}/models/{model_id}", headers=self.auth_headers())
+        return resp.json() if resp.is_success else {}
+
+    async def _enrich_version(self, data: dict) -> dict:
+        """Flatten a version response after splicing in its model page's description and tags."""
+        model_page = await self._fetch_model_page(data.get("modelId"))
+        if not model_page:
+            return _version_to_metadata(data)
+        model = data.get("model") or {}
+        merged = {
+            **data,
+            "model": {
+                **model,
+                "description": model_page.get("description") or "",
+                "tags": model_page.get("tags") or model.get("tags") or [],
+            },
+        }
+        return _version_to_metadata(merged)
+
     async def fetch_metadata(self, source_id: str) -> ProviderMetadata:
         """Returns description, trigger words, image URLs, tags, base model, and model ID for a version."""
         version_id = int(source_id)
@@ -192,32 +241,19 @@ class CivitaiProvider(ModelProvider):
             resp.raise_for_status()
             data = resp.json()
         image_urls = [img["url"] for img in data.get("images", [])[:5] if img.get("url")]
-        description = data.get("description") or ""
-        base_model = data.get("baseModel", "")
-        version_name = data.get("name", "")
-        tags: list[str] = []
         model_id = data.get("modelId")
-        civitai_model_id = str(model_id) if model_id else ""
-        display_name = ""
-        if model_id:
-            async with httpx.AsyncClient(timeout=15) as client:
-                model_resp = await client.get(
-                    f"{_BASE}/models/{model_id}", headers=self.auth_headers()
-                )
-                if model_resp.is_success:
-                    model_data = model_resp.json()
-                    description = description or model_data.get("description") or ""
-                    tags = model_data.get("tags", [])
-                    display_name = model_data.get("name", "")
+        model_data = await self._fetch_model_page(model_id)
         return ProviderMetadata(
-            description=description,
+            description=_compose_description(
+                model_data.get("description") or "", data.get("description") or ""
+            ),
             trigger_words=data.get("trainedWords", []),
             image_urls=image_urls,
-            tags=tags,
-            base_model=base_model,
-            civitai_model_id=civitai_model_id,
-            civitai_version_name=version_name,
-            display_name=display_name,
+            tags=model_data.get("tags", []),
+            base_model=data.get("baseModel", ""),
+            civitai_model_id=str(model_id) if model_id else "",
+            civitai_version_name=data.get("name", ""),
+            display_name=model_data.get("name", ""),
         )
 
     async def lookup_by_hash(self, sha256: str) -> dict | None:
@@ -231,7 +267,7 @@ class CivitaiProvider(ModelProvider):
                 return None
             resp.raise_for_status()
             data = resp.json()
-        return _version_to_metadata(data)
+        return await self._enrich_version(data)
 
     async def lookup_by_version_id(self, version_id: str | int) -> dict | None:
         """Look up a model version by its CivitAI version ID. Returns None if not found."""
@@ -244,7 +280,7 @@ class CivitaiProvider(ModelProvider):
                 return None
             resp.raise_for_status()
             data = resp.json()
-        return _version_to_metadata(data)
+        return await self._enrich_version(data)
 
     async def lookup_by_model_id(self, model_id: str | int, version_id: str = "") -> dict | None:
         """Look up a model page by its CivitAI model ID.

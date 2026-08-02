@@ -170,6 +170,29 @@ class TestFetchMetadata:
         assert "fantasy" in meta.tags
         assert meta.civitai_model_id == "111"
 
+    async def test_description_prefers_model_page_over_version_notes(self, provider, monkeypatch):
+        """The version 'description' is a changelog; the model page holds the real description."""
+        version_data = {
+            "trainedWords": [],
+            "description": "Changelog",
+            "baseModel": "",
+            "images": [],
+            "modelId": 112,
+        }
+        model_data = {"description": "Model page description", "tags": []}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            url = str(request.url)
+            if "model-versions" in url:
+                return httpx.Response(200, json=version_data)
+            if "/models/112" in url:
+                return httpx.Response(200, json=model_data)
+            return httpx.Response(404)
+
+        _patch_civitai_client(monkeypatch, httpx.MockTransport(handler))
+        meta = await provider.fetch_metadata("9999")
+        assert meta.description == ("Model page description<hr><h3>Version notes</h3>Changelog")
+
     async def test_version_name_populated(self, provider, monkeypatch):
         """F-96: civitai_version_name is populated from the 'name' field of the version response."""
         version_data = {
@@ -408,6 +431,67 @@ class TestLookupByHash:
         with pytest.raises(httpx.HTTPStatusError):
             await provider.lookup_by_hash("abc123")
 
+    async def test_description_comes_from_model_page(self, provider, monkeypatch):
+        """The version response carries no model description — it must be fetched separately."""
+        version_data = {"id": 1, "modelId": 500, "description": None, "model": {"name": "Lo"}}
+        _patch_civitai_client(
+            monkeypatch,
+            _make_transport(
+                {
+                    "model-versions/by-hash": (200, version_data),
+                    "models/500": (200, {"description": "The real model description"}),
+                }
+            ),
+        )
+        result = await provider.lookup_by_hash("abc")
+        assert result["description"] == "The real model description"
+
+    async def test_version_notes_appended_to_model_description(self, provider, monkeypatch):
+        version_data = {"id": 1, "modelId": 501, "description": "<p>Changelog</p>", "model": {}}
+        _patch_civitai_client(
+            monkeypatch,
+            _make_transport(
+                {
+                    "model-versions/by-hash": (200, version_data),
+                    "models/501": (200, {"description": "<p>Model page</p>"}),
+                }
+            ),
+        )
+        result = await provider.lookup_by_hash("abc")
+        assert result["description"] == (
+            "<p>Model page</p><hr><h3>Version notes</h3><p>Changelog</p>"
+        )
+
+    async def test_tags_come_from_model_page(self, provider, monkeypatch):
+        version_data = {"id": 1, "modelId": 502, "model": {"name": "Lo"}}
+        _patch_civitai_client(
+            monkeypatch,
+            _make_transport(
+                {
+                    "model-versions/by-hash": (200, version_data),
+                    "models/502": (200, {"tags": ["anime", "style"]}),
+                }
+            ),
+        )
+        result = await provider.lookup_by_hash("abc")
+        assert result["tags"] == ["anime", "style"]
+
+    async def test_model_page_failure_falls_back_to_version_description(
+        self, provider, monkeypatch
+    ):
+        version_data = {"id": 1, "modelId": 503, "description": "Version only", "model": {}}
+        _patch_civitai_client(
+            monkeypatch,
+            _make_transport(
+                {
+                    "model-versions/by-hash": (200, version_data),
+                    "models/503": (500, {"error": "oops"}),
+                }
+            ),
+        )
+        result = await provider.lookup_by_hash("abc")
+        assert result["description"] == "Version only"
+
     async def test_empty_optional_fields_default(self, provider, monkeypatch):
         version_data = {
             "id": 1,
@@ -458,6 +542,20 @@ class TestLookupByVersionId:
         assert result["civitai_model_id"] == "42"
         assert result["model_type"] == "loras"
         assert result["thumbnail"] == "https://example.com/preview.jpg"
+
+    async def test_description_comes_from_model_page(self, provider, monkeypatch):
+        version_data = {"id": 556, "modelId": 43, "description": "", "model": {"name": "M"}}
+        _patch_civitai_client(
+            monkeypatch,
+            _make_transport(
+                {
+                    "model-versions/556": (200, version_data),
+                    "models/43": (200, {"description": "Model page description"}),
+                }
+            ),
+        )
+        result = await provider.lookup_by_version_id("556")
+        assert result["description"] == "Model page description"
 
     async def test_not_found_returns_none(self, provider, monkeypatch):
         _patch_civitai_client(monkeypatch, _make_transport({"model-versions/1": (404, {})}))
@@ -523,6 +621,18 @@ class TestLookupByModelId:
         _patch_civitai_client(monkeypatch, _make_transport({"models/77": (200, self.MODEL_DATA)}))
         result = await provider.lookup_by_model_id("77")
         assert result["description"] == "Model page description"
+
+    async def test_version_notes_appended_to_model_description(self, provider, monkeypatch):
+        model_data = {
+            **self.MODEL_DATA,
+            "id": 81,
+            "modelVersions": [{**self.MODEL_DATA["modelVersions"][0], "description": "Changelog"}],
+        }
+        _patch_civitai_client(monkeypatch, _make_transport({"models/81": (200, model_data)}))
+        result = await provider.lookup_by_model_id("81")
+        assert result["description"] == (
+            "Model page description<hr><h3>Version notes</h3>Changelog"
+        )
 
     async def test_no_versions_returns_none(self, provider, monkeypatch):
         _patch_civitai_client(
