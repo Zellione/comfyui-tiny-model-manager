@@ -201,6 +201,36 @@ class TestGetMetadataByFilenames:
         assert "a.safetensors" in result
         assert "b.safetensors" in result
 
+    async def test_hydrates_children_for_each_model(self, ext_dir):
+        from py.db import model_repo
+
+        await model_repo.upsert_model("a.safetensors", "checkpoints", "", "", "")
+        await model_repo.upsert_model("b.safetensors", "loras", "", "", "")
+        await model_repo.upsert_model("c.safetensors", "loras", "", "", "")
+        await model_repo.update_model_meta("a.safetensors", "desc a", ["wa1", "wa2"], ["ta"])
+        await model_repo.update_model_meta("b.safetensors", "desc b", ["wb"], ["tb1", "tb2"])
+        a_id = (await model_repo.get_model_by_filename("a.safetensors"))["id"]
+        await model_repo.add_media(a_id, "image", "media/a1.jpg")
+        await model_repo.add_media(a_id, "video", "media/a2.mp4")
+
+        result = await model_repo.get_metadata_by_filenames(
+            ["a.safetensors", "b.safetensors", "c.safetensors"]
+        )
+
+        a = result["a.safetensors"]
+        assert sorted(a["trigger_words"]) == ["wa1", "wa2"]
+        assert a["tags"] == ["ta"]
+        assert [m["local_path"] for m in a["media"]] == ["media/a1.jpg", "media/a2.mp4"]
+        assert all(set(m) == {"id", "media_type", "local_path"} for m in a["media"])
+        b = result["b.safetensors"]
+        assert b["trigger_words"] == ["wb"]
+        assert sorted(b["tags"]) == ["tb1", "tb2"]
+        assert b["media"] == []
+        c = result["c.safetensors"]
+        assert c["trigger_words"] == []
+        assert c["tags"] == []
+        assert c["media"] == []
+
     async def test_empty_list_returns_empty_dict(self, ext_dir):
         from py.db import model_repo
 

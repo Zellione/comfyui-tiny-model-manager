@@ -223,6 +223,13 @@ async def _hydrate_model(db, row) -> dict:
     return model
 
 
+def _group_by_model_id(rows) -> dict[int, list]:
+    grouped: dict[int, list] = {}
+    for r in rows:
+        grouped.setdefault(r["model_id"], []).append(r)
+    return grouped
+
+
 async def get_model_by_filename(filename: str) -> dict | None:
     async with get_db() as db:
         row = await (
@@ -239,9 +246,46 @@ async def get_metadata_by_filenames(filenames: list[str]) -> dict[str, dict]:
         rows = await (
             await db.execute(f"SELECT * FROM models WHERE filename IN ({placeholders})", filenames)
         ).fetchall()
+        if not rows:
+            return {}
+        model_ids = [row["id"] for row in rows]
+        id_marks = ",".join("?" * len(model_ids))
+        words = _group_by_model_id(
+            await (
+                await db.execute(
+                    f"SELECT model_id, word FROM trigger_words WHERE model_id IN ({id_marks})",
+                    model_ids,
+                )
+            ).fetchall()
+        )
+        media = _group_by_model_id(
+            await (
+                await db.execute(
+                    "SELECT model_id, id, media_type, local_path FROM model_media"
+                    f" WHERE model_id IN ({id_marks}) ORDER BY id",
+                    model_ids,
+                )
+            ).fetchall()
+        )
+        tags = _group_by_model_id(
+            await (
+                await db.execute(
+                    "SELECT mt.model_id AS model_id, t.name FROM tags t"
+                    f" JOIN model_tags mt ON mt.tag_id = t.id WHERE mt.model_id IN ({id_marks})",
+                    model_ids,
+                )
+            ).fetchall()
+        )
         result = {}
         for row in rows:
-            model = await _hydrate_model(db, row)
+            model = dict(row)
+            mid = model["id"]
+            model["trigger_words"] = [r["word"] for r in words.get(mid, [])]
+            model["tags"] = [r["name"] for r in tags.get(mid, [])]
+            model["media"] = [
+                {"id": r["id"], "media_type": r["media_type"], "local_path": r["local_path"]}
+                for r in media.get(mid, [])
+            ]
             result[model["filename"]] = model
         return result
 
