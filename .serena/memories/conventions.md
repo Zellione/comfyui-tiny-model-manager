@@ -124,6 +124,12 @@ err?.error?.detail === 'file_not_found'
 
 ## Image loading pattern (thumbnail cards)
 
+**The handler implementations live in `frontend/src/app/utils/media-events.ts`** (audit 2026-08-07):
+`showOnLoad`, `hideOnError`, `showPosterOnLoad` (▶-sibling hiding) and `videoPosterUrl`.
+Components keep thin delegating methods (`onImgLoad(e) { showOnLoad(e); }`) so templates are
+unchanged — do not re-implement these bodies in a new component; import from the util. Spec:
+`utils/media-events.spec.ts`.
+
 When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
 - Start the `<img>` with `style="display: none"` so the browser's broken-image icon never appears.
 - **Do NOT use `loading="lazy"` on images that start with `display: none`.** `loading="lazy"` requires the element to have a layout position (viewport proximity) to trigger loading. A `display:none` element has no position, so the browser defers loading forever and the `load` event never fires — images stay permanently hidden even when they would load successfully. Use eager loading (omit `loading="lazy"`) for thumbnails that start hidden.
