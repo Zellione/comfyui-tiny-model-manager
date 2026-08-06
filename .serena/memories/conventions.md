@@ -10,6 +10,13 @@
 - New services: mock `activeTasks$` as `of([])` and `completedTasks$` as `EMPTY` when testing components that inject `DownloadService`.
 - When testing components that inject `TagService`, provide `{ provide: TagService, useValue: mockTagService }` where `mockTagService = { searchTags: vi.fn().mockReturnValue(EMPTY) }`.
 - i18n: ngx-translate — all user-visible strings via translation keys.
+- **Every `.subscribe()` is guarded with `takeUntilDestroyed`** (audit sweep 2026-08-07, issue #137):
+  components hold `private readonly destroyRef = inject(DestroyRef);` and either add
+  `takeUntilDestroyed(this.destroyRef)` as the last operator of an existing `.pipe(...)` or chain
+  `.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(...)` (a second `.pipe()` call is fine).
+  This applies to one-shot HTTP observables too — not for leak prevention (they complete) but to
+  stop late callbacks writing to destroyed components. Root services (`installed-files`,
+  `backend-notification`) use the same pattern; their DestroyRef is the app's.
 - **A string `redirectTo` drops the query string.** Angular's `createQueryParams` builds the
   redirect target's query params *only* from what is written into the `redirectTo` string,
   consulting the incoming URL solely for explicit `:name` back-references. So
