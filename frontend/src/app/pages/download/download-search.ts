@@ -9,6 +9,7 @@ import { HuggingFaceService, HfModel } from '../../services/huggingface';
 import { ModelType } from '../../utils/model-types';
 import { formatSize } from '../../utils/format';
 import { isVideo } from '../../utils/media';
+import { hideOnError, showOnLoad } from '../../utils/media-events';
 import { ModelTypeSelect } from '../../components/model-type-select/model-type-select';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
 import { TagAutocompleteInput } from '../../components/tag-autocomplete-input/tag-autocomplete-input';
@@ -603,10 +604,10 @@ export class DownloadSearch {
   }
 
   onImgLoad(event: Event) {
-    (event.target as HTMLImageElement).style.display = 'block';
+    showOnLoad(event);
   }
 
   onImgError(event: Event) {
-    (event.target as HTMLImageElement).style.display = 'none';
+    hideOnError(event);
   }
 }

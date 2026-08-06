@@ -19,6 +19,12 @@ import { NotificationService } from '../../services/notification';
 import { SettingsService } from '../../services/settings';
 import { formatSize } from '../../utils/format';
 import { mediaUrl } from '../../utils/media';
+import {
+  hideOnError,
+  showOnLoad,
+  showPosterOnLoad,
+  videoPosterUrl as buildVideoPosterUrl,
+} from '../../utils/media-events';
 import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover';
 import {
   FilePickerPopover,
@@ -388,22 +394,19 @@ export class Models implements OnInit {
   }
 
   onImgLoad(event: Event) {
-    (event.target as HTMLImageElement).style.display = 'block';
+    showOnLoad(event);
   }
 
   onImgError(event: Event) {
-    (event.target as HTMLImageElement).style.display = 'none';
+    hideOnError(event);
   }
 
   videoPosterUrl(localPath: string): string {
-    return `/tiny-model-manager/api/media-poster/${encodeURIComponent(localPath)}`;
+    return buildVideoPosterUrl(localPath);
   }
 
   onVideoPosterLoad(event: Event) {
-    const img = event.target as HTMLImageElement;
-    img.style.display = 'block';
-    const fallback = img.previousElementSibling as HTMLElement | null;
-    if (fallback) fallback.style.display = 'none';
+    showPosterOnLoad(event);
   }
 
   organizeIntoSubfolders() {

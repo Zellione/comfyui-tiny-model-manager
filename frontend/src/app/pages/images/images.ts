@@ -9,6 +9,7 @@ import { CivitaiImage, ImageResource, ImageService, RecreateResult } from '../..
 import { DownloadService } from '../../services/download';
 import { NotificationService } from '../../services/notification';
 import { isVideo } from '../../utils/media';
+import { hideOnError, showOnLoad } from '../../utils/media-events';
 
 const RECREATE_ERROR_KEYS: Record<string, string> = {
   no_metadata: 'images.error.no_metadata',
@@ -265,11 +266,11 @@ export class Images {
   }
 
   onImgLoad(event: Event) {
-    (event.target as HTMLImageElement).style.display = 'block';
+    showOnLoad(event);
   }
 
   onImgError(event: Event) {
-    (event.target as HTMLImageElement).style.display = 'none';
+    hideOnError(event);
   }
 
   private searchParams(cursor: string) {

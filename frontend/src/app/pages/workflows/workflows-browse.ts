@@ -11,6 +11,7 @@ import { NotificationService } from '../../services/notification';
 import { TagAutocompleteInput } from '../../components/tag-autocomplete-input/tag-autocomplete-input';
 import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
 import { isVideo } from '../../utils/media';
+import { hideOnError, showOnLoad } from '../../utils/media-events';
 
 /**
  * Browse CivitAI's `Workflows` model type in the same split view the download page uses.
@@ -280,10 +281,10 @@ export class WorkflowsBrowse {
   isVideo = isVideo;
 
   onImgLoad(event: Event) {
-    (event.target as HTMLImageElement).style.display = 'block';
+    showOnLoad(event);
   }
 
   onImgError(event: Event) {
-    (event.target as HTMLImageElement).style.display = 'none';
+    hideOnError(event);
   }
 }

@@ -7,6 +7,7 @@ import { StoredWorkflow, WorkflowEntry, WorkflowStoreService } from '../../servi
 import { NotificationService } from '../../services/notification';
 import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover';
 import { mediaUrl } from '../../utils/media';
+import { hideOnError, showOnLoad } from '../../utils/media-events';
 
 /**
  * The locally stored workflows: one card per downloaded CivitAI page, listing every
@@ -125,10 +126,10 @@ export class WorkflowsInstalled {
   }
 
   onImgLoad(event: Event) {
-    (event.target as HTMLImageElement).style.display = 'block';
+    showOnLoad(event);
   }
 
   onImgError(event: Event) {
-    (event.target as HTMLImageElement).style.display = 'none';
+    hideOnError(event);
   }
 }
