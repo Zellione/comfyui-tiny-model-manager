@@ -5,7 +5,7 @@
 - aiohttp (ComfyUI's own server — no standalone server process)
 - SQLite via custom `py/db/database.py` (no ORM)
 - pytest + pytest-asyncio (`asyncio_mode = "auto"`, `addopts = "--import-mode=importlib"`)
-- Ruff (lint + format): `target-version = py313`, `line-length = 100`, rules E/F/I/UP/B; B008 ignored
+- Ruff (lint + format): `target-version = py313`, `line-length = 100`, rules E/F/I/UP/B/A/C4/RUF; B008 ignored. Documented noqas: RUF001 on the CivitAI size regex (real multiplication sign), A002 on the HF provider's public `format` keyword arg.
 - Coverage: `fail_under = 88` (lines)
 
 ## Frontend
