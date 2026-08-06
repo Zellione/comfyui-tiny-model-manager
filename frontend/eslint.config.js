@@ -1,9 +1,9 @@
 // @ts-check
 const eslint = require('@eslint/js');
 const tseslint = require('typescript-eslint');
-const angular = require('@angular-eslint/eslint-plugin');
-const angularTemplate = require('@angular-eslint/eslint-plugin-template');
-const angularTemplateParser = require('@angular-eslint/template-parser');
+// angular-eslint 22 moved the shareable configs from the individual plugin
+// packages into this meta-package; the plugins now export only their rules.
+const angular = require('angular-eslint');
 
 module.exports = tseslint.config(
   {
@@ -11,12 +11,10 @@ module.exports = tseslint.config(
     extends: [
       eslint.configs.recommended,
       ...tseslint.configs.recommended,
+      ...angular.configs.tsRecommended,
     ],
-    plugins: {
-      '@angular-eslint': angular,
-    },
+    processor: angular.processInlineTemplates,
     rules: {
-      ...angular.configs.recommended.rules,
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       // Constructor injection is the existing pattern — migrate separately via
@@ -26,14 +24,7 @@ module.exports = tseslint.config(
   },
   {
     files: ['**/*.html'],
-    plugins: {
-      '@angular-eslint/template': angularTemplate,
-    },
-    languageOptions: {
-      parser: angularTemplateParser,
-    },
-    rules: {
-      ...angularTemplate.configs.recommended.rules,
-    },
+    extends: [...angular.configs.templateRecommended],
+    rules: {},
   },
 );
