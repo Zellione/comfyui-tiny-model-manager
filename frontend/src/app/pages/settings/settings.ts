@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -15,6 +16,7 @@ import { NotificationService } from '../../services/notification';
 })
 export class Settings implements OnInit {
   private readonly keywordsService = inject(KeywordsService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly notifService = inject(NotificationService);
   private readonly translate = inject(TranslateService);
 
@@ -42,16 +44,19 @@ export class Settings implements OnInit {
   private load() {
     this.loading.set(true);
     this.error.set('');
-    this.keywordsService.getKeywords().subscribe({
-      next: (kws) => {
-        this.keywords.set(kws);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.error.set(this.translate.instant('settings.keywords.error_load'));
-        this.loading.set(false);
-      },
-    });
+    this.keywordsService
+      .getKeywords()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (kws) => {
+          this.keywords.set(kws);
+          this.loading.set(false);
+        },
+        error: () => {
+          this.error.set(this.translate.instant('settings.keywords.error_load'));
+          this.loading.set(false);
+        },
+      });
   }
 
   startEdit(kw: FilenameKeyword) {
@@ -77,6 +82,7 @@ export class Settings implements OnInit {
         this.editBaseModel().trim() || null,
         (this.editModelType() as ModelType) || null,
       )
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
           this.saving.set(false);
@@ -100,6 +106,7 @@ export class Settings implements OnInit {
         this.newBaseModel().trim() || null,
         (this.newModelType() as ModelType) || null,
       )
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
           this.adding.set(false);
@@ -116,10 +123,13 @@ export class Settings implements OnInit {
   }
 
   deleteKeyword(id: number) {
-    this.keywordsService.deleteKeyword(id).subscribe({
-      next: () => this.load(),
-      error: () =>
-        this.notifService.show('error', this.translate.instant('settings.keywords.error_delete')),
-    });
+    this.keywordsService
+      .deleteKeyword(id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.load(),
+        error: () =>
+          this.notifService.show('error', this.translate.instant('settings.keywords.error_delete')),
+      });
   }
 }

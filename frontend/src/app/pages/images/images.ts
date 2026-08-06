@@ -152,36 +152,42 @@ export class Images {
     this.cursor.set('');
     this.hasMore.set(false);
     this.searchError.set('');
-    this.imageService.search(this.searchParams('')).subscribe({
-      next: (r) => {
-        this.results.set(r.items);
-        this.cursor.set(r.metadata?.nextCursor ?? '');
-        this.hasMore.set(!!r.metadata?.nextCursor);
-        this.searching.set(false);
-        const first = this.filteredResults()[0];
-        if (first) this.select(first);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.searchError.set(this.errorText(err, 'images.error.search_failed'));
-        this.searching.set(false);
-      },
-    });
+    this.imageService
+      .search(this.searchParams(''))
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => {
+          this.results.set(r.items);
+          this.cursor.set(r.metadata?.nextCursor ?? '');
+          this.hasMore.set(!!r.metadata?.nextCursor);
+          this.searching.set(false);
+          const first = this.filteredResults()[0];
+          if (first) this.select(first);
+        },
+        error: (err: HttpErrorResponse) => {
+          this.searchError.set(this.errorText(err, 'images.error.search_failed'));
+          this.searching.set(false);
+        },
+      });
   }
 
   loadMore() {
     this.loadingMore.set(true);
-    this.imageService.search(this.searchParams(this.cursor())).subscribe({
-      next: (r) => {
-        this.results.update((prev) => [...prev, ...r.items]);
-        this.cursor.set(r.metadata?.nextCursor ?? '');
-        this.hasMore.set(!!r.metadata?.nextCursor);
-        this.loadingMore.set(false);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.notifService.show('error', this.errorText(err, 'images.error.search_failed'));
-        this.loadingMore.set(false);
-      },
-    });
+    this.imageService
+      .search(this.searchParams(this.cursor()))
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => {
+          this.results.update((prev) => [...prev, ...r.items]);
+          this.cursor.set(r.metadata?.nextCursor ?? '');
+          this.hasMore.set(!!r.metadata?.nextCursor);
+          this.loadingMore.set(false);
+        },
+        error: (err: HttpErrorResponse) => {
+          this.notifService.show('error', this.errorText(err, 'images.error.search_failed'));
+          this.loadingMore.set(false);
+        },
+      });
   }
 
   select(image: CivitaiImage | null) {
@@ -196,20 +202,23 @@ export class Images {
     if (!image || image.recreatable === '') return;
     this.recreating.set(true);
     this.recreateError.set('');
-    this.imageService.recreate(image.id).subscribe({
-      next: (result) => {
-        this.recreated.set(result);
-        this.recreating.set(false);
-        this.notifService.show(
-          'success',
-          this.translate.instant('images.notify.recreated', { name: result.workflow.name }),
-        );
-      },
-      error: (err: HttpErrorResponse) => {
-        this.recreateError.set(this.errorText(err, 'images.error.recreate_failed'));
-        this.recreating.set(false);
-      },
-    });
+    this.imageService
+      .recreate(image.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => {
+          this.recreated.set(result);
+          this.recreating.set(false);
+          this.notifService.show(
+            'success',
+            this.translate.instant('images.notify.recreated', { name: result.workflow.name }),
+          );
+        },
+        error: (err: HttpErrorResponse) => {
+          this.recreateError.set(this.errorText(err, 'images.error.recreate_failed'));
+          this.recreating.set(false);
+        },
+      });
   }
 
   downloadResource(resource: ImageResource) {
@@ -224,6 +233,7 @@ export class Images {
         resource.model_version_id,
         resource.base_model ?? '',
       )
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
           this.downloadingResource.set(null);

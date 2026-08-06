@@ -262,6 +262,7 @@ export class DownloadSearch {
           period: this.civitaiPeriod(),
           tags: this.tagFilter(),
         })
+        .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe({
           next: (r) => {
             this.civitaiResults.set(r.items);
@@ -286,6 +287,7 @@ export class DownloadSearch {
           this.formatFilter(),
           this.tagFilter(),
         )
+        .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe({
           next: (r) => {
             this.hfResults.set(r.items);
@@ -318,6 +320,7 @@ export class DownloadSearch {
           period: this.civitaiPeriod(),
           tags: this.tagFilter(),
         })
+        .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe({
           next: (r) => {
             if (r.items.length === 0 && !wasError) {
@@ -352,6 +355,7 @@ export class DownloadSearch {
           this.formatFilter(),
           this.tagFilter(),
         )
+        .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe({
           next: (r) => {
             if (r.items.length === 0 && !wasError) {
@@ -402,42 +406,46 @@ export class DownloadSearch {
     this.selectedCivitaiFiles.set(new Map());
     this.civitaiFileTypes.set({});
     this.civitaiFileBaseModels.set({});
-    this.civitaiService.getVersions(model.id).subscribe({
-      next: (v) => {
-        if (this.selectedModel()?.id !== targetId) return;
-        this.versions.set(v.versions);
-        const detected = (v.model_type as ModelType) ?? 'checkpoints';
-        const types: Record<string, ModelType> = {};
-        const baseModels: Record<string, string> = {};
-        for (const ver of v.versions) {
-          for (const f of ver.files) {
-            const key = `${ver.id}_${f.id}`;
-            types[key] = detected;
-            const det = this.installed.detect(f.name);
-            baseModels[key] = ver.baseModel || det.baseModel;
-          }
-        }
-        this.civitaiFileTypes.set(types);
-        this.civitaiFileBaseModels.set(baseModels);
-        const selection = new Map<string, { file: CivitaiFile; versionId: number }>();
-        for (const ver of v.versions) {
-          for (const f of ver.files) {
-            if (f.primary) {
-              selection.set(`${ver.id}_${f.id}`, { file: f, versionId: ver.id });
+    this.civitaiService
+      .getVersions(model.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (v) => {
+          if (this.selectedModel()?.id !== targetId) return;
+          this.versions.set(v.versions);
+          const detected = (v.model_type as ModelType) ?? 'checkpoints';
+          const types: Record<string, ModelType> = {};
+          const baseModels: Record<string, string> = {};
+          for (const ver of v.versions) {
+            for (const f of ver.files) {
+              const key = `${ver.id}_${f.id}`;
+              types[key] = detected;
+              const det = this.installed.detect(f.name);
+              baseModels[key] = ver.baseModel || det.baseModel;
             }
           }
-        }
-        this.selectedCivitaiFiles.set(selection);
-        this.loadingVersions.set(false);
-      },
-      error: (err) => {
-        if (this.selectedModel()?.id !== targetId) return;
-        this.versionsError.set(
-          err?.error?.error ?? this.translate.instant('download_search.error.load_versions_failed'),
-        );
-        this.loadingVersions.set(false);
-      },
-    });
+          this.civitaiFileTypes.set(types);
+          this.civitaiFileBaseModels.set(baseModels);
+          const selection = new Map<string, { file: CivitaiFile; versionId: number }>();
+          for (const ver of v.versions) {
+            for (const f of ver.files) {
+              if (f.primary) {
+                selection.set(`${ver.id}_${f.id}`, { file: f, versionId: ver.id });
+              }
+            }
+          }
+          this.selectedCivitaiFiles.set(selection);
+          this.loadingVersions.set(false);
+        },
+        error: (err) => {
+          if (this.selectedModel()?.id !== targetId) return;
+          this.versionsError.set(
+            err?.error?.error ??
+              this.translate.instant('download_search.error.load_versions_failed'),
+          );
+          this.loadingVersions.set(false);
+        },
+      });
   }
 
   toggleCivitaiFile(versionId: number, file: CivitaiFile) {
@@ -491,35 +499,41 @@ export class DownloadSearch {
     this.hfRowTypes.set({});
     this.hfRowBaseModels.set({});
     this.hfDescription.set('');
-    this.hfService.getFiles(repoId).subscribe({
-      next: (files) => {
-        if (this.selectedHfRepoId() !== repoId) return;
-        this.hfFiles.set(files);
-        const types: Record<string, ModelType> = {};
-        const baseModels: Record<string, string> = {};
-        for (const f of files) {
-          const det = this.installed.detect(f.filename);
-          if (det.modelType) types[f.filename] = det.modelType;
-          if (det.baseModel) baseModels[f.filename] = det.baseModel;
-        }
-        this.hfRowTypes.set(types);
-        this.hfRowBaseModels.set(baseModels);
-      },
-    });
+    this.hfService
+      .getFiles(repoId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (files) => {
+          if (this.selectedHfRepoId() !== repoId) return;
+          this.hfFiles.set(files);
+          const types: Record<string, ModelType> = {};
+          const baseModels: Record<string, string> = {};
+          for (const f of files) {
+            const det = this.installed.detect(f.filename);
+            if (det.modelType) types[f.filename] = det.modelType;
+            if (det.baseModel) baseModels[f.filename] = det.baseModel;
+          }
+          this.hfRowTypes.set(types);
+          this.hfRowBaseModels.set(baseModels);
+        },
+      });
     if (model.description) {
       this.hfDescription.set(model.description);
     } else {
       this.hfDescriptionLoading.set(true);
-      this.hfService.getReadme(repoId).subscribe({
-        next: (desc) => {
-          if (this.selectedHfRepoId() !== repoId) return;
-          this.hfDescription.set(desc);
-          this.hfDescriptionLoading.set(false);
-        },
-        error: () => {
-          this.hfDescriptionLoading.set(false);
-        },
-      });
+      this.hfService
+        .getReadme(repoId)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (desc) => {
+            if (this.selectedHfRepoId() !== repoId) return;
+            this.hfDescription.set(desc);
+            this.hfDescriptionLoading.set(false);
+          },
+          error: () => {
+            this.hfDescriptionLoading.set(false);
+          },
+        });
     }
   }
 

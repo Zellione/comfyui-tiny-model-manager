@@ -115,49 +115,55 @@ export class WorkflowsBrowse {
     this.hasMore.set(false);
     this.loadMoreError.set('');
     this.searchError.set('');
-    this.store.search(this.searchParams('')).subscribe({
-      next: (r) => {
-        this.results.set(r.items);
-        this.cursor.set(r.metadata?.nextCursor ?? '');
-        this.hasMore.set(!!r.metadata?.nextCursor);
-        this.installedVersionIds.set(r.installed_version_ids);
-        this.searching.set(false);
-        if (r.items.length > 0) this.select(r.items[0]);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.searchError.set(err.error?.error ?? err.message ?? 'Search failed');
-        this.searching.set(false);
-      },
-    });
+    this.store
+      .search(this.searchParams(''))
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => {
+          this.results.set(r.items);
+          this.cursor.set(r.metadata?.nextCursor ?? '');
+          this.hasMore.set(!!r.metadata?.nextCursor);
+          this.installedVersionIds.set(r.installed_version_ids);
+          this.searching.set(false);
+          if (r.items.length > 0) this.select(r.items[0]);
+        },
+        error: (err: HttpErrorResponse) => {
+          this.searchError.set(err.error?.error ?? err.message ?? 'Search failed');
+          this.searching.set(false);
+        },
+      });
   }
 
   loadMore() {
     const wasError = !!this.loadMoreError();
     this.loadMoreError.set('');
     this.loadingMore.set(true);
-    this.store.search(this.searchParams(this.cursor())).subscribe({
-      next: (r) => {
-        if (r.items.length === 0 && !wasError) {
-          const msg = this.translate.instant('download_search.error.no_results');
+    this.store
+      .search(this.searchParams(this.cursor()))
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => {
+          if (r.items.length === 0 && !wasError) {
+            const msg = this.translate.instant('download_search.error.no_results');
+            this.loadMoreError.set(msg);
+            this.notifService.show('error', msg);
+          } else {
+            this.results.update((prev) => [...prev, ...r.items]);
+            this.cursor.set(r.metadata?.nextCursor ?? '');
+            this.hasMore.set(!!r.metadata?.nextCursor);
+          }
+          this.loadingMore.set(false);
+        },
+        error: (err: HttpErrorResponse) => {
+          const msg =
+            err.error?.error ??
+            err.message ??
+            this.translate.instant('download_search.error.request_failed');
           this.loadMoreError.set(msg);
           this.notifService.show('error', msg);
-        } else {
-          this.results.update((prev) => [...prev, ...r.items]);
-          this.cursor.set(r.metadata?.nextCursor ?? '');
-          this.hasMore.set(!!r.metadata?.nextCursor);
-        }
-        this.loadingMore.set(false);
-      },
-      error: (err: HttpErrorResponse) => {
-        const msg =
-          err.error?.error ??
-          err.message ??
-          this.translate.instant('download_search.error.request_failed');
-        this.loadMoreError.set(msg);
-        this.notifService.show('error', msg);
-        this.loadingMore.set(false);
-      },
-    });
+          this.loadingMore.set(false);
+        },
+      });
   }
 
   private searchParams(cursor: string) {
@@ -178,23 +184,26 @@ export class WorkflowsBrowse {
 
   download(model: CivitaiModel, version: CivitaiVersion) {
     this.downloadingVersionId.set(version.id);
-    this.store.download(model.id, version.id).subscribe({
-      next: (r) => {
-        this.downloadingVersionId.set(null);
-        this.installedVersionIds.update((ids) => [...new Set([...ids, String(version.id)])]);
-        this.notifService.show(
-          'success',
-          this.translate.instant('workflows.notify.downloaded', {
-            count: r.workflows.length,
-            name: model.name,
-          }),
-        );
-      },
-      error: (err: HttpErrorResponse) => {
-        this.downloadingVersionId.set(null);
-        this.notifService.show('error', this.downloadErrorMessage(err));
-      },
-    });
+    this.store
+      .download(model.id, version.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => {
+          this.downloadingVersionId.set(null);
+          this.installedVersionIds.update((ids) => [...new Set([...ids, String(version.id)])]);
+          this.notifService.show(
+            'success',
+            this.translate.instant('workflows.notify.downloaded', {
+              count: r.workflows.length,
+              name: model.name,
+            }),
+          );
+        },
+        error: (err: HttpErrorResponse) => {
+          this.downloadingVersionId.set(null);
+          this.notifService.show('error', this.downloadErrorMessage(err));
+        },
+      });
   }
 
   /**

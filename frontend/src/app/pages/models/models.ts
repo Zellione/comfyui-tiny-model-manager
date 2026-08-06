@@ -196,11 +196,17 @@ export class Models implements OnInit {
   ngOnInit() {
     this.load();
     this.startQueuePoll();
-    this.settingsService.getOrganizeEnabled().subscribe((v) => this.organizeEnabled.set(v));
+    this.settingsService
+      .getOrganizeEnabled()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((v) => this.organizeEnabled.set(v));
 
     const channel = new BroadcastChannel('tmm');
     channel.onmessage = () => {
-      this.settingsService.getOrganizeEnabled().subscribe((v) => this.organizeEnabled.set(v));
+      this.settingsService
+        .getOrganizeEnabled()
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe((v) => this.organizeEnabled.set(v));
       this.pollTrigger.next();
     };
     this.destroyRef.onDestroy(() => channel.close());
@@ -208,17 +214,20 @@ export class Models implements OnInit {
 
   load() {
     this.loading.set(true);
-    this.modelService.listCatalog().subscribe({
-      next: (data: CatalogListResponse) => {
-        this.catalogEntries.set(data.entries);
-        this.unknownFiles.set(data.unknown_files);
-        this.loading.set(false);
-      },
-      error: (err) => {
-        this.error.set(err.message);
-        this.loading.set(false);
-      },
-    });
+    this.modelService
+      .listCatalog()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (data: CatalogListResponse) => {
+          this.catalogEntries.set(data.entries);
+          this.unknownFiles.set(data.unknown_files);
+          this.loading.set(false);
+        },
+        error: (err) => {
+          this.error.set(err.message);
+          this.loading.set(false);
+        },
+      });
   }
 
   private startQueuePoll() {
@@ -318,46 +327,54 @@ export class Models implements OnInit {
   }
 
   addToWorkflow(type: string, filename: string) {
-    this.workflowService.addToWorkflow(type, filename).subscribe({
-      next: () => {
-        const s = new Set(this.queuedForWorkflow());
-        s.add(filename);
-        this.queuedForWorkflow.set(s);
-        setTimeout(() => {
-          const s2 = new Set(this.queuedForWorkflow());
-          s2.delete(filename);
-          this.queuedForWorkflow.set(s2);
-        }, 2000);
-        this.notifService.show('success', this.translate.instant('models.notify.queued'));
-      },
-      error: () =>
-        this.notifService.show('error', this.translate.instant('models.notify.queue_failed')),
-    });
+    this.workflowService
+      .addToWorkflow(type, filename)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          const s = new Set(this.queuedForWorkflow());
+          s.add(filename);
+          this.queuedForWorkflow.set(s);
+          setTimeout(() => {
+            const s2 = new Set(this.queuedForWorkflow());
+            s2.delete(filename);
+            this.queuedForWorkflow.set(s2);
+          }, 2000);
+          this.notifService.show('success', this.translate.instant('models.notify.queued'));
+        },
+        error: () =>
+          this.notifService.show('error', this.translate.instant('models.notify.queue_failed')),
+      });
   }
 
   deleteUnknownModel(type: string, file: ModelFile) {
-    this.modelService.deleteModel(type, file.filename).subscribe({
-      next: () => {
-        this.notifService.show(
-          'success',
-          this.translate.instant('models.notify.deleted', { filename: file.filename }),
-        );
-        this.load();
-      },
-      error: (err) => this.notifService.show('error', 'Delete failed: ' + (err as Error).message),
-    });
+    this.modelService
+      .deleteModel(type, file.filename)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.notifService.show(
+            'success',
+            this.translate.instant('models.notify.deleted', { filename: file.filename }),
+          );
+          this.load();
+        },
+        error: (err) => this.notifService.show('error', 'Delete failed: ' + (err as Error).message),
+      });
   }
 
   deleteSelectedUnknown(type: string, files: ModelFile[]) {
     if (!files.length) return;
     if (!confirm(`Delete ${files.length} model(s)?`)) return;
-    forkJoin(files.map((f) => this.modelService.deleteModel(type, f.filename))).subscribe({
-      next: () => {
-        this.notifService.show('success', `Deleted ${files.length} model(s).`);
-        this.load();
-      },
-      error: (err) => this.notifService.show('error', 'Delete failed: ' + (err as Error).message),
-    });
+    forkJoin(files.map((f) => this.modelService.deleteModel(type, f.filename)))
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.notifService.show('success', `Deleted ${files.length} model(s).`);
+          this.load();
+        },
+        error: (err) => this.notifService.show('error', 'Delete failed: ' + (err as Error).message),
+      });
   }
 
   async copyTriggerWords(entry: CatalogEntry) {
@@ -390,36 +407,45 @@ export class Models implements OnInit {
   }
 
   organizeIntoSubfolders() {
-    this.modelService.organizeIntoSubfolders().subscribe({
-      next: (r) => {
-        this.notifService.show(
-          'success',
-          this.translate.instant('models.notify.organized', {
-            moved: r.moved,
-            skipped: r.skipped,
-            errors: r.errors,
-          }),
-        );
-        this.load();
-      },
-      error: (err) =>
-        this.notifService.show('error', 'Organization failed: ' + (err as Error).message),
-    });
+    this.modelService
+      .organizeIntoSubfolders()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => {
+          this.notifService.show(
+            'success',
+            this.translate.instant('models.notify.organized', {
+              moved: r.moved,
+              skipped: r.skipped,
+              errors: r.errors,
+            }),
+          );
+          this.load();
+        },
+        error: (err) =>
+          this.notifService.show('error', 'Organization failed: ' + (err as Error).message),
+      });
   }
 
   scan(): void {
     this.scanLoading.set(true);
-    this.modelService.getUnregistered().subscribe({
-      next: (data) => {
-        this.unregisteredFiles.set(data);
-        this.unregisteredExpanded.set(true);
-        this.scanLoading.set(false);
-      },
-      error: () => {
-        this.scanLoading.set(false);
-        this.notifService.show('error', this.translate.instant('models.unregistered.scan_failed'));
-      },
-    });
+    this.modelService
+      .getUnregistered()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (data) => {
+          this.unregisteredFiles.set(data);
+          this.unregisteredExpanded.set(true);
+          this.scanLoading.set(false);
+        },
+        error: () => {
+          this.scanLoading.set(false);
+          this.notifService.show(
+            'error',
+            this.translate.instant('models.unregistered.scan_failed'),
+          );
+        },
+      });
   }
 
   toggleUnregistered(): void {
@@ -451,32 +477,35 @@ export class Models implements OnInit {
   }
 
   private _runHashLookup(filename: string, modelType: string): void {
-    this.modelService.hashLookup(filename, modelType).subscribe({
-      next: (result) => {
-        this.registerFileHash.set(result.hash);
-        if (result.match && result.metadata) {
-          const m = result.metadata;
-          this.registerSource.set({
-            platform: 'civitai',
-            source_id: m.civitai_version_id,
-            civitai_model_id: m.civitai_model_id,
-          });
-          this.registerForm.update((f) => ({
-            ...f,
-            hashStatus: 'found',
-            name: m.name,
-            baseModel: m.base_model,
-            description: m.description,
-            tags: m.tags.join(', '),
-          }));
-        } else {
-          this.registerForm.update((f) => ({ ...f, hashStatus: 'not_found' }));
-        }
-      },
-      error: () => {
-        this.registerForm.update((f) => ({ ...f, hashStatus: 'error' }));
-      },
-    });
+    this.modelService
+      .hashLookup(filename, modelType)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => {
+          this.registerFileHash.set(result.hash);
+          if (result.match && result.metadata) {
+            const m = result.metadata;
+            this.registerSource.set({
+              platform: 'civitai',
+              source_id: m.civitai_version_id,
+              civitai_model_id: m.civitai_model_id,
+            });
+            this.registerForm.update((f) => ({
+              ...f,
+              hashStatus: 'found',
+              name: m.name,
+              baseModel: m.base_model,
+              description: m.description,
+              tags: m.tags.join(', '),
+            }));
+          } else {
+            this.registerForm.update((f) => ({ ...f, hashStatus: 'not_found' }));
+          }
+        },
+        error: () => {
+          this.registerForm.update((f) => ({ ...f, hashStatus: 'error' }));
+        },
+      });
   }
 
   retryHashLookup(): void {
@@ -490,35 +519,38 @@ export class Models implements OnInit {
     const url = this.registerForm().link.trim();
     if (!url) return;
     this.registerForm.update((f) => ({ ...f, linkStatus: 'loading', linkMessage: '' }));
-    this.modelService.resolveLink(url).subscribe({
-      next: (result) => {
-        const m = result.metadata;
-        this.registerSource.set({
-          platform: result.platform,
-          source_id: result.source_id,
-          civitai_model_id: m.civitai_model_id,
-        });
-        this.registerForm.update((f) => ({
-          ...f,
-          name: m.name,
-          baseModel: m.base_model,
-          description: m.description,
-          tags: m.tags.join(', '),
-          linkStatus: 'found',
-          linkMessage: this.translate.instant('models.unregistered.link_found', {
+    this.modelService
+      .resolveLink(url)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => {
+          const m = result.metadata;
+          this.registerSource.set({
             platform: result.platform,
-          }),
-        }));
-      },
-      error: (err) => {
-        const key = LINK_ERROR_KEYS[err?.error?.error] ?? 'models.unregistered.link_failed';
-        this.registerForm.update((f) => ({
-          ...f,
-          linkStatus: 'error',
-          linkMessage: this.translate.instant(key),
-        }));
-      },
-    });
+            source_id: result.source_id,
+            civitai_model_id: m.civitai_model_id,
+          });
+          this.registerForm.update((f) => ({
+            ...f,
+            name: m.name,
+            baseModel: m.base_model,
+            description: m.description,
+            tags: m.tags.join(', '),
+            linkStatus: 'found',
+            linkMessage: this.translate.instant('models.unregistered.link_found', {
+              platform: result.platform,
+            }),
+          }));
+        },
+        error: (err) => {
+          const key = LINK_ERROR_KEYS[err?.error?.error] ?? 'models.unregistered.link_failed';
+          this.registerForm.update((f) => ({
+            ...f,
+            linkStatus: 'error',
+            linkMessage: this.translate.instant(key),
+          }));
+        },
+      });
   }
 
   submitRegister(): void {
@@ -548,26 +580,29 @@ export class Models implements OnInit {
     }
 
     this.registerForm.update((f) => ({ ...f, saving: true, error: '' }));
-    this.modelService.registerModel(req).subscribe({
-      next: () => {
-        const mtype = formFile.type;
-        const fname = formFile.file.filename;
-        this.unregisteredFiles.update((prev) => {
-          const updated = { ...prev };
-          updated[mtype] = (updated[mtype] ?? []).filter((f) => f.filename !== fname);
-          if (updated[mtype].length === 0) delete updated[mtype];
-          return updated;
-        });
-        this.registerFormFile.set(null);
-        this.load();
-      },
-      error: (err) => {
-        const msg =
-          err?.error?.error === 'file_not_found'
-            ? this.translate.instant('models.unregistered.file_gone')
-            : this.translate.instant('models.unregistered.register_failed');
-        this.registerForm.update((f) => ({ ...f, saving: false, error: msg }));
-      },
-    });
+    this.modelService
+      .registerModel(req)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          const mtype = formFile.type;
+          const fname = formFile.file.filename;
+          this.unregisteredFiles.update((prev) => {
+            const updated = { ...prev };
+            updated[mtype] = (updated[mtype] ?? []).filter((f) => f.filename !== fname);
+            if (updated[mtype].length === 0) delete updated[mtype];
+            return updated;
+          });
+          this.registerFormFile.set(null);
+          this.load();
+        },
+        error: (err) => {
+          const msg =
+            err?.error?.error === 'file_not_found'
+              ? this.translate.instant('models.unregistered.file_gone')
+              : this.translate.instant('models.unregistered.register_failed');
+          this.registerForm.update((f) => ({ ...f, saving: false, error: msg }));
+        },
+      });
   }
 }
