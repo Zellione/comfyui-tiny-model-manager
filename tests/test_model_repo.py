@@ -1,5 +1,7 @@
 """Tests for py/db/model_repo.py — async CRUD helpers."""
 
+from typing import ClassVar
+
 import pytest
 
 
@@ -443,7 +445,7 @@ class TestGetModelSourceInfo:
 
 
 class TestRepoFiles:
-    _FILES = [
+    _FILES: ClassVar[list] = [
         {
             "filename": "model-fp16.safetensors",
             "size_bytes": 2097152,

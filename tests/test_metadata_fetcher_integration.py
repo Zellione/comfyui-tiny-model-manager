@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from typing import ClassVar
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -307,7 +308,7 @@ class TestDownloadCatalogImages:
 
 
 class TestFetchRepoFilesAllVersions:
-    _MODEL_DATA = {
+    _MODEL_DATA: ClassVar[dict] = {
         "type": "LORA",
         "modelVersions": [
             {

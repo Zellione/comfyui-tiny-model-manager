@@ -1,5 +1,7 @@
 """Tests for CivitAI provider (py/services/providers/civitai_provider.py)."""
 
+from typing import ClassVar
+
 import httpx
 import pytest
 
@@ -344,7 +346,7 @@ class TestSearch:
 
 
 class TestGetVersionFiles:
-    _VERSION_DATA = {
+    _VERSION_DATA: ClassVar[dict] = {
         "modelId": 42,
         "files": [
             {
@@ -568,7 +570,7 @@ class TestLookupByVersionId:
 
 
 class TestLookupByModelId:
-    MODEL_DATA = {
+    MODEL_DATA: ClassVar[dict] = {
         "id": 77,
         "name": "Great Checkpoint",
         "type": "Checkpoint",

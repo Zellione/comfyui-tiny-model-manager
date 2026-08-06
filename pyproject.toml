@@ -27,7 +27,8 @@ line-length = 100
 
 [tool.ruff.lint]
 # E/F: pycodestyle/pyflakes  I: isort  UP: pyupgrade  B: flake8-bugbear
-select = ["E", "F", "I", "UP", "B"]
+# A: flake8-builtins  C4: flake8-comprehensions  RUF: ruff-specific
+select = ["E", "F", "I", "UP", "B", "A", "C4", "RUF"]
 ignore = [
     "E501",   # line too long — ruff format handles wrapping; long SQL strings are acceptable
     "B008",   # do not perform function calls in argument defaults (ComfyUI INPUT_TYPES pattern)

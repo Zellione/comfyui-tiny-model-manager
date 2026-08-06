@@ -1,5 +1,7 @@
 """Tests for HuggingFace provider (py/services/providers/huggingface_provider.py)."""
 
+from typing import ClassVar
+
 import httpx
 import pytest
 
@@ -391,7 +393,7 @@ class TestSearch:
 
 
 class TestLookupByRepoId:
-    REPO_DATA = {
+    REPO_DATA: ClassVar[dict] = {
         "id": "owner/cool-lora",
         "tags": ["diffusers", "lora", "text-to-image"],
         "cardData": {

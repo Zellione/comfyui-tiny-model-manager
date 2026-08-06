@@ -3,6 +3,7 @@
 import os
 from datetime import UTC
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 from aiohttp import web
@@ -379,7 +380,7 @@ class TestRefetchMetadata:
 
 
 class TestGetRepoFiles:
-    _SAMPLE_FILES = [
+    _SAMPLE_FILES: ClassVar[list] = [
         {
             "filename": "model-fp16.safetensors",
             "size_bytes": 2097152,
