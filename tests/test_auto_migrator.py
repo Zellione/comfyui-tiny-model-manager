@@ -18,7 +18,7 @@ def _clean_module_state():
     backend_notifier.flush()
 
 
-@pytest.fixture()
+@pytest.fixture
 def models_root(ext_dir):
     """Configure the folder_paths stub with real dirs backed by ext_dir."""
     import folder_paths

@@ -5,7 +5,7 @@ import os
 import pytest
 
 
-@pytest.fixture()
+@pytest.fixture
 def media_root(ext_dir):
     from py import config as cfg
 

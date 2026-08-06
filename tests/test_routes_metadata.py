@@ -8,7 +8,7 @@ import pytest
 from aiohttp import web
 
 
-@pytest.fixture()
+@pytest.fixture
 async def client(aiohttp_client, ext_dir):
     from py.routes.metadata import add_metadata_routes
 
@@ -191,7 +191,7 @@ class TestPutMetadata:
 
 
 class TestPutMetadataOrganize:
-    @pytest.fixture()
+    @pytest.fixture
     async def organize_client(self, aiohttp_client, ext_dir):
         import folder_paths
 

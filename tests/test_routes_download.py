@@ -23,7 +23,7 @@ def stub_transfer(monkeypatch):
     monkeypatch.setattr("py.services.downloader._stream_file", never_completes)
 
 
-@pytest.fixture()
+@pytest.fixture
 async def client(aiohttp_client, ext_dir):
     # Downloader state is reset per test by the autouse reset_downloader_state fixture.
     from py.routes.download import add_download_routes

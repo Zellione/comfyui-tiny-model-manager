@@ -6,7 +6,7 @@ import os
 import pytest
 
 
-@pytest.fixture()
+@pytest.fixture
 def cfg(tmp_path):
     """Return the config module initialised against a fresh temp dir."""
     from py import config as _cfg

@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 
-@pytest.fixture()
+@pytest.fixture
 def loras_dir(ext_dir):
     import folder_paths
 

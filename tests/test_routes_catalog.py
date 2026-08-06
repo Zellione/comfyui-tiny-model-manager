@@ -7,7 +7,7 @@ import pytest
 from aiohttp import web
 
 
-@pytest.fixture()
+@pytest.fixture
 async def client(aiohttp_client, ext_dir):
     import folder_paths
 

@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
-@pytest.fixture()
+@pytest.fixture
 def video_file(tmp_path):
     p = tmp_path / "clip.mp4"
     p.write_bytes(b"\x00\x00\x00\x18ftyp")
