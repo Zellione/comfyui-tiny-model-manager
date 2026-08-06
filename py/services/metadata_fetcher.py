@@ -252,7 +252,7 @@ def _remove_dir_if_empty(path: str | None) -> None:
         if not os.listdir(path):
             os.rmdir(path)
     except Exception:
-        pass
+        _log.debug("Could not remove media directory %s", path, exc_info=True)
 
 
 async def _migrate_model_media(db, row) -> None:
@@ -281,7 +281,13 @@ async def _migrate_model_media(db, row) -> None:
             try:
                 shutil.move(old_path, new_path)
             except Exception:
-                pass
+                _log.warning(
+                    "Media migration could not move %s to %s; DB row now points at the"
+                    " new path while the file stayed behind",
+                    old_path,
+                    new_path,
+                    exc_info=True,
+                )
             old_dir = os.path.dirname(old_path)
         await db.execute(
             "UPDATE model_media SET local_path = ? WHERE id = ?", (new_path, media_row["id"])

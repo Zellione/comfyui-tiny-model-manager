@@ -1,4 +1,5 @@
 import asyncio as _asyncio
+import logging
 import os
 import re
 from dataclasses import dataclass
@@ -10,6 +11,8 @@ from ..db import model_repo
 from ..services import model_paths
 from ..video_poster import extract_video_poster
 from ._helpers import err, json_route, ok
+
+_log = logging.getLogger("tiny-model-manager")
 
 _TTL_SECONDS = 300  # 5 minutes
 
@@ -138,7 +141,7 @@ async def _maybe_reorganize_for_base_model(path: str, model_type: str, new_base_
             await model_repo.update_model_filename(path, new_path)
             return new_path
     except Exception:
-        pass
+        _log.warning("Reorganize into base-model subfolder failed for %s", path, exc_info=True)
     return path
 
 
