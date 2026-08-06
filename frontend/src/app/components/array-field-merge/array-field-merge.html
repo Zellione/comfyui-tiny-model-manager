@@ -2,9 +2,9 @@
   <div class="merge-panels">
     <div class="merge-panel">
       <div class="panel-header">
-        <span>Current</span>
+        <span>{{ 'merge_field.current' | translate }}</span>
         @if (lastEditedAt()) {
-          <span class="edited-icon" title="Manually edited">✏</span>
+          <span class="edited-icon" [title]="'merge_field.manually_edited' | translate">✏</span>
         }
       </div>
       <div class="chip-list">
@@ -14,7 +14,7 @@
             class="chip chip--active"
             [class.chip--inactive]="!isSelected(item)"
             (click)="toggle(item)"
-            title="Click to toggle"
+            [title]="'merge_field.click_to_toggle' | translate"
           >
             {{ item }}
           </button>
@@ -25,20 +25,20 @@
             class="chip chip--shared"
             [class.chip--inactive]="!isSelected(item)"
             (click)="toggle(item)"
-            title="Click to toggle"
+            [title]="'merge_field.click_to_toggle' | translate"
           >
             {{ item }}
           </button>
         }
         @if (oldOnly().length === 0 && shared().length === 0) {
-          <span class="empty-label">No items</span>
+          <span class="empty-label">{{ 'merge_field.no_items' | translate }}</span>
         }
       </div>
     </div>
 
     <div class="merge-panel">
       <div class="panel-header">
-        <span>Incoming</span>
+        <span>{{ 'merge_field.incoming' | translate }}</span>
       </div>
       <div class="chip-list">
         @for (item of shared(); track item) {
@@ -47,7 +47,7 @@
             class="chip chip--shared"
             [class.chip--inactive]="!isSelected(item)"
             (click)="toggle(item)"
-            title="Click to toggle"
+            [title]="'merge_field.click_to_toggle' | translate"
           >
             {{ item }}
           </button>
@@ -59,13 +59,13 @@
             [class.chip--active]="isSelected(item)"
             [class.chip--inactive]="!isSelected(item)"
             (click)="toggle(item)"
-            title="Click to add"
+            [title]="'merge_field.click_to_add' | translate"
           >
             {{ item }}
           </button>
         }
         @if (shared().length === 0 && newOnly().length === 0) {
-          <span class="empty-label">No items</span>
+          <span class="empty-label">{{ 'merge_field.no_items' | translate }}</span>
         }
       </div>
     </div>

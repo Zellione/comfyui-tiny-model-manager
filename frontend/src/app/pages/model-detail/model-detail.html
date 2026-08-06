@@ -202,7 +202,7 @@
             <app-base-model-select
               [value]="editMeta.base_model ?? ''"
               (valueChange)="editMeta.base_model = $event"
-              placeholder="e.g. SDXL 1.0, Flux.1 D, Pony"
+              [placeholder]="'model_detail.base_model_placeholder' | translate"
             />
           </div>
 

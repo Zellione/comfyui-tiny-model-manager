@@ -1,9 +1,10 @@
 import { Component, OnInit, computed, effect, input, model, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-array-field-merge',
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   templateUrl: './array-field-merge.html',
   styleUrl: './array-field-merge.scss',
 })
