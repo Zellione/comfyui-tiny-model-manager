@@ -1,3 +1,4 @@
+import asyncio
 import os
 import shutil
 
@@ -217,7 +218,7 @@ def add_catalog_routes(routes):
     @json_route
     async def list_catalog(request):
         entries = await model_repo.list_catalog_entries()
-        all_files = _scan_all_files()
+        all_files = await asyncio.to_thread(_scan_all_files)
         entries, cataloged = _annotate_entries(entries)
         unknown = _collect_unknown(all_files, cataloged)
         return ok({"entries": entries, "unknown_files": unknown})
