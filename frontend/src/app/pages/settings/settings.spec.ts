@@ -5,6 +5,7 @@ import { vi } from 'vitest';
 import { Settings } from './settings';
 import { KeywordsService } from '../../services/keywords';
 import { NotificationService } from '../../services/notification';
+import { SettingsService } from '../../services/settings';
 import { FilenameKeyword } from '../../utils/filename-detector';
 
 const mockKeywordsService = {
@@ -16,6 +17,11 @@ const mockKeywordsService = {
 
 const mockNotifService = {
   show: vi.fn(),
+};
+
+const mockSettingsService = {
+  getSettings: vi.fn(),
+  updateSettings: vi.fn(),
 };
 
 function makeKw(id: number): FilenameKeyword {
@@ -34,6 +40,7 @@ async function configureTestBed() {
     providers: [
       { provide: KeywordsService, useValue: mockKeywordsService },
       { provide: NotificationService, useValue: mockNotifService },
+      { provide: SettingsService, useValue: mockSettingsService },
       provideTranslateServiceForTests(),
     ],
   }).compileComponents();
@@ -50,7 +57,47 @@ describe('Settings component', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mockKeywordsService.getKeywords.mockReturnValue(of([]));
+    mockSettingsService.getSettings.mockReturnValue(of({ missing_models_integration: true }));
+    mockSettingsService.updateSettings.mockReturnValue(of(undefined));
     await configureTestBed();
+  });
+
+  describe('missing models integration toggle', () => {
+    it('loads the current value', async () => {
+      mockSettingsService.getSettings.mockReturnValue(of({ missing_models_integration: false }));
+      const comp = (await createFixture()).componentInstance;
+      expect(comp.missingModelsIntegration()).toBe(false);
+      expect(comp.integrationLoading()).toBe(false);
+    });
+
+    it('defaults to enabled when the key is absent', async () => {
+      mockSettingsService.getSettings.mockReturnValue(of({}));
+      const comp = (await createFixture()).componentInstance;
+      expect(comp.missingModelsIntegration()).toBe(true);
+    });
+
+    it('stops loading when the request fails', async () => {
+      mockSettingsService.getSettings.mockReturnValue(throwError(() => new Error('nope')));
+      const comp = (await createFixture()).componentInstance;
+      expect(comp.integrationLoading()).toBe(false);
+    });
+
+    it('persists a change', async () => {
+      const comp = (await createFixture()).componentInstance;
+      comp.setMissingModelsIntegration(false);
+      expect(mockSettingsService.updateSettings).toHaveBeenCalledWith({
+        missing_models_integration: false,
+      });
+      expect(comp.missingModelsIntegration()).toBe(false);
+    });
+
+    it('reverts and notifies when saving fails', async () => {
+      mockSettingsService.updateSettings.mockReturnValue(throwError(() => new Error('nope')));
+      const comp = (await createFixture()).componentInstance;
+      comp.setMissingModelsIntegration(false);
+      expect(comp.missingModelsIntegration()).toBe(true);
+      expect(mockNotifService.show).toHaveBeenCalledWith('error', expect.any(String));
+    });
   });
 
   describe('ngOnInit / load', () => {

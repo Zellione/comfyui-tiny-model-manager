@@ -383,6 +383,36 @@ still run in CI.
 becomes a problem, that is the first thing to attempt — but expect the added file to shift the
 `new_coverage` numbers, so do it as its own change, not as a rider on something else.
 
+### Reading ComfyUI's own frontend source
+
+`comfyui_frontend_package/static/assets/*.js.map` ship with **`sourcesContent`** — the original
+`.ts` / `.vue` files. Never reverse-engineer the minified bundle; dump the sourcemap instead:
+
+```python
+import json, glob
+for m in glob.glob(f"{FE}/assets/*.map"):
+    d = json.load(open(m))
+    for s, c in zip(d.get("sources", []), d.get("sourcesContent") or []):
+        if "whatever" in s: print(s, c)
+```
+
+`data-testid` attributes in those components are the stable anchors for DOM injection; Tailwind
+class strings are not.
+
+### Injecting into a Vue-rendered panel (F-144)
+
+Vue re-creates its subtree on every store change, so a one-shot insert is not enough:
+
+- Observe `document.body` (`childList` + `subtree`) and re-run a `sync()` pass, rather than
+  inserting once and disconnecting (that pattern is only right for a mount-once element like the
+  topbar button).
+- Make `sync()` idempotent with a **marker attribute** on the element you appended to
+  (`data-tmm-…`), not by counting your own nodes.
+- Guard `sync()` with a re-entrancy flag: your own `appendChild` is a mutation the observer will
+  report, and without the flag the pass loops forever.
+- Keep per-element UI state in a `Map` keyed by stable data (e.g. `directory::filename`), never on
+  the DOM node — the node is gone after the next re-render.
+
 ### ComfyUI model-list refresh
 
 `app.refreshComboInNodes()` (comfyui_frontend_package ≥0.24) re-fetches `/object_info` and rewrites

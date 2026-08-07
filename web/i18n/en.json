@@ -198,6 +198,13 @@
   },
   "settings": {
     "title": "Settings",
+    "integration": {
+      "title": "ComfyUI Integration",
+      "description": "Controls what Tiny Model Manager adds to the ComfyUI interface. Changes apply to an open ComfyUI tab immediately.",
+      "missing_models": "Add TMM buttons to the Missing Models panel",
+      "missing_models_hint": "Downloads a workflow's missing models through Tiny Model Manager, so each file lands in the right folder with a full model card. ComfyUI's own buttons are left untouched.",
+      "error_save": "Could not save the setting."
+    },
     "keywords": {
       "title": "Filename Detection Keywords",
       "description": "Keywords are matched (case-insensitive) against downloaded filenames. The first matching keyword per field wins. Drag to reorder, or adjust sort order values.",

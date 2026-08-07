@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ActivatedRoute } from '@angular/router';
 import { provideTranslateServiceForTests } from '../../../test-helpers/translate-testing';
 import { of, EMPTY } from 'rxjs';
 import { vi } from 'vitest';
@@ -10,6 +11,8 @@ import { ModelService } from '../../services/model';
 import { NotificationService } from '../../services/notification';
 import { KeywordsService } from '../../services/keywords';
 import { FilenameKeyword } from '../../utils/filename-detector';
+
+const emptyQueryParams = { get: () => null };
 
 const mockCivitaiService = {
   search: vi.fn().mockReturnValue(of({ items: [], metadata: {} })),
@@ -47,6 +50,7 @@ async function createFixture() {
   await TestBed.configureTestingModule({
     imports: [Download],
     providers: [
+      { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: emptyQueryParams } } },
       { provide: CivitaiService, useValue: mockCivitaiService },
       { provide: HuggingFaceService, useValue: mockHfService },
       { provide: DownloadService, useValue: mockDownloadService },

@@ -3,7 +3,7 @@ import os
 from aiohttp import web
 
 from ..db import model_repo
-from ..services import auto_migrator
+from ..services import auto_migrator, missing_model_resolver, model_paths
 from ..services import downloader as dl
 from ..services.providers import civitai, huggingface
 from ..services.url_guard import is_allowed_url
@@ -99,32 +99,26 @@ def _register_search_routes(routes):
         return ok(result)
 
 
-async def _start_download(request):
-    body = await request.json()
-    url = body.get("url", "")
-    model_type = body.get("model_type", "checkpoints")
-    filename = body.get("filename", "")
-    platform = body.get("platform", "")
-    source_id = body.get("source_id", "")
-    hint_base_model = body.get("base_model", "")
-    if not url or not filename:
-        return err("url and filename required", status=400)
-    if not is_allowed_url(url):
-        return err("Download URL host is not allowed", status=400)
-    # Confine the destination before any DB write so a rejected request leaves no
-    # dangling history row.
-    try:
-        dl.validate_target(model_type, filename, platform)
-    except ValueError as exc:
-        return err(str(exc), status=400)
+async def _queue_download(
+    url: str,
+    model_type: str,
+    filename: str,
+    platform: str,
+    source_id: str,
+    hint_base_model: str = "",
+) -> str:
+    """Confine the destination, record the history row and enqueue; returns the task id.
+
+    ``dl.validate_target`` runs before any DB write so a rejected request leaves no dangling
+    history row. It raises ``ValueError`` on a traversal attempt — callers answer 400.
+    """
+    dl.validate_target(model_type, filename, platform)
     model_name = os.path.basename(filename)
-    version_id = source_id if platform == "civitai" else ""
-    model_id = source_id if platform == "huggingface" else ""
     history_id = await model_repo.insert_download_history(
         model_name=model_name,
         source=platform,
-        model_id=model_id,
-        version_id=version_id,
+        model_id=source_id if platform == "huggingface" else "",
+        version_id=source_id if platform == "civitai" else "",
         file_url=url,
         dest_path=filename,
         model_type=model_type,
@@ -138,7 +132,82 @@ async def _start_download(request):
         history_id=history_id,
         hint_base_model=hint_base_model,
     )
-    return ok({"task_id": task.id})
+    return task.id
+
+
+async def _start_download(request):
+    body = await request.json()
+    url = body.get("url", "")
+    model_type = body.get("model_type", "checkpoints")
+    filename = body.get("filename", "")
+    platform = body.get("platform", "")
+    source_id = body.get("source_id", "")
+    hint_base_model = body.get("base_model", "")
+    if not url or not filename:
+        return err("url and filename required", status=400)
+    if not is_allowed_url(url):
+        return err("Download URL host is not allowed", status=400)
+    try:
+        task_id = await _queue_download(
+            url, model_type, filename, platform, source_id, hint_base_model
+        )
+    except ValueError as exc:
+        return err(str(exc), status=400)
+    return ok({"task_id": task_id})
+
+
+async def _start_missing_download(request):
+    """Resolve one entry of ComfyUI's Missing Models panel and queue it (F-144).
+
+    ``directory`` is the panel's folder name and is authoritative — a provider's own idea of
+    the model type never overrides it, because the panel never offers a TMM button for a row
+    whose directory it could not determine.
+    """
+    body = await request.json()
+    filename = (body.get("filename") or "").strip()
+    model_type = (body.get("directory") or "").strip()
+    url = (body.get("url") or "").strip()
+
+    if not filename:
+        return err("filename required", status=400)
+    if model_type not in dl.SUPPORTED_TYPES:
+        return err("unsupported_directory", status=400)
+    # Cheap short-circuit for a file TMM installed after the panel last refreshed. Only the
+    # model type's own directories are checked, not subfolders created by
+    # ``organize_into_subfolders`` — a miss here just means the resolution chain runs.
+    if model_paths.find_file(model_type, os.path.basename(filename)):
+        return ok({"already_installed": True})
+
+    resolution = await missing_model_resolver.resolve(filename, model_type, url)
+    if resolution is None:
+        return ok(
+            {
+                "unresolved": True,
+                "search_term": missing_model_resolver.search_term(filename),
+                "model_type": model_type,
+            }
+        )
+
+    try:
+        task_id = await _queue_download(
+            resolution.download_url,
+            resolution.model_type,
+            resolution.filename,
+            resolution.platform,
+            resolution.source_id,
+            resolution.base_model,
+        )
+    except ValueError as exc:
+        return err(str(exc), status=400)
+    return ok(
+        {
+            "task_id": task_id,
+            "platform": resolution.platform,
+            "source_id": resolution.source_id,
+            "model_type": resolution.model_type,
+            "filename": resolution.filename,
+        }
+    )
 
 
 async def _redownload(request):
@@ -185,6 +254,11 @@ def _register_download_mgmt_routes(routes):
     @json_route
     async def start_download(request):
         return await _start_download(request)
+
+    @routes.post("/tiny-model-manager/api/download/missing")
+    @json_route
+    async def start_missing_download(request):
+        return await _start_missing_download(request)
 
     @routes.get("/tiny-model-manager/api/download/status")
     @json_route

@@ -1,10 +1,13 @@
 import { app } from '../../scripts/app.js';
 import { createPendingProcessor } from './workflow-insert.js';
+import { createMissingModelsIntegration } from './missing-models.js';
 
 const API = '/tiny-model-manager/api';
 let _initialized = false;
 let _defaultMediaDir = '';
 let _revertingOrganize = false;
+let _missingModels = null;
+let _missingModelsEnabled = true;
 
 async function fetchSettings() {
   const r = await fetch(`${API}/settings`);
@@ -58,6 +61,16 @@ function makeToggle(checked, setter) {
   return label;
 }
 
+// Start/stop the Missing Models integration. Called from the setting's onChange, which
+// ComfyUI fires while registering the setting — i.e. before our setup() has built the
+// integration — so the desired value is remembered until it exists.
+function applyMissingModels(enabled) {
+  _missingModelsEnabled = !!enabled;
+  if (!_missingModels) return;
+  if (_missingModelsEnabled) _missingModels.start();
+  else _missingModels.stop();
+}
+
 app.registerExtension({
   name: 'TinyModelManager.Settings',
   async setup() {
@@ -73,6 +86,10 @@ app.registerExtension({
     app.ui.settings.setSettingValue(
       'TinyModelManager.cleanup_stale_media_on_start',
       data.cleanup_stale_media_on_start ?? false,
+    );
+    app.ui.settings.setSettingValue(
+      'TinyModelManager.missing_models_integration',
+      data.missing_models_integration ?? true,
     );
     _initialized = true;
   },
@@ -200,6 +217,29 @@ app.registerExtension({
         await putSetting('cleanup_stale_media_on_start', value);
       },
     },
+    {
+      id: 'TinyModelManager.missing_models_integration',
+      name: 'Add TMM buttons to Missing Models',
+      category: ['Tiny Model Manager', 'Workflows', 'Missing Models integration'],
+      type(_name, setter, value) {
+        return makeToggle(value, (checked) => {
+          setter(checked);
+        });
+      },
+      defaultVal: true,
+      tooltip:
+        "When enabled, ComfyUI's Missing Models panel gains buttons that download through Tiny Model Manager, so files land in the right folder with a full model card. ComfyUI's own buttons are left untouched.",
+      async onChange(value) {
+        applyMissingModels(value);
+        if (!_initialized) return;
+        const result = await putSetting('missing_models_integration', value);
+        if (result.ok) {
+          const ch = new BroadcastChannel('tmm');
+          ch.postMessage({ key: 'missing_models_integration', value });
+          ch.close();
+        }
+      },
+    },
   ],
 });
 
@@ -212,6 +252,25 @@ app.registerExtension({
       api: API,
     });
     setInterval(processPending, 500);
+  },
+});
+
+app.registerExtension({
+  name: 'TinyModelManager.MissingModels',
+  async setup() {
+    _missingModels = createMissingModelsIntegration({ app, api: API });
+    applyMissingModels(_missingModelsEnabled);
+
+    // The dashboard's Settings page toggles the same setting; mirror it live.
+    const ch = new BroadcastChannel('tmm');
+    ch.addEventListener('message', (e) => {
+      if (e.data?.key !== 'missing_models_integration') return;
+      app.ui.settings.setSettingValue(
+        'TinyModelManager.missing_models_integration',
+        !!e.data.value,
+      );
+      applyMissingModels(e.data.value);
+    });
   },
 });
 

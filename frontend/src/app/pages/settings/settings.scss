@@ -150,3 +150,31 @@
     background: rgba(249, 115, 115, 0.22);
   }
 }
+
+// ── Toggle row ────────────────────────────────────────────────────────────────
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+
+  input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent, #00aa7e);
+    cursor: pointer;
+  }
+}
+
+.toggle-label {
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.toggle-hint {
+  font-size: 0.8rem;
+  color: var(--text-2);
+  margin: 6px 0 0 26px;
+}

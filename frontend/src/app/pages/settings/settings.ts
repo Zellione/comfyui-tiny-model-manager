@@ -7,6 +7,7 @@ import { KeywordsService } from '../../services/keywords';
 import { FilenameKeyword } from '../../utils/filename-detector';
 import { MODEL_TYPES, ModelType } from '../../utils/model-types';
 import { NotificationService } from '../../services/notification';
+import { SettingsService } from '../../services/settings';
 
 @Component({
   selector: 'app-settings',
@@ -19,6 +20,7 @@ export class Settings implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly notifService = inject(NotificationService);
   private readonly translate = inject(TranslateService);
+  private readonly settingsService = inject(SettingsService);
 
   readonly modelTypes = MODEL_TYPES;
 
@@ -37,8 +39,50 @@ export class Settings implements OnInit {
   newModelType = signal('');
   adding = signal(false);
 
+  missingModelsIntegration = signal(true);
+  integrationLoading = signal(true);
+
   ngOnInit() {
     this.load();
+    this.loadIntegrationSetting();
+  }
+
+  private loadIntegrationSetting() {
+    this.settingsService
+      .getSettings()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (s) => {
+          this.missingModelsIntegration.set(s.missing_models_integration ?? true);
+          this.integrationLoading.set(false);
+        },
+        error: () => this.integrationLoading.set(false),
+      });
+  }
+
+  setMissingModelsIntegration(enabled: boolean) {
+    const previous = this.missingModelsIntegration();
+    this.missingModelsIntegration.set(enabled);
+    this.settingsService
+      .updateSettings({ missing_models_integration: enabled })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        // An open ComfyUI tab listens on this channel and starts/stops injecting live.
+        next: () => this.broadcast(enabled),
+        error: () => {
+          this.missingModelsIntegration.set(previous);
+          this.notifService.show(
+            'error',
+            this.translate.instant('settings.integration.error_save'),
+          );
+        },
+      });
+  }
+
+  private broadcast(value: boolean) {
+    const channel = new BroadcastChannel('tmm');
+    channel.postMessage({ key: 'missing_models_integration', value });
+    channel.close();
   }
 
   private load() {

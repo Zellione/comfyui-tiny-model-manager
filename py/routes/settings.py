@@ -14,6 +14,9 @@ def _masked_settings(data: dict) -> dict:
         "media_dir": data.get("media_dir", ""),
         "organize_into_subfolders": data.get("organize_into_subfolders", False),
         "cleanup_stale_media_on_start": data.get("cleanup_stale_media_on_start", False),
+        # F-144: on by default — the integration only adds buttons next to ComfyUI's own,
+        # so opting in silently is not surprising, while opting out must be possible.
+        "missing_models_integration": data.get("missing_models_integration", True),
         "media_dir_default": os.path.join(cfg.data_dir(), "media"),
     }
 
@@ -28,6 +31,8 @@ def _apply_masked_updates(existing: dict, body: dict) -> None:
         existing["media_dir"] = body["media_dir"]
     if "cleanup_stale_media_on_start" in body:
         existing["cleanup_stale_media_on_start"] = bool(body["cleanup_stale_media_on_start"])
+    if "missing_models_integration" in body:
+        existing["missing_models_integration"] = bool(body["missing_models_integration"])
 
 
 async def _organize_conflict(enabling: bool) -> str | None:
