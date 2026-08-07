@@ -617,6 +617,21 @@ Two standing gotchas:
 - Never mention Claude as co-author or use EOF in commit messages.
 - Feature branches via `gh issue develop <num> --name <short> --checkout`.
 
+## Python 3.10 floor — what not to reintroduce
+
+`requires-python = ">=3.10"`, so **use `timezone.utc`, never `datetime.UTC`** (the alias is 3.11+).
+Ruff's UP017 would rewrite it back, but only at `target-version >= py311` — which is why the ruff
+target must stay pinned to `py310`. A static grep missed this originally and the CI matrix caught
+it; to check a floor properly, actually run the suite on that interpreter:
+
+```bash
+uv venv --python 3.10 /tmp/py310
+uv pip install --python /tmp/py310/bin/python -r requirements.txt -r requirements-dev.txt
+/tmp/py310/bin/pytest -q          # console script, see the CI note below
+```
+
+`tests/test_packaging.py` skips on 3.10 (needs `tomllib`, 3.11+); everything else must pass.
+
 ## Releasing to the Comfy Registry
 
 - **Bumping `version` in `pyproject.toml` on `main` is the entire release trigger.**
