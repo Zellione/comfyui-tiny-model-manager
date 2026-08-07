@@ -1,3 +1,29 @@
+[project]
+name = "tiny-model-manager"
+version = "0.1.0"
+description = "Browse, download, and manage AI models, LoRAs, and workflows from CivitAI and HuggingFace, with custom nodes that carry their documented trigger words."
+license = { file = "LICENSE" }
+# Audited floor: the backend uses no syntax above builtin generics (3.9+), and every runtime
+# dependency supports 3.9+. 3.10 is declared as a safety margin and proven by the CI matrix.
+requires-python = ">=3.10"
+# Keep in sync with requirements.txt — tests/test_packaging.py fails the build on drift.
+dependencies = [
+    "aiosqlite>=0.19.0",
+    "httpx>=0.27.0",
+    "aiofiles>=23.0.0",
+    "mistune>=3.0.0",
+]
+classifiers = ["Operating System :: OS Independent"]
+
+[project.urls]
+Repository = "https://github.com/Zellione/comfyui-tiny-model-manager"
+
+[tool.comfy]
+PublisherId = "Zellione"
+DisplayName = "Tiny Model Manager"
+Icon = "https://raw.githubusercontent.com/Zellione/comfyui-tiny-model-manager/main/assets/icon.svg"
+# requires-comfyui is deliberately omitted: a guessed lower bound blocks installs for no benefit.
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
@@ -22,7 +48,9 @@ concurrency = ["thread"]
 fail_under = 88
 
 [tool.ruff]
-target-version = "py313"
+# Must match requires-python, not the newest interpreter we happen to run: at py313 the UP
+# rules would rewrite code into 3.12-only syntax and silently break the declared 3.10 floor.
+target-version = "py310"
 line-length = 100
 
 [tool.ruff.lint]

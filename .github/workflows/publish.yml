@@ -1,0 +1,53 @@
+name: Publish to Comfy Registry
+
+# Bumping `version` in pyproject.toml is the release trigger. The path filter also keeps the
+# refreshed-web/ commit pushed back below from retriggering this workflow.
+on:
+  push:
+    branches: [main]
+    paths: ['pyproject.toml']
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Build frontend and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npx ng build
+        working-directory: frontend
+
+      # web/ is tracked so that git-based installs work too. Refresh it here so the published
+      # archive and the repository always agree at release time.
+      - name: Commit refreshed web/ bundle
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          if git diff --quiet -- web; then
+            echo 'web/ already up to date'
+          else
+            git add web
+            git commit -m 'chore: rebuild web bundle for release [skip ci]'
+            git push
+          fi
+
+      - name: Publish to Comfy Registry
+        uses: Comfy-Org/publish-node-action@main
+        with:
+          personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}

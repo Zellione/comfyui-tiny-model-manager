@@ -1,0 +1,548 @@
+{
+  "toast": {
+    "type": {
+      "success": "Success",
+      "error": "Error",
+      "info": "Info",
+      "warning": "Warning"
+    }
+  },
+  "nav": {
+    "models": "Models",
+    "workflows": "Workflows",
+    "download": "Download",
+    "settings": "Settings",
+    "theme_to_light": "Switch to light mode",
+    "theme_to_dark": "Switch to dark mode",
+    "images": "Images"
+  },
+  "app": {
+    "download_complete": "Download complete: {{filename}}",
+    "download_failed": "Download failed: {{filename}}",
+    "download_failed_with_error": "Download failed: {{filename}} — {{error}}"
+  },
+  "models": {
+    "title": "Installed Models",
+    "rescan": "Rescan",
+    "reorganize_question": "Reorganize all installed models into base-model subfolders?",
+    "organize_subfolders": "Organize into subfolders",
+    "filter_all": "All",
+    "filter_unknown": "Unknown",
+    "filter_base": "Base",
+    "filter_source": "Source",
+    "filter_sort": "Sort",
+    "filter_show_empty": "Show empty",
+    "filter_reset": "Reset",
+    "loading": "Loading…",
+    "no_models": "No models found.",
+    "no_match": "No models match the current filters.",
+    "reset_filters": "Reset filters",
+    "no_files_badge": "No files",
+    "not_downloaded": "Not downloaded",
+    "view_details": "View details",
+    "copy_trigger_words": "Copy trigger words",
+    "add_to_workflow": "Add to workflow",
+    "choose_file": "Choose a file",
+    "files_count": "{{count}} file(s)",
+    "processing": "Processing…",
+    "unknown_badge": "Unknown",
+    "delete_question": "Delete {{filename}}?",
+    "delete": "Delete",
+    "source": {
+      "all": "All sources",
+      "unknown": "Unknown"
+    },
+    "sort": {
+      "name_asc": "Name A→Z",
+      "name_desc": "Name Z→A",
+      "created_desc": "Date added (newest)",
+      "created_asc": "Date added (oldest)"
+    },
+    "unregistered": {
+      "scan": "Scan for unregistered files",
+      "scanning": "Scanning…",
+      "title": "Unregistered Files",
+      "no_files": "No unregistered files found.",
+      "register": "Register",
+      "cancel": "Cancel",
+      "save": "Save",
+      "base_model_label": "Base model",
+      "description_label": "Description",
+      "tags_label": "Tags (comma-separated)",
+      "registered_ok": "{{filename}} registered.",
+      "register_failed": "Registration failed.",
+      "file_gone": "File no longer exists on disk.",
+      "scan_failed": "Scan failed.",
+      "lookup_loading": "Looking up on CivitAI…",
+      "lookup_found": "Found on CivitAI: {{name}}",
+      "lookup_not_found": "Not found on CivitAI — fill in details manually.",
+      "lookup_error": "CivitAI lookup failed.",
+      "lookup_retry": "Retry",
+      "link_label": "CivitAI or HuggingFace link",
+      "link_placeholder": "https://civitai.com/models/…",
+      "link_resolve": "Resolve",
+      "link_resolving": "Resolving…",
+      "link_found": "Filled from {{platform}}.",
+      "link_invalid": "Not a supported CivitAI or HuggingFace model link.",
+      "link_not_found": "No model found for that link.",
+      "link_unavailable": "Could not reach the provider. Try again later.",
+      "link_failed": "Link resolution failed."
+    },
+    "notify": {
+      "queued": "Model queued for workflow insertion.",
+      "queue_failed": "Failed to enqueue model for workflow insertion.",
+      "deleted": "Deleted: {{filename}}",
+      "trigger_copied": "Trigger words copied",
+      "trigger_copy_failed": "Could not copy trigger words",
+      "organized": "Organized {{moved}} model(s). Skipped: {{skipped}}. Errors: {{errors}}."
+    }
+  },
+  "model_detail": {
+    "back": "← Back to Models",
+    "base_model_placeholder": "e.g. SDXL 1.0, Flux.1 D, Pony",
+    "installed": "Installed",
+    "refetch_question": "Re-fetch metadata from source?",
+    "refetching": "Fetching…",
+    "refetch": "Re-fetch Metadata",
+    "uninstall_question": "Remove this model from disk? This cannot be undone.",
+    "removing": "Removing…",
+    "uninstall": "Uninstall",
+    "loading": "Loading metadata…",
+    "view_on": "View on {{source}} ↗",
+    "no_source": "No source linked — paste a CivitAI or HuggingFace URL...",
+    "source_placeholder": "https://civitai.com/models/… or https://huggingface.co/…",
+    "linking": "Linking…",
+    "link": "Link",
+    "edit": "Edit",
+    "tags": "Tags",
+    "up_to_date": "Metadata already up to date.",
+    "review_anyway": "Review anyway",
+    "trigger_keywords": "Trigger keywords",
+    "no_trigger_words": "No trigger words for this model",
+    "copied": "✓ Copied",
+    "copy": "Copy",
+    "about": "About this model",
+    "readme": "README",
+    "description": "Description",
+    "model_type": "Model Type",
+    "base_model": "Base Model",
+    "civitai_version": "Version",
+    "notify": {
+      "saved": "Metadata saved.",
+      "stale_removed": "File no longer on disk — removed its stale entry.",
+      "updated": "Metadata updated.",
+      "queued": "Model queued for workflow insertion.",
+      "queue_failed": "Failed to enqueue model for workflow insertion.",
+      "uninstalled": "{{name}} uninstalled.",
+      "source_linked": "Source linked.",
+      "queued_short": "Queued for workflow insertion.",
+      "queue_failed_short": "Failed to enqueue for workflow insertion.",
+      "file_deleted": "{{filename}} deleted.",
+      "downloading": "Downloading {{filename}}…",
+      "download_failed": "Failed to start download for {{filename}}",
+      "trigger_copied": "Trigger words copied",
+      "trigger_copy_failed": "Could not copy trigger words"
+    }
+  },
+  "catalog_detail": {
+    "back": "← Back to Models",
+    "models": "Models",
+    "refetch_question": "Re-fetch metadata from source?",
+    "refetching": "Fetching…",
+    "refetch": "Re-fetch Metadata",
+    "remove_question": "Remove from catalog? Stored media will be deleted but downloaded files are kept.",
+    "removing": "Removing…",
+    "remove": "Remove from Catalog",
+    "edit": "Edit",
+    "tags": "Tags",
+    "files": "Files",
+    "loading": "Loading…",
+    "view_on": "View on {{source}} ↗",
+    "trigger_keywords": "Trigger keywords",
+    "no_trigger_words": "No trigger words for this model",
+    "copied": "✓ Copied",
+    "copy": "Copy",
+    "downloaded": "Downloaded",
+    "not_downloaded": "Not downloaded",
+    "files_count": "{{downloaded}} / {{total}} downloaded",
+    "add_to_workflow": "Add to Workflow",
+    "details": "Details",
+    "uninstall": "Uninstall",
+    "uninstall_question": "Uninstall from disk? This cannot be undone.",
+    "queued": "Queued…",
+    "done": "Done",
+    "failed": "Failed",
+    "processing": "Processing…",
+    "download": "Download",
+    "no_file_listing": "No file listing available for this entry.",
+    "no_files_downloaded_prefix": "No files downloaded yet. Use the ",
+    "no_files_downloaded_link": "source page",
+    "no_files_downloaded_suffix": " to find download links.",
+    "about": "About this model",
+    "readme": "README",
+    "description": "Description",
+    "base_model_per_file": "Base Model per file",
+    "no_downloaded_files_for_base": "No downloaded files to assign a base model to.",
+    "notify": {
+      "download_failed": "Download failed: {{error}}",
+      "saved": "Metadata saved.",
+      "refetched": "Metadata re-fetched from source.",
+      "queued": "Model queued for workflow insertion.",
+      "queue_failed": "Failed to enqueue model for workflow insertion.",
+      "uninstalled": "File uninstalled.",
+      "removed": "Removed \"{{name}}\" from catalog.",
+      "remove_failed": "Failed to remove from catalog: {{error}}",
+      "downloading": "Downloading {{filename}}…",
+      "download_start_failed": "Failed to start download for {{filename}}"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "keywords": {
+      "title": "Filename Detection Keywords",
+      "description": "Keywords are matched (case-insensitive) against downloaded filenames. The first matching keyword per field wins. Drag to reorder, or adjust sort order values.",
+      "loading": "Loading…",
+      "error_load": "Failed to load keywords",
+      "error_save": "Failed to save keyword",
+      "error_add": "Failed to add keyword",
+      "error_delete": "Failed to delete keyword",
+      "header": {
+        "keyword": "Keyword",
+        "base_model": "Base model",
+        "model_type": "Model type",
+        "sort_order": "Sort order"
+      },
+      "placeholder": {
+        "keyword": "keyword",
+        "base_model": "e.g. SDXL 1.0",
+        "new": "new keyword…"
+      },
+      "no_model_type": "— none —",
+      "auto_sort": "auto",
+      "save": "Save",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "delete": "Delete",
+      "add": "Add"
+    }
+  },
+  "download": {
+    "title": "Download Models",
+    "tabs": {
+      "active": "Active",
+      "history": "History"
+    }
+  },
+  "download_queue": {
+    "title": "Active Downloads",
+    "cancel_all_question": "Cancel all {{count}} downloads?",
+    "cancel_all": "Cancel all",
+    "cancel_question": "Cancel this download?",
+    "cancelling": "…",
+    "cancel": "Cancel"
+  },
+  "download_search": {
+    "search": "Search",
+    "searching": "Searching…",
+    "placeholder": "Search models…",
+    "filter": {
+      "all_base_models": "All base models",
+      "default_sort": "Default sort",
+      "sort_label": "Sort by",
+      "period_label": "Time period",
+      "format_label": "Filter by format",
+      "tag_placeholder": "Filter by tag…",
+      "tag_limit_hint": "CivitAI only supports one server-side tag filter. The first tag narrows the API results; additional tags are applied locally.",
+      "clear_tags": "Clear all"
+    },
+    "empty": {
+      "searching": "Searching…",
+      "get_started": "Search for models above to get started.",
+      "no_results": "No results found. Try a different query or adjust your filters."
+    },
+    "load_more": {
+      "loading": "Loading…",
+      "failed": "Failed",
+      "load_more": "Load more",
+      "no_more": "No more results"
+    },
+    "detail": {
+      "loading_versions": "Loading versions…",
+      "versions": "Versions",
+      "loading_files": "Loading files…",
+      "loading_description": "Loading description…",
+      "files": "Files",
+      "download_selected": "Download selected ({{count}})",
+      "optional": "Optional",
+      "in_library": "In library",
+      "downloading": "Downloading…",
+      "download": "Download",
+      "tags": "Tags",
+      "trigger_words": "Trigger words",
+      "downloads_count": "{{count}} downloads"
+    },
+    "sort": {
+      "most_downloaded": "Most Downloaded",
+      "highest_rated": "Highest Rated",
+      "newest": "Newest"
+    },
+    "period": {
+      "all_time": "All Time",
+      "year": "Year",
+      "month": "Month",
+      "week": "Week",
+      "day": "Day"
+    },
+    "hf_sort": {
+      "downloads": "Downloads",
+      "likes": "Likes",
+      "trending": "Trending",
+      "recently_updated": "Recently Updated",
+      "recently_created": "Recently Created"
+    },
+    "format": {
+      "all": "All formats",
+      "safetensors": ".safetensors",
+      "gguf": ".gguf",
+      "ckpt": ".ckpt",
+      "pt": ".pt",
+      "bin": ".bin"
+    },
+    "error": {
+      "search_failed": "Search failed: {{error}}",
+      "request_failed": "Request failed",
+      "no_results": "No results returned",
+      "load_versions_failed": "Failed to load versions"
+    }
+  },
+  "download_history": {
+    "status": {
+      "all": "All",
+      "done": "Done",
+      "downloading": "Downloading",
+      "error": "Error",
+      "cancelled": "Cancelled",
+      "deleted": "Deleted"
+    },
+    "placeholder": "Search by name…",
+    "loading": "Loading…",
+    "empty": "No history entries found.",
+    "cancel_question": "Cancel this download?",
+    "redownload_question": "Re-download {{name}}?",
+    "redownloading": "…",
+    "redownload": "Redownload",
+    "cancelling": "…",
+    "cancel": "Cancel",
+    "load_more": {
+      "loading": "Loading…",
+      "load_more": "Load more"
+    },
+    "notify": {
+      "redownload_queued": "Redownload enqueued: {{name}}",
+      "redownload_failed": "Failed to redownload: {{name}}"
+    },
+    "error": {
+      "load_more": "Failed to load history"
+    }
+  },
+  "paste_link": {
+    "title": "Paste a link",
+    "placeholder": "https://huggingface.co/… or https://civitai.com/models/…",
+    "resolving": "Resolving…",
+    "url_not_recognized": "URL not recognized.",
+    "in_library": "In library",
+    "downloading": "Downloading…",
+    "download": "Download",
+    "optional": "Optional",
+    "files_in": "Files in {{repo}}",
+    "versions": "Versions",
+    "download_selected": "Download selected ({{count}})",
+    "error": {
+      "resolve_failed": "Failed to resolve link",
+      "load_files_failed": "Failed to load files from repository",
+      "load_versions_failed": "Failed to load model versions"
+    }
+  },
+  "edit_meta": {
+    "trigger_words": "Trigger Words",
+    "add_trigger_word_placeholder": "Add trigger word",
+    "tags": "Tags",
+    "add_tag_placeholder": "Add tag",
+    "remove_trigger_word": "Remove trigger word {{word}}",
+    "remove_tag": "Remove tag {{tag}}",
+    "add": "Add",
+    "saving": "Saving…",
+    "save": "Save",
+    "cancel": "Cancel",
+    "refetching": "Fetching…",
+    "refetch": "Re-fetch Metadata"
+  },
+  "merge_field": {
+    "current": "Current",
+    "incoming": "Incoming",
+    "manually_edited": "Manually edited",
+    "click_to_toggle": "Click to toggle",
+    "click_to_add": "Click to add",
+    "no_items": "No items",
+    "empty": "(empty)"
+  },
+  "refetch_modal": {
+    "title": "Review fetched metadata",
+    "description": "Description",
+    "trigger_words": "Trigger Words",
+    "tags": "Tags",
+    "base_model": "Base Model",
+    "current": "Current:",
+    "incoming": "Incoming:",
+    "none": "(none)",
+    "replace_images": "Also replace images?",
+    "cancel": "Cancel",
+    "applying": "Applying…",
+    "apply_selected": "Apply selected",
+    "preview_expired": "Preview expired — re-fetch to review again.",
+    "expires_in": "Preview expires in {{countdown}}"
+  },
+  "confirm_popover": {
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "default_question": "Are you sure?"
+  },
+  "image_gallery": {
+    "current": "Current images",
+    "no_current": "No current images",
+    "incoming": "Incoming images",
+    "no_incoming": "No incoming images",
+    "keep": "Keep",
+    "download": "Download"
+  },
+  "media_gallery": {
+    "no_preview": "NO PREVIEW",
+    "close_preview": "Close preview"
+  },
+  "workflows": {
+    "title": "Workflows",
+    "tabs": {
+      "browse": "Browse CivitAI",
+      "installed": "Installed"
+    },
+    "search_placeholder": "Search CivitAI workflows…",
+    "versions": "Versions",
+    "download_hint": "Downloading unpacks the archive and stores every ComfyUI graph it contains.",
+    "download": "Download",
+    "redownload": "Re-download",
+    "downloading": "Downloading…",
+    "installed_badge": "Downloaded",
+    "load_in_comfy": "Load in ComfyUI",
+    "export": "Export",
+    "export_hint": "Copy into ComfyUI's own workflow browser",
+    "download_json": "Download the raw workflow JSON",
+    "delete": "Delete",
+    "delete_question": "Delete {{name}} and all of its workflows?",
+    "empty": {
+      "get_started": "Search CivitAI to find ComfyUI workflows."
+    },
+    "installed": {
+      "loading": "Loading stored workflows…",
+      "retry": "Retry",
+      "empty": "No workflows downloaded yet. Browse CivitAI to add some.",
+      "summary": "{{entries}} entries · {{graphs}} workflows",
+      "graph_count": "{{count}} workflows",
+      "node_count": "{{count}} nodes"
+    },
+    "notify": {
+      "downloaded": "Stored {{count}} workflow(s) from {{name}}",
+      "queued": "{{name}} is being loaded into ComfyUI",
+      "exported": "{{name}} exported to ComfyUI's workflow browser",
+      "deleted": "Deleted: {{name}}"
+    },
+    "error": {
+      "no_workflow_json": "This download contains no ComfyUI workflow.",
+      "corrupt_archive": "The downloaded archive could not be read.",
+      "no_download_url": "This version has no downloadable file.",
+      "too_large": "The archive is too large to store.",
+      "provider_unavailable": "CivitAI is unreachable right now.",
+      "download_failed": "Download failed.",
+      "open_failed": "Could not hand the workflow to ComfyUI.",
+      "export_failed": "Export failed.",
+      "delete_failed": "Could not delete the workflow."
+    }
+  },
+  "images": {
+    "title": "Images",
+    "hint": "Browse CivitAI's image feed and rebuild the workflow that made an image. CivitAI has no text search for images — use the filters.",
+    "filter": {
+      "nsfw_label": "Content rating",
+      "type_label": "Media type",
+      "recreatable_only": "Recreatable only",
+      "hidden_count": "({{count}} hidden)"
+    },
+    "sort": {
+      "most_reactions": "Most Reactions",
+      "most_comments": "Most Comments",
+      "newest": "Newest"
+    },
+    "nsfw": {
+      "none": "Safe",
+      "soft": "Soft",
+      "mature": "Mature",
+      "x": "X"
+    },
+    "type": {
+      "image": "Images",
+      "video": "Videos"
+    },
+    "badge": {
+      "graph": "Graph",
+      "params": "Params",
+      "none": "No metadata"
+    },
+    "empty": {
+      "no_results": "No images matched these filters."
+    },
+    "detail": {
+      "title": "Image {{id}}",
+      "view_on_civitai": "View on CivitAI",
+      "prompt": "Prompt",
+      "negative_prompt": "Negative prompt",
+      "parameters": "Generation parameters"
+    },
+    "param": {
+      "model": "Model",
+      "sampler": "Sampler",
+      "scheduler": "Scheduler",
+      "steps": "Steps",
+      "cfg": "CFG scale",
+      "seed": "Seed",
+      "clip_skip": "Clip skip"
+    },
+    "recreate": {
+      "action": "Recreate workflow",
+      "working": "Recreating…",
+      "hint_graph": "This image ships its original ComfyUI graph — it is restored exactly.",
+      "hint_params": "This image has generation parameters only, so the workflow is rebuilt from a template.",
+      "unavailable": "This image has no usable generation metadata, so it cannot be recreated.",
+      "stored": "Recreated and stored as \"{{name}}\".",
+      "where": "Find it under Workflows → Installed to load, export or download it.",
+      "template_warning": "The template is shaped for SD/SDXL. \"{{base}}\" needs a different node layout, so this graph will load but is unlikely to run unmodified."
+    },
+    "resources": {
+      "title": "Referenced models",
+      "download": "Download",
+      "queuing": "Queuing…",
+      "unresolvable": "Not found on CivitAI",
+      "missing_hint": "Missing models are downloaded only when you click Download."
+    },
+    "notify": {
+      "recreated": "Recreated workflow: {{name}}",
+      "download_queued": "Queued download: {{name}}"
+    },
+    "error": {
+      "search_failed": "Could not load images.",
+      "not_found": "This image no longer exists on CivitAI.",
+      "no_metadata": "This image has no usable generation metadata.",
+      "provider_unavailable": "CivitAI is unreachable right now.",
+      "recreate_failed": "Could not recreate the workflow.",
+      "download_failed": "Could not queue the download."
+    }
+  }
+}

@@ -3,7 +3,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from aiohttp import web
 
@@ -29,7 +29,7 @@ class _RefetchEntry:
 
     @property
     def is_expired(self) -> bool:
-        return datetime.now(UTC) > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
 
     def expires_at_iso(self) -> str:
         return self.expires_at.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -254,7 +254,7 @@ async def _refetch_preview(request):
         "media_urls": meta.image_urls,
         "readme_html": meta.readme_html,
     }
-    entry = _RefetchEntry(datetime.now(UTC), old, new_data)
+    entry = _RefetchEntry(datetime.now(timezone.utc), old, new_data)
     _refetch_cache[path] = entry
 
     return ok(

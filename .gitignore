@@ -2,8 +2,8 @@ data/
 PLAN.md
 frontend/node_modules/
 frontend/.angular/
-web/
-!web/index.html
+# web/ is intentionally tracked: it is the compiled Angular bundle that makes the node
+# installable without a Node.js toolchain. See .gitattributes and the release workflow.
 __pycache__/
 *.pyc
 .pytest_cache/

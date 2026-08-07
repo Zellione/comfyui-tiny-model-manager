@@ -1,0 +1,4 @@
+# web/ holds the compiled Angular bundle. It is tracked so the node is installable
+# without a Node.js toolchain, but it is generated output: collapse it in diffs and
+# exclude it from language statistics.
+web/** linguist-generated=true
