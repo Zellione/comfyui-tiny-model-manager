@@ -156,8 +156,10 @@ civitai_version_id, civitai_model_id, model_type, thumbnail}`.
   Loose files in the media root go only if unreferenced. Logs + pushes a backend notification.
 - There are **no metadata sidecar files** in this project; all metadata is in SQLite and the
   child rows already cascade. "Metadata cleanup" means the media files only.
-- The settings toggle lives in the **ComfyUI settings panel** (`js/extension.js`), not the
-  Angular settings page — that page only manages filename keywords.
+- The `cleanup_stale_media_on_start` toggle lives in the **ComfyUI settings panel**
+  (`js/extension.js`) only. (No longer a blanket rule: F-144's `missing_models_integration`
+  is deliberately surfaced in *both* the ComfyUI panel and the Angular Settings page, kept in
+  sync over `BroadcastChannel('tmm')`. The Angular page is therefore no longer keyword-only.)
 
 ## Workflow store (F-129)
 
@@ -241,6 +243,71 @@ downloaded and no PNG metadata is parsed** — see the CivitAI images API sectio
   (no model-page enrichment, unlike `lookup_by_*`): one recreated workflow can reference a
   dozen LoRAs and doubling the request count per resource is not worth a description nobody
   shows.
+
+## Missing Models integration (F-144)
+
+Adds TMM buttons to ComfyUI's **Missing Models** right side panel so a workflow's missing models
+download through TMM (correct folder + full model card) instead of ComfyUI's own path.
+
+- **There is no hook to intercept.** ComfyUI's `downloadModel()` sits in a lazily-loaded ESM chunk
+  and `useMissingModelStore` (Pinia) is on neither `window` nor `app`; `window.comfyAPI` only
+  carries a few unrelated legacy modules. Injecting our own buttons is the *only* option — do not
+  go looking for the hook again. Evidence: the frontend package ships **sourcemaps**
+  (`comfyui_frontend_package/static/assets/*.js.map`, `sourcesContent` holds the original
+  TS/Vue), which is the fastest way to answer any future "how does ComfyUI do X" question.
+- **Outside Electron the native button is useless**: `missingModelDownload.ts` only writes into the
+  models folder on desktop; in a browser it clicks an `<a download>` and the file lands in the
+  user's Downloads folder. That is the whole justification for the feature.
+- `py/services/missing_model_resolver.py` — `resolve(filename, model_type, url="") -> Resolution |
+  None`. Chain: parse the panel's URL for provider IDs → CivitAI search → HuggingFace search
+  (≤ `_HF_MAX_CANDIDATE_REPOS` = 5 repos) → the raw URL if `is_allowed_url` passes → `None`.
+  **Exact filename match only** (`_same_file`: basename, case-insensitive) except for a CivitAI
+  *version* link, which is authoritative and takes its primary file regardless of name. Provider
+  outages are caught in `_try` and fall through instead of 500ing. All six provider calls are
+  module-level `_xxx` seams; tests monkeypatch those.
+- `POST /api/download/missing` in `py/routes/download.py`. Body `{filename, directory, url?}`.
+  Answers 200 with `{task_id, platform, source_id, model_type, filename}` /
+  `{already_installed: true}` / `{unresolved: true, search_term, model_type}`, and 400 for a
+  `directory` that is not a safe path segment, or a traversal filename. **Do not gate the
+  directory on a curated allowlist** — `downloader.SUPPORTED_TYPES` used to be one and was
+  deleted for this reason: it listed 16 folders while ComfyUI 0.24 registers 26, so
+  `latent_upscale_models`, `audio_encoders` and `model_patches` were rejected outright.
+  `_get_dest_dir` already resolves any folder through `folder_paths`, including ones custom
+  nodes register. **`unresolved` is a 200 on
+  purpose** — the UI turns the button into "Search in TMM", it is not a failure.
+  `_queue_download(...)` is the shared helper extracted from `_start_download`
+  (validate_target → insert_download_history → enqueue); use it for any new download entry point.
+- `frontend/js/missing-models.js` — F-93 factory module
+  (`createMissingModelsIntegration({app, api, fetchFn, doc, openWindow})` → `{start, stop, sync}`).
+  Row anchor is `[data-testid="missing-model-copy-name"]` (the only per-row control ComfyUI always
+  renders); the filename is the `p[title]` beside it; the directory comes from the group heading
+  `"<dir> (N)"` (untranslated for real folders) with the indexed directory as fallback. `url` comes
+  from `buildModelIndex()`, which reads **two** sources: `node.properties.models` (survives on the
+  live graph) and `app.extensionManager.workflow.activeWorkflow.pendingWarnings
+  .missingModelCandidates`.
+  **`graph.extra.models` is NOT a source** — `LGraph.configure()` does `this.extra = data.extra`
+  and a workflow's `models` array is a *sibling* of `extra`, so it is dropped on load. Reading it
+  there looked right and always found nothing, which made an LTX workflow report `unresolved`
+  while carrying a usable HuggingFace URL. There is a test pinning this.
+- **`app.extensionManager` IS ComfyUI's workspace store** (`U.extensionManager = useWorkspaceStore()`
+  in `App.vue`), so `.toast`, `.workflow`, `.setting`, `.command` and `.sidebarTab` are reachable
+  from an extension. Only the stores workspaceStore does *not* re-export (e.g. `useMissingModelStore`)
+  are out of reach — the earlier blanket "Pinia is unreachable" note was too broad.
+- `missing_model_resolver.direct_download_url()` rewrites a HuggingFace `/blob/` link to
+  `/resolve/` before the raw fallback downloads it. `/blob/` serves the HTML file-viewer page, and
+  both workflows and ComfyUI's "copy URL" button hand out that form — taking it verbatim stores a
+  web page under a `.safetensors` name that only fails at load time.
+  **A row whose directory cannot be established gets no button** (guessing puts a LoRA in
+  checkpoints). Injection is made idempotent by the `data-tmm-missing` /
+  `data-tmm-missing-all` markers plus a `syncing` re-entrancy flag, since our own `appendChild`
+  calls are mutations the observer would otherwise re-fire on.
+- Setting `missing_models_integration` (default **true**) lives in `py/routes/settings.py`, in the
+  ComfyUI settings panel *and* on the Angular Settings page; both post
+  `{key: 'missing_models_integration', value}` on `BroadcastChannel('tmm')` so the other side
+  reacts live.
+- Unresolved models deep-link to `/tiny-model-manager/download?q=<stem>&platform=civitai&type=<dir>`;
+  `pages/download/download-search.ts::applyDeepLink()` reads that from
+  `route.snapshot.queryParamMap` in the constructor and calls `search()`.
 
 ## Frontend routes (F-128, F-129, F-130)
 

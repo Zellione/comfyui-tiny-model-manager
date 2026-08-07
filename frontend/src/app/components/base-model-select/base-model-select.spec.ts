@@ -29,7 +29,13 @@ describe('BaseModelSelect component', () => {
     const fixture = await createFixture();
     const cmp = fixture.componentInstance;
     cmp.onInput('flux');
-    expect(cmp.filtered()).toEqual(['Flux.1 D', 'Flux.1 S']);
+    // Asserted by predicate rather than a literal list: the presets track CivitAI's
+    // vocabulary and gain entries whenever it is re-harvested.
+    const filtered = cmp.filtered();
+    expect(filtered.length).toBeGreaterThan(0);
+    expect(filtered.length).toBeLessThan(BASE_MODEL_PRESETS.length);
+    expect(filtered.every((o) => o.toLowerCase().includes('flux'))).toBe(true);
+    expect(filtered).toContain('Flux.1 D');
     expect(cmp.value()).toBe('flux');
   });
 

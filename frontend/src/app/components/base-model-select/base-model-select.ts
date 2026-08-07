@@ -9,21 +9,9 @@ import {
   signal,
 } from '@angular/core';
 
-/** Preset base models offered as suggestions. The field still accepts free text. */
-export const BASE_MODEL_PRESETS = [
-  'SD 1.5',
-  'SD 2.1',
-  'SDXL 1.0',
-  'Pony',
-  'Flux.1 D',
-  'Flux.1 S',
-  'SD 3.5',
-  'SD 3.5 Large',
-  'Illustrious XL',
-  'NoobAI XL',
-  'Hunyuan Video',
-  'Krea 2',
-];
+import { BASE_MODEL_PRESETS } from '../../utils/base-models';
+
+export { BASE_MODEL_PRESETS };
 
 /**
  * Combobox for base model selection. Unlike a native `<input list>`/`<datalist>`,

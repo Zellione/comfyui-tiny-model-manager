@@ -130,6 +130,7 @@ account at [registry.comfy.org](https://registry.comfy.org).
 | GET | `/tiny-model-manager/api/huggingface/readme` | Fetch README.md body (YAML front matter stripped) for a HF repo |
 | GET | `/tiny-model-manager/api/search/huggingface/files` | List files in a HF repo |
 | POST | `/tiny-model-manager/api/download` | Enqueue a download |
+| POST | `/tiny-model-manager/api/download/missing` | Resolve one entry of ComfyUI's Missing Models panel (CivitAI → HuggingFace → the workflow's own URL) and enqueue it — body `{filename, directory, url?}`; answers `{task_id, …}`, `{already_installed}` or `{unresolved, search_term}` |
 | GET | `/tiny-model-manager/api/download/status` | Get all download task statuses |
 | GET | `/tiny-model-manager/api/media/{path}` | Serve a stored preview image/video |
 | GET | `/tiny-model-manager/api/settings` | Get current settings |
@@ -313,6 +314,7 @@ py/
     huggingface.py            HuggingFace API client
     downloader.py             async download queue
     metadata_fetcher.py       post-download metadata and image fetch
+    missing_model_resolver.py resolve a workflow's missing model to a download source
     workflow_store.py         workflow archive fetch, graph extraction, export
     providers/
       base.py                 abstract provider interface

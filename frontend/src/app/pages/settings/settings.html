@@ -4,6 +4,24 @@
   </div>
 
   <section class="settings-section">
+    <h2 class="section-title">{{ 'settings.integration.title' | translate }}</h2>
+    <p class="section-desc">
+      {{ 'settings.integration.description' | translate }}
+    </p>
+
+    <label class="toggle-row">
+      <input
+        type="checkbox"
+        [ngModel]="missingModelsIntegration()"
+        (ngModelChange)="setMissingModelsIntegration($event)"
+        [disabled]="integrationLoading()"
+      />
+      <span class="toggle-label">{{ 'settings.integration.missing_models' | translate }}</span>
+    </label>
+    <p class="toggle-hint">{{ 'settings.integration.missing_models_hint' | translate }}</p>
+  </section>
+
+  <section class="settings-section">
     <h2 class="section-title">{{ 'settings.keywords.title' | translate }}</h2>
     <p class="section-desc">
       {{ 'settings.keywords.description' | translate }}

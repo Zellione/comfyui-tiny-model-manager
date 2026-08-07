@@ -2,11 +2,13 @@ import { Component, signal, inject, computed, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
+import { ActivatedRoute } from '@angular/router';
 import { toObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { skip, debounceTime } from 'rxjs';
 import { CivitaiService, CivitaiModel, CivitaiVersion, CivitaiFile } from '../../services/civitai';
 import { HuggingFaceService, HfModel } from '../../services/huggingface';
-import { ModelType } from '../../utils/model-types';
+import { MODEL_TYPES, ModelType } from '../../utils/model-types';
+import { BASE_MODEL_PRESETS } from '../../utils/base-models';
 import { formatSize } from '../../utils/format';
 import { isVideo } from '../../utils/media';
 import { hideOnError, showOnLoad } from '../../utils/media-events';
@@ -45,6 +47,7 @@ export class DownloadSearch {
   private readonly hfService = inject(HuggingFaceService);
   private readonly notifService = inject(NotificationService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
   protected readonly installed = inject(InstalledFilesService);
   private readonly translate = inject(TranslateService);
 
@@ -75,22 +78,9 @@ export class DownloadSearch {
     { label: 'download_search.format.pt', value: '.pt' },
     { label: 'download_search.format.bin', value: '.bin' },
   ];
-  readonly civitaiBaseModelOptions = [
-    'SD 1.5',
-    'SD 2.1',
-    'SDXL 1.0',
-    'Pony',
-    'Illustrious',
-    'Flux.1 D',
-    'Flux.1 S',
-    'Stable Cascade',
-    'SDXL Turbo',
-    'Chroma',
-    'Qwen',
-    // Exact CivitAI `baseModels` filter values — a typo here silently returns no results.
-    // 'Krea 2' is its own base model, distinct from the older 'Flux.1 Krea'.
-    'Krea 2',
-  ];
+  // Shared with the base-model combobox so the two cannot drift apart — they had, and both
+  // carried values CivitAI no longer matches. See utils/base-models.ts.
+  readonly civitaiBaseModelOptions = BASE_MODEL_PRESETS;
 
   platform = signal<Platform>('civitai');
   query = signal('');
@@ -232,6 +222,31 @@ export class DownloadSearch {
       .subscribe(() => {
         if (this.hasSearched()) this.search();
       });
+    this.applyDeepLink();
+  }
+
+  /**
+   * Pre-fill and run a search from `?q=&platform=&type=`.
+   *
+   * The ComfyUI Missing Models integration (F-144) opens this page in a new tab when it cannot
+   * resolve a model automatically, so a one-shot snapshot read is the right granularity — the
+   * page is freshly constructed for every such link.
+   */
+  private applyDeepLink() {
+    const params = this.route.snapshot.queryParamMap;
+    const query = params.get('q')?.trim() ?? '';
+    if (!query) return;
+
+    const platform = params.get('platform');
+    if (platform === 'civitai' || platform === 'huggingface') this.platform.set(platform);
+
+    const modelType = params.get('type') ?? '';
+    if ((MODEL_TYPES as readonly string[]).includes(modelType)) {
+      this.modelType.set(modelType as ModelType);
+    }
+
+    this.query.set(query);
+    this.search();
   }
 
   fileStatus(filename: string) {

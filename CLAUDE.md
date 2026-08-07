@@ -225,13 +225,18 @@ If planning and working on a new feature the following steps have to be executed
 5. **Run all tests and lint for both backend and frontend — only proceed when every check passes with zero failures**
 6. **If any file under `frontend/` was changed: run `npx ng build` from `frontend/` and confirm it succeeds**
 7. If there are no bugs reported: commit changes locally and present the commit to the user
-8. **Move the GitHub project item to Done**: `gh project item-edit --id <item-id> --project-id PVT_kwHOAQaKGc4BZ7ME --field-id PVTSSF_lAHOAQaKGc4BZ7MEzhU2a7U --single-select-option-id 98236657`
-9. **Wait for explicit user approval before pushing to github (origin)**
-10. **Wait for explicit user approval before opening a pull request**
+8. **Wait for explicit user approval before pushing to github (origin)**
+9. **Wait for explicit user approval before opening a pull request**
+10. **An open PR means the item is `In review`, not Done** — `--single-select-option-id df73e18b`.
+    Do NOT set Done before the merge: the board automation resets a status set too early, and
+    the work is not finished while the PR is open. Verify with
+    `gh project item-list 1 --owner @me --format json` rather than assuming the edit stuck.
 11. **After pushing and opening the PR, poll the SonarCloud quality gate in a loop until it passes:**
     - Check: `mcp__sonarqube__get_project_quality_gate_status` with `projectKey` and `pullRequest`
     - If `status` is `ERROR`: inspect the failing conditions, fix the code (add/improve tests for `new_coverage`, fix issues for ratings), commit, push, then re-check
     - Repeat until `status` is `OK`
+12. **Move the item to Done only once the PR is merged**: `--single-select-option-id 98236657`,
+    then re-check the board (see `mem:task_completion`)
 
 ### Post-PR follow-up changes (MANDATORY)
 

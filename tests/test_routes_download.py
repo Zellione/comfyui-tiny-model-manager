@@ -576,3 +576,152 @@ class TestDownloaderEnqueueHuggingFaceFilename:
             source_id="1234",
         )
         assert task.filename == "subdir/my_lora.safetensors"
+
+
+class TestMissingModelDownload:
+    """POST /api/download/missing — ComfyUI's Missing Models panel (F-144)."""
+
+    @staticmethod
+    def _resolution(**overrides):
+        from py.services.missing_model_resolver import Resolution
+
+        defaults = {
+            "download_url": "https://civitai.com/api/download/models/555",
+            "filename": "missing.safetensors",
+            "model_type": "loras",
+            "platform": "civitai",
+            "source_id": "555",
+            "base_model": "SDXL 1.0",
+        }
+        return Resolution(**{**defaults, **overrides})
+
+    @staticmethod
+    def _stub_resolve(monkeypatch, result):
+        async def fake(filename, model_type, url=""):
+            return result
+
+        monkeypatch.setattr("py.routes.download.missing_model_resolver.resolve", fake)
+
+    async def test_queues_resolved_model(self, client, monkeypatch):
+        self._stub_resolve(monkeypatch, self._resolution())
+        resp = await client.post(
+            "/tiny-model-manager/api/download/missing",
+            json={"filename": "missing.safetensors", "directory": "loras"},
+        )
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert data["task_id"]
+        assert data["platform"] == "civitai"
+        assert data["source_id"] == "555"
+        assert data["model_type"] == "loras"
+
+    async def test_records_download_history(self, client, monkeypatch, ext_dir):
+        from py.db import model_repo
+
+        self._stub_resolve(monkeypatch, self._resolution())
+        await client.post(
+            "/tiny-model-manager/api/download/missing",
+            json={"filename": "missing.safetensors", "directory": "loras"},
+        )
+        entries, _ = await model_repo.get_download_history()
+        assert [e["model_name"] for e in entries] == ["missing.safetensors"]
+
+    async def test_unresolved_returns_search_term(self, client, monkeypatch):
+        self._stub_resolve(monkeypatch, None)
+        resp = await client.post(
+            "/tiny-model-manager/api/download/missing",
+            json={"filename": "My_Lora.safetensors", "directory": "loras"},
+        )
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        assert data["unresolved"] is True
+        assert data["search_term"] == "My_Lora"
+        assert data["model_type"] == "loras"
+
+    async def test_unresolved_writes_no_history_row(self, client, monkeypatch, ext_dir):
+        from py.db import model_repo
+
+        self._stub_resolve(monkeypatch, None)
+        await client.post(
+            "/tiny-model-manager/api/download/missing",
+            json={"filename": "nope.safetensors", "directory": "loras"},
+        )
+        entries, _ = await model_repo.get_download_history()
+        assert entries == []
+
+    async def test_already_installed_short_circuits(self, client, monkeypatch):
+        monkeypatch.setattr(
+            "py.routes.download.model_paths.find_file",
+            lambda model_type, *parts: "/models/loras/missing.safetensors",
+        )
+
+        async def must_not_run(*args, **kwargs):  # pragma: no cover - guards the short-circuit
+            raise AssertionError("resolution must not run for an installed file")
+
+        monkeypatch.setattr("py.routes.download.missing_model_resolver.resolve", must_not_run)
+        resp = await client.post(
+            "/tiny-model-manager/api/download/missing",
+            json={"filename": "missing.safetensors", "directory": "loras"},
+        )
+        assert (await resp.json())["data"] == {"already_installed": True}
+
+    @pytest.mark.parametrize("directory", ["", "   ", "..", ".", "a/b", "a\\b"])
+    async def test_unsupported_directory_rejected(self, client, directory):
+        """Only the "unknown category" row and non-segment values are refused."""
+        resp = await client.post(
+            "/tiny-model-manager/api/download/missing",
+            json={"filename": "missing.safetensors", "directory": directory},
+        )
+        assert resp.status == 400
+        assert (await resp.json())["error"] == "unsupported_directory"
+
+    @pytest.mark.parametrize(
+        "directory",
+        ["checkpoints", "loras", "latent_upscale_models", "audio_encoders", "model_patches"],
+    )
+    async def test_accepts_every_folder_comfyui_groups_by(self, client, monkeypatch, directory):
+        """Regression: a curated allowlist rejected valid ComfyUI folders (issue #144 follow-up).
+
+        `latent_upscale_models` is a real ComfyUI 0.24 folder and was answered with
+        `unsupported_directory`, so an LTX spatial upscaler could not be downloaded at all.
+        """
+        self._stub_resolve(monkeypatch, self._resolution(model_type=directory))
+        resp = await client.post(
+            "/tiny-model-manager/api/download/missing",
+            json={"filename": "missing.safetensors", "directory": directory},
+        )
+        assert resp.status == 200
+        assert (await resp.json())["data"]["task_id"]
+
+    async def test_missing_filename_rejected(self, client):
+        resp = await client.post(
+            "/tiny-model-manager/api/download/missing",
+            json={"filename": "  ", "directory": "loras"},
+        )
+        assert resp.status == 400
+
+    async def test_path_traversal_rejected(self, client, monkeypatch, ext_dir):
+        from py.db import model_repo
+
+        self._stub_resolve(monkeypatch, self._resolution(filename="../../etc/passwd"))
+        resp = await client.post(
+            "/tiny-model-manager/api/download/missing",
+            json={"filename": "../../etc/passwd", "directory": "loras"},
+        )
+        assert resp.status == 400
+        entries, _ = await model_repo.get_download_history()
+        assert entries == []
+
+    async def test_raw_fallback_resolution_is_queued_without_metadata(self, client, monkeypatch):
+        url = "https://huggingface.co/owner/repo/resolve/main/missing.safetensors"
+        self._stub_resolve(
+            monkeypatch,
+            self._resolution(download_url=url, platform="", source_id="", base_model=""),
+        )
+        resp = await client.post(
+            "/tiny-model-manager/api/download/missing",
+            json={"filename": "missing.safetensors", "directory": "loras", "url": url},
+        )
+        data = (await resp.json())["data"]
+        assert data["task_id"]
+        assert data["platform"] == ""

@@ -15,25 +15,10 @@ from . import model_paths
 from .providers import get_provider
 from .url_guard import guarded_stream
 
-SUPPORTED_TYPES = {
-    "checkpoints": "checkpoints",
-    "loras": "loras",
-    "embeddings": "embeddings",
-    "vae": "vae",
-    "controlnet": "controlnet",
-    "upscale_models": "upscale_models",
-    "hypernetworks": "hypernetworks",
-    "clip_vision": "clip_vision",
-    "style_models": "style_models",
-    "gligen": "gligen",
-    "diffusion_models": "diffusion_models",
-    "text_encoders": "text_encoders",
-    "photomaker": "photomaker",
-    "vae_approx": "vae_approx",
-    # Legacy names kept for backward compatibility (no longer registered ComfyUI folders)
-    "unet": "unet",
-    "clip": "clip",
-}
+# No allowlist of model types lives here on purpose: `_get_dest_dir` resolves whatever
+# ComfyUI registers in `folder_paths`, including folders added by custom nodes. A curated
+# copy of that set drifts (it was missing `latent_upscale_models` and `audio_encoders`,
+# among others) and silently rejects valid downloads.
 
 
 class _Cancelled(Exception):

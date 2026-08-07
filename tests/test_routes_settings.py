@@ -314,3 +314,26 @@ class TestKeywords:
         resp = await client.get("/tiny-model-manager/api/filename-keywords")
         keywords = [kw["keyword"] for kw in (await resp.json())["data"]]
         assert "gone" not in keywords
+
+
+class TestMissingModelsIntegrationSetting:
+    """F-144: the ComfyUI Missing Models integration toggle."""
+
+    async def test_defaults_to_enabled(self, client):
+        data = (await (await client.get("/tiny-model-manager/api/settings")).json())["data"]
+        assert data["missing_models_integration"] is True
+
+    async def test_put_disables_it(self, client, ext_dir):
+        await client.put(
+            "/tiny-model-manager/api/settings", json={"missing_models_integration": False}
+        )
+        data = (await (await client.get("/tiny-model-manager/api/settings")).json())["data"]
+        assert data["missing_models_integration"] is False
+
+    async def test_unrelated_put_preserves_it(self, client, ext_dir):
+        await client.put(
+            "/tiny-model-manager/api/settings", json={"missing_models_integration": False}
+        )
+        await client.put("/tiny-model-manager/api/settings", json={"media_dir": "/tmp/media"})
+        data = (await (await client.get("/tiny-model-manager/api/settings")).json())["data"]
+        assert data["missing_models_integration"] is False

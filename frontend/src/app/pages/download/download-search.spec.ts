@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ActivatedRoute } from '@angular/router';
 import { provideTranslateServiceForTests } from '../../../test-helpers/translate-testing';
 import { of, throwError, EMPTY } from 'rxjs';
 import { vi } from 'vitest';
@@ -58,11 +59,17 @@ const mockKeywordsService = {
   getKeywords: vi.fn(() => of([] as FilenameKeyword[])),
 };
 
-async function configureTestBed() {
+/** Stand-in for `ActivatedRoute.snapshot.queryParamMap` — F-144's `?q=` deep link. */
+function makeRoute(params: Record<string, string> = {}) {
+  return { snapshot: { queryParamMap: { get: (k: string) => params[k] ?? null } } };
+}
+
+async function configureTestBed(queryParams: Record<string, string> = {}) {
   await TestBed.configureTestingModule({
     imports: [DownloadSearch],
     providers: [
       InstalledFilesService,
+      { provide: ActivatedRoute, useValue: makeRoute(queryParams) },
       { provide: CivitaiService, useValue: mockCivitaiService },
       { provide: HuggingFaceService, useValue: mockHfService },
       { provide: DownloadService, useValue: mockDownloadService },
@@ -833,5 +840,48 @@ describe('DownloadSearch — HuggingFace selection and downloads', () => {
       'user/repo',
       '',
     );
+  });
+});
+
+describe('DownloadSearch — F-144 search deep link', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockModelService.listModels.mockReturnValue(of({}));
+    mockCivitaiService.search.mockReturnValue(of({ items: [], metadata: {} }));
+    mockHfService.search.mockReturnValue(of({ items: [], hasMore: false, nextPage: 1 }));
+  });
+
+  it('pre-fills and runs the search from ?q=', async () => {
+    await configureTestBed({ q: 'My_Lora', platform: 'civitai', type: 'loras' });
+    const c = (await createFixture()).componentInstance;
+    expect(c.query()).toBe('My_Lora');
+    expect(c.platform()).toBe('civitai');
+    expect(c.modelType()).toBe('loras');
+    expect(c.hasSearched()).toBe(true);
+    expect(mockCivitaiService.search).toHaveBeenCalledWith(
+      expect.objectContaining({ q: 'My_Lora', type: 'loras' }),
+    );
+  });
+
+  it('honours a huggingface platform hint', async () => {
+    await configureTestBed({ q: 'flux', platform: 'huggingface' });
+    const c = (await createFixture()).componentInstance;
+    expect(c.platform()).toBe('huggingface');
+    expect(mockHfService.search).toHaveBeenCalled();
+  });
+
+  it('ignores an unknown platform and an unknown model type', async () => {
+    await configureTestBed({ q: 'flux', platform: 'bogus', type: 'not_a_folder' });
+    const c = (await createFixture()).componentInstance;
+    expect(c.platform()).toBe('civitai');
+    expect(c.modelType()).toBe('checkpoints');
+  });
+
+  it('does nothing without a query', async () => {
+    await configureTestBed({ platform: 'huggingface' });
+    const c = (await createFixture()).componentInstance;
+    expect(c.hasSearched()).toBe(false);
+    expect(c.platform()).toBe('civitai');
+    expect(mockCivitaiService.search).not.toHaveBeenCalled();
   });
 });
