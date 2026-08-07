@@ -110,12 +110,22 @@ function rowButtons() {
   return tmmButtons().filter((b) => b.textContent !== LABELS.all);
 }
 
-function makeApp(nodes: unknown[] = []) {
+function makeApp(nodes: unknown[] = [], graphExtras: Record<string, unknown> = {}) {
   return {
-    rootGraph: { nodes },
+    rootGraph: { nodes, ...graphExtras },
     refreshComboInNodes: vi.fn().mockResolvedValue(undefined),
     extensionManager: { toast: { add: vi.fn() } },
   };
+}
+
+/** A litegraph Subgraph: the traversal only ever reads `nodes` off one. */
+function subgraph(nodes: unknown[]) {
+  return { nodes };
+}
+
+/** A node instantiating `sub` — the shape ComfyUI's own `forEachNode` recurses through. */
+function subgraphNode(sub: unknown) {
+  return { isSubgraphNode: () => true, subgraph: sub };
 }
 
 /** fetch stub: POST /download/missing answers with `missing`, GET /download/status with `tasks`. */
@@ -169,6 +179,76 @@ describe('pure helpers', () => {
     const index = buildModelIndex(app);
     expect(index.get('a.safetensors')).toEqual([{ url: 'u1', directory: 'loras' }]);
     expect(index.get('b.safetensors')).toEqual([{ url: 'u2', directory: 'vae' }]);
+  });
+
+  // Comfy-Org's templates have moved their loaders into subgraphs, and a root-only walk finds
+  // nothing there. The Wan 2.2 T2V template's root graph holds two notes, one subgraph instance
+  // and SaveVideo; all six models sit in `definitions.subgraphs[0].nodes[].properties.models`.
+  // Every row was therefore posted with `url: ''`, which skips the resolver's URL stage *and* its
+  // raw-URL last resort, leaving only provider searches that cannot match a Comfy-Org repack — so
+  // the panel offered "Search in TMM" for models whose exact URL the workflow was carrying (#150).
+  it('buildModelIndex descends into a subgraph instance node', () => {
+    const app = makeApp([
+      {},
+      subgraphNode(
+        subgraph([
+          { properties: { models: [{ name: 'wan.safetensors', url: 'u1', directory: 'loras' }] } },
+        ]),
+      ),
+    ]);
+    expect(buildModelIndex(app).get('wan.safetensors')).toEqual([
+      { url: 'u1', directory: 'loras' },
+    ]);
+  });
+
+  // `LGraph.get subgraphs()` returns `rootGraph._subgraphs`, a registry of every subgraph at any
+  // depth. ComfyUI's `findSubgraphByUuid` prefers it over recursion for exactly that reason.
+  it('buildModelIndex reads the rootGraph subgraph registry', () => {
+    const app = makeApp([], {
+      subgraphs: new Map([
+        [
+          'uuid-1',
+          subgraph([
+            { properties: { models: [{ name: 'vae.safetensors', url: 'u2', directory: 'vae' }] } },
+          ]),
+        ],
+      ]),
+    });
+    expect(buildModelIndex(app).get('vae.safetensors')).toEqual([{ url: 'u2', directory: 'vae' }]);
+  });
+
+  it('buildModelIndex descends into nested subgraphs', () => {
+    const inner = subgraph([
+      { properties: { models: [{ name: 'deep.safetensors', url: 'u3', directory: 'loras' }] } },
+    ]);
+    const app = makeApp([subgraphNode(subgraph([subgraphNode(inner)]))]);
+    expect(buildModelIndex(app).get('deep.safetensors')).toEqual([
+      { url: 'u3', directory: 'loras' },
+    ]);
+  });
+
+  // `lookupModel` returns `entries[0]`, so a subgraph visited twice would silently stack duplicate
+  // entries behind one filename. Both routes into the hierarchy are live at once, and the registry
+  // holds the same object the instance node points at.
+  it('buildModelIndex indexes a subgraph reachable both ways only once', () => {
+    const sub = subgraph([
+      { properties: { models: [{ name: 'both.safetensors', url: 'u4', directory: 'vae' }] } },
+    ]);
+    const app = makeApp([subgraphNode(sub)], { subgraphs: new Map([['uuid-1', sub]]) });
+    expect(buildModelIndex(app).get('both.safetensors')).toHaveLength(1);
+  });
+
+  // ComfyUI's own forEachNode has no cycle guard; a subgraph instantiating itself would hang the
+  // browser. `buildSubgraphExecutionPaths` keeps a visited set for the same reason.
+  it('buildModelIndex terminates on a self-referencing subgraph', () => {
+    const sub: { nodes: unknown[] } = {
+      nodes: [
+        { properties: { models: [{ name: 'loop.safetensors', url: 'u5', directory: 'loras' }] } },
+      ],
+    };
+    sub.nodes.push(subgraphNode(sub));
+    const app = makeApp([subgraphNode(sub)]);
+    expect(buildModelIndex(app).get('loop.safetensors')).toHaveLength(1);
   });
 
   // Pins the finding rather than the old assumption: LGraph.configure() assigns only
@@ -302,6 +382,43 @@ describe('button injection', () => {
     expect(JSON.parse(fetchFn.mock.calls[0][1].body)).toMatchObject({
       filename: 'hunyuan_3d_v2.1.safetensors',
       directory: 'checkpoints',
+    });
+  });
+
+  // The user-visible half of #150: the index tests above would still pass if `readRow` stopped
+  // threading the url through, and the panel would go back to answering "Search in TMM".
+  it('posts the url of a model that only exists inside a subgraph', async () => {
+    renderPanel148([
+      {
+        directory: 'loras',
+        filename: 'wan2.2_t2v_lightx2v_4steps_lora_v1.1_high_noise.safetensors',
+      },
+    ]);
+    const fetchFn = makeFetch();
+    const app = makeApp([
+      subgraphNode(
+        subgraph([
+          {
+            properties: {
+              models: [
+                {
+                  name: 'wan2.2_t2v_lightx2v_4steps_lora_v1.1_high_noise.safetensors',
+                  url: 'https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/loras/wan2.2_t2v_lightx2v_4steps_lora_v1.1_high_noise.safetensors',
+                  directory: 'loras',
+                },
+              ],
+            },
+          },
+        ]),
+      ),
+    ]);
+    build({ fetchFn, app }).sync();
+    rowButtons()[0].click();
+    await vi.waitFor(() => expect(fetchFn).toHaveBeenCalled());
+    expect(JSON.parse(fetchFn.mock.calls[0][1].body)).toMatchObject({
+      filename: 'wan2.2_t2v_lightx2v_4steps_lora_v1.1_high_noise.safetensors',
+      directory: 'loras',
+      url: 'https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/loras/wan2.2_t2v_lightx2v_4steps_lora_v1.1_high_noise.safetensors',
     });
   });
 

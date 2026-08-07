@@ -304,8 +304,26 @@ download through TMM (correct folder + full model card) instead of ComfyUI's own
   literally named `Unknown`. Every shipped translation is capitalised or non-ASCII, so requiring
   ASCII lowercase snake_case rejects all of them. The index keeps the looser check: it carries
   real workflow data, not rendered text, so an unusual folder a custom node registers still works.
-- `buildModelIndex()` is **graph-only** (`node.properties.models`). Two other sources are dead
-  ends and must not be re-added:
+- `buildModelIndex()` is **graph-only** (`node.properties.models`) but walks the **whole graph
+  hierarchy, subgraphs included** — Comfy-Org's templates have moved their loaders into subgraphs,
+  and a root-only walk found nothing in them (#150). The Wan 2.2 T2V template's root graph holds
+  two notes, one subgraph instance and SaveVideo; all six models sit in
+  `definitions.subgraphs[0].nodes[].properties.models`. Every row was then posted with `url: ''`,
+  which skips the resolver's URL stage *and* its raw-URL last resort, leaving only provider
+  searches that cannot match a Comfy-Org repack (HF-only, and HF full-text search does not find a
+  stem like `wan2.2_t2v_lightx2v_4steps_lora_v1.1_high_noise`) → "Search in TMM" for models whose
+  exact URL the workflow was carrying all along. `graphHierarchy()` mirrors ComfyUI's own scanner
+  (`missingModelScan.ts` → `collectAllNodes` → `forEachNode` in `graphTraversalUtil.ts`) and keeps
+  **both** routes in live at once, for the usual pinned-frontend reason:
+  `graph.subgraphs` when it is a `Map` (`LGraph.get subgraphs()` returns `rootGraph._subgraphs`, the
+  registry of every subgraph at any depth) **and** recursion through
+  `node.isSubgraphNode?.() && node.subgraph`. The `seen` set is load-bearing twice: a
+  self-instantiating subgraph would hang the browser, and both routes reach the same object —
+  `lookupModel` returns `entries[0]`, so a doubled entry list misleads rather than merely wastes.
+  Deliberately *not* copied from ComfyUI: `getSelectedModelsMetadata`'s filter to models present in
+  `widgets_values` (the index is looked up by filename, so an unselected extra is never read) and
+  the bypassed-node skip (a bypassed node yields no panel row to key against).
+  Two other sources are dead ends and must not be re-added:
   - `graph.extra.models` — `LGraph.configure()` does `this.extra = data.extra` and a workflow's
     `models` array is a *sibling* of `extra`, so it is dropped on load. Reading it there looked
     right and always found nothing.
@@ -372,7 +390,11 @@ component. Only the tab label, the routes and the two user-visible strings moved
 
 ## Invariants
 
-- `web/` is git-ignored → always run `npx ng build` from **main checkout's** `frontend/` before committing UI changes.
+- `web/` is **intentionally tracked**, not git-ignored (see the comment at `.gitignore:5`: the
+  committed bundle is what makes the node installable without a Node.js toolchain). So `npx ng build`
+  output is part of the commit — run it from the **main checkout's** `frontend/` before committing UI
+  changes and stage the changed `web/` files with them. A frontend-only edit usually shows up as just
+  the one changed asset, because the Angular chunk hashes only move when `src/` changes.
 - `js/` is bundled as an ng build asset; never deploy it separately.
 - ComfyUI stubs (server, folder_paths) must be installed at conftest import time, not inside fixtures.
 - Python path: `PYTHONSAFEPATH=1` required (avoids `py` package collision with pytest's internal `py` lib).
