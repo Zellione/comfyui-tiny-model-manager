@@ -699,6 +699,27 @@ uv pip install --python /tmp/py310/bin/python -r requirements.txt -r requirement
 - Ruff and format checks in CI are gated to the 3.13 matrix leg: ruff reads `target-version` from
   `pyproject.toml`, so its verdict is identical on every interpreter. The coverage artifact upload
   is likewise gated to 3.13 so its name stays unique for the `sonarcloud` job.
+- **Only a subset of `pyproject.toml` reaches the Registry** (F-145). comfy-cli's
+  `ComfyRegistryAPI.publish_node_version` payload is: project `name`, `description`, `version`,
+  `dependencies`, `license`, `[tool.comfy]` `DisplayName`/`Icon`/`Banner`/`PublisherId`/
+  `requires-comfyui`, the `Repository` URL, and `supported_os`/`supported_accelerators` derived
+  from `classifiers`. Everything else is dropped:
+  - **`[project] authors` is never read** — `comfy_cli.registry.types.ProjectConfig` has no author
+    field, which is why `author` is `""` on *every* node on the Registry (kjnodes, rgthree,
+    impact-pack, Manager included). The blank author cannot be fixed from this file; don't retry.
+  - **`keywords` is never sent**, so the listing's `tags` stay `[]` and Registry search (name +
+    description) is unaffected.
+  - **`[project.urls]` keys are `Homepage`, `Documentation`, `Repository`, `Issues`** — `BugTracker`
+    is silently ignored — and only `Repository` is forwarded.
+  - **`serialize_license` prefers `file` over `text`**, so `license = {file = "LICENSE"}` publishes
+    the literal `{"file": "LICENSE"}`. Use `license = {text = "MIT"}`; the bare SPDX string parses
+    to the same payload but the Registry docs call that form invalid, and PEP 639 would then forbid
+    the `License ::` classifier. `tests/test_packaging.py` pins all of this.
+  - The Registry *web UI* renders neither license nor author — `NodeDetails.tsx` has the license
+    block commented out. Check `api.comfy.org/nodes/<id>`, not the page, when verifying metadata.
+- **Bumping `version` in `pyproject.toml` is the release trigger**, so any pyproject edit merged to
+  main must carry a version bump — otherwise `publish.yml` fires and the Registry rejects the
+  duplicate version.
 - **Verify a release by inspecting the published archive, not the workflow's exit code.** The
   action reports success before the Registry has accepted anything meaningful:
 

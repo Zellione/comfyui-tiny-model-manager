@@ -1,8 +1,16 @@
 [project]
 name = "tiny-model-manager"
-version = "0.1.0"
+version = "0.1.1"
 description = "Browse, download, and manage AI models, LoRAs, and workflows from CivitAI and HuggingFace, with custom nodes that carry their documented trigger words."
-license = { file = "LICENSE" }
+# Table form, not `license = "MIT"`: the Registry documents the bare string as an invalid format.
+# `text` and not `file`, because comfy-cli's `serialize_license` prefers `file` over `text` and
+# publishes it verbatim — `{file = "LICENSE"}` is what made the API report a path, not a license.
+license = { text = "MIT" }
+# Neither `authors` nor `keywords` reaches the Registry: comfy-cli's ProjectConfig has no author
+# field and its publish payload carries no tags. Declared for correct package metadata only — the
+# blank author on the listing cannot be fixed from this file.
+authors = [{ name = "Zellione", email = "nagels.sebastian@gmail.com" }]
+keywords = ["comfyui", "civitai", "huggingface", "model-manager", "lora", "downloader"]
 # Audited floor: the backend uses no syntax above builtin generics (3.9+), and every runtime
 # dependency supports 3.9+. 3.10 is declared as a safety margin and proven by the CI matrix.
 requires-python = ">=3.10"
@@ -13,10 +21,21 @@ dependencies = [
     "aiofiles>=23.0.0",
     "mistune>=3.0.0",
 ]
-classifiers = ["Operating System :: OS Independent"]
+# The OS classifier is the only one the Registry consumes: comfy-cli maps `Operating System ::`
+# and `Environment :: GPU ::` entries into `supported_os` / `supported_accelerators`. The license
+# classifier is inert there but keeps the declared license readable to standard Python tooling.
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
 
+# comfy-cli reads exactly these four keys (`Issues`, not `BugTracker`), and forwards only
+# `Repository` to the Registry. The rest are for humans and GitHub.
 [project.urls]
+Homepage = "https://github.com/Zellione/comfyui-tiny-model-manager"
 Repository = "https://github.com/Zellione/comfyui-tiny-model-manager"
+Documentation = "https://github.com/Zellione/comfyui-tiny-model-manager#readme"
+Issues = "https://github.com/Zellione/comfyui-tiny-model-manager/issues"
 
 [tool.comfy]
 # Lowercase: this is the Registry publisher `id` (the handle after @ on the profile), which is

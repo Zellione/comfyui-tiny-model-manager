@@ -3,6 +3,13 @@
 The Registry reads dependencies from ``[project] dependencies`` while ComfyUI-Manager's
 git-URL install path reads ``requirements.txt``. Both files are kept, so something has to
 fail the build when they drift apart.
+
+Only a subset of ``pyproject.toml`` reaches the Registry. comfy-cli's publish payload
+(``ComfyRegistryAPI.publish_node_version``) carries the project ``name``, ``description``,
+``version``, ``dependencies`` and ``license``, the ``[tool.comfy]`` ``DisplayName``/``Icon``/
+``Banner``, the ``Repository`` URL, and the ``supported_os``/``supported_accelerators`` it derives
+from ``classifiers``. ``authors``, ``keywords`` and every other URL key are never sent — the tests
+below pin the declared values anyway, but do not expect them on the listing.
 """
 
 import os
@@ -41,8 +48,35 @@ class TestRegistryMetadata:
         assert project["name"] == "tiny-model-manager"
         assert project["version"]
         assert project["description"]
-        assert project["license"] == {"file": "LICENSE"}
-        assert project["urls"]["Repository"]
+        assert project["authors"]
+        assert project["keywords"]
+
+    def test_license_is_declared_as_text(self):
+        """`serialize_license` prefers `file` over `text`, so the file form ships a path.
+
+        With ``license = {file = "LICENSE"}`` the Registry stored the literal
+        ``{"file": "LICENSE"}`` instead of the license itself.
+        """
+        license_field = _pyproject()["project"]["license"]
+
+        assert license_field == {"text": "MIT"}
+
+    def test_license_classifier_matches_license_file(self):
+        assert "License :: OSI Approved :: MIT License" in _pyproject()["project"]["classifiers"]
+
+    def test_os_classifier_present(self):
+        """The one classifier the Registry reads: it becomes the listing's `supported_os`."""
+        assert "Operating System :: OS Independent" in _pyproject()["project"]["classifiers"]
+
+    def test_authors_carry_a_name(self):
+        assert all(author.get("name") for author in _pyproject()["project"]["authors"])
+
+    def test_urls_use_the_keys_comfy_cli_reads(self):
+        """comfy-cli looks up Homepage/Documentation/Repository/Issues — anything else is dropped."""
+        urls = _pyproject()["project"]["urls"]
+
+        assert set(urls) == {"Homepage", "Repository", "Documentation", "Issues"}
+        assert all(url.startswith("https://github.com/Zellione/") for url in urls.values())
 
     def test_publisher_id_matches_registry_handle(self):
         # The Registry publisher id is lowercase; the capitalised form 404s on the API.
