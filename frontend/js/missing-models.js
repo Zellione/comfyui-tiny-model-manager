@@ -86,6 +86,38 @@ export function parseMetadataDirectory(text) {
   return SCRAPED_FOLDER_NAME.test(name) ? name : '';
 }
 
+// Every graph in the hierarchy, root first.
+//
+// Comfy-Org's templates put their loaders inside subgraphs, so a root-only walk finds none of the
+// models they carry: the Wan 2.2 T2V template's root graph holds two notes, one subgraph instance
+// and SaveVideo, while all six models sit in the subgraph. Two routes in, both live at once,
+// because ComfyUI pins the frontend to an exact version and an older install stays on an older
+// shape indefinitely — the same reason the panel-DOM reader tries each anchor in turn:
+//   - `graph.subgraphs` when it is a Map: `LGraph.get subgraphs()` returns `rootGraph._subgraphs`,
+//     the registry of every subgraph at any depth. ComfyUI's `findSubgraphByUuid` prefers it too.
+//   - recursion through `node.isSubgraphNode() && node.subgraph`, which is what ComfyUI's own
+//     `forEachNode` does, for whatever the registry does not carry.
+//
+// `seen` earns its keep twice: a subgraph that instantiates itself would otherwise hang the
+// browser (ComfyUI's forEachNode has no guard, but `buildSubgraphExecutionPaths` does), and the
+// two routes reach the same subgraph object, which `lookupModel` would not survive — it returns
+// `entries[0]`, so a doubled entry list is silently misleading rather than harmless.
+function* graphHierarchy(root) {
+  const seen = new Set();
+  const queue = [root];
+  while (queue.length) {
+    const graph = queue.pop();
+    if (!graph || seen.has(graph)) continue;
+    seen.add(graph);
+    yield graph;
+
+    if (graph.subgraphs instanceof Map) queue.push(...graph.subgraphs.values());
+    for (const node of graph.nodes ?? []) {
+      if (node?.isSubgraphNode?.()) queue.push(node.subgraph);
+    }
+  }
+}
+
 // Collect every `{name, url, directory}` the workflow knows about from the live graph.
 //
 // `node.properties.models` is the one copy that survives loading, so it is read straight off
@@ -98,8 +130,8 @@ export function parseMetadataDirectory(text) {
 // `workflow.activeWorkflow.pendingWarnings.missingModelCandidates`, which 1.48 removed
 // entirely (`pendingWarnings` appears nowhere in the bundle) in favour of a Pinia
 // `missingModelStore` that is exposed on neither `window` nor `app`. There is no reachable
-// replacement, so the index is graph-only and a missing URL is left to the backend, which
-// resolves through CivitAI and HuggingFace anyway.
+// replacement, so the index is graph-only — subgraphs included — and a missing URL is left to the
+// backend, which resolves through CivitAI and HuggingFace anyway.
 export function buildModelIndex(app) {
   const index = new Map();
   const add = (entry) => {
@@ -109,9 +141,10 @@ export function buildModelIndex(app) {
     index.get(name).push({ url: entry.url ?? '', directory: entry.directory ?? '' });
   };
 
-  const graph = app?.rootGraph ?? app?.graph;
-  for (const node of graph?.nodes ?? []) {
-    for (const model of node?.properties?.models ?? []) add(model);
+  for (const graph of graphHierarchy(app?.rootGraph ?? app?.graph)) {
+    for (const node of graph.nodes ?? []) {
+      for (const model of node?.properties?.models ?? []) add(model);
+    }
   }
   return index;
 }
