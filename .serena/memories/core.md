@@ -268,7 +268,12 @@ download through TMM (correct folder + full model card) instead of ComfyUI's own
 - `POST /api/download/missing` in `py/routes/download.py`. Body `{filename, directory, url?}`.
   Answers 200 with `{task_id, platform, source_id, model_type, filename}` /
   `{already_installed: true}` / `{unresolved: true, search_term, model_type}`, and 400 for a
-  `directory` outside `dl.SUPPORTED_TYPES` or a traversal filename. **`unresolved` is a 200 on
+  `directory` that is not a safe path segment, or a traversal filename. **Do not gate the
+  directory on a curated allowlist** — `downloader.SUPPORTED_TYPES` used to be one and was
+  deleted for this reason: it listed 16 folders while ComfyUI 0.24 registers 26, so
+  `latent_upscale_models`, `audio_encoders` and `model_patches` were rejected outright.
+  `_get_dest_dir` already resolves any folder through `folder_paths`, including ones custom
+  nodes register. **`unresolved` is a 200 on
   purpose** — the UI turns the button into "Search in TMM", it is not a failure.
   `_queue_download(...)` is the shared helper extracted from `_start_download`
   (validate_target → insert_download_history → enqueue); use it for any new download entry point.

@@ -170,7 +170,13 @@ async def _start_missing_download(request):
 
     if not filename:
         return err("filename required", status=400)
-    if model_type not in dl.SUPPORTED_TYPES:
+    # Any folder ComfyUI itself groups by is acceptable — `_get_dest_dir` resolves it through
+    # `folder_paths`, which knows the full set (26 folders in ComfyUI 0.24, plus whatever
+    # custom nodes register). A curated allowlist here would silently reject legitimate
+    # folders such as `latent_upscale_models` or `audio_encoders`. The only rejects are the
+    # "unknown category" row, whose directory is empty, and anything that is not a single
+    # path component.
+    if not model_paths.is_safe_segment(model_type):
         return err("unsupported_directory", status=400)
     # Cheap short-circuit for a file TMM installed after the panel last refreshed. Only the
     # model type's own directories are checked, not subfolders created by

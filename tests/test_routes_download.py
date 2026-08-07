@@ -665,14 +665,33 @@ class TestMissingModelDownload:
         )
         assert (await resp.json())["data"] == {"already_installed": True}
 
-    @pytest.mark.parametrize("directory", ["", "   ", "unknown_category", "workflows"])
+    @pytest.mark.parametrize("directory", ["", "   ", "..", ".", "a/b", "a\\b"])
     async def test_unsupported_directory_rejected(self, client, directory):
+        """Only the "unknown category" row and non-segment values are refused."""
         resp = await client.post(
             "/tiny-model-manager/api/download/missing",
             json={"filename": "missing.safetensors", "directory": directory},
         )
         assert resp.status == 400
         assert (await resp.json())["error"] == "unsupported_directory"
+
+    @pytest.mark.parametrize(
+        "directory",
+        ["checkpoints", "loras", "latent_upscale_models", "audio_encoders", "model_patches"],
+    )
+    async def test_accepts_every_folder_comfyui_groups_by(self, client, monkeypatch, directory):
+        """Regression: a curated allowlist rejected valid ComfyUI folders (issue #144 follow-up).
+
+        `latent_upscale_models` is a real ComfyUI 0.24 folder and was answered with
+        `unsupported_directory`, so an LTX spatial upscaler could not be downloaded at all.
+        """
+        self._stub_resolve(monkeypatch, self._resolution(model_type=directory))
+        resp = await client.post(
+            "/tiny-model-manager/api/download/missing",
+            json={"filename": "missing.safetensors", "directory": directory},
+        )
+        assert resp.status == 200
+        assert (await resp.json())["data"]["task_id"]
 
     async def test_missing_filename_rejected(self, client):
         resp = await client.post(
