@@ -644,6 +644,23 @@ uv pip install --python /tmp/py310/bin/python -r requirements.txt -r requirement
 - Ruff and format checks in CI are gated to the 3.13 matrix leg: ruff reads `target-version` from
   `pyproject.toml`, so its verdict is identical on every interpreter. The coverage artifact upload
   is likewise gated to 3.13 so its name stays unique for the `sonarcloud` job.
+- **Verify a release by inspecting the published archive, not the workflow's exit code.** The
+  action reports success before the Registry has accepted anything meaningful:
+
+  ```bash
+  curl -sL -o /tmp/node.zip https://cdn.comfy.org/zellione/tiny-model-manager/<version>/node.zip
+  unzip -Z1 /tmp/node.zip | grep -c '^web/'                      # must be non-zero
+  unzip -Z1 /tmp/node.zip | grep -E '^(tests/|frontend/|docs/)'  # must be empty
+  ```
+
+  0.1.0 shipped 324 KB with 28 `web/` files and nothing from `tests/`, `frontend/`, `docs/`,
+  `.github/` or `.serena/`. Also check `https://api.comfy.org/nodes/tiny-model-manager/versions`.
+- **A freshly published version sits at `NodeVersionStatusPending`** while the Registry runs its
+  automated security review; the node itself is `NodeStatusActive`. This is normal, not a failure,
+  but the version may not appear in ComfyUI-Manager's list until the review clears.
+- The publish workflow's `git diff --quiet -- web` guard has been exercised twice for real and
+  took the no-op path both times, because `web/` was already current in the merge commit. Expect a
+  bot commit only when someone bumps the version without rebuilding the bundle.
 - `py/routes/static.py::_serve_index` returns a **503 with build instructions** when `index.html`
   is absent. Without it aiohttp raises `FileNotFoundError` and an unbuilt bundle surfaces as an
   opaque 500. Route registration is lazy, so a missing `web/` never blocks node loading.
