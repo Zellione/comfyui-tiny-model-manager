@@ -2,46 +2,90 @@
 
 A ComfyUI custom node providing a web dashboard to browse, download, and manage AI models and LoRAs from CivitAI and HuggingFace.
 
-## Getting Started
+## Installation
 
-### Windows
+### ComfyUI-Manager / Registry (recommended)
 
-1. Install Python dependencies:
-   ```
-   ..\..\..\python_embeded\python.exe -m pip install -r requirements.txt
-   ```
-2. Build the frontend (requires Node.js):
-   ```
-   cd frontend
-   npm install
-   npx ng build
-   ```
-3. Restart ComfyUI and open `http://localhost:8188/tiny-model-manager`
+Search for **Tiny Model Manager** in ComfyUI-Manager and click *Install*, or from a terminal:
 
-### Linux
+```bash
+comfy node install tiny-model-manager
+```
 
-Assumes ComfyUI was installed via [comfy-cli](https://comfyui-wiki.com/en/install/install-comfyui/install-comfyui-on-linux) with a venv at `../../../comfy-env` relative to this folder.
+The published package ships a prebuilt dashboard, so **no Node.js toolchain is required**.
+Restart ComfyUI and open `http://localhost:8188/tiny-model-manager`.
 
-1. Install Python dependencies:
-   ```bash
-   source ../../../comfy-env/bin/activate
-   pip install -r requirements.txt
-   pip install -r requirements-dev.txt
-   ```
-2. Build the frontend (requires Node.js):
-   ```bash
-   cd frontend
-   npm install
-   npx ng build
-   ```
-3. Start ComfyUI and open `http://localhost:8188/tiny-model-manager`:
-   ```bash
-   comfy launch
-   ```
+### Install via Git URL
+
+In ComfyUI-Manager choose **Install via Git URL** and paste:
+
+```
+https://github.com/Zellione/comfyui-tiny-model-manager
+```
+
+Python dependencies install automatically from `requirements.txt`. The repository tracks a
+prebuilt `web/` bundle, so the dashboard works straight away.
+
+### Manual installation
+
+```bash
+cd ComfyUI/custom_nodes
+git clone https://github.com/Zellione/comfyui-tiny-model-manager
+cd comfyui-tiny-model-manager
+pip install -r requirements.txt
+```
+
+Restart ComfyUI and open `http://localhost:8188/tiny-model-manager`.
+
+The tracked `web/` bundle is refreshed on each release, so it can lag `main` between releases.
+To rebuild it from source (requires Node.js 22+):
+
+```bash
+cd frontend
+npm install
+npx ng build
+```
+
+If the dashboard reports that it has not been built, that rebuild is the fix — the loader nodes
+work regardless.
 
 ---
 
 ## Developer Setup
+
+### Python environment
+
+ComfyUI runs the backend with its own interpreter, so install into that one rather than a
+system Python.
+
+**Windows (`python_embeded`)**
+
+```powershell
+..\..\..\python_embeded\python.exe -m pip install -r requirements.txt -r requirements-dev.txt
+```
+
+**Linux (comfy-cli venv at `../../../comfy-env`)**
+
+```bash
+source ../../../comfy-env/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
+```
+
+The backend supports Python 3.10+; CI runs the suite on 3.10 through 3.13.
+
+### Frontend
+
+`web/` holds the compiled Angular bundle and is tracked in git so the node installs without a
+Node.js toolchain. Rebuild it after any change under `frontend/`:
+
+```bash
+cd frontend
+npm install          # once, or after package.json changes
+npx ng build         # production build → ../web/
+npx ng build --watch --configuration development   # during active development
+```
+
+### Git hooks
 
 After cloning, activate the git hooks once per clone so the pre-push coverage gate runs automatically:
 
@@ -55,6 +99,15 @@ The hook at `.githooks/pre-push` runs before every `git push` and enforces minim
 - **Frontend** ≥ 74 % lines / ≥ 62 % functions / ≥ 74 % branches (thresholds in `angular.json`)
 
 The push is blocked if either threshold is not met.
+
+### Releasing to the Comfy Registry
+
+Bump `version` in `pyproject.toml` and merge to `main`. That is the whole release trigger:
+`.github/workflows/publish.yml` rebuilds the frontend, commits the refreshed `web/` bundle, and
+publishes to the Registry.
+
+Publishing requires the `REGISTRY_ACCESS_TOKEN` repository secret, generated from the publisher
+account at [registry.comfy.org](https://registry.comfy.org).
 
 ---
 

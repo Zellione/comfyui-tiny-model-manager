@@ -8,10 +8,18 @@ on:
 
 jobs:
   backend:
-    name: Backend — tests & lint
+    name: Backend — tests & lint (py${{ matrix.python-version }})
     runs-on: ubuntu-latest
     # Normally ~30s. A ceiling keeps an async hang from running to GitHub's 6-hour default.
     timeout-minutes: 10
+
+    # Proves the `requires-python = ">=3.10"` floor declared in pyproject.toml. Published
+    # nodes are installed into whatever interpreter the user's ComfyUI runs on, so the
+    # supported range has to be tested rather than assumed.
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13']
 
     env:
       # Prevent Python from prepending CWD to sys.path so that pytest's own
@@ -24,22 +32,28 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
       - name: Install dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
 
+      # Ruff reads target-version from pyproject.toml, so its verdict is identical on every
+      # interpreter — run it once rather than four times.
       - name: Ruff lint
-        run: python -m ruff check py tests conftest.py
+        if: matrix.python-version == '3.13'
+        run: python -m ruff check py tests conftest.py install.py
 
       - name: Ruff format check
-        run: python -m ruff format --check py tests conftest.py
+        if: matrix.python-version == '3.13'
+        run: python -m ruff format --check py tests conftest.py install.py
 
       - name: Pytest with coverage
         run: python -m pytest --cov=py --cov-report=xml:coverage.xml
 
+      # One artifact only: the name must stay unique for the sonarcloud job to download it.
       - name: Upload Python coverage
+        if: matrix.python-version == '3.13'
         uses: actions/upload-artifact@v4
         with:
           name: python-coverage

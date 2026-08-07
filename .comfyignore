@@ -1,0 +1,27 @@
+# Files kept in version control but excluded from the published Registry package.
+# Syntax matches .gitignore. The published archive only needs the Python backend,
+# the prebuilt web/ bundle, and the packaging metadata.
+
+# Test suite and fixtures
+tests/
+conftest.py
+
+# Frontend sources — the built output in web/ is what ships
+frontend/
+
+# Project documentation and planning
+docs/
+PRD.md
+
+# Agent and tooling configuration
+CLAUDE.md
+.claude/
+.serena/
+.superpowers/
+
+# Repo-local development tooling
+.githooks/
+.github/
+.vscode/
+sonar-project.properties
+requirements-dev.txt
