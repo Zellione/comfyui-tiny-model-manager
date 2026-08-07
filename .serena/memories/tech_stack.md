@@ -48,6 +48,10 @@ so it installs from inside ComfyUI with no toolchain on the user's machine.
 - `pyproject.toml` carries `[project]` (name, version, description, `license = { file = "LICENSE" }`,
   `requires-python`, `dependencies`, classifiers), `[project.urls]`, and `[tool.comfy]`
   (`PublisherId`, `DisplayName`, `Icon` → raw GitHub URL of `assets/icon.svg`).
+  **`PublisherId` is the lowercase Registry handle `zellione`, not the display name `Zellione`** —
+  `https://api.comfy.org/publishers/Zellione` 404s while `/publishers/zellione` returns 200. The
+  publish action validates the token against this field, so a miscased value fails with the
+  misleading `400 {"message":"Failed to validate token"}` rather than a publisher-not-found error.
   `requires-comfyui` is **deliberately omitted** — a guessed lower bound blocks installs for no gain.
 - **`web/` is tracked in git** (it left `.gitignore`). The Registry archives only git-tracked files,
   and a prebuilt bundle is 892 KB versus needing Node 22 + a ~500 MB `npm ci` at install time.

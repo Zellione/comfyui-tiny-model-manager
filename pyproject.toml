@@ -19,7 +19,9 @@ classifiers = ["Operating System :: OS Independent"]
 Repository = "https://github.com/Zellione/comfyui-tiny-model-manager"
 
 [tool.comfy]
-PublisherId = "Zellione"
+# Lowercase: this is the Registry publisher `id` (the handle after @ on the profile), which is
+# not the same string as the display name "Zellione". /publishers/Zellione returns 404.
+PublisherId = "zellione"
 DisplayName = "Tiny Model Manager"
 Icon = "https://raw.githubusercontent.com/Zellione/comfyui-tiny-model-manager/main/assets/icon.svg"
 # requires-comfyui is deliberately omitted: a guessed lower bound blocks installs for no benefit.

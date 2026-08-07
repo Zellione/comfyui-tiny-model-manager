@@ -44,8 +44,9 @@ class TestRegistryMetadata:
         assert project["license"] == {"file": "LICENSE"}
         assert project["urls"]["Repository"]
 
-    def test_publisher_id_present(self):
-        assert _pyproject()["tool"]["comfy"]["PublisherId"] == "Zellione"
+    def test_publisher_id_matches_registry_handle(self):
+        # The Registry publisher id is lowercase; the capitalised form 404s on the API.
+        assert _pyproject()["tool"]["comfy"]["PublisherId"] == "zellione"
 
     def test_license_file_exists(self):
         assert os.path.isfile(os.path.join(_ROOT, "LICENSE"))
