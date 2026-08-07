@@ -47,6 +47,7 @@
     "processing": "Processing…",
     "unknown_badge": "Unknown",
     "delete_question": "Delete {{filename}}?",
+    "delete": "Delete",
     "source": {
       "all": "All sources",
       "unknown": "Unknown"
@@ -98,6 +99,7 @@
   },
   "model_detail": {
     "back": "← Back to Models",
+    "base_model_placeholder": "e.g. SDXL 1.0, Flux.1 D, Pony",
     "installed": "Installed",
     "refetch_question": "Re-fetch metadata from source?",
     "refetching": "Fetching…",
@@ -366,12 +368,23 @@
     "add_trigger_word_placeholder": "Add trigger word",
     "tags": "Tags",
     "add_tag_placeholder": "Add tag",
+    "remove_trigger_word": "Remove trigger word {{word}}",
+    "remove_tag": "Remove tag {{tag}}",
     "add": "Add",
     "saving": "Saving…",
     "save": "Save",
     "cancel": "Cancel",
     "refetching": "Fetching…",
     "refetch": "Re-fetch Metadata"
+  },
+  "merge_field": {
+    "current": "Current",
+    "incoming": "Incoming",
+    "manually_edited": "Manually edited",
+    "click_to_toggle": "Click to toggle",
+    "click_to_add": "Click to add",
+    "no_items": "No items",
+    "empty": "(empty)"
   },
   "refetch_modal": {
     "title": "Review fetched metadata",
