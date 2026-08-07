@@ -79,10 +79,21 @@ export class Settings implements OnInit {
       });
   }
 
+  /**
+   * Tell an open ComfyUI tab to start/stop injecting, best-effort.
+   *
+   * The setting is already persisted by the time this runs, so a browser without
+   * BroadcastChannel (or a test environment with only a partial stub) must not turn a
+   * successful save into an error — it just means the other tab picks the value up on reload.
+   */
   private broadcast(value: boolean) {
-    const channel = new BroadcastChannel('tmm');
-    channel.postMessage({ key: 'missing_models_integration', value });
-    channel.close();
+    try {
+      const channel = new BroadcastChannel('tmm');
+      channel.postMessage({ key: 'missing_models_integration', value });
+      channel.close();
+    } catch {
+      // ignored — see above
+    }
   }
 
   private load() {
