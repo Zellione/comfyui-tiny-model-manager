@@ -596,6 +596,22 @@ Two standing gotchas:
 - Never mention Claude as co-author or use EOF in commit messages.
 - Feature branches via `gh issue develop <num> --name <short> --checkout`.
 
+## Releasing to the Comfy Registry
+
+- **Bumping `version` in `pyproject.toml` on `main` is the entire release trigger.**
+  `.github/workflows/publish.yml` rebuilds the frontend, commits the refreshed `web/`, and runs
+  `Comfy-Org/publish-node-action` with the `REGISTRY_ACCESS_TOKEN` secret.
+- The workflow's `paths: ['pyproject.toml']` filter is load-bearing: it is what stops the bot's
+  `web/`-only commit from retriggering the workflow. Do not widen it.
+- `web/` in git is the **release artifact** — refreshed on version bump, so it may lag `main`
+  between releases. Developers still rebuild locally after any `frontend/` change.
+- Ruff and format checks in CI are gated to the 3.13 matrix leg: ruff reads `target-version` from
+  `pyproject.toml`, so its verdict is identical on every interpreter. The coverage artifact upload
+  is likewise gated to 3.13 so its name stays unique for the `sonarcloud` job.
+- `py/routes/static.py::_serve_index` returns a **503 with build instructions** when `index.html`
+  is absent. Without it aiohttp raises `FileNotFoundError` and an unbuilt bundle surfaces as an
+  opaque 500. Route registration is lazy, so a missing `web/` never blocks node loading.
+
 ## Workflow Rules
 
 - **Serena memory commits are immediate**: any time a Serena memory file is written or updated, commit it on the current working branch right away — never defer to a later session or a separate PR.
