@@ -8,6 +8,7 @@ import { skip, debounceTime } from 'rxjs';
 import { CivitaiService, CivitaiModel, CivitaiVersion, CivitaiFile } from '../../services/civitai';
 import { HuggingFaceService, HfModel } from '../../services/huggingface';
 import { MODEL_TYPES, ModelType } from '../../utils/model-types';
+import { BASE_MODEL_PRESETS } from '../../utils/base-models';
 import { formatSize } from '../../utils/format';
 import { isVideo } from '../../utils/media';
 import { hideOnError, showOnLoad } from '../../utils/media-events';
@@ -77,22 +78,9 @@ export class DownloadSearch {
     { label: 'download_search.format.pt', value: '.pt' },
     { label: 'download_search.format.bin', value: '.bin' },
   ];
-  readonly civitaiBaseModelOptions = [
-    'SD 1.5',
-    'SD 2.1',
-    'SDXL 1.0',
-    'Pony',
-    'Illustrious',
-    'Flux.1 D',
-    'Flux.1 S',
-    'Stable Cascade',
-    'SDXL Turbo',
-    'Chroma',
-    'Qwen',
-    // Exact CivitAI `baseModels` filter values — a typo here silently returns no results.
-    // 'Krea 2' is its own base model, distinct from the older 'Flux.1 Krea'.
-    'Krea 2',
-  ];
+  // Shared with the base-model combobox so the two cannot drift apart — they had, and both
+  // carried values CivitAI no longer matches. See utils/base-models.ts.
+  readonly civitaiBaseModelOptions = BASE_MODEL_PRESETS;
 
   platform = signal<Platform>('civitai');
   query = signal('');

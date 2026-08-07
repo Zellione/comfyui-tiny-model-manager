@@ -152,6 +152,31 @@ When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
 - **Video-only indicator (download search page)**: when `civitaiIsVideoOnly(model)` is true (all items are `type=video` or have video URLs, and there is at least one item), the card thumbnail shows a `▶` play icon (`.video-only-icon` div inside `.row-thumb`) instead of a blank dark placeholder. Pattern: `@else if (civitaiIsVideoOnly(model)) { <div class="video-only-icon">▶</div> }`.
 - `civitaiIsVideoOnly()`: `images.length > 0 && images.every((img) => img.type === 'video' || isVideo(img.url))`.
 
+## CivitAI `baseModels` values are a closed vocabulary — verify, never guess
+
+`frontend/src/app/utils/base-models.ts` (`BASE_MODEL_PRESETS`) is the **single** source for both
+the CivitAI search filter and the base-model combobox. They used to be two hand-maintained lists
+in `download-search.ts` and `base-model-select.ts`; they drifted apart and both accumulated values
+CivitAI no longer matches (`SD 3.5`, `SD 3.5 Large`, `SDXL Turbo`, `Illustrious XL`, `NoobAI XL`),
+while LTX / Wan / MiniMax were missing entirely.
+
+**A wrong value fails silently** — `?baseModels=<typo>` returns `{"items":[],"metadata":{}}`, not
+an error. There is no enum endpoint. To refresh the list:
+
+```bash
+# 1. harvest real values across many queries
+curl -s -G "https://civitai.com/api/v1/models" --data-urlencode "limit=100" \
+     --data-urlencode "query=$q" --data-urlencode "sort=Newest" \
+  | jq -r '.items[].modelVersions[].baseModel'    # union over ~40 different $q, sorts
+# 2. probe each candidate; 0 items ⇒ drop it
+curl -s -G "https://civitai.com/api/v1/models" --data-urlencode "limit=1" \
+     --data-urlencode "baseModels=$bm" | jq '.items | length'
+```
+
+Variants are **not** hierarchical: filtering on `Wan Video` does not match `Wan Video 14B t2v`, so
+every variant needs its own entry. `frontend/src/app/utils/base-models.spec.ts` pins the families
+that broke and asserts the unmatched values stay out.
+
 ## CivitAI response shapes — description and tags (PR #133)
 
 `GET /model-versions/{id}` and `GET /model-versions/by-hash/{hash}` do **not** contain the model
