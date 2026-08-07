@@ -9,19 +9,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "input=$(cat); echo \"$input\" | jq -e '.stop_hook_active == true' >/dev/null 2>&1 && exit 0\nd=\"${CLAUDE_PROJECT_DIR:-$PWD}\"; cd \"$d\" 2>/dev/null || exit 0\n[ -x ../../../comfy-env/bin/python ] || exit 0\ngit status --porcelain -- py tests conftest.py 2>/dev/null | grep -q . || exit 0\nPY=../../../comfy-env/bin/python\nclean() { printf '%s\\n' \"$1\" | grep -vE 'RuntimeWarning|<frozen site>'; }\nout=$($PY -m ruff check py tests conftest.py 2>&1); rc=$?\nif [ $rc -ne 0 ]; then\n  { echo \"Stop gate: ruff check failed. Fix before finishing.\"; clean \"$out\"; } >&2; exit 2\nfi\nout=$($PY -m ruff format --check py tests conftest.py 2>&1); rc=$?\nif [ $rc -ne 0 ]; then\n  { echo \"Stop gate: ruff format check failed. Run ruff format.\"; clean \"$out\"; } >&2; exit 2\nfi\nexit 0",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/stop-gate.sh\"",
             "timeout": 60,
-            "statusMessage": "Ruff gate"
-          }
-        ]
-      },
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "input=$(cat); echo \"$input\" | jq -e '.stop_hook_active == true' >/dev/null 2>&1 && exit 0\ngit rev-parse --git-dir >/dev/null 2>&1 || exit 0\nst=$(git status --porcelain 2>/dev/null)\necho \"$st\" | awk '{print $NF}' | grep -qE '\\.(py|ts|tsx|js|jsx|html|scss|css)$' || exit 0\necho \"$st\" | grep -q '\\.serena/memories/' && exit 0\necho '{\"hookSpecificOutput\": {\"hookEventName\": \"Stop\", \"additionalContext\": \"Uncommitted code changes are present and no Serena memory was touched. If this turn introduced new conventions, patterns, services, or structural changes, update the relevant memory (mem:core, mem:conventions, mem:tech_stack, mem:task_completion) via mcp__serena__write_memory.\"}}'\nexit 0",
-            "statusMessage": "Checking Serena memory freshness"
+            "statusMessage": "Stop gate"
           }
         ]
       }
