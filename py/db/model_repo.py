@@ -1,7 +1,7 @@
 import asyncio
 import json
 import os
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from ..video_poster import extract_video_poster
 from .database import get_db
@@ -299,7 +299,7 @@ async def update_model_meta(
     model_type: str = "",
     readme_html: str | None = None,
 ):
-    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     async with get_db() as db:
         # Ensure a row exists for manually-placed or link-source-only files.
         await db.execute(

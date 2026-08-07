@@ -1,7 +1,7 @@
 """Integration tests for py/routes/metadata.py (metadata CRUD + media serving)."""
 
 import os
-from datetime import UTC
+from datetime import timezone
 from pathlib import Path
 from typing import ClassVar
 
@@ -785,7 +785,7 @@ class TestRefetchPreview:
         from py.routes.metadata import _refetch_cache, _RefetchEntry
 
         expired_entry = _RefetchEntry(
-            fetched_at=dt.now(UTC) - timedelta(seconds=400),
+            fetched_at=dt.now(timezone.utc) - timedelta(seconds=400),
             old={},
             new_data={},
         )
@@ -823,7 +823,7 @@ class TestRefetchPreview:
             tags=[],
         )
         _refetch_cache["apply-test.safetensors"] = _RefetchEntry(
-            fetched_at=datetime.now(UTC),
+            fetched_at=datetime.now(timezone.utc),
             old={"description": "old", "trigger_words": [], "tags": [], "base_model": ""},
             new_data={
                 "description": "new",
@@ -870,7 +870,7 @@ class TestRefetchPreview:
             tags=[],
         )
         _refetch_cache["edited-at.safetensors"] = _RefetchEntry(
-            fetched_at=datetime.now(UTC),
+            fetched_at=datetime.now(timezone.utc),
             old={},
             new_data={},
         )
@@ -919,7 +919,7 @@ class TestRefetchPreview:
             tags=[],
         )
         _refetch_cache["clear-cache.safetensors"] = _RefetchEntry(
-            fetched_at=datetime.now(UTC),
+            fetched_at=datetime.now(timezone.utc),
             old={},
             new_data={},
         )
@@ -958,7 +958,7 @@ class TestRefetchPreview:
         old_media_id = await model_repo.add_media(model_id, "image", "/old/path/0.jpg")
 
         _refetch_cache["media-replace.safetensors"] = _RefetchEntry(
-            fetched_at=datetime.now(UTC),
+            fetched_at=datetime.now(timezone.utc),
             old={},
             new_data={},
         )
