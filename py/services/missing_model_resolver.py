@@ -20,6 +20,7 @@ downloader — which streams it through `url_guard.guarded_stream`.
 
 import logging
 import os
+import re
 from dataclasses import dataclass
 
 import httpx
@@ -35,6 +36,10 @@ logger = logging.getLogger(__name__)
 # covering the mirrors and re-uploads that make up most HuggingFace name collisions.
 _HF_MAX_CANDIDATE_REPOS = 5
 _CIVITAI_SEARCH_LIMIT = 10
+
+# Only the `/blob/` that directly follows `host/owner/repo` is the viewer segment; a repo or a
+# path component merely named "blob" further along must not be rewritten.
+_HF_BLOB_PATH = re.compile(r"^(https?://[^/]+/[^/]+/[^/]+)/blob/")
 
 
 @dataclass(frozen=True)
@@ -80,6 +85,17 @@ async def _hf_model_files(repo_id: str) -> list[dict]:
 def _same_file(candidate: str, wanted: str) -> bool:
     """Exact filename match, ignoring any repo subfolder prefix and letter case."""
     return bool(candidate) and os.path.basename(candidate).lower() == wanted.lower()
+
+
+def direct_download_url(url: str) -> str:
+    """Rewrite a HuggingFace `/blob/` link to its `/resolve/` counterpart.
+
+    `/blob/` serves the repository's HTML file-viewer page, not the file. Workflows and
+    ComfyUI's own "copy URL" button both hand out that browsable form, so taking it verbatim
+    would store a web page under a `.safetensors` name — a corrupt model that only fails at
+    load time. Provider-resolved downloads never go through here; this guards the raw fallback.
+    """
+    return _HF_BLOB_PATH.sub(r"\1/resolve/", url, count=1)
 
 
 def search_term(filename: str) -> str:
@@ -215,5 +231,7 @@ async def resolve(filename: str, model_type: str, url: str = "") -> Resolution |
     # Last resort: the raw URL from the workflow. No provider metadata, so the download
     # produces a plain file — the behaviour issue #144 specifies for this branch.
     if url and is_allowed_url(url):
-        return Resolution(download_url=url, filename=filename, model_type=model_type)
+        return Resolution(
+            download_url=direct_download_url(url), filename=filename, model_type=model_type
+        )
     return None

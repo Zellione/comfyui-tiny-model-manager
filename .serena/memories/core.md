@@ -282,8 +282,21 @@ download through TMM (correct folder + full model card) instead of ComfyUI's own
   Row anchor is `[data-testid="missing-model-copy-name"]` (the only per-row control ComfyUI always
   renders); the filename is the `p[title]` beside it; the directory comes from the group heading
   `"<dir> (N)"` (untranslated for real folders) with the indexed directory as fallback. `url` comes
-  from `buildModelIndex()`, which reads `node.properties.models` + `graph.extra.models` — the same
-  source `missingModelScan.ts` enriches from, so no Pinia access is needed.
+  from `buildModelIndex()`, which reads **two** sources: `node.properties.models` (survives on the
+  live graph) and `app.extensionManager.workflow.activeWorkflow.pendingWarnings
+  .missingModelCandidates`.
+  **`graph.extra.models` is NOT a source** — `LGraph.configure()` does `this.extra = data.extra`
+  and a workflow's `models` array is a *sibling* of `extra`, so it is dropped on load. Reading it
+  there looked right and always found nothing, which made an LTX workflow report `unresolved`
+  while carrying a usable HuggingFace URL. There is a test pinning this.
+- **`app.extensionManager` IS ComfyUI's workspace store** (`U.extensionManager = useWorkspaceStore()`
+  in `App.vue`), so `.toast`, `.workflow`, `.setting`, `.command` and `.sidebarTab` are reachable
+  from an extension. Only the stores workspaceStore does *not* re-export (e.g. `useMissingModelStore`)
+  are out of reach — the earlier blanket "Pinia is unreachable" note was too broad.
+- `missing_model_resolver.direct_download_url()` rewrites a HuggingFace `/blob/` link to
+  `/resolve/` before the raw fallback downloads it. `/blob/` serves the HTML file-viewer page, and
+  both workflows and ComfyUI's "copy URL" button hand out that form — taking it verbatim stores a
+  web page under a `.safetensors` name that only fails at load time.
   **A row whose directory cannot be established gets no button** (guessing puts a LoRA in
   checkpoints). Injection is made idempotent by the `data-tmm-missing` /
   `data-tmm-missing-all` markers plus a `syncing` re-entrancy flag, since our own `appendChild`

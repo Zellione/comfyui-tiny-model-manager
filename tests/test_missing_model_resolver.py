@@ -213,3 +213,65 @@ class TestRawFallback:
 )
 def test_same_file(candidate, expected):
     assert res._same_file(candidate, WANTED) is expected
+
+
+class TestBlobUrlNormalisation:
+    """A HuggingFace `/blob/` URL is an HTML page, not the file (F-144 follow-up).
+
+    Workflows and ComfyUI's own "copy URL" button both hand out the browsable `/blob/` form.
+    Downloading it verbatim would silently store an HTML page under a `.safetensors` name.
+    """
+
+    BLOB = "https://huggingface.co/Lightricks/LTX-2.3-fp8/blob/main/ltx-2.3-22b-dev-fp8.safetensors"
+    RESOLVE = (
+        "https://huggingface.co/Lightricks/LTX-2.3-fp8/resolve/main/ltx-2.3-22b-dev-fp8.safetensors"
+    )
+
+    async def test_raw_fallback_rewrites_blob_to_resolve(self, monkeypatch):
+        _no_matches(monkeypatch)
+        _seam(monkeypatch, "_hf_model_files", [])
+        result = await res.resolve(WANTED, "diffusion_models", self.BLOB)
+        assert result is not None
+        assert result.download_url == self.RESOLVE
+
+    async def test_a_resolve_url_is_left_alone(self, monkeypatch):
+        _no_matches(monkeypatch)
+        _seam(monkeypatch, "_hf_model_files", [])
+        result = await res.resolve(WANTED, "diffusion_models", self.RESOLVE)
+        assert result is not None
+        assert result.download_url == self.RESOLVE
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://civitai.com/api/download/models/555",
+            "https://huggingface.co/owner/repo/resolve/main/a.safetensors",
+        ],
+    )
+    async def test_non_blob_urls_are_untouched(self, monkeypatch, url):
+        _no_matches(monkeypatch)
+        _seam(monkeypatch, "_hf_model_files", [])
+        _seam(monkeypatch, "_civitai_version_download_info", None)
+        result = await res.resolve(WANTED, "vae", url)
+        assert result is not None
+        assert result.download_url == url
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        (
+            "https://huggingface.co/o/r/blob/main/a.safetensors",
+            "https://huggingface.co/o/r/resolve/main/a.safetensors",
+        ),
+        # Only the viewer segment right after host/owner/repo is rewritten.
+        (
+            "https://huggingface.co/o/r/resolve/main/blob/a.safetensors",
+            "https://huggingface.co/o/r/resolve/main/blob/a.safetensors",
+        ),
+        ("https://civitai.com/api/download/models/1", "https://civitai.com/api/download/models/1"),
+        ("", ""),
+    ],
+)
+def test_direct_download_url(url, expected):
+    assert res.direct_download_url(url) == expected

@@ -50,9 +50,18 @@ export function parseGroupDirectory(text) {
   return FOLDER_NAME.test(name) ? name : '';
 }
 
-// Collect every `{name, url, directory}` a workflow embedded on its nodes. ComfyUI's own
-// missingModelScan.ts enriches candidates from exactly this source, so reading it gives us the
-// download URL the panel has without touching its Pinia store.
+// Collect every `{name, url, directory}` the workflow knows about, from both places ComfyUI's
+// own missingModelScan.ts looks:
+//
+//  1. `node.properties.models` — survives on the live graph, so it is read straight off it.
+//  2. The workflow's TOP-LEVEL `models` array. This one is not on the graph at all:
+//     `LGraph.configure()` does `this.extra = data.extra`, and `models` is a sibling of
+//     `extra`, so it is dropped. Reading `graph.extra.models` finds nothing — ever. ComfyUI
+//     runs the array through its missing-model pipeline and caches the result on the active
+//     workflow, and that cache is the only copy an extension can reach.
+//
+// Missing (2) is what made an LTX workflow report "unresolved" while carrying a usable
+// HuggingFace URL: the URL simply never reached the backend.
 export function buildModelIndex(app) {
   const index = new Map();
   const add = (entry) => {
@@ -66,7 +75,10 @@ export function buildModelIndex(app) {
   for (const node of graph?.nodes ?? []) {
     for (const model of node?.properties?.models ?? []) add(model);
   }
-  for (const model of graph?.extra?.models ?? []) add(model);
+  // `app.extensionManager` is ComfyUI's workspace store; `.workflow` is the workflow store.
+  // Candidates carry `{name, url, directory}` — the same fields the panel renders from.
+  const warnings = app?.extensionManager?.workflow?.activeWorkflow?.pendingWarnings;
+  for (const candidate of warnings?.missingModelCandidates ?? []) add(candidate);
   return index;
 }
 

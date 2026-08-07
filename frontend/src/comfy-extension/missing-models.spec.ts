@@ -62,11 +62,18 @@ function rowButtons() {
   return tmmButtons().filter((b) => b.textContent !== LABELS.all);
 }
 
-function makeApp(nodes: unknown[] = []) {
+function makeApp(nodes: unknown[] = [], candidates: unknown[] | null = null) {
   return {
     rootGraph: { nodes },
     refreshComboInNodes: vi.fn().mockResolvedValue(undefined),
-    extensionManager: { toast: { add: vi.fn() } },
+    extensionManager: {
+      toast: { add: vi.fn() },
+      workflow: {
+        activeWorkflow: candidates
+          ? { pendingWarnings: { missingModelCandidates: candidates } }
+          : null,
+      },
+    },
   };
 }
 
@@ -123,15 +130,57 @@ describe('pure helpers', () => {
     expect(index.get('b.safetensors')).toEqual([{ url: 'u2', directory: 'vae' }]);
   });
 
-  it('buildModelIndex also reads the workflow-level models array', () => {
+  // Pins the finding rather than the old assumption: LGraph.configure() assigns only
+  // `data.extra`, so a workflow's top-level `models` array never lands under `graph.extra`.
+  // Reading it there looked like it worked and silently found nothing. Do not "restore" it —
+  // the reachable copy is the cached candidate list asserted above.
+  it('buildModelIndex does not rely on graph.extra.models, which never carries them', () => {
     const app = {
       graph: { nodes: [], extra: { models: [{ name: 'c.ckpt', url: 'u3', directory: 'vae' }] } },
     };
-    expect(buildModelIndex(app).get('c.ckpt')).toEqual([{ url: 'u3', directory: 'vae' }]);
+    expect(buildModelIndex(app).size).toBe(0);
   });
 
   it('buildModelIndex tolerates a graphless app', () => {
     expect(buildModelIndex({}).size).toBe(0);
+  });
+
+  // Regression: a workflow's `models` array is a TOP-LEVEL property, and LGraph.configure()
+  // keeps only `data.extra`, so it never reaches `graph.extra.models`. ComfyUI's own panel
+  // reads it via the pipeline and caches the result on the active workflow, which is the only
+  // copy an extension can reach. Without this an LTX/Wan workflow reported "unresolved" even
+  // though it carried a perfectly good HuggingFace URL.
+  it('buildModelIndex reads the candidates cached on the active workflow', () => {
+    const app = makeApp(
+      [],
+      [
+        {
+          name: 'ltx-2.3-22b-dev-fp8.safetensors',
+          url: 'https://huggingface.co/Lightricks/LTX-2.3-fp8/resolve/main/ltx-2.3-22b-dev-fp8.safetensors',
+          directory: 'diffusion_models',
+        },
+      ],
+    );
+    expect(buildModelIndex(app).get('ltx-2.3-22b-dev-fp8.safetensors')).toEqual([
+      {
+        url: 'https://huggingface.co/Lightricks/LTX-2.3-fp8/resolve/main/ltx-2.3-22b-dev-fp8.safetensors',
+        directory: 'diffusion_models',
+      },
+    ]);
+  });
+
+  it('buildModelIndex merges node properties with the cached candidates', () => {
+    const app = makeApp(
+      [{ properties: { models: [{ name: 'a.safetensors', url: 'u1', directory: 'loras' }] } }],
+      [{ name: 'b.safetensors', url: 'u2', directory: 'vae' }],
+    );
+    const index = buildModelIndex(app);
+    expect(index.get('a.safetensors')).toEqual([{ url: 'u1', directory: 'loras' }]);
+    expect(index.get('b.safetensors')).toEqual([{ url: 'u2', directory: 'vae' }]);
+  });
+
+  it('buildModelIndex tolerates a workflow with no pending warnings', () => {
+    expect(buildModelIndex(makeApp([], null)).size).toBe(0);
   });
 
   it('lookupModel prefers the entry whose directory agrees', () => {
