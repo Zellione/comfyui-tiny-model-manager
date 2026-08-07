@@ -6,7 +6,7 @@ import pytest
 from aiohttp import web
 
 
-@pytest.fixture()
+@pytest.fixture
 async def client(aiohttp_client, ext_dir):
     import folder_paths
 
@@ -27,14 +27,14 @@ async def client(aiohttp_client, ext_dir):
     return await aiohttp_client(app)
 
 
-@pytest.fixture()
+@pytest.fixture
 def checkpoints_dir(ext_dir):
     d = os.path.join(ext_dir, "models", "checkpoints")
     os.makedirs(d, exist_ok=True)
     return d
 
 
-@pytest.fixture()
+@pytest.fixture
 def loras_dir(ext_dir):
     d = os.path.join(ext_dir, "models", "loras")
     os.makedirs(d, exist_ok=True)

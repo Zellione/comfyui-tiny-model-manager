@@ -1,5 +1,7 @@
 """Tests for CivitAI provider (py/services/providers/civitai_provider.py)."""
 
+from typing import ClassVar
+
 import httpx
 import pytest
 
@@ -344,7 +346,7 @@ class TestSearch:
 
 
 class TestGetVersionFiles:
-    _VERSION_DATA = {
+    _VERSION_DATA: ClassVar[dict] = {
         "modelId": 42,
         "files": [
             {
@@ -568,7 +570,7 @@ class TestLookupByVersionId:
 
 
 class TestLookupByModelId:
-    MODEL_DATA = {
+    MODEL_DATA: ClassVar[dict] = {
         "id": 77,
         "name": "Great Checkpoint",
         "type": "Checkpoint",
@@ -648,3 +650,183 @@ class TestLookupByModelId:
         _patch_civitai_client(monkeypatch, _make_transport({"models/80": (500, {})}))
         with pytest.raises(httpx.HTTPStatusError):
             await provider.lookup_by_model_id("80")
+
+
+def _capture_transport(status: int, body: dict, seen: list) -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(status, json=body)
+
+    return httpx.MockTransport(handler)
+
+
+class TestSearchParams:
+    async def test_builds_filter_params(self, provider, monkeypatch, ext_dir):
+        seen: list = []
+        _patch_civitai_client(monkeypatch, _capture_transport(200, {"items": []}, seen))
+
+        await provider.search(
+            "cat",
+            model_type="loras",
+            base_model="SDXL 1.0",
+            sort="Newest",
+            period="Week",
+            tags=["style"],
+        )
+
+        url = str(seen[0].url)
+        assert "query=cat" in url
+        assert "types=LORA" in url
+        assert "baseModels=SDXL" in url
+        assert "sort=Newest" in url
+        assert "period=Week" in url
+        assert "tag=style" in url
+
+    async def test_types_overrides_model_type_map(self, provider, monkeypatch, ext_dir):
+        seen: list = []
+        _patch_civitai_client(monkeypatch, _capture_transport(200, {"items": []}, seen))
+
+        await provider.search("wf", model_type="loras", types="Workflows")
+
+        assert "types=Workflows" in str(seen[0].url)
+
+    async def test_page_param_without_query(self, provider, monkeypatch, ext_dir):
+        seen: list = []
+        _patch_civitai_client(monkeypatch, _capture_transport(200, {"items": []}, seen))
+
+        await provider.search("", page=3)
+
+        assert "page=3" in str(seen[0].url)
+
+    async def test_server_error_raises(self, provider, monkeypatch, ext_dir):
+        _patch_civitai_client(monkeypatch, _make_transport({"models": (500, {})}))
+        with pytest.raises(httpx.HTTPStatusError):
+            await provider.search("cat")
+
+
+class TestSearchImages:
+    async def test_builds_filter_params(self, provider, monkeypatch, ext_dir):
+        seen: list = []
+        _patch_civitai_client(monkeypatch, _capture_transport(200, {"items": []}, seen))
+
+        await provider.search_images(
+            sort="Most Reactions",
+            period="Week",
+            nsfw="None",
+            base_model="SDXL 1.0",
+            media_type="image",
+            username="alice",
+            model_id="12",
+            post_id="34",
+            image_id="56",
+            cursor="abc",
+        )
+
+        url = str(seen[0].url)
+        assert "withMeta=true" in url
+        assert "cursor=abc" in url
+        assert "period=Week" in url
+        assert "nsfw=None" in url
+        assert "type=image" in url
+        assert "username=alice" in url
+        assert "modelId=12" in url
+        assert "postId=34" in url
+        assert "imageId=56" in url
+
+    async def test_server_error_raises(self, provider, monkeypatch, ext_dir):
+        _patch_civitai_client(monkeypatch, _make_transport({"images": (500, {})}))
+        with pytest.raises(httpx.HTTPStatusError):
+            await provider.search_images()
+
+
+class TestGetModelPage:
+    async def test_returns_raw_payload(self, provider, monkeypatch, ext_dir):
+        payload = {"id": 9, "type": "LORA", "modelVersions": [{"id": 1}]}
+        _patch_civitai_client(monkeypatch, _make_transport({"models/9": (200, payload)}))
+
+        assert await provider.get_model_page(9) == payload
+
+    async def test_server_error_raises(self, provider, monkeypatch, ext_dir):
+        _patch_civitai_client(monkeypatch, _make_transport({"models/9": (500, {})}))
+        with pytest.raises(httpx.HTTPStatusError):
+            await provider.get_model_page(9)
+
+
+class TestGetModelVersions:
+    async def test_maps_type_and_returns_versions(self, provider, monkeypatch, ext_dir):
+        payload = {"type": "LORA", "modelVersions": [{"id": 1}, {"id": 2}]}
+        _patch_civitai_client(monkeypatch, _make_transport({"models/9": (200, payload)}))
+
+        result = await provider.get_model_versions(9)
+
+        assert result["model_type"] == "loras"
+        assert [v["id"] for v in result["versions"]] == [1, 2]
+
+    async def test_unknown_type_falls_back_to_checkpoints(self, provider, monkeypatch, ext_dir):
+        payload = {"type": "Mystery", "modelVersions": []}
+        _patch_civitai_client(monkeypatch, _make_transport({"models/9": (200, payload)}))
+
+        result = await provider.get_model_versions(9)
+
+        assert result["model_type"] == "checkpoints"
+
+
+class TestDownloadInfo:
+    _VERSION: ClassVar[dict] = {
+        "id": 11,
+        "modelId": 5,
+        "name": "v1.0",
+        "baseModel": "SDXL 1.0",
+        "model": {"type": "LORA", "name": "Nice Lora"},
+        "files": [
+            {"name": "other.yaml", "type": "Config", "downloadUrl": "https://x/cfg"},
+            {
+                "name": "nice.safetensors",
+                "type": "Model",
+                "primary": True,
+                "sizeKB": 10,
+                "downloadUrl": "https://x/model",
+            },
+        ],
+    }
+
+    async def test_version_download_info_selects_primary_model_file(
+        self, provider, monkeypatch, ext_dir
+    ):
+        _patch_civitai_client(
+            monkeypatch, _make_transport({"model-versions/11": (200, self._VERSION)})
+        )
+
+        info = await provider.version_download_info(11)
+
+        assert info == {
+            "filename": "nice.safetensors",
+            "download_url": "https://x/model",
+            "size_kb": 10,
+            "model_type": "loras",
+            "model_name": "Nice Lora",
+            "version_name": "v1.0",
+            "base_model": "SDXL 1.0",
+            "model_version_id": "11",
+            "model_id": "5",
+        }
+
+    async def test_missing_version_returns_none(self, provider, monkeypatch, ext_dir):
+        _patch_civitai_client(monkeypatch, _make_transport({}))
+
+        assert await provider.version_download_info(999) is None
+
+    async def test_file_without_download_url_returns_none(self, provider, monkeypatch, ext_dir):
+        data = {"id": 12, "files": [{"name": "x", "type": "Model"}], "model": {}}
+        _patch_civitai_client(monkeypatch, _make_transport({"model-versions/12": (200, data)}))
+
+        assert await provider.version_download_info(12) is None
+
+    async def test_hash_download_info_uses_by_hash_route(self, provider, monkeypatch, ext_dir):
+        seen: list = []
+        _patch_civitai_client(monkeypatch, _capture_transport(200, self._VERSION, seen))
+
+        info = await provider.hash_download_info("EB4DD8C612")
+
+        assert "model-versions/by-hash/EB4DD8C612" in str(seen[0].url)
+        assert info is not None and info["filename"] == "nice.safetensors"

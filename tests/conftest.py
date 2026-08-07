@@ -104,7 +104,7 @@ _install_stubs(_MODELS_DIR)
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture()
+@pytest.fixture
 async def ext_dir(tmp_path):
     """Fresh extension directory with an initialised DB for each test."""
     from py import config as cfg

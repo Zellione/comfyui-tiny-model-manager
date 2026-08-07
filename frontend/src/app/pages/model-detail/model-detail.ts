@@ -115,7 +115,10 @@ export class ModelDetail implements OnInit {
     this.modelType = this.route.snapshot.paramMap.get('type') ?? '';
     this.modelPath = decodeURIComponent(this.route.snapshot.paramMap.get('path') ?? '');
     this.editType = this.modelType;
-    this.modelService.getModelTypes().subscribe((types) => this.modelTypes.set(types));
+    this.modelService
+      .getModelTypes()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((types) => this.modelTypes.set(types));
     this.loadMeta();
     this.downloadService.completedTasks$
       .pipe(
@@ -127,25 +130,29 @@ export class ModelDetail implements OnInit {
 
   loadMeta() {
     this.loading.set(true);
-    this.modelService.getMetadata(this.modelType, this.modelPath).subscribe({
-      next: (m) => {
-        this.meta.set(m);
-        this.syncEditMeta(m);
-        this.loading.set(false);
-        this.loadRepoFiles();
-        this.loadCatalogEntry(m);
-      },
-      error: (err) => {
-        this.error.set((err as Error).message);
-        this.loading.set(false);
-      },
-    });
+    this.modelService
+      .getMetadata(this.modelType, this.modelPath)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (m) => {
+          this.meta.set(m);
+          this.syncEditMeta(m);
+          this.loading.set(false);
+          this.loadRepoFiles();
+          this.loadCatalogEntry(m);
+        },
+        error: (err) => {
+          this.error.set((err as Error).message);
+          this.loading.set(false);
+        },
+      });
   }
 
   loadRepoFiles() {
     this.modelService
       .getRepoFiles(this.modelType, this.modelPath)
       .pipe(catchError(() => of([] as RepoFile[])))
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((files) => {
         this.repoFiles.set(files);
         const bm: Record<string, string> = {};
@@ -175,6 +182,7 @@ export class ModelDetail implements OnInit {
     this.modelService
       .getCatalogEntry(platform, pageId)
       .pipe(catchError(() => of(null)))
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((entry) => this.catalogEntry.set(entry));
   }
 
@@ -216,6 +224,7 @@ export class ModelDetail implements OnInit {
           );
         }),
       )
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (result) => {
           this.saving.set(false);
@@ -251,37 +260,40 @@ export class ModelDetail implements OnInit {
     this.refetching.set(true);
     this.error.set('');
     this.refetchNoChanges.set(false);
-    this.modelService.refetchPreview(this.modelType, this.modelPath).subscribe({
-      next: (res) => {
-        this.refetching.set(false);
-        if (res.removed) {
-          this.notifService.show(
-            'success',
-            this.translate.instant('model_detail.notify.stale_removed'),
-          );
-          this.router.navigate(['/models']);
-          return;
-        }
-        let resolvedRes = res;
-        if (!res.new.base_model && !this.meta()?.base_model) {
-          const detectedBaseModel = this.detect(this.modelBasename).baseModel;
-          if (detectedBaseModel) {
-            resolvedRes = { ...res, new: { ...res.new, base_model: detectedBaseModel } };
+    this.modelService
+      .refetchPreview(this.modelType, this.modelPath)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          this.refetching.set(false);
+          if (res.removed) {
+            this.notifService.show(
+              'success',
+              this.translate.instant('model_detail.notify.stale_removed'),
+            );
+            this.router.navigate(['/models']);
+            return;
           }
-        }
-        this.refetchPreviewData.set(resolvedRes);
-        if (res.no_changes) {
-          this.refetchNoChanges.set(true);
-        } else {
-          this.showRefetchModal.set(true);
-        }
-      },
-      error: (err) => {
-        this.refetching.set(false);
-        this.error.set((err as Error).message);
-        this.notifService.show('error', (err as Error).message);
-      },
-    });
+          let resolvedRes = res;
+          if (!res.new.base_model && !this.meta()?.base_model) {
+            const detectedBaseModel = this.detect(this.modelBasename).baseModel;
+            if (detectedBaseModel) {
+              resolvedRes = { ...res, new: { ...res.new, base_model: detectedBaseModel } };
+            }
+          }
+          this.refetchPreviewData.set(resolvedRes);
+          if (res.no_changes) {
+            this.refetchNoChanges.set(true);
+          } else {
+            this.showRefetchModal.set(true);
+          }
+        },
+        error: (err) => {
+          this.refetching.set(false);
+          this.error.set((err as Error).message);
+          this.notifService.show('error', (err as Error).message);
+        },
+      });
   }
 
   onModalApplied(meta: ModelMeta) {
@@ -309,36 +321,48 @@ export class ModelDetail implements OnInit {
       if (newVal === undefined || newVal === f.base_model) continue;
       const path = f.installed_path || f.filename;
       if (path === this.modelPath) continue; // current file is saved by the main save()
-      this.modelService.updateMetadata(f.model_type, path, { base_model: newVal }).subscribe();
+      this.modelService
+        .updateMetadata(f.model_type, path, { base_model: newVal })
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe();
     }
   }
 
   addToWorkflow() {
-    this.workflowService.addToWorkflow(this.modelType, this.modelPath).subscribe({
-      next: () =>
-        this.notifService.show('success', this.translate.instant('model_detail.notify.queued')),
-      error: () =>
-        this.notifService.show('error', this.translate.instant('model_detail.notify.queue_failed')),
-    });
+    this.workflowService
+      .addToWorkflow(this.modelType, this.modelPath)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () =>
+          this.notifService.show('success', this.translate.instant('model_detail.notify.queued')),
+        error: () =>
+          this.notifService.show(
+            'error',
+            this.translate.instant('model_detail.notify.queue_failed'),
+          ),
+      });
   }
 
   uninstall() {
     this.deleting.set(true);
-    this.modelService.deleteModel(this.modelType, this.modelPath).subscribe({
-      next: () => {
-        this.notifService.show(
-          'success',
-          this.translate.instant('model_detail.notify.uninstalled', {
-            name: this.modelBasename,
-          }),
-        );
-        this.router.navigate(['/models']);
-      },
-      error: (err) => {
-        this.deleting.set(false);
-        this.notifService.show('error', (err as Error).message);
-      },
-    });
+    this.modelService
+      .deleteModel(this.modelType, this.modelPath)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.notifService.show(
+            'success',
+            this.translate.instant('model_detail.notify.uninstalled', {
+              name: this.modelBasename,
+            }),
+          );
+          this.router.navigate(['/models']);
+        },
+        error: (err) => {
+          this.deleting.set(false);
+          this.notifService.show('error', (err as Error).message);
+        },
+      });
   }
 
   linkSource() {
@@ -346,52 +370,61 @@ export class ModelDetail implements OnInit {
     if (!url) return;
     this.linking.set(true);
     this.linkSourceError.set('');
-    this.modelService.linkSource(this.modelType, this.modelPath, url).subscribe({
-      next: () => {
-        this.linking.set(false);
-        this.notifService.show(
-          'success',
-          this.translate.instant('model_detail.notify.source_linked'),
-        );
-        this.router.navigate(['/models']);
-      },
-      error: (err) => {
-        this.linking.set(false);
-        this.linkSourceError.set((err as Error).message);
-      },
-    });
+    this.modelService
+      .linkSource(this.modelType, this.modelPath, url)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.linking.set(false);
+          this.notifService.show(
+            'success',
+            this.translate.instant('model_detail.notify.source_linked'),
+          );
+          this.router.navigate(['/models']);
+        },
+        error: (err) => {
+          this.linking.set(false);
+          this.linkSourceError.set((err as Error).message);
+        },
+      });
   }
 
   addFileToWorkflow(file: RepoFile) {
     const path = file.installed_path || file.filename;
-    this.workflowService.addToWorkflow(this.modelType, path).subscribe({
-      next: () =>
-        this.notifService.show(
-          'success',
-          this.translate.instant('model_detail.notify.queued_short'),
-        ),
-      error: () =>
-        this.notifService.show(
-          'error',
-          this.translate.instant('model_detail.notify.queue_failed_short'),
-        ),
-    });
+    this.workflowService
+      .addToWorkflow(this.modelType, path)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () =>
+          this.notifService.show(
+            'success',
+            this.translate.instant('model_detail.notify.queued_short'),
+          ),
+        error: () =>
+          this.notifService.show(
+            'error',
+            this.translate.instant('model_detail.notify.queue_failed_short'),
+          ),
+      });
   }
 
   deleteFile(file: RepoFile) {
     const path = file.installed_path || file.filename;
-    this.modelService.deleteModel(this.modelType, path).subscribe({
-      next: () => {
-        this.notifService.show(
-          'success',
-          this.translate.instant('model_detail.notify.file_deleted', {
-            filename: file.filename,
-          }),
-        );
-        this.loadRepoFiles();
-      },
-      error: (err) => this.notifService.show('error', (err as Error).message),
-    });
+    this.modelService
+      .deleteModel(this.modelType, path)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.notifService.show(
+            'success',
+            this.translate.instant('model_detail.notify.file_deleted', {
+              filename: file.filename,
+            }),
+          );
+          this.loadRepoFiles();
+        },
+        error: (err) => this.notifService.show('error', (err as Error).message),
+      });
   }
 
   downloadFile(file: RepoFile) {
@@ -412,6 +445,7 @@ export class ModelDetail implements OnInit {
     this.downloadingFiles.update((s) => new Set(s).add(file.filename));
     this.downloadService
       .startDownload(file.download_url, this.modelType, destFilename, platform, sourceId, baseModel)
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
           this.notifService.show(

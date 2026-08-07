@@ -115,6 +115,7 @@ export class RefetchReviewModal implements OnInit {
     this.applying.set(true);
     this.modelService
       .refetchApply(this.modelType(), this.modelPath(), this._buildApplyRequest())
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (res) => {
           this.applying.set(false);

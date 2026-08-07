@@ -71,7 +71,7 @@ def _build_search_params(
     }
     extra_tags = list(tags) if tags else []
     if file_format == ".gguf":
-        filter_values = ["gguf"] + extra_tags
+        filter_values = ["gguf", *extra_tags]
         params["filter"] = filter_values if len(filter_values) > 1 else filter_values[0]
     else:
         params["pipeline_tag"] = HF_TYPE_MAP.get(model_type, "text-to-image")
@@ -133,7 +133,7 @@ class HuggingFaceProvider(ModelProvider):
         p: int = 0,
         sort: str = "downloads",
         direction: int = -1,
-        format: str = "",
+        format: str = "",  # noqa: A002 — public keyword arg mirroring the HF API param
         tags: list[str] | None = None,
         **kwargs,
     ) -> dict:

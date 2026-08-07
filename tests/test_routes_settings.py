@@ -4,7 +4,7 @@ import pytest
 from aiohttp import web
 
 
-@pytest.fixture()
+@pytest.fixture
 async def client(aiohttp_client, ext_dir):
     from py.routes.settings import add_settings_routes
 

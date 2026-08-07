@@ -330,7 +330,11 @@
                       [question]="'models.delete_question' | translate: { filename: file.filename }"
                       (confirmed)="deleteUnknownModel(type, file)"
                     >
-                      <button class="card-action danger" title="Delete">
+                      <button
+                        class="card-action danger"
+                        [title]="'models.delete' | translate"
+                        [attr.aria-label]="'models.delete' | translate"
+                      >
                         <svg
                           width="13"
                           height="13"

@@ -36,8 +36,18 @@ def _attach_model_metadata(result: dict, meta_map: dict) -> None:
             }
 
 
+async def _scan_disk() -> dict:
+    """Patchable seam: run the blocking disk scan off the event loop."""
+    return await asyncio.to_thread(disk_scanner.scan_all)
+
+
+async def _move_file(src: str, dest: str) -> None:
+    """Patchable seam: run the blocking file move off the event loop."""
+    await asyncio.to_thread(shutil.move, src, dest)
+
+
 async def _list_models(request):
-    result = disk_scanner.scan_all()
+    result = await _scan_disk()
     all_filenames = [f["filename"] for files in result.values() for f in files]
     meta_map = await model_repo.get_metadata_by_filenames(all_filenames)
     _attach_model_metadata(result, meta_map)
@@ -121,7 +131,7 @@ async def _move_model(request):
         return err("Target file already exists", status=409)
 
     os.makedirs(os.path.dirname(dest), exist_ok=True)
-    shutil.move(src, dest)
+    await _move_file(src, dest)
 
     # filename column unchanged; only model_type is updated
     await model_repo.update_model_type(rel_path, new_type)
@@ -159,7 +169,7 @@ async def _organize_one_model(model: dict) -> str:
 
     try:
         os.makedirs(os.path.dirname(target_abs), exist_ok=True)
-        shutil.move(src, target_abs)
+        await _move_file(src, target_abs)
         await model_repo.update_model_filename(filename, target_rel)
         return "moved"
     except Exception:
@@ -181,7 +191,7 @@ async def _get_pending_reorganize(request):
 
 async def _get_unregistered_files(request):
     """Scan all model dirs and return files not yet in the models table."""
-    result = disk_scanner.scan_all()
+    result = await _scan_disk()
     registered = await model_repo.get_registered_filenames()
     unregistered: dict = {}
     for mtype, files in result.items():

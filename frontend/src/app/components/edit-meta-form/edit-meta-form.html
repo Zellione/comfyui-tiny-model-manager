@@ -3,7 +3,14 @@
   <div class="chips">
     @for (w of triggerWords(); track w) {
       <span class="chip"
-        >{{ w }}<button type="button" (click)="removeTriggerWord(w)">×</button></span
+        >{{ w
+        }}<button
+          type="button"
+          [attr.aria-label]="'edit_meta.remove_trigger_word' | translate: { word: w }"
+          (click)="removeTriggerWord(w)"
+        >
+          ×
+        </button></span
       >
     }
   </div>
@@ -25,7 +32,14 @@
   <div class="chips">
     @for (t of tags(); track t) {
       <span class="chip chip-tag"
-        >{{ t }}<button type="button" (click)="removeTag(t)">×</button></span
+        >{{ t
+        }}<button
+          type="button"
+          [attr.aria-label]="'edit_meta.remove_tag' | translate: { tag: t }"
+          (click)="removeTag(t)"
+        >
+          ×
+        </button></span
       >
     }
   </div>

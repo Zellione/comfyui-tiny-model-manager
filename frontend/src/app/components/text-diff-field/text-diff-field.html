@@ -6,9 +6,9 @@
       [class.dimmed]="selected() === 'new'"
     >
       <div class="panel-header">
-        <span>Current</span>
+        <span>{{ 'merge_field.current' | translate }}</span>
         @if (lastEditedAt()) {
-          <span class="edited-icon" title="Manually edited">✏</span>
+          <span class="edited-icon" [title]="'merge_field.manually_edited' | translate">✏</span>
         }
         <input
           type="radio"
@@ -22,7 +22,7 @@
           <div class="diff-line" [class.diff-remove]="line.type === 'remove'">{{ line.text }}</div>
         }
         @if (oldLines().length === 0) {
-          <div class="diff-empty">(empty)</div>
+          <div class="diff-empty">{{ 'merge_field.empty' | translate }}</div>
         }
       </div>
     </label>
@@ -33,7 +33,7 @@
       [class.dimmed]="selected() === 'old'"
     >
       <div class="panel-header">
-        <span>Incoming</span>
+        <span>{{ 'merge_field.incoming' | translate }}</span>
         <input
           type="radio"
           name="diff-select"
@@ -46,7 +46,7 @@
           <div class="diff-line" [class.diff-add]="line.type === 'add'">{{ line.text }}</div>
         }
         @if (newLines().length === 0) {
-          <div class="diff-empty">(empty)</div>
+          <div class="diff-empty">{{ 'merge_field.empty' | translate }}</div>
         }
       </div>
     </label>

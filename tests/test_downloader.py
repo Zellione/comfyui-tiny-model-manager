@@ -9,15 +9,15 @@ from py.services.downloader import DownloadTask, _Cancelled, _run_download, _str
 
 
 def _task(dest_path: str, **kwargs) -> DownloadTask:
-    defaults = dict(
-        id=str(uuid.uuid4()),
-        url="https://example.com/model.safetensors",
-        model_type="checkpoints",
-        filename="model.safetensors",
-        platform="civitai",
-        source_id="123",
-        dest_path=dest_path,
-    )
+    defaults = {
+        "id": str(uuid.uuid4()),
+        "url": "https://example.com/model.safetensors",
+        "model_type": "checkpoints",
+        "filename": "model.safetensors",
+        "platform": "civitai",
+        "source_id": "123",
+        "dest_path": dest_path,
+    }
     defaults.update(kwargs)
     return DownloadTask(**defaults)
 

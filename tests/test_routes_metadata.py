@@ -3,12 +3,13 @@
 import os
 from datetime import UTC
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 from aiohttp import web
 
 
-@pytest.fixture()
+@pytest.fixture
 async def client(aiohttp_client, ext_dir):
     from py.routes.metadata import add_metadata_routes
 
@@ -191,7 +192,7 @@ class TestPutMetadata:
 
 
 class TestPutMetadataOrganize:
-    @pytest.fixture()
+    @pytest.fixture
     async def organize_client(self, aiohttp_client, ext_dir):
         import folder_paths
 
@@ -379,7 +380,7 @@ class TestRefetchMetadata:
 
 
 class TestGetRepoFiles:
-    _SAMPLE_FILES = [
+    _SAMPLE_FILES: ClassVar[list] = [
         {
             "filename": "model-fp16.safetensors",
             "size_bytes": 2097152,

@@ -175,24 +175,27 @@ export class CatalogDetail implements OnInit {
   private static readonly FINALIZE_INTERVAL_MS = 2000;
 
   private pollUntilDownloaded(filename: string, attempt = 0) {
-    this.modelService.getCatalogEntry(this.platform, this.pageId).subscribe({
-      next: (data) => {
-        this.applyEntry(data);
-        const rf = data.repo_files.find((r) => r.filename === filename);
-        if (rf?.is_downloaded || attempt + 1 >= CatalogDetail.FINALIZE_MAX_ATTEMPTS) {
+    this.modelService
+      .getCatalogEntry(this.platform, this.pageId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (data) => {
+          this.applyEntry(data);
+          const rf = data.repo_files.find((r) => r.filename === filename);
+          if (rf?.is_downloaded || attempt + 1 >= CatalogDetail.FINALIZE_MAX_ATTEMPTS) {
+            this.dropFromSet(this.finalizingFiles, filename);
+            return;
+          }
+          const timer = setTimeout(() => {
+            this.finalizeTimers.delete(timer);
+            this.pollUntilDownloaded(filename, attempt + 1);
+          }, CatalogDetail.FINALIZE_INTERVAL_MS);
+          this.finalizeTimers.add(timer);
+        },
+        error: () => {
           this.dropFromSet(this.finalizingFiles, filename);
-          return;
-        }
-        const timer = setTimeout(() => {
-          this.finalizeTimers.delete(timer);
-          this.pollUntilDownloaded(filename, attempt + 1);
-        }, CatalogDetail.FINALIZE_INTERVAL_MS);
-        this.finalizeTimers.add(timer);
-      },
-      error: () => {
-        this.dropFromSet(this.finalizingFiles, filename);
-      },
-    });
+        },
+      });
   }
 
   ngOnInit() {
@@ -204,16 +207,19 @@ export class CatalogDetail implements OnInit {
   load() {
     this.loading.set(true);
     this.error.set('');
-    this.modelService.getCatalogEntry(this.platform, this.pageId).subscribe({
-      next: (data) => {
-        this.loading.set(false);
-        this.applyEntry(data);
-      },
-      error: (err) => {
-        this.error.set((err as Error).message);
-        this.loading.set(false);
-      },
-    });
+    this.modelService
+      .getCatalogEntry(this.platform, this.pageId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (data) => {
+          this.loading.set(false);
+          this.applyEntry(data);
+        },
+        error: (err) => {
+          this.error.set((err as Error).message);
+          this.loading.set(false);
+        },
+      });
   }
 
   private applyEntry(data: CatalogEntryDetail) {
@@ -236,6 +242,7 @@ export class CatalogDetail implements OnInit {
     this.modelService
       .getRepoFiles(this.primaryType, this.primaryPath)
       .pipe(catchError(() => of([] as RepoFile[])))
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((files) => {
         this.repoFiles.set(files);
         const bm: Record<string, string> = {};
@@ -284,19 +291,21 @@ export class CatalogDetail implements OnInit {
       trigger_words: this.editMeta.trigger_words ?? [],
       tags: this.editMeta.tags ?? [],
     });
-    forkJoin([metaOp, ...this.collectBaseModelUpdates()]).subscribe({
-      next: () => {
-        this.saving.set(false);
-        this.notifService.show('success', this.translate.instant('catalog_detail.notify.saved'));
-        this.editMode.set(false);
-        // Reload so moved files land under their new subfolders and the catalog reflects it.
-        this.load();
-      },
-      error: (err) => {
-        this.saving.set(false);
-        this.notifService.show('error', (err as Error).message);
-      },
-    });
+    forkJoin([metaOp, ...this.collectBaseModelUpdates()])
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.saving.set(false);
+          this.notifService.show('success', this.translate.instant('catalog_detail.notify.saved'));
+          this.editMode.set(false);
+          // Reload so moved files land under their new subfolders and the catalog reflects it.
+          this.load();
+        },
+        error: (err) => {
+          this.saving.set(false);
+          this.notifService.show('error', (err as Error).message);
+        },
+      });
   }
 
   // Builds an update request for every downloaded file whose base model changed. The
@@ -316,20 +325,23 @@ export class CatalogDetail implements OnInit {
 
   refetch() {
     this.refetching.set(true);
-    this.modelService.refetchCatalog(this.platform, this.pageId).subscribe({
-      next: (entry) => {
-        this.refetching.set(false);
-        this.applyEntry(entry);
-        this.notifService.show(
-          'success',
-          this.translate.instant('catalog_detail.notify.refetched'),
-        );
-      },
-      error: (err) => {
-        this.refetching.set(false);
-        this.notifService.show('error', (err as Error).message);
-      },
-    });
+    this.modelService
+      .refetchCatalog(this.platform, this.pageId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (entry) => {
+          this.refetching.set(false);
+          this.applyEntry(entry);
+          this.notifService.show(
+            'success',
+            this.translate.instant('catalog_detail.notify.refetched'),
+          );
+        },
+        error: (err) => {
+          this.refetching.set(false);
+          this.notifService.show('error', (err as Error).message);
+        },
+      });
   }
 
   copyTriggerWords(): void {
@@ -351,33 +363,39 @@ export class CatalogDetail implements OnInit {
   uninstallRepoFile(rf: RepoFile) {
     const path = rf.installed_path || rf.filename;
     this.deleting.set(true);
-    this.modelService.deleteModel(rf.model_type, path).subscribe({
-      next: () => {
-        this.deleting.set(false);
-        this.notifService.show(
-          'success',
-          this.translate.instant('catalog_detail.notify.uninstalled'),
-        );
-        this.load();
-      },
-      error: (err) => {
-        this.deleting.set(false);
-        this.notifService.show('error', (err as Error).message);
-      },
-    });
+    this.modelService
+      .deleteModel(rf.model_type, path)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.deleting.set(false);
+          this.notifService.show(
+            'success',
+            this.translate.instant('catalog_detail.notify.uninstalled'),
+          );
+          this.load();
+        },
+        error: (err) => {
+          this.deleting.set(false);
+          this.notifService.show('error', (err as Error).message);
+        },
+      });
   }
 
   addRepoFileToWorkflow(rf: RepoFile) {
     const path = rf.installed_path || rf.filename;
-    this.workflowService.addToWorkflow(rf.model_type, path).subscribe({
-      next: () =>
-        this.notifService.show('success', this.translate.instant('catalog_detail.notify.queued')),
-      error: () =>
-        this.notifService.show(
-          'error',
-          this.translate.instant('catalog_detail.notify.queue_failed'),
-        ),
-    });
+    this.workflowService
+      .addToWorkflow(rf.model_type, path)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () =>
+          this.notifService.show('success', this.translate.instant('catalog_detail.notify.queued')),
+        error: () =>
+          this.notifService.show(
+            'error',
+            this.translate.instant('catalog_detail.notify.queue_failed'),
+          ),
+      });
   }
 
   repoFileSubLabel(rf: RepoFile): string {
@@ -425,25 +443,28 @@ export class CatalogDetail implements OnInit {
 
   removeFromCatalog() {
     this.removing.set(true);
-    this.modelService.removeCatalogEntry(this.platform, this.pageId).subscribe({
-      next: () => {
-        const name = this.entry()?.display_name || this.pageId;
-        this.notifService.show(
-          'success',
-          this.translate.instant('catalog_detail.notify.removed', { name }),
-        );
-        this.router.navigate(['/models']);
-      },
-      error: (err) => {
-        this.removing.set(false);
-        this.notifService.show(
-          'error',
-          this.translate.instant('catalog_detail.notify.remove_failed', {
-            error: (err as Error).message,
-          }),
-        );
-      },
-    });
+    this.modelService
+      .removeCatalogEntry(this.platform, this.pageId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          const name = this.entry()?.display_name || this.pageId;
+          this.notifService.show(
+            'success',
+            this.translate.instant('catalog_detail.notify.removed', { name }),
+          );
+          this.router.navigate(['/models']);
+        },
+        error: (err) => {
+          this.removing.set(false);
+          this.notifService.show(
+            'error',
+            this.translate.instant('catalog_detail.notify.remove_failed', {
+              error: (err as Error).message,
+            }),
+          );
+        },
+      });
   }
 
   downloadFile(file: RepoFile) {
@@ -456,6 +477,7 @@ export class CatalogDetail implements OnInit {
     this.downloadingFiles.update((s) => new Set(s).add(file.filename));
     this.downloadService
       .startDownload(file.download_url, modelType, file.filename, platform, sourceId, baseModel)
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () =>
           this.notifService.show(

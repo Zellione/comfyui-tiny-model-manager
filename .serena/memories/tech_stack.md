@@ -9,19 +9,30 @@
 - aiohttp (ComfyUI's own server — no standalone server process)
 - SQLite via custom `py/db/database.py` (no ORM)
 - pytest + pytest-asyncio (`asyncio_mode = "auto"`, `addopts = "--import-mode=importlib"`)
-- Ruff (lint + format): `target-version = py310`, `line-length = 100`, rules E/F/I/UP/B; B008 ignored.
-  **`target-version` must track `requires-python`** — at a higher target the `UP` rules rewrite code
-  into syntax the declared floor cannot parse. `tests/test_packaging.py` asserts the two agree.
+- Ruff (lint + format): `target-version = py310`, `line-length = 100`, rules E/F/I/UP/B/A/C4/RUF;
+  B008 ignored. Documented noqas: RUF001 on the CivitAI size regex (real multiplication sign),
+  A002 on the HF provider's public `format` keyword arg.
+  **`target-version` must track `requires-python`** — at a higher target the `UP` rules rewrite
+  code into syntax the declared floor cannot parse. `tests/test_packaging.py` asserts they agree.
 - Coverage: `fail_under = 88` (lines)
 
 ## Frontend
-- Angular 21.2 — **zoneless** (no Zone.js; uses signals + `ChangeDetectionStrategy.OnPush`)
-- TypeScript ~5.9
+- Angular 22.1 — **zoneless** (no Zone.js; signals). OnPush is the v22 default — components
+  declare no `changeDetection` (the recommended lint rule forbids opting out via `Eager`).
+- TypeScript ~6.0
 - RxJS ~7.8
 - ngx-translate 18 (i18n)
 - Vitest 4 (unit tests via `ng test`)
 - Prettier (formatting)
-- angular-eslint 21 + eslint 10 (linting)
+- angular-eslint 22 + eslint 10 (linting). Since v22 the shareable configs live in the
+  `angular-eslint` meta-package (`angular.configs.tsRecommended` / `templateRecommended`);
+  the individual `@angular-eslint/eslint-plugin*` packages export only rules —
+  `eslint.config.js` was rewritten accordingly.
+- Migrations kept v21 behavior: `provideHttpClient(withXhr())` (v22 defaults to fetch) and
+  suppressed `nullishCoalescingNotNullable`/`optionalChainNotNullable` extended diagnostics
+  in `tsconfig.app.json`.
+- All page routes are lazy (`loadComponent`); initial bundle ~120 kB, budget warning 650 kB.
+- `@hono/node-server` override still required after v22 (`@modelcontextprotocol/sdk` pins `^1.19.9`).
 - Output: `frontend/` → `web/` (production by default)
 
 ## Build

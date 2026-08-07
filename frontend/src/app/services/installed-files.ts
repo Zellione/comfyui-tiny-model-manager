@@ -85,9 +85,12 @@ export class InstalledFilesService {
     sourceId: string,
     baseModel = '',
   ) {
-    this.dlService.startDownload(url, type, filename, platform, sourceId, baseModel).subscribe({
-      next: () => this.notifService.show('success', `Download enqueued: ${filename}`),
-    });
+    this.dlService
+      .startDownload(url, type, filename, platform, sourceId, baseModel)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.notifService.show('success', `Download enqueued: ${filename}`),
+      });
   }
 
   // All per-row "type"/"base-model" overrides are keyed maps with a default; these
