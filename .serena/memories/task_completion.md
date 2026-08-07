@@ -82,10 +82,14 @@ instrumentation rather than another candidate fix.
 
 ## GitHub Project board
 
-The project has automation that sets an item's Status when its PR is opened. It **overrides
-a manual status change**: an item moved to Done before its PR was opened came back as
-"In progress". Set the final status *after* the PR is merged, and re-check the board rather
+**An open PR means `In review` (`df73e18b`), never Done.** Done (`98236657`) is for merged work
+only. Setting it at commit time is wrong twice over: the work is not finished while the PR is
+open, and the board automation that fires on PR-open **overrides a manual status change** — an
+item moved to Done before its PR existed came back as "In progress". Re-check the board rather
 than assuming an earlier `item-edit` stuck.
+
+This was corrected by the user on F-144 after the CLAUDE.md feature checklist told Claude to set
+Done right after committing; that step now reads `In review` at PR-open and Done after merge.
 
 This silently reverted three features in a row (#130, #137, #139 — all closed and merged,
 all still sitting in "In progress"). A Stop hook now catches it: see the stale-item check in
