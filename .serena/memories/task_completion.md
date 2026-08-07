@@ -87,6 +87,37 @@ a manual status change**: an item moved to Done before its PR was opened came ba
 "In progress". Set the final status *after* the PR is merged, and re-check the board rather
 than assuming an earlier `item-edit` stuck.
 
+This silently reverted three features in a row (#130, #137, #139 — all closed and merged,
+all still sitting in "In progress"). A Stop hook now catches it: see the stale-item check in
+`.claude/hooks/stop-gate.sh`. Re-checking the board after the merge is still the primary fix —
+the hook is only the safety net.
+
+Move an item to Done with:
+```bash
+gh project item-edit --id <item-id> --project-id PVT_kwHOAQaKGc4BZ7ME \
+  --field-id PVTSSF_lAHOAQaKGc4BZ7MEzhU2a7U --single-select-option-id 98236657
+```
+Verify with `gh project item-list 1 --owner @me --format json` — `.items[].status` must read Done.
+
+## Claude Code Stop hooks
+
+All project Stop-hook logic lives in **one** script, `.claude/hooks/stop-gate.sh`, wired
+into `.claude/settings.json` as a single entry. Add new checks there rather than appending
+another hook entry.
+
+Design rule: **a normal turn must end silently.** Every check is gated on a condition that
+is false most of the time, and the script emits at most one message (exit 2 = blocking
+feedback, exit 0 = quiet). Current checks: ruff gate (backend files dirty), stale project
+board item (clean tree on main, deduped via a stamp in `.git/stale-project-items`), Serena
+memory nudge (code dirty and no memory touched).
+
+Gotchas learned building it:
+- Honour `.stop_hook_active` from the hook's stdin JSON or a blocking hook loops.
+- Never name a shell variable `status` — it is read-only in zsh.
+- Ungated hooks are the real source of reminder spam. A user-level Stop hook in
+  `~/.claude/settings.json` fires on *every* turn and cannot be suppressed from project
+  settings; gate it or delete it there.
+
 ## Serena memory update
 
 After any significant change (new service, new convention, structural refactor, new pattern), update the relevant memory before finishing:
