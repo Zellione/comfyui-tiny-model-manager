@@ -20,9 +20,12 @@ const ROW_MARK = 'data-tmm-missing';
 const ACTIONS_MARK = 'data-tmm-missing-all';
 
 const POLL_MS = 500;
-// "<directory> (<count>)" — the directory part is the raw ComfyUI folder name, untranslated.
-const GROUP_HEADING = /^(.*?)\s*\((\d{1,6})\)$/;
-const FOLDER_NAME = /^[A-Za-z0-9_]{1,64}$/;
+// A category heading reads "<directory> (<count>)". Only the bounded, anchored counter is
+// matched and the name is recovered by stripping it — capturing the prefix with `(.*?)\s*`
+// instead makes the engine retry at every position and costs O(n²) on a long heading
+// (sonar javascript:S8786). Same shape as INDEX_SUFFIX in workflow-insert.js.
+const GROUP_COUNT_SUFFIX = /\(\d{1,6}\)$/;
+const FOLDER_NAME = /^\w{1,64}$/;
 
 const BUTTON_CSS =
   'height:2rem;padding:0 .625rem;border-radius:.5rem;font-size:.8125rem;font-weight:500;' +
@@ -45,8 +48,9 @@ export function taskKey(directory, filename) {
 
 /** Strip the " (N)" count ComfyUI appends to a category heading. */
 export function parseGroupDirectory(text) {
-  const match = GROUP_HEADING.exec((text ?? '').trim());
-  const name = match ? match[1].trim() : '';
+  const trimmed = (text ?? '').trim();
+  if (!GROUP_COUNT_SUFFIX.test(trimmed)) return '';
+  const name = trimmed.replace(GROUP_COUNT_SUFFIX, '').trim();
   return FOLDER_NAME.test(name) ? name : '';
 }
 
@@ -107,6 +111,18 @@ export function readRow(copyButton, index) {
   return { header, filename, directory, url: indexed?.url ?? '' };
 }
 
+// Render one button from its entry. Closes over nothing but LABELS, so it lives at module
+// scope: a per-integration copy would be rebuilt for no reason (sonar javascript:S7721).
+function paint(button, entry) {
+  button.textContent = LABELS[entry.state] ?? LABELS.idle;
+  if (entry.state === 'queued' && entry.progress > 0) {
+    button.textContent = `TMM ${Math.round(entry.progress)}%`;
+  }
+  button.title = entry.error || `Download ${entry.filename} through Tiny Model Manager`;
+  button.disabled = entry.state === 'queued' || entry.state === 'installed';
+  button.style.opacity = button.disabled ? '0.6' : '1';
+}
+
 export function createMissingModelsIntegration({
   app,
   api,
@@ -141,16 +157,6 @@ export function createMissingModelsIntegration({
       // ignored — the model list just stays stale until the next refresh
     }
   };
-
-  function paint(button, entry) {
-    button.textContent = LABELS[entry.state] ?? LABELS.idle;
-    if (entry.state === 'queued' && entry.progress > 0) {
-      button.textContent = `TMM ${Math.round(entry.progress)}%`;
-    }
-    button.title = entry.error || `Download ${entry.filename} through Tiny Model Manager`;
-    button.disabled = entry.state === 'queued' || entry.state === 'installed';
-    button.style.opacity = button.disabled ? '0.6' : '1';
-  }
 
   function setState(key, patch) {
     const entry = { ...entries.get(key), ...patch };
