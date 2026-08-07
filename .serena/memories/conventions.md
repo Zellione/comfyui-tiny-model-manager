@@ -488,6 +488,14 @@ than relaxing the check.
   instead (`asyncio.get_running_loop().call_later(0.01, q.put_nowait, x)`) so `get()` is awaited
   on an empty queue, and wrap it in `asyncio.wait_for(..., timeout=1)` so a regression fails fast
   instead of hanging. See `TestQueueLoopBinding` in `tests/test_downloader.py`.
+- **CI runs the `pytest` console script, never `python -m pytest`.** `-m` always prepends CWD to
+  `sys.path`, so pytest's own `import py` resolves to this repo's `py/` backend package and dies
+  with `AttributeError: module 'py' has no attribute 'path'`. `PYTHONSAFEPATH=1` suppresses that,
+  **but it was added in Python 3.11 and is silently ignored on 3.10** — which is exactly how the
+  3.10 matrix leg failed when it was introduced. The console script keeps CWD off `sys.path` on
+  every version; `pythonpath = ["."]` in `[tool.pytest.ini_options]` still makes `py.*` importable
+  from the tests. Verified both ways locally: `python -m pytest` without the env var reproduces the
+  error, the console script without it passes all tests.
 - **CI has `timeout-minutes` on every job** (`.github/workflows/ci.yml`: backend 10, frontend 15,
   sonarcloud 15). Without it a hung async test runs to GitHub's 6-hour default. Keep new jobs
   bounded.
