@@ -9,9 +9,22 @@
 // the models folder — it clicks an `<a download>` and the file lands in the browser's
 // Downloads directory. Our button sits next to it and leaves it untouched.
 
-// Anchors from ComfyUI's MissingModelCard.vue / MissingModelRow.vue. `copy-name` is the only
-// per-row control rendered unconditionally, which makes it the reliable row anchor.
-const ROW_ANCHOR = '[data-testid="missing-model-copy-name"]';
+// Anchors from ComfyUI's MissingModelCard.vue / MissingModelRow.vue.
+//
+// The panel is rewritten between frontend releases — 1.48 dropped every anchor 1.45 offered
+// except `missing-model-actions` — so each anchor below is tried in turn rather than relied
+// on alone. ComfyUI pins the frontend to an exact version, so an older install stays on an
+// older DOM indefinitely and both paths have to keep working.
+//
+// 1.48 has no per-row testid at all: `expand`, `download`, `locate` and `reference-count` are
+// each behind a `v-if`. The row containers are the only stable hold, and a row is one of their
+// direct children.
+const ROW_CONTAINERS = [
+  '[data-testid="missing-model-importable-rows"]',
+  '[data-testid="missing-model-import-not-supported-section"]',
+];
+// 1.45's per-row copy button. Removed in 1.48, which is what broke the integration.
+const LEGACY_ROW_ANCHOR = '[data-testid="missing-model-copy-name"]';
 const ACTIONS_ANCHOR = '[data-testid="missing-model-actions"]';
 
 // Marker attributes keep sync() idempotent: Vue re-creates rows on every store change, and a
@@ -26,6 +39,16 @@ const POLL_MS = 500;
 // (sonar javascript:S8786). Same shape as INDEX_SUFFIX in workflow-insert.js.
 const GROUP_COUNT_SUFFIX = /\(\d{1,6}\)$/;
 const FOLDER_NAME = /^\w{1,64}$/;
+// A directory scraped out of rendered UI text is held to a stricter shape than one read from
+// workflow data, because the panel prints a LOCALIZED placeholder in the same slot when it
+// does not know the folder: `modelTypeLabel = directory ?? t('…unknownCategory')`. Those
+// translations are `Unknown`, `Desconocido`, `Inconnu`, `Bilinmeyen`, `Неизвестно`, … — every
+// one either capitalised or non-ASCII, and `\w` would happily accept the Latin ones as a
+// folder name. ComfyUI's own folders are all ASCII lowercase snake_case, so requiring that
+// rejects the placeholder in every shipped locale.
+const SCRAPED_FOLDER_NAME = /^[a-z][a-z0-9_]{0,63}$/;
+// `modelMetadataLabel` joins the folder and the download size with this separator.
+const METADATA_SEPARATOR = ' · ';
 
 const BUTTON_CSS =
   'height:2rem;padding:0 .625rem;border-radius:.5rem;font-size:.8125rem;font-weight:500;' +
@@ -46,26 +69,37 @@ export function taskKey(directory, filename) {
   return `${directory}::${filename}`;
 }
 
-/** Strip the " (N)" count ComfyUI appends to a category heading. */
+/** Strip the " (N)" count ComfyUI appends to a category heading (frontend <= 1.45). */
 export function parseGroupDirectory(text) {
   const trimmed = (text ?? '').trim();
   if (!GROUP_COUNT_SUFFIX.test(trimmed)) return '';
   const name = trimmed.replace(GROUP_COUNT_SUFFIX, '').trim();
-  return FOLDER_NAME.test(name) ? name : '';
+  return SCRAPED_FOLDER_NAME.test(name) ? name : '';
 }
 
-// Collect every `{name, url, directory}` the workflow knows about, from both places ComfyUI's
-// own missingModelScan.ts looks:
+/**
+ * Read the folder out of a row's own metadata line, "checkpoints · 6.86 GB" (frontend >= 1.48,
+ * which dropped the per-directory groups and prints the folder inside each row instead).
+ */
+export function parseMetadataDirectory(text) {
+  const name = (text ?? '').split(METADATA_SEPARATOR)[0].trim();
+  return SCRAPED_FOLDER_NAME.test(name) ? name : '';
+}
+
+// Collect every `{name, url, directory}` the workflow knows about from the live graph.
 //
-//  1. `node.properties.models` — survives on the live graph, so it is read straight off it.
-//  2. The workflow's TOP-LEVEL `models` array. This one is not on the graph at all:
-//     `LGraph.configure()` does `this.extra = data.extra`, and `models` is a sibling of
-//     `extra`, so it is dropped. Reading `graph.extra.models` finds nothing — ever. ComfyUI
-//     runs the array through its missing-model pipeline and caches the result on the active
-//     workflow, and that cache is the only copy an extension can reach.
+// `node.properties.models` is the one copy that survives loading, so it is read straight off
+// the graph. The workflow's TOP-LEVEL `models` array is not on the graph at all:
+// `LGraph.configure()` does `this.extra = data.extra`, and `models` is a sibling of `extra`,
+// so it is dropped. Reading `graph.extra.models` finds nothing — ever.
 //
-// Missing (2) is what made an LTX workflow report "unresolved" while carrying a usable
-// HuggingFace URL: the URL simply never reached the backend.
+// ComfyUI runs that array through its own missing-model pipeline and caches the result, but
+// where it caches it keeps moving: 1.45 hung it off
+// `workflow.activeWorkflow.pendingWarnings.missingModelCandidates`, which 1.48 removed
+// entirely (`pendingWarnings` appears nowhere in the bundle) in favour of a Pinia
+// `missingModelStore` that is exposed on neither `window` nor `app`. There is no reachable
+// replacement, so the index is graph-only and a missing URL is left to the backend, which
+// resolves through CivitAI and HuggingFace anyway.
 export function buildModelIndex(app) {
   const index = new Map();
   const add = (entry) => {
@@ -79,10 +113,6 @@ export function buildModelIndex(app) {
   for (const node of graph?.nodes ?? []) {
     for (const model of node?.properties?.models ?? []) add(model);
   }
-  // `app.extensionManager` is ComfyUI's workspace store; `.workflow` is the workflow store.
-  // Candidates carry `{name, url, directory}` — the same fields the panel renders from.
-  const warnings = app?.extensionManager?.workflow?.activeWorkflow?.pendingWarnings;
-  for (const candidate of warnings?.missingModelCandidates ?? []) add(candidate);
   return index;
 }
 
@@ -92,20 +122,61 @@ export function lookupModel(index, filename, directory) {
   return entries.find((e) => e.directory === directory) ?? entries[0] ?? null;
 }
 
+/**
+ * Every row header in the panel, across the DOM shapes ComfyUI has shipped. The header is both
+ * the element our button is appended to and the root the row is read from.
+ */
+export function collectRowHeaders(doc) {
+  const headers = [];
+  // >= 1.48: rows are direct children of a container, and the header is a row's first child.
+  // Non-row children — the not-supported section's own heading block — carry no titled name
+  // element and are dropped by readRow rather than special-cased here.
+  for (const selector of ROW_CONTAINERS) {
+    for (const container of doc.querySelectorAll(selector)) {
+      for (const child of container.children) {
+        if (child.firstElementChild) headers.push(child.firstElementChild);
+      }
+    }
+  }
+  // <= 1.45: the copy button sits in the name box, one level below the header.
+  for (const copyButton of doc.querySelectorAll(LEGACY_ROW_ANCHOR)) {
+    const header = copyButton.parentElement?.parentElement;
+    if (header) headers.push(header);
+  }
+  return headers;
+}
+
 // Read one panel row: its filename, its directory and the header element to append to.
 // Returns null when the row's directory cannot be established — those rows get no button,
 // because guessing a folder is how a LoRA ends up in checkpoints.
-export function readRow(copyButton, index) {
-  const header = copyButton.parentElement?.parentElement;
-  const nameNode = copyButton.parentElement?.querySelector('p[title]');
+//
+// Both directory strategies are attempted on every row rather than switched on a detected
+// version: each one reads a place the other's DOM does not have, so the wrong one simply finds
+// nothing and falls through.
+export function readRow(header, index) {
+  // The model name is the first titled element in the header under either shape — a `p[title]`
+  // in 1.45, a `button[title]`/`span[title]` in 1.48. The controls that follow it (link, copy
+  // url, download) also carry titles, hence "first" and not "any".
+  const nameNode = header?.querySelector('[title]');
   const filename = nameNode?.getAttribute('title')?.trim() ?? '';
-  if (!header || !filename) return null;
+  if (!filename) return null;
 
-  // group → rows container → row root → header
+  // >= 1.48: name element → name row → name column, whose second line is the metadata label.
+  const nameColumn = nameNode.parentElement?.parentElement;
+  const label = nameColumn?.lastElementChild;
+  const fromLabel =
+    label && label !== nameNode.parentElement ? parseMetadataDirectory(label.textContent) : '';
+
+  // <= 1.45: header → row root → rows container → group, whose first `p` is the heading.
   const group = header.parentElement?.parentElement?.parentElement;
-  const fromHeading = parseGroupDirectory(group?.querySelector('p')?.textContent);
-  const indexed = lookupModel(index, filename, fromHeading);
-  const directory = fromHeading || indexed?.directory || '';
+  const fromHeading = fromLabel ? '' : parseGroupDirectory(group?.querySelector('p')?.textContent);
+
+  // A scraped directory has already been held to the strict shape; one recovered from the
+  // index came from workflow data rather than rendered text, so it keeps the looser check and
+  // an unusual folder registered by a custom node is still honoured.
+  const scraped = fromLabel || fromHeading;
+  const indexed = lookupModel(index, filename, scraped);
+  const directory = scraped || indexed?.directory || '';
   if (!FOLDER_NAME.test(directory)) return null;
 
   return { header, filename, directory, url: indexed?.url ?? '' };
@@ -137,6 +208,10 @@ export function createMissingModelsIntegration({
   // "Download all", which has no key — so stop() can remove all of them.
   const buttons = new Map();
   const injected = new Set();
+  // The rows the last sync() saw. "Download all" reads this at click time rather than closing
+  // over one sync's array: ACTIONS_MARK stops the button being re-injected, so a snapshot taken
+  // when the actions bar rendered ahead of the rows would stay empty for the panel's lifetime.
+  let currentRows = [];
   let observer = null;
   let pollTimer = null;
   let polling = false;
@@ -308,14 +383,19 @@ export function createMissingModelsIntegration({
 
   function injectRows(index) {
     const rows = [];
-    for (const copyButton of doc.querySelectorAll(ROW_ANCHOR)) {
-      const row = readRow(copyButton, index);
+    const seen = new Set();
+    for (const header of collectRowHeaders(doc)) {
+      const row = readRow(header, index);
       if (!row) continue;
+      const key = taskKey(row.directory, row.filename);
+      // A frontend that answers to more than one anchor style would otherwise report the same
+      // row twice, and "Download all" would request it twice.
+      if (seen.has(key)) continue;
+      seen.add(key);
       rows.push(row);
       if (row.header.hasAttribute(ROW_MARK)) continue;
       row.header.setAttribute(ROW_MARK, '');
 
-      const key = taskKey(row.directory, row.filename);
       const button = makeButton(LABELS.idle, () => requestDownload(row));
       buttons.set(key, button);
       paint(button, entries.get(key) ?? { filename: row.filename, state: 'idle' });
@@ -346,9 +426,8 @@ export function createMissingModelsIntegration({
     if (syncing) return;
     syncing = true;
     try {
-      const index = buildModelIndex(app);
-      const rows = injectRows(index);
-      injectDownloadAll(() => rows);
+      currentRows = injectRows(buildModelIndex(app));
+      injectDownloadAll(() => currentRows);
     } finally {
       syncing = false;
     }
@@ -368,6 +447,7 @@ export function createMissingModelsIntegration({
     for (const button of injected) button.remove();
     injected.clear();
     buttons.clear();
+    currentRows = [];
     for (const marked of doc.querySelectorAll(`[${ROW_MARK}],[${ACTIONS_MARK}]`)) {
       marked.removeAttribute(ROW_MARK);
       marked.removeAttribute(ACTIONS_MARK);

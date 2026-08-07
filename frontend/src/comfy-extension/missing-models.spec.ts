@@ -5,8 +5,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   createMissingModelsIntegration,
   buildModelIndex,
+  collectRowHeaders,
   lookupModel,
   parseGroupDirectory,
+  parseMetadataDirectory,
   readRow,
   taskKey,
   LABELS,
@@ -14,7 +16,53 @@ import {
 
 const API = '/tiny-model-manager/api';
 
-/** Rebuild the DOM shape of ComfyUI's MissingModelCard.vue / MissingModelRow.vue. */
+/**
+ * Rebuild the DOM shape of ComfyUI frontend >= 1.48: one flat row list inside a container,
+ * each row printing its own "<directory> · <size>" metadata line. No per-row testid exists in
+ * this shape, and no category headings.
+ */
+function renderPanel148(
+  rows: { directory: string | null; filename: string; size?: string }[],
+  withActions = true,
+) {
+  const panel = document.createElement('div');
+  const container = document.createElement('div');
+  container.setAttribute('data-testid', 'missing-model-importable-rows');
+
+  for (const { directory, filename, size = '6.86 GB' } of rows) {
+    const root = document.createElement('div');
+    const header = document.createElement('div');
+
+    const nameColumn = document.createElement('span');
+    const nameRow = document.createElement('span');
+    const name = document.createElement('button');
+    name.setAttribute('title', filename);
+    name.textContent = filename;
+    const link = document.createElement('button');
+    link.setAttribute('title', 'Copy link');
+    nameRow.append(name, link);
+    // `directory: null` renders the localized unknown-category placeholder instead.
+    const label = document.createElement('span');
+    label.textContent = `${directory ?? 'Unknown'} · ${size}`;
+    nameColumn.append(nameRow, label);
+
+    header.appendChild(nameColumn);
+    root.appendChild(header);
+    container.appendChild(root);
+  }
+  panel.appendChild(container);
+
+  if (withActions) {
+    const actions = document.createElement('div');
+    actions.setAttribute('data-testid', 'missing-model-actions');
+    panel.appendChild(actions);
+  }
+
+  document.body.appendChild(panel);
+  return { panel, container };
+}
+
+/** Rebuild the DOM shape of ComfyUI frontend <= 1.45: rows grouped under category headings. */
 function renderPanel(groups: { directory: string; files: string[] }[], withActions = true) {
   const panel = document.createElement('div');
   if (withActions) {
@@ -62,18 +110,11 @@ function rowButtons() {
   return tmmButtons().filter((b) => b.textContent !== LABELS.all);
 }
 
-function makeApp(nodes: unknown[] = [], candidates: unknown[] | null = null) {
+function makeApp(nodes: unknown[] = []) {
   return {
     rootGraph: { nodes },
     refreshComboInNodes: vi.fn().mockResolvedValue(undefined),
-    extensionManager: {
-      toast: { add: vi.fn() },
-      workflow: {
-        activeWorkflow: candidates
-          ? { pendingWarnings: { missingModelCandidates: candidates } }
-          : null,
-      },
-    },
+    extensionManager: { toast: { add: vi.fn() } },
   };
 }
 
@@ -145,42 +186,23 @@ describe('pure helpers', () => {
     expect(buildModelIndex({}).size).toBe(0);
   });
 
-  // Regression: a workflow's `models` array is a TOP-LEVEL property, and LGraph.configure()
-  // keeps only `data.extra`, so it never reaches `graph.extra.models`. ComfyUI's own panel
-  // reads it via the pipeline and caches the result on the active workflow, which is the only
-  // copy an extension can reach. Without this an LTX/Wan workflow reported "unresolved" even
-  // though it carried a perfectly good HuggingFace URL.
-  it('buildModelIndex reads the candidates cached on the active workflow', () => {
-    const app = makeApp(
-      [],
-      [
-        {
-          name: 'ltx-2.3-22b-dev-fp8.safetensors',
-          url: 'https://huggingface.co/Lightricks/LTX-2.3-fp8/resolve/main/ltx-2.3-22b-dev-fp8.safetensors',
-          directory: 'diffusion_models',
+  // ComfyUI caches the resolved candidate list, but where it caches it keeps moving: 1.45 hung
+  // it off `workflow.activeWorkflow.pendingWarnings.missingModelCandidates`, and 1.48 removed
+  // `pendingWarnings` entirely in favour of a Pinia store exposed on neither `window` nor
+  // `app`. Reading a cache that no longer exists is not a fallback, so the index is graph-only
+  // and a row with no URL is left to the backend's provider search.
+  it('buildModelIndex ignores an unreachable candidate cache', () => {
+    const app = {
+      rootGraph: { nodes: [] },
+      extensionManager: {
+        workflow: {
+          activeWorkflow: {
+            pendingWarnings: { missingModelCandidates: [{ name: 'x.safetensors', url: 'u' }] },
+          },
         },
-      ],
-    );
-    expect(buildModelIndex(app).get('ltx-2.3-22b-dev-fp8.safetensors')).toEqual([
-      {
-        url: 'https://huggingface.co/Lightricks/LTX-2.3-fp8/resolve/main/ltx-2.3-22b-dev-fp8.safetensors',
-        directory: 'diffusion_models',
       },
-    ]);
-  });
-
-  it('buildModelIndex merges node properties with the cached candidates', () => {
-    const app = makeApp(
-      [{ properties: { models: [{ name: 'a.safetensors', url: 'u1', directory: 'loras' }] } }],
-      [{ name: 'b.safetensors', url: 'u2', directory: 'vae' }],
-    );
-    const index = buildModelIndex(app);
-    expect(index.get('a.safetensors')).toEqual([{ url: 'u1', directory: 'loras' }]);
-    expect(index.get('b.safetensors')).toEqual([{ url: 'u2', directory: 'vae' }]);
-  });
-
-  it('buildModelIndex tolerates a workflow with no pending warnings', () => {
-    expect(buildModelIndex(makeApp([], null)).size).toBe(0);
+    };
+    expect(buildModelIndex(app).size).toBe(0);
   });
 
   it('lookupModel prefers the entry whose directory agrees', () => {
@@ -198,16 +220,133 @@ describe('pure helpers', () => {
     expect(lookupModel(index, 'missing', 'vae')).toBeNull();
   });
 
-  it('readRow returns the filename, directory and url', () => {
+  it.each([
+    ['checkpoints · 6.86 GB', 'checkpoints'],
+    ['text_encoders · 120 MB', 'text_encoders'],
+    ['loras', 'loras'],
+    // The localized unknown-category placeholder shares this slot with a real folder name.
+    ['Unknown · 6.86 GB', ''],
+    ['Desconocido · 6.86 GB', ''],
+    ['Неизвестно · 6.86 GB', ''],
+    ['', ''],
+    [undefined, ''],
+  ])('parseMetadataDirectory(%p) → %p', (input, expected) => {
+    expect(parseMetadataDirectory(input as string)).toBe(expected);
+  });
+
+  it('readRow reads a 1.45 grouped row', () => {
     renderPanel([{ directory: 'loras', files: ['a.safetensors'] }]);
-    const copy = document.querySelector('[data-testid="missing-model-copy-name"]')!;
     const index = new Map([['a.safetensors', [{ url: 'u1', directory: 'loras' }]]]);
-    const row = readRow(copy, index);
-    expect(row).toMatchObject({ filename: 'a.safetensors', directory: 'loras', url: 'u1' });
+    const [header] = collectRowHeaders(document);
+    expect(readRow(header, index)).toMatchObject({
+      filename: 'a.safetensors',
+      directory: 'loras',
+      url: 'u1',
+    });
+  });
+
+  it('readRow reads a 1.48 flat row from its own metadata line', () => {
+    renderPanel148([{ directory: 'checkpoints', filename: 'hunyuan_3d_v2.1.safetensors' }]);
+    const index = new Map([
+      ['hunyuan_3d_v2.1.safetensors', [{ url: 'u1', directory: 'checkpoints' }]],
+    ]);
+    const [header] = collectRowHeaders(document);
+    expect(readRow(header, index)).toMatchObject({
+      filename: 'hunyuan_3d_v2.1.safetensors',
+      directory: 'checkpoints',
+      url: 'u1',
+    });
+  });
+
+  // The row still renders, so it must be rejected rather than simply not found.
+  it('readRow rejects a 1.48 row whose category is unknown', () => {
+    renderPanel148([{ directory: null, filename: 'mystery.safetensors' }]);
+    const [header] = collectRowHeaders(document);
+    expect(readRow(header, new Map())).toBeNull();
+  });
+
+  // The graph knows the folder even when the panel does not print a usable one.
+  it('readRow falls back to the model index when the label is unparseable', () => {
+    renderPanel148([{ directory: null, filename: 'mystery.safetensors' }]);
+    const index = new Map([
+      ['mystery.safetensors', [{ url: 'u9', directory: 'diffusion_models' }]],
+    ]);
+    const [header] = collectRowHeaders(document);
+    expect(readRow(header, index)).toMatchObject({
+      directory: 'diffusion_models',
+      url: 'u9',
+    });
   });
 });
 
 describe('button injection', () => {
+  // Regression for the reported bug: 1.48 removed `missing-model-copy-name`, the integration's
+  // only row anchor, so no row button was injected and "Download all with TMM" looped over an
+  // empty list. `missing-model-actions` survived, which is why that button still rendered.
+  it('adds one button per row on the 1.48 panel', () => {
+    renderPanel148([
+      { directory: 'checkpoints', filename: 'hunyuan_3d_v2.1.safetensors' },
+      { directory: 'loras', filename: 'b.safetensors' },
+    ]);
+    build().sync();
+    expect(rowButtons()).toHaveLength(2);
+    expect(tmmButtons().filter((b) => b.textContent === LABELS.all)).toHaveLength(1);
+  });
+
+  it('posts the filename and directory read off a 1.48 row', async () => {
+    renderPanel148([{ directory: 'checkpoints', filename: 'hunyuan_3d_v2.1.safetensors' }]);
+    const fetchFn = makeFetch();
+    build({ fetchFn }).sync();
+    rowButtons()[0].click();
+    await vi.waitFor(() => expect(fetchFn).toHaveBeenCalled());
+    expect(JSON.parse(fetchFn.mock.calls[0][1].body)).toMatchObject({
+      filename: 'hunyuan_3d_v2.1.safetensors',
+      directory: 'checkpoints',
+    });
+  });
+
+  it('skips a 1.48 row whose category is unknown', () => {
+    renderPanel148([{ directory: null, filename: 'mystery.safetensors' }]);
+    build().sync();
+    expect(rowButtons()).toHaveLength(0);
+  });
+
+  // Both anchor styles resolving to the same row must not yield two buttons or two downloads.
+  it('does not double-count a row reachable through both anchor styles', () => {
+    renderPanel([{ directory: 'loras', files: ['a.safetensors'] }]);
+    const copy = document.querySelector('[data-testid="missing-model-copy-name"]')!;
+    const rowsContainer = copy.parentElement!.parentElement!.parentElement!;
+    rowsContainer.setAttribute('data-testid', 'missing-model-importable-rows');
+    build().sync();
+    expect(rowButtons()).toHaveLength(1);
+  });
+
+  // The actions bar can render before any row does. ACTIONS_MARK then blocks re-injection, so a
+  // list captured at injection time would stay empty for the panel's lifetime.
+  it('download-all uses the rows present at click time, not at injection time', async () => {
+    renderPanel148([], true);
+    const fetchFn = makeFetch();
+    const integration = build({ fetchFn });
+    integration.sync();
+
+    const actions = document.querySelector('[data-testid="missing-model-actions"]')!;
+    document.body.innerHTML = '';
+    const { panel } = renderPanel148(
+      [{ directory: 'checkpoints', filename: 'late.safetensors' }],
+      false,
+    );
+    panel.appendChild(actions);
+    integration.sync();
+
+    tmmButtons()
+      .find((b) => b.textContent === LABELS.all)!
+      .click();
+    await vi.waitFor(() => expect(fetchFn).toHaveBeenCalled());
+    expect(JSON.parse(fetchFn.mock.calls[0][1].body)).toMatchObject({
+      filename: 'late.safetensors',
+    });
+  });
+
   it('adds one button per row plus the download-all button', () => {
     renderPanel([
       { directory: 'loras', files: ['a.safetensors', 'b.safetensors'] },

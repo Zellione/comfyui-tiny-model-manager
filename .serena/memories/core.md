@@ -279,20 +279,47 @@ download through TMM (correct folder + full model card) instead of ComfyUI's own
   (validate_target → insert_download_history → enqueue); use it for any new download entry point.
 - `frontend/js/missing-models.js` — F-93 factory module
   (`createMissingModelsIntegration({app, api, fetchFn, doc, openWindow})` → `{start, stop, sync}`).
-  Row anchor is `[data-testid="missing-model-copy-name"]` (the only per-row control ComfyUI always
-  renders); the filename is the `p[title]` beside it; the directory comes from the group heading
-  `"<dir> (N)"` (untranslated for real folders) with the indexed directory as fallback. `url` comes
-  from `buildModelIndex()`, which reads **two** sources: `node.properties.models` (survives on the
-  live graph) and `app.extensionManager.workflow.activeWorkflow.pendingWarnings
-  .missingModelCandidates`.
-  **`graph.extra.models` is NOT a source** — `LGraph.configure()` does `this.extra = data.extra`
-  and a workflow's `models` array is a *sibling* of `extra`, so it is dropped on load. Reading it
-  there looked right and always found nothing, which made an LTX workflow report `unresolved`
-  while carrying a usable HuggingFace URL. There is a test pinning this.
+- **The panel DOM is rewritten between frontend releases, and ComfyUI pins the frontend to an
+  exact version (`comfyui-frontend-package==1.48.7` in `ComfyUI/requirements.txt`), so an older
+  install stays on an older DOM indefinitely.** 1.48 dropped *every* anchor 1.45 offered except
+  `missing-model-actions`, which broke the whole integration (#148): the row anchor
+  `missing-model-copy-name` no longer exists, so no row button was injected and "Download all
+  with TMM" looped over an empty list. The reader therefore tries each shape in turn instead of
+  detecting a version — both paths stay live and testable.
+  - Rows, `>= 1.48`: no per-row testid exists at all (`expand`, `download`, `locate`,
+    `reference-count` are each behind a `v-if`). Anchor on the containers
+    `missing-model-importable-rows` / `missing-model-import-not-supported-section`; a row is a
+    direct child and its header is that child's first element child.
+  - Rows, `<= 1.45`: the `missing-model-copy-name` button, header two levels up.
+  - `collectRowHeaders(doc)` returns headers for both; `readRow(header, index)` reads either.
+    Rows are deduped by `taskKey` so a frontend answering to both anchors cannot yield two
+    buttons or two downloads.
+- **Directory: three strategies, first valid wins** — 1.48 row metadata line
+  (`"checkpoints · 6.86 GB"`, from `modelTypeLabel = directory ?? t(unknownCategory)`) → 1.45
+  group heading `"<dir> (N)"` → `buildModelIndex()` lookup.
+  **The two scraped-text sources are held to `SCRAPED_FOLDER_NAME = /^[a-z][a-z0-9_]{0,63}$/`,
+  not `FOLDER_NAME = /^\w{1,64}$/`.** The panel prints a *localized* placeholder in the same slot
+  when it does not know the folder — `Unknown`, `Desconocido`, `Inconnu`, `Bilinmeyen`,
+  `Неизвестно`, … — and `\w` accepts the Latin ones, which would misfile a model into a folder
+  literally named `Unknown`. Every shipped translation is capitalised or non-ASCII, so requiring
+  ASCII lowercase snake_case rejects all of them. The index keeps the looser check: it carries
+  real workflow data, not rendered text, so an unusual folder a custom node registers still works.
+- `buildModelIndex()` is **graph-only** (`node.properties.models`). Two other sources are dead
+  ends and must not be re-added:
+  - `graph.extra.models` — `LGraph.configure()` does `this.extra = data.extra` and a workflow's
+    `models` array is a *sibling* of `extra`, so it is dropped on load. Reading it there looked
+    right and always found nothing.
+  - `app.extensionManager.workflow.activeWorkflow.pendingWarnings.missingModelCandidates` — the
+    1.45 cache. 1.48 removed `pendingWarnings` entirely (zero occurrences in the bundle) and moved
+    the list into a Pinia `missingModelStore`. There is a test pinning each.
+  A row with no URL is simply left to the backend, which resolves through CivitAI/HF anyway.
 - **`app.extensionManager` IS ComfyUI's workspace store** (`U.extensionManager = useWorkspaceStore()`
   in `App.vue`), so `.toast`, `.workflow`, `.setting`, `.command` and `.sidebarTab` are reachable
   from an extension. Only the stores workspaceStore does *not* re-export (e.g. `useMissingModelStore`)
   are out of reach — the earlier blanket "Pinia is unreachable" note was too broad.
+- **"Download all" reads the row list at click time**, not at injection time. `ACTIONS_MARK` stops
+  the button being re-injected, so a list captured when the actions bar rendered ahead of the rows
+  would stay empty for the panel's lifetime.
 - `missing_model_resolver.direct_download_url()` rewrites a HuggingFace `/blob/` link to
   `/resolve/` before the raw fallback downloads it. `/blob/` serves the HTML file-viewer page, and
   both workflows and ComfyUI's "copy URL" button hand out that form — taking it verbatim stores a
