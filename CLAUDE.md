@@ -17,7 +17,8 @@ Goal: Dashboard to manage Models/LORAs and custom nodes to insert them with thei
 - Angular 21.2 (zoneless, no Zone.js)
 
 #### Build
-ComfyUI serves the compiled output in `web/` (git-ignored). Any change to `frontend/`
+ComfyUI serves the compiled output in `web/`, which is **tracked in git** — the committed bundle is
+what makes the node installable without a Node.js toolchain. Any change to `frontend/`
 requires a rebuild before it takes effect. Run from the `frontend/` directory:
 
 ```
@@ -60,7 +61,9 @@ npx ng build
 
 **After creating any new file under `frontend/` with the Write tool, immediately run `npx prettier --write <file>` on it before the final `npm run format:check`. The Write tool does not auto-format, so new files will fail the CI Prettier check unless explicitly formatted.**
 
-**Build location matters:** `web/` is git-ignored, so each git worktree has its own isolated `web/` that ComfyUI never reads. Always run `npx ng build` from the **main checkout's** `frontend/` directory (`comfyui-tiny-model-manager/frontend/`), not from inside a worktree. If you develop in a worktree, copy the finished build to the main checkout after merging, or run the build from the main checkout directly.
+**`web/` is tracked, so the build output is part of your commit.** `.gitignore` and `.gitattributes` both spell out why: the committed bundle makes the node installable without a Node.js toolchain, and `web/**` is marked `linguist-generated` so it collapses in diffs. After `npx ng build`, stage the changed files under `web/` together with the `frontend/` changes that produced them — a PR whose bundle does not match its source ships stale UI. A frontend-only edit usually shows up as a single changed asset, because the Angular chunk hashes only move when something under `src/` changes. `.github/workflows/publish.yml` does refresh `web/` on release, but never rely on that to paper over a build you skipped.
+
+**Build location matters:** ComfyUI serves the **main checkout's** `web/`, so a build run inside a git worktree never reaches the running instance. Either run `npx ng build` from `comfyui-tiny-model-manager/frontend/` directly, or rebuild there after merging the worktree's changes.
 
 ---
 
