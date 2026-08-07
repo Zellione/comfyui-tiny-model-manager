@@ -1,8 +1,12 @@
 import { TestBed } from '@angular/core/testing';
+import { provideTranslateServiceForTests } from '../../../test-helpers/translate-testing';
 import { TextDiffField, diffLines } from './text-diff-field';
 
 async function createFixture(oldValue = '', newValue = '', lastEditedAt: string | null = null) {
-  await TestBed.configureTestingModule({ imports: [TextDiffField] }).compileComponents();
+  await TestBed.configureTestingModule({
+    imports: [TextDiffField],
+    providers: [provideTranslateServiceForTests()],
+  }).compileComponents();
   const fixture = TestBed.createComponent(TextDiffField);
   fixture.componentRef.setInput('oldValue', oldValue);
   fixture.componentRef.setInput('newValue', newValue);

@@ -1,5 +1,6 @@
 import { Component, computed, effect, input, model } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '@ngx-translate/core';
 
 export interface DiffLine {
   type: 'equal' | 'add' | 'remove';
@@ -44,7 +45,7 @@ export function diffLines(a: string, b: string): DiffLine[] {
 
 @Component({
   selector: 'app-text-diff-field',
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   templateUrl: './text-diff-field.html',
   styleUrl: './text-diff-field.scss',
 })

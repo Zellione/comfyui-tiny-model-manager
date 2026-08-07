@@ -44,7 +44,7 @@ SD_FAMILY = frozenset(
 # ``<lora:name:weight>`` — both quantifiers are bounded. An unbounded run next to an
 # unanchored pattern is the non-linear-backtracking shape SonarQube flags as S8786.
 _LORA_TAG_RE = re.compile(r"<lora:([^<>:]{1,120}):(-?\d{1,4}(?:\.\d{1,6})?)(?::[^<>]{0,40})?>")
-_SIZE_RE = re.compile(r"(\d{1,5})\s*[x×]\s*(\d{1,5})")
+_SIZE_RE = re.compile(r"(\d{1,5})\s*[x×]\s*(\d{1,5})")  # noqa: RUF001 — CivitAI sizes use the Unicode multiplication sign
 _MODEL_EXT_RE = re.compile(r"\.(safetensors|ckpt|pt|pth|bin|sft)$", re.IGNORECASE)
 
 # Metadata keys that on their own prove the image carries usable generation parameters.

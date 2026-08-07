@@ -10,6 +10,13 @@
 - New services: mock `activeTasks$` as `of([])` and `completedTasks$` as `EMPTY` when testing components that inject `DownloadService`.
 - When testing components that inject `TagService`, provide `{ provide: TagService, useValue: mockTagService }` where `mockTagService = { searchTags: vi.fn().mockReturnValue(EMPTY) }`.
 - i18n: ngx-translate — all user-visible strings via translation keys.
+- **Every `.subscribe()` is guarded with `takeUntilDestroyed`** (audit sweep 2026-08-07, issue #137):
+  components hold `private readonly destroyRef = inject(DestroyRef);` and either add
+  `takeUntilDestroyed(this.destroyRef)` as the last operator of an existing `.pipe(...)` or chain
+  `.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(...)` (a second `.pipe()` call is fine).
+  This applies to one-shot HTTP observables too — not for leak prevention (they complete) but to
+  stop late callbacks writing to destroyed components. Root services (`installed-files`,
+  `backend-notification`) use the same pattern; their DestroyRef is the app's.
 - **A string `redirectTo` drops the query string.** Angular's `createQueryParams` builds the
   redirect target's query params *only* from what is written into the `redirectTo` string,
   consulting the incoming URL solely for explicit `:name` back-references. So
@@ -116,6 +123,12 @@ err?.error?.detail === 'file_not_found'
 ```
 
 ## Image loading pattern (thumbnail cards)
+
+**The handler implementations live in `frontend/src/app/utils/media-events.ts`** (audit 2026-08-07):
+`showOnLoad`, `hideOnError`, `showPosterOnLoad` (▶-sibling hiding) and `videoPosterUrl`.
+Components keep thin delegating methods (`onImgLoad(e) { showOnLoad(e); }`) so templates are
+unchanged — do not re-implement these bodies in a new component; import from the util. Spec:
+`utils/media-events.spec.ts`.
 
 When a card thumbnail's URL may fail to load (CDN auth, NSFW gate, expired URL):
 - Start the `<img>` with `style="display: none"` so the browser's broken-image icon never appears.

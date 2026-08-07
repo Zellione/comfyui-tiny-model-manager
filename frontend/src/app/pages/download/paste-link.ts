@@ -1,4 +1,5 @@
 import { Component, signal, inject, computed, DestroyRef } from '@angular/core';
+import { hideOnError } from '../../utils/media-events';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -394,6 +395,6 @@ export class PasteLink {
   }
 
   onImgError(event: Event) {
-    (event.target as HTMLImageElement).style.display = 'none';
+    hideOnError(event);
   }
 }

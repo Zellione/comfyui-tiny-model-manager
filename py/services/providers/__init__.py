@@ -13,11 +13,11 @@ def get_provider(name: str) -> ModelProvider | None:
 
 
 __all__ = [
-    "ModelProvider",
-    "ProviderMetadata",
     "CivitaiProvider",
     "HuggingFaceProvider",
+    "ModelProvider",
+    "ProviderMetadata",
     "civitai",
-    "huggingface",
     "get_provider",
+    "huggingface",
 ]

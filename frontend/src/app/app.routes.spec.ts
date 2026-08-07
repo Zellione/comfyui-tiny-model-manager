@@ -10,7 +10,11 @@ class StubPage {}
 
 // Drive the real route table, but swap every page component for a stub so navigation
 // exercises the paths and redirects without instantiating any page and its services.
-const testRoutes = routes.map((r) => ('component' in r ? { ...r, component: StubPage } : r));
+const testRoutes = routes.map((r) =>
+  'component' in r || 'loadComponent' in r
+    ? { ...r, component: StubPage, loadComponent: undefined }
+    : r,
+);
 
 describe('app routes', () => {
   let router: Router;

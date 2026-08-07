@@ -352,8 +352,8 @@
                           <div class="row-meta">
                             @if (f.metadata?.format) {
                               <span class="badge"
-                                >{{ f.metadata?.format
-                                }}{{ f.metadata?.fp ? ' · ' + f.metadata?.fp : '' }}</span
+                                >{{ f.metadata.format
+                                }}{{ f.metadata.fp ? ' · ' + f.metadata.fp : '' }}</span
                               >
                             }
                             <small>{{ formatSize(f.sizeKB * 1024) }}</small>

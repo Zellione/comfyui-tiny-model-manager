@@ -1,4 +1,5 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -6,6 +7,7 @@ import { StoredWorkflow, WorkflowEntry, WorkflowStoreService } from '../../servi
 import { NotificationService } from '../../services/notification';
 import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover';
 import { mediaUrl } from '../../utils/media';
+import { hideOnError, showOnLoad } from '../../utils/media-events';
 
 /**
  * The locally stored workflows: one card per downloaded CivitAI page, listing every
@@ -20,6 +22,7 @@ import { mediaUrl } from '../../utils/media';
 })
 export class WorkflowsInstalled {
   private readonly store = inject(WorkflowStoreService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly notifService = inject(NotificationService);
   private readonly translate = inject(TranslateService);
 
@@ -37,66 +40,78 @@ export class WorkflowsInstalled {
   load() {
     this.loading.set(true);
     this.error.set('');
-    this.store.list().subscribe({
-      next: (entries) => {
-        this.entries.set(entries);
-        this.loading.set(false);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.error.set(err.error?.error ?? err.message ?? 'Failed to load workflows');
-        this.loading.set(false);
-      },
-    });
+    this.store
+      .list()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (entries) => {
+          this.entries.set(entries);
+          this.loading.set(false);
+        },
+        error: (err: HttpErrorResponse) => {
+          this.error.set(err.error?.error ?? err.message ?? 'Failed to load workflows');
+          this.loading.set(false);
+        },
+      });
   }
 
   /** Hand the graph to the ComfyUI extension, which loads it onto the canvas. */
   loadInComfy(workflow: StoredWorkflow) {
     this.busyWorkflowId.set(workflow.id);
-    this.store.openInComfy(workflow.id).subscribe({
-      next: () => {
-        this.busyWorkflowId.set(null);
-        this.notifService.show(
-          'success',
-          this.translate.instant('workflows.notify.queued', { name: workflow.name }),
-        );
-      },
-      error: () => {
-        this.busyWorkflowId.set(null);
-        this.notifService.show('error', this.translate.instant('workflows.error.open_failed'));
-      },
-    });
+    this.store
+      .openInComfy(workflow.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.busyWorkflowId.set(null);
+          this.notifService.show(
+            'success',
+            this.translate.instant('workflows.notify.queued', { name: workflow.name }),
+          );
+        },
+        error: () => {
+          this.busyWorkflowId.set(null);
+          this.notifService.show('error', this.translate.instant('workflows.error.open_failed'));
+        },
+      });
   }
 
   export(workflow: StoredWorkflow) {
     this.busyWorkflowId.set(workflow.id);
-    this.store.exportWorkflow(workflow.id).subscribe({
-      next: () => {
-        this.busyWorkflowId.set(null);
-        this.notifService.show(
-          'success',
-          this.translate.instant('workflows.notify.exported', { name: workflow.name }),
-        );
-      },
-      error: () => {
-        this.busyWorkflowId.set(null);
-        this.notifService.show('error', this.translate.instant('workflows.error.export_failed'));
-      },
-    });
+    this.store
+      .exportWorkflow(workflow.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.busyWorkflowId.set(null);
+          this.notifService.show(
+            'success',
+            this.translate.instant('workflows.notify.exported', { name: workflow.name }),
+          );
+        },
+        error: () => {
+          this.busyWorkflowId.set(null);
+          this.notifService.show('error', this.translate.instant('workflows.error.export_failed'));
+        },
+      });
   }
 
   deleteEntry(entry: WorkflowEntry) {
-    this.store.deleteEntry(entry.id).subscribe({
-      next: () => {
-        this.entries.update((list) => list.filter((e) => e.id !== entry.id));
-        this.notifService.show(
-          'success',
-          this.translate.instant('workflows.notify.deleted', { name: entry.display_name }),
-        );
-      },
-      error: () => {
-        this.notifService.show('error', this.translate.instant('workflows.error.delete_failed'));
-      },
-    });
+    this.store
+      .deleteEntry(entry.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.entries.update((list) => list.filter((e) => e.id !== entry.id));
+          this.notifService.show(
+            'success',
+            this.translate.instant('workflows.notify.deleted', { name: entry.display_name }),
+          );
+        },
+        error: () => {
+          this.notifService.show('error', this.translate.instant('workflows.error.delete_failed'));
+        },
+      });
   }
 
   fileUrl(workflow: StoredWorkflow): string {
@@ -111,10 +126,10 @@ export class WorkflowsInstalled {
   }
 
   onImgLoad(event: Event) {
-    (event.target as HTMLImageElement).style.display = 'block';
+    showOnLoad(event);
   }
 
   onImgError(event: Event) {
-    (event.target as HTMLImageElement).style.display = 'none';
+    hideOnError(event);
   }
 }

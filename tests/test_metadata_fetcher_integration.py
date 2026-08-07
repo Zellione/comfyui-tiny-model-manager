@@ -2,13 +2,14 @@
 
 import os
 from pathlib import Path
+from typing import ClassVar
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 
 
-@pytest.fixture()
+@pytest.fixture
 def loras_dir(ext_dir):
     import folder_paths
 
@@ -307,7 +308,7 @@ class TestDownloadCatalogImages:
 
 
 class TestFetchRepoFilesAllVersions:
-    _MODEL_DATA = {
+    _MODEL_DATA: ClassVar[dict] = {
         "type": "LORA",
         "modelVersions": [
             {

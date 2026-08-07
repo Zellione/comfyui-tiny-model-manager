@@ -3,6 +3,12 @@ import { CommonModule } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MediaItem } from '../../services/model';
 import { mediaUrl } from '../../utils/media';
+import {
+  hideOnError,
+  showOnLoad,
+  showPosterOnLoad,
+  videoPosterUrl as buildVideoPosterUrl,
+} from '../../utils/media-events';
 
 /**
  * Shared media gallery: a large main preview, a thumbnail strip, and an image
@@ -33,22 +39,19 @@ export class MediaGallery {
   mediaUrl = mediaUrl;
 
   videoPosterUrl(localPath: string): string {
-    return `/tiny-model-manager/api/media-poster/${encodeURIComponent(localPath)}`;
+    return buildVideoPosterUrl(localPath);
   }
 
   onImgLoad(event: Event) {
-    (event.target as HTMLImageElement).style.display = 'block';
+    showOnLoad(event);
   }
 
   onImgError(event: Event) {
-    (event.target as HTMLImageElement).style.display = 'none';
+    hideOnError(event);
   }
 
   onVideoPosterLoad(event: Event) {
-    const img = event.target as HTMLImageElement;
-    img.style.display = 'block';
-    const fallback = img.previousElementSibling as HTMLElement | null;
-    if (fallback) fallback.style.display = 'none';
+    showPosterOnLoad(event);
   }
 
   @HostListener('document:keydown.escape')

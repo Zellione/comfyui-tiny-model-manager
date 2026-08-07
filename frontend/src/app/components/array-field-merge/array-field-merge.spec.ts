@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideTranslateServiceForTests } from '../../../test-helpers/translate-testing';
 import { ArrayFieldMerge } from './array-field-merge';
 
 async function createFixture(
@@ -6,7 +7,10 @@ async function createFixture(
   newItems: string[] = [],
   lastEditedAt: string | null = null,
 ) {
-  await TestBed.configureTestingModule({ imports: [ArrayFieldMerge] }).compileComponents();
+  await TestBed.configureTestingModule({
+    imports: [ArrayFieldMerge],
+    providers: [provideTranslateServiceForTests()],
+  }).compileComponents();
   const fixture = TestBed.createComponent(ArrayFieldMerge);
   fixture.componentRef.setInput('oldItems', oldItems);
   fixture.componentRef.setInput('newItems', newItems);

@@ -178,7 +178,7 @@
             @if (image.meta?.prompt) {
               <div class="detail-prompt">
                 <div class="detail-section-title">{{ 'images.detail.prompt' | translate }}</div>
-                <p class="prompt-text">{{ image.meta?.prompt }}</p>
+                <p class="prompt-text">{{ image.meta.prompt }}</p>
               </div>
             }
             @if (image.meta?.negativePrompt) {
@@ -186,7 +186,7 @@
                 <div class="detail-section-title">
                   {{ 'images.detail.negative_prompt' | translate }}
                 </div>
-                <p class="prompt-text">{{ image.meta?.negativePrompt }}</p>
+                <p class="prompt-text">{{ image.meta.negativePrompt }}</p>
               </div>
             }
           </div>
