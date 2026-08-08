@@ -559,3 +559,108 @@ class TestCatalogMetadata:
         rf = data["repo_files"][0]
         assert rf["is_downloaded"] is False
         assert "installed_path" in rf
+
+
+_UPLOAD_PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+
+
+def _upload_form(*payloads: bytes):
+    from aiohttp import FormData
+
+    form = FormData()
+    for i, payload in enumerate(payloads):
+        form.add_field("files", payload, filename=f"pic{i}.png", content_type="image/png")
+    return form
+
+
+async def test_upload_catalog_media_appears_in_the_next_detail_read(client):
+    await _make_entry()
+
+    resp = await client.post(
+        "/tiny-model-manager/api/catalog/civitai/123/media", data=_upload_form(_UPLOAD_PNG)
+    )
+
+    assert resp.status == 200
+    media = (await resp.json())["media"]
+    assert len(media) == 1
+    assert media[0]["uploaded"] is True
+    assert os.path.isfile(media[0]["local_path"])
+
+    detail = await client.get("/tiny-model-manager/api/catalog/civitai/123")
+    assert len((await detail.json())["data"]["media"]) == 1
+
+
+async def test_upload_catalog_media_fills_an_empty_thumbnail(client):
+    from py.db import model_repo
+
+    await _make_entry()
+
+    resp = await client.post(
+        "/tiny-model-manager/api/catalog/civitai/123/media", data=_upload_form(_UPLOAD_PNG)
+    )
+    stored = (await resp.json())["media"][0]["local_path"]
+
+    entry = await model_repo.get_catalog_entry("civitai", "123")
+    assert entry["thumbnail_url"] == stored
+    assert entry["media_hash"] != ""
+
+
+async def test_upload_catalog_media_keeps_an_existing_thumbnail(client):
+    from py.db import model_repo
+
+    await _make_entry()
+    await model_repo.set_catalog_media_fields("civitai", "123", thumbnail_url="/media/x/0.jpg")
+
+    await client.post(
+        "/tiny-model-manager/api/catalog/civitai/123/media", data=_upload_form(_UPLOAD_PNG)
+    )
+
+    entry = await model_repo.get_catalog_entry("civitai", "123")
+    assert entry["thumbnail_url"] == "/media/x/0.jpg"
+
+
+async def test_upload_catalog_media_404s_for_an_unknown_entry(client):
+    resp = await client.post(
+        "/tiny-model-manager/api/catalog/civitai/999/media", data=_upload_form(_UPLOAD_PNG)
+    )
+
+    assert resp.status == 404
+
+
+async def test_upload_catalog_media_rejects_a_non_image(client):
+    await _make_entry()
+
+    resp = await client.post(
+        "/tiny-model-manager/api/catalog/civitai/123/media",
+        data=_upload_form(b"<html>not an image</html>"),
+    )
+
+    assert resp.status == 400
+
+
+async def test_delete_catalog_media_removes_the_file_and_clears_the_thumbnail(client):
+    from py.db import model_repo
+
+    await _make_entry()
+    upload = await client.post(
+        "/tiny-model-manager/api/catalog/civitai/123/media", data=_upload_form(_UPLOAD_PNG)
+    )
+    stored = (await upload.json())["media"][0]["local_path"]
+
+    resp = await client.delete(
+        f"/tiny-model-manager/api/catalog/civitai/123/media/{os.path.basename(stored)}"
+    )
+
+    assert resp.status == 200
+    assert (await resp.json())["media"] == []
+    assert not os.path.exists(stored)
+    entry = await model_repo.get_catalog_entry("civitai", "123")
+    assert entry["thumbnail_url"] == ""
+
+
+async def test_delete_catalog_media_refuses_a_name_that_is_not_an_upload(client):
+    await _make_entry()
+
+    resp = await client.delete("/tiny-model-manager/api/catalog/civitai/123/media/0.jpg")
+
+    assert resp.status == 400
