@@ -8,12 +8,17 @@ Import is **copy only** by design: a move would break the source installation
 irreversibly, and links need admin rights on Windows or a shared filesystem.
 """
 
+import asyncio
 import os
-from dataclasses import dataclass
+import time
+import uuid
+from dataclasses import dataclass, field
 
 import folder_paths
 
-from . import disk_scanner
+from ..background import spawn
+from ..db import model_repo
+from . import disk_scanner, model_paths
 
 
 class ForeignRootError(ValueError):
@@ -111,3 +116,129 @@ def scan_source(root: str) -> list[SourceFile]:
                 )
             )
     return files
+
+
+@dataclass
+class ImportJob:
+    """A running scan or import. Mirrors ``downloader.DownloadTask``'s in-memory shape."""
+
+    id: str
+    kind: str  # scan | import
+    source_root: str
+    state: str = "running"  # running | done | error | cancelled
+    progress: float = 0.0
+    error: str = ""
+    files: list = field(default_factory=list)  # scan only: SourceFile entries
+    imported: list = field(default_factory=list)  # import only: filenames
+    skipped: list = field(default_factory=list)  # import only: filenames
+    failed: list = field(default_factory=list)  # import only: {filename, reason}
+    cancelled: bool = False
+    completed_at: float | None = None
+    task: asyncio.Task | None = field(default=None, repr=False)
+
+
+_jobs: dict[str, ImportJob] = {}
+
+
+def get_job(job_id: str) -> ImportJob | None:
+    return _jobs.get(job_id)
+
+
+def cancel_job(job_id: str) -> bool:
+    """Ask a running job to stop after its current file. Returns False if it already ended."""
+    job = _jobs.get(job_id)
+    if job is None or job.state != "running":
+        return False
+    job.cancelled = True
+    return True
+
+
+def job_to_dict(job: ImportJob) -> dict:
+    """Serialise a job for the API.
+
+    ``abs_path`` is deliberately omitted: it is a filesystem path on the operator's machine
+    and the client never needs it — the import route rebuilds it from the validated root.
+    """
+    return {
+        "id": job.id,
+        "kind": job.kind,
+        "source_root": job.source_root,
+        "state": job.state,
+        "progress": job.progress,
+        "error": job.error,
+        "files": [
+            {
+                "model_type": f.model_type,
+                "filename": f.filename,
+                "size_bytes": f.size_bytes,
+                "status": f.status,
+                "file_hash": f.file_hash,
+            }
+            for f in job.files
+        ],
+        "imported": job.imported,
+        "skipped": job.skipped,
+        "failed": job.failed,
+    }
+
+
+async def _hash_unknown_local_files() -> set[str]:
+    """Every SHA-256 in the local library, hashing what the DB does not already know.
+
+    Hashes computed for a *registered* model are written back with ``set_file_hash`` so the
+    next scan is nearly free. An unregistered on-disk file has no row to cache into and is
+    therefore re-hashed each time; registering it is what makes it cheap.
+    """
+    known = await model_repo.get_file_hash_map()
+    hashes = set(known)
+    hashed_filenames = set(known.values())
+
+    scanned = await asyncio.to_thread(disk_scanner.scan_all)
+    for entries in scanned.values():
+        for entry in entries:
+            if entry["filename"] in hashed_filenames:
+                continue
+            path = os.path.join(entry["base_dir"], entry["filename"])
+            try:
+                digest = await asyncio.to_thread(model_paths.compute_file_hash, path)
+            except OSError:
+                continue
+            hashes.add(digest)
+            await model_repo.set_file_hash(entry["filename"], digest)
+    return hashes
+
+
+async def _run_scan(job: ImportJob) -> None:
+    try:
+        job.files = await asyncio.to_thread(scan_source, job.source_root)
+        local_hashes = await _hash_unknown_local_files()
+        total = len(job.files)
+        if not total:
+            job.progress = 100.0
+        for index, source in enumerate(job.files):
+            if job.cancelled:
+                job.state = "cancelled"
+                return
+            try:
+                source.file_hash = await asyncio.to_thread(
+                    model_paths.compute_file_hash, source.abs_path
+                )
+            except OSError:
+                source.status = "unreadable"
+            else:
+                source.status = "installed" if source.file_hash in local_hashes else "new"
+            job.progress = (index + 1) / total * 100
+        job.state = "done"
+    except Exception as exc:
+        job.state = "error"
+        job.error = str(exc)
+    finally:
+        job.completed_at = time.time()
+
+
+def start_scan(root: str) -> ImportJob:
+    """Begin scanning an already-validated foreign models root."""
+    job = ImportJob(id=str(uuid.uuid4()), kind="scan", source_root=root)
+    _jobs[job.id] = job
+    job.task = spawn(_run_scan(job))
+    return job

@@ -152,3 +152,99 @@ class TestScanSource:
         files = foreign_import.scan_source(str(_make_source_tree(tmp_path)))
         assert {f.status for f in files} == {"pending"}
         assert all(f.file_hash == "" for f in files)
+
+
+class TestScanJob:
+    async def test_marks_unknown_files_new(self, tmp_path, ext_dir):
+        from py.services import foreign_import
+
+        root = _make_source_tree(tmp_path)
+        job = foreign_import.start_scan(str(root))
+        await job.task
+        assert job.state == "done"
+        assert {f.status for f in job.files} == {"new"}
+        assert job.progress == 100.0
+
+    async def test_marks_locally_present_hash_installed(self, tmp_path, monkeypatch, ext_dir):
+        from py.db import model_repo
+        from py.services import foreign_import, model_paths
+
+        root = _make_source_tree(tmp_path)
+        known = model_paths.compute_file_hash(str(root / "checkpoints" / "sd15.safetensors"))
+        await model_repo.register_model("sd15.safetensors", "checkpoints")
+        await model_repo.set_file_hash("sd15.safetensors", known)
+        monkeypatch.setattr(foreign_import, "_hash_unknown_local_files", _noop_local_hashes)
+
+        job = foreign_import.start_scan(str(root))
+        await job.task
+        statuses = {f.filename: f.status for f in job.files}
+        assert statuses["sd15.safetensors"] == "installed"
+        assert statuses["style/neon.safetensors"] == "new"
+
+    async def test_unreadable_file_does_not_fail_the_job(self, tmp_path, monkeypatch, ext_dir):
+        from py.services import foreign_import
+
+        root = _make_source_tree(tmp_path)
+        monkeypatch.setattr(foreign_import, "_hash_unknown_local_files", _noop_local_hashes)
+
+        def boom(path):
+            if path.endswith("sd15.safetensors"):
+                raise OSError("permission denied")
+            return "deadbeef"
+
+        monkeypatch.setattr(foreign_import.model_paths, "compute_file_hash", boom)
+        job = foreign_import.start_scan(str(root))
+        await job.task
+        assert job.state == "done"
+        statuses = {f.filename: f.status for f in job.files}
+        assert statuses["sd15.safetensors"] == "unreadable"
+
+    async def test_local_hashes_are_cached_back_to_the_db(self, tmp_path, monkeypatch, ext_dir):
+        import folder_paths
+
+        from py.db import model_repo
+        from py.services import foreign_import, model_paths
+
+        local = tmp_path / "local" / "models"
+        (local / "loras").mkdir(parents=True)
+        (local / "loras" / "known.safetensors").write_bytes(b"z" * 12)
+        monkeypatch.setattr(folder_paths, "models_dir", str(local))
+        await model_repo.register_model("known.safetensors", "loras")
+
+        root = _make_source_tree(tmp_path)
+        job = foreign_import.start_scan(str(root))
+        await job.task
+
+        expected = model_paths.compute_file_hash(str(local / "loras" / "known.safetensors"))
+        assert await model_repo.get_file_hash_map() == {expected: "known.safetensors"}
+
+    async def test_cancel_stops_the_scan(self, tmp_path, monkeypatch, ext_dir):
+        from py.services import foreign_import
+
+        root = _make_source_tree(tmp_path)
+        monkeypatch.setattr(foreign_import, "_hash_unknown_local_files", _noop_local_hashes)
+        job = foreign_import.start_scan(str(root))
+        foreign_import.cancel_job(job.id)
+        await job.task
+        assert job.state == "cancelled"
+
+    async def test_get_job_and_serialisation(self, tmp_path, ext_dir):
+        from py.services import foreign_import
+
+        root = _make_source_tree(tmp_path)
+        job = foreign_import.start_scan(str(root))
+        await job.task
+        assert foreign_import.get_job(job.id) is job
+        assert foreign_import.get_job("nope") is None
+        payload = foreign_import.job_to_dict(job)
+        assert payload["state"] == "done"
+        assert payload["source_root"] == str(root)
+        assert {f["status"] for f in payload["files"]} == {"new"}
+        assert "abs_path" not in payload["files"][0]
+
+
+async def _noop_local_hashes() -> set[str]:
+    """Stand-in for the local-library hash sweep, which needs no files in most tests."""
+    from py.db import model_repo
+
+    return set(await model_repo.get_file_hash_map())
