@@ -91,16 +91,18 @@ async def test_store_upload_ignores_the_declared_type_and_uses_the_bytes(ext_dir
 async def test_store_upload_rejects_a_non_image(ext_dir):
     from py.services import media_upload
 
+    part = _FakePart(b"<html>nope</html>" * 4)
     with pytest.raises(media_upload.UnsupportedImage):
-        await media_upload.store_upload("deadbeef", _FakePart(b"<html>nope</html>" * 4))
+        await media_upload.store_upload("deadbeef", part)
 
 
 async def test_store_upload_rejects_an_oversized_part_without_writing(ext_dir):
     from py.services import media_cleanup, media_upload
 
     oversized = _JPEG + b"\x00" * (media_upload.MAX_UPLOAD_BYTES + 1)
+    part = _FakePart(oversized, chunk_size=65536)
     with pytest.raises(media_upload.UploadTooLarge):
-        await media_upload.store_upload("deadbeef", _FakePart(oversized, chunk_size=65536))
+        await media_upload.store_upload("deadbeef", part)
 
     target = media_cleanup.media_subdir("deadbeef")
     assert not os.path.isdir(target) or os.listdir(target) == []

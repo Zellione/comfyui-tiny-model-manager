@@ -29,7 +29,7 @@ describe('MediaUploadZone', () => {
 
     component.accept([makeFile('a.png', 'image/png'), makeFile('b.jpg', 'image/jpeg')]);
 
-    expect(emitted.length).toBe(1);
+    expect(emitted).toHaveLength(1);
     expect(emitted[0].map((f) => f.name)).toEqual(['a.png', 'b.jpg']);
     expect(component.localError()).toBe('');
   });
@@ -40,7 +40,7 @@ describe('MediaUploadZone', () => {
 
     component.accept([makeFile('a.pdf', 'application/pdf')]);
 
-    expect(emitted.length).toBe(0);
+    expect(emitted).toHaveLength(0);
     expect(component.localError()).toBe('media_gallery.upload_error_type');
   });
 
@@ -50,7 +50,7 @@ describe('MediaUploadZone', () => {
 
     component.accept([makeFile('big.png', 'image/png', MAX_FILE_BYTES + 1)]);
 
-    expect(emitted.length).toBe(0);
+    expect(emitted).toHaveLength(0);
     expect(component.localError()).toBe('media_gallery.upload_error_size');
   });
 
@@ -62,7 +62,7 @@ describe('MediaUploadZone', () => {
       Array.from({ length: MAX_FILES + 1 }, (_, i) => makeFile(`f${i}.png`, 'image/png')),
     );
 
-    expect(emitted.length).toBe(0);
+    expect(emitted).toHaveLength(0);
     expect(component.localError()).toBe('media_gallery.upload_error_count');
   });
 
@@ -72,7 +72,7 @@ describe('MediaUploadZone', () => {
 
     component.accept([]);
 
-    expect(emitted.length).toBe(0);
+    expect(emitted).toHaveLength(0);
   });
 
   it('does not accept files while busy', () => {
@@ -83,7 +83,7 @@ describe('MediaUploadZone', () => {
 
     component.accept([makeFile('a.png', 'image/png')]);
 
-    expect(emitted.length).toBe(0);
+    expect(emitted).toHaveLength(0);
   });
 
   it('tracks the drag state', () => {

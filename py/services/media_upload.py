@@ -17,6 +17,7 @@ library keeps this a leaf module and rules out an import cycle.
 """
 
 import asyncio
+import logging
 import os
 import re
 import uuid
@@ -32,13 +33,39 @@ _CHUNK = 64 * 1024
 UPLOAD_PREFIX = "upload-"
 UPLOAD_NAME_RE = re.compile(r"upload-[0-9a-f]{12}\.(?:jpg|png|webp|gif)")
 
+_log = logging.getLogger("tiny-model-manager")
 
-class UploadTooLarge(Exception):
+
+class UploadError(Exception):
+    """A multipart upload was rejected. Subclasses carry the client-facing response.
+
+    The exception's own message may hold internal detail; `client_message` is the only
+    text that reaches the client, per the project's information-disclosure rule.
+    """
+
+    client_message = "Upload rejected"
+    client_status = 400
+
+
+class UploadTooLarge(UploadError):
     """A part exceeded ``MAX_UPLOAD_BYTES``."""
 
+    client_message = "Image too large"
+    client_status = 413
 
-class UnsupportedImage(Exception):
+
+class UnsupportedImage(UploadError):
     """A part's bytes matched none of the accepted image signatures."""
+
+    client_message = "Unsupported image type"
+    client_status = 400
+
+
+class TooManyFiles(UploadError):
+    """The request contained more than ``MAX_FILES`` files."""
+
+    client_message = f"At most {MAX_FILES} files per upload"
+    client_status = 400
 
 
 def sniff_image_ext(head: bytes) -> str | None:
@@ -119,3 +146,14 @@ def delete_upload(media_hash: str, name: str) -> bool:
         return False
     os.remove(full)
     return True
+
+
+def discard_uploads(media_hash: str, paths: list[str]) -> None:
+    """Remove uploads this request wrote. Never raises: a failing step must not mask
+    the error that triggered the rollback, and must not stop the remaining steps.
+    """
+    for path in paths:
+        try:
+            delete_upload(media_hash, os.path.basename(path))
+        except Exception:
+            _log.warning("Failed to discard upload: %s", path, exc_info=True)

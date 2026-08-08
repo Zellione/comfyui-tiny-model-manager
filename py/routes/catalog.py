@@ -231,6 +231,11 @@ async def _ensure_catalog_media_hash(platform: str, page_id: str, entry: dict) -
     return media_hash
 
 
+async def _rollback_catalog_upload(media_hash: str, stored: list[str]) -> None:
+    """Undo the files this request created. Never raises."""
+    media_upload.discard_uploads(media_hash, stored)
+
+
 async def _handle_upload_catalog_media(request, platform: str, page_id: str) -> web.Response:
     entry = await model_repo.get_catalog_entry(platform, page_id)
     if not entry:
@@ -238,36 +243,17 @@ async def _handle_upload_catalog_media(request, platform: str, page_id: str) -> 
     media_hash = await _ensure_catalog_media_hash(platform, page_id, entry)
 
     stored: list[str] = []
-    reader = await request.multipart()
-    async for part in reader:
-        if part.name != "files":
-            continue
-        if len(stored) >= media_upload.MAX_FILES:
-            # Rollback: delete stored files
-            for file_path in stored:
-                try:
-                    media_upload.delete_upload(media_hash, os.path.basename(file_path))
-                except Exception:
-                    pass
-            return err(f"At most {media_upload.MAX_FILES} files per upload", status=400)
-        try:
+    try:
+        reader = await request.multipart()
+        async for part in reader:
+            if part.name != "files":
+                continue
+            if len(stored) >= media_upload.MAX_FILES:
+                raise media_upload.TooManyFiles()
             stored.append(await media_upload.store_upload(media_hash, part))
-        except media_upload.UploadTooLarge:
-            # Rollback: delete stored files
-            for file_path in stored:
-                try:
-                    media_upload.delete_upload(media_hash, os.path.basename(file_path))
-                except Exception:
-                    pass
-            return err("Image too large", status=413)
-        except media_upload.UnsupportedImage:
-            # Rollback: delete stored files
-            for file_path in stored:
-                try:
-                    media_upload.delete_upload(media_hash, os.path.basename(file_path))
-                except Exception:
-                    pass
-            return err("Unsupported image type", status=400)
+    except media_upload.UploadError as exc:
+        await _rollback_catalog_upload(media_hash, stored)
+        return err(exc.client_message, status=exc.client_status)
 
     if not stored:
         return err("No image supplied", status=400)
