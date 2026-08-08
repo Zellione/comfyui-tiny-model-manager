@@ -1065,3 +1065,147 @@ class TestServeVideoPoster:
     async def test_path_traversal_returns_403(self, client, ext_dir):
         resp = await client.get("/tiny-model-manager/api/media-poster/../../etc/passwd")
         assert resp.status in (403, 404)
+
+
+_UPLOAD_PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+
+
+def _upload_form(*payloads: bytes):
+    """Build a multipart body with one `files` part per payload."""
+    from aiohttp import FormData
+
+    form = FormData()
+    for i, payload in enumerate(payloads):
+        form.add_field("files", payload, filename=f"pic{i}.png", content_type="image/png")
+    return form
+
+
+async def test_upload_media_stores_the_file_and_returns_the_gallery(client):
+    from py.db import model_repo
+
+    await model_repo.register_model(filename="a.safetensors", model_type="checkpoints")
+
+    resp = await client.post(
+        "/tiny-model-manager/api/models/checkpoints/a.safetensors/media",
+        data=_upload_form(_UPLOAD_PNG),
+    )
+
+    assert resp.status == 200
+    body = await resp.json()
+    assert body["success"] is True
+    assert len(body["media"]) == 1
+    item = body["media"][0]
+    assert item["media_type"] == "image"
+    assert item["uploaded"] is True
+    assert os.path.isfile(item["local_path"])
+
+
+async def test_upload_media_assigns_a_media_hash_when_the_model_has_none(client):
+    from py.db import model_repo
+
+    await model_repo.register_model(filename="a.safetensors", model_type="checkpoints")
+    assert await model_repo.get_model_media_hash("a.safetensors") == ""
+
+    await client.post(
+        "/tiny-model-manager/api/models/checkpoints/a.safetensors/media",
+        data=_upload_form(_UPLOAD_PNG),
+    )
+
+    assert await model_repo.get_model_media_hash("a.safetensors") != ""
+
+
+async def test_upload_media_accepts_several_files_at_once(client):
+    from py.db import model_repo
+
+    await model_repo.register_model(filename="a.safetensors", model_type="checkpoints")
+
+    resp = await client.post(
+        "/tiny-model-manager/api/models/checkpoints/a.safetensors/media",
+        data=_upload_form(_UPLOAD_PNG, _UPLOAD_PNG, _UPLOAD_PNG),
+    )
+
+    body = await resp.json()
+    assert len(body["media"]) == 3
+    assert len({m["local_path"] for m in body["media"]}) == 3
+
+
+async def test_upload_media_rejects_a_non_image(client):
+    from py.db import model_repo
+
+    await model_repo.register_model(filename="a.safetensors", model_type="checkpoints")
+
+    resp = await client.post(
+        "/tiny-model-manager/api/models/checkpoints/a.safetensors/media",
+        data=_upload_form(b"<html>definitely not an image</html>"),
+    )
+
+    assert resp.status == 400
+    assert (await resp.json())["success"] is False
+
+
+async def test_upload_media_404s_for_an_unknown_model(client):
+    resp = await client.post(
+        "/tiny-model-manager/api/models/checkpoints/ghost.safetensors/media",
+        data=_upload_form(_UPLOAD_PNG),
+    )
+
+    assert resp.status == 404
+
+
+async def test_upload_media_rejects_more_than_max_files(client):
+    from py.db import model_repo
+    from py.services import media_upload
+
+    await model_repo.register_model(filename="a.safetensors", model_type="checkpoints")
+
+    resp = await client.post(
+        "/tiny-model-manager/api/models/checkpoints/a.safetensors/media",
+        data=_upload_form(*([_UPLOAD_PNG] * (media_upload.MAX_FILES + 1))),
+    )
+
+    assert resp.status == 400
+
+
+async def test_delete_media_removes_the_upload_and_its_row(client):
+    from py.db import model_repo
+
+    await model_repo.register_model(filename="a.safetensors", model_type="checkpoints")
+    upload = await client.post(
+        "/tiny-model-manager/api/models/checkpoints/a.safetensors/media",
+        data=_upload_form(_UPLOAD_PNG),
+    )
+    item = (await upload.json())["media"][0]
+
+    resp = await client.delete(
+        f"/tiny-model-manager/api/models/checkpoints/a.safetensors/media/{item['id']}"
+    )
+
+    assert resp.status == 200
+    assert (await resp.json())["media"] == []
+    assert not os.path.exists(item["local_path"])
+
+
+async def test_delete_media_refuses_a_fetched_image(client):
+    from py.db import model_repo
+
+    model_id = await model_repo.register_model(filename="a.safetensors", model_type="checkpoints")
+    media_id = await model_repo.add_media(model_id, "image", "/media/deadbeef/0.jpg")
+
+    resp = await client.delete(
+        f"/tiny-model-manager/api/models/checkpoints/a.safetensors/media/{media_id}"
+    )
+
+    assert resp.status == 400
+    assert len(await model_repo.get_model_media(model_id)) == 1
+
+
+async def test_metadata_marks_fetched_media_as_not_uploaded(client):
+    from py.db import model_repo
+
+    model_id = await model_repo.register_model(filename="a.safetensors", model_type="checkpoints")
+    await model_repo.add_media(model_id, "image", "/media/deadbeef/0.jpg")
+
+    resp = await client.get("/tiny-model-manager/api/models/checkpoints/a.safetensors/metadata")
+
+    media = (await resp.json())["data"]["media"]
+    assert media[0]["uploaded"] is False

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from aiohttp import web
 
 from ..db import model_repo
-from ..services import model_paths
+from ..services import media_upload, model_paths
 from ..video_poster import extract_video_poster
 from ._helpers import err, json_route, ok
 
@@ -98,7 +98,10 @@ def _meta_response_data(meta: dict) -> dict:
         "description": meta.get("description", ""),
         "trigger_words": meta.get("trigger_words", []),
         "tags": meta.get("tags", []),
-        "media": meta.get("media", []),
+        "media": [
+            {**item, "uploaded": media_upload.is_uploaded(item.get("local_path", ""))}
+            for item in meta.get("media", [])
+        ],
         "base_model": meta.get("base_model", ""),
         "source_platform": meta.get("source_platform", ""),
         "source_url": _derive_source_url(
@@ -410,6 +413,82 @@ async def _serve_video_poster(request):
     return web.FileResponse(poster)
 
 
+async def _ensure_model_media_hash(meta: dict) -> str:
+    """Return the model's media_hash, assigning one first when the column is empty.
+
+    Disk-registered models start with ``''``. ``_compute_media_hash`` is deterministic,
+    so re-deriving it later yields the same directory.
+    """
+    from ..db.database import get_db
+    from ..services.metadata_fetcher import _compute_media_hash
+
+    existing = meta.get("media_hash") or ""
+    if existing:
+        return existing
+    media_hash = _compute_media_hash(
+        meta.get("source_platform") or "",
+        meta.get("source_id") or "",
+        meta["filename"],
+    )
+    async with get_db() as db:
+        await db.execute("UPDATE models SET media_hash = ? WHERE id = ?", (media_hash, meta["id"]))
+        await db.commit()
+    return media_hash
+
+
+async def _model_gallery(model_id: int) -> list[dict]:
+    """The model's media rows in the same shape the metadata route returns."""
+    rows = await model_repo.get_model_media(model_id)
+    return [{**r, "uploaded": media_upload.is_uploaded(r["local_path"])} for r in rows]
+
+
+async def _upload_model_media(request):
+    meta = await model_repo.get_model_by_filename(request.match_info["path"])
+    if not meta:
+        return err("Model not found", status=404)
+    media_hash = await _ensure_model_media_hash(meta)
+
+    stored = 0
+    reader = await request.multipart()
+    async for part in reader:
+        if part.name != "files":
+            continue
+        if stored >= media_upload.MAX_FILES:
+            return err(f"At most {media_upload.MAX_FILES} files per upload", status=400)
+        try:
+            dest = await media_upload.store_upload(media_hash, part)
+        except media_upload.UploadTooLarge:
+            return err("Image too large", status=413)
+        except media_upload.UnsupportedImage:
+            return err("Unsupported image type", status=400)
+        await model_repo.add_media(meta["id"], "image", dest)
+        stored += 1
+
+    if not stored:
+        return err("No image supplied", status=400)
+    return ok(media=await _model_gallery(meta["id"]))
+
+
+async def _delete_model_media(request):
+    meta = await model_repo.get_model_by_filename(request.match_info["path"])
+    if not meta:
+        return err("Model not found", status=404)
+    try:
+        media_id = int(request.match_info["media_id"])
+    except ValueError:
+        return err("Invalid media id", status=400)
+
+    row = next((m for m in meta.get("media", []) if m["id"] == media_id), None)
+    if row is None:
+        return err("Media not found", status=404)
+    if not media_upload.is_uploaded(row["local_path"]):
+        return err("Only uploaded images can be removed", status=400)
+
+    media_upload.delete_upload(meta.get("media_hash") or "", os.path.basename(row["local_path"]))
+    await model_repo.delete_media_row(media_id)
+    return ok(media=await _model_gallery(meta["id"]))
+
+
 def add_metadata_routes(routes):
     base = "/tiny-model-manager/api/models/{model_type}/{path:.*}"
     routes.get(f"{base}/metadata")(json_route(_get_metadata))
@@ -419,5 +498,7 @@ def add_metadata_routes(routes):
     routes.post(f"{base}/refetch-apply")(json_route(_refetch_apply))
     routes.get(f"{base}/repo-files")(json_route(_get_repo_files))
     routes.post(f"{base}/link-source")(json_route(_link_source))
+    routes.post(f"{base}/media")(json_route(_upload_model_media))
+    routes.delete(f"{base}/media/{{media_id}}")(json_route(_delete_model_media))
     routes.get("/tiny-model-manager/api/media/{path:.*}")(_serve_media)
     routes.get("/tiny-model-manager/api/media-poster/{path:.*}")(_serve_video_poster)
