@@ -92,6 +92,16 @@ class TestScanRoute:
         resp = await client.get(f"{API}/scan/does-not-exist")
         assert resp.status == 404
 
+    async def test_cancel_scan_job_succeeds(self, client, source_root):
+        start = await client.post(f"{API}/scan", json={"path": str(source_root)})
+        job_id = (await start.json())["data"]["job_id"]
+
+        resp = await client.post(f"{API}/jobs/{job_id}/cancel")
+        assert resp.status == 200
+        body = await resp.json()
+        assert body["success"] is True
+        assert body["data"]["cancelled"] is True
+
 
 class TestImportRoute:
     async def _scanned_root(self, client, source_root):
@@ -166,3 +176,75 @@ class TestImportRoute:
     async def test_cancel_unknown_job_is_404(self, client):
         resp = await client.post(f"{API}/jobs/nope/cancel")
         assert resp.status == 404
+
+    async def test_insufficient_space_on_second_type_is_409(
+        self, client, tmp_path, local_models_dir, monkeypatch
+    ):
+        import shutil
+
+        # Create a source with two model types
+        source = tmp_path / "source_multi"
+        (source / "loras").mkdir(parents=True)
+        (source / "loras" / "a.safetensors").write_bytes(b"a" * 30)
+        (source / "checkpoints").mkdir(parents=True)
+        (source / "checkpoints" / "b.safetensors").write_bytes(b"b" * 50)
+
+        # Scan to get the resolved root
+        start = await client.post(f"{API}/scan", json={"path": str(source)})
+        root = (await start.json())["data"]["source_root"]
+
+        # Monkeypatch disk_usage to report plenty of space for loras, almost none for checkpoints
+        original_disk_usage = shutil.disk_usage
+
+        def mock_disk_usage(path):
+            if "checkpoints" in path:
+                return shutil._ntuple_diskusage(100, 99, 1)
+            return original_disk_usage(path)
+
+        monkeypatch.setattr(shutil, "disk_usage", mock_disk_usage)
+
+        # Try to import both: should fail with 409 for checkpoints
+        resp = await client.post(
+            f"{API}/start",
+            json={
+                "source_root": root,
+                "files": [
+                    {"model_type": "loras", "filename": "a.safetensors"},
+                    {"model_type": "checkpoints", "filename": "b.safetensors"},
+                ],
+            },
+        )
+        assert resp.status == 409
+        body = await resp.json()
+        assert body["error"] == "insufficient_space"
+        assert body["needed"] == 50
+        assert body["available"] == 1
+
+    async def test_all_invalid_selections_complete_with_empty_imported(
+        self, client, source_root, local_models_dir
+    ):
+        from py.services import foreign_import
+
+        root = await self._scanned_root(client, source_root)
+        resp = await client.post(
+            f"{API}/start",
+            json={
+                "source_root": root,
+                "files": [
+                    {"model_type": "loras", "filename": "bogus1.safetensors"},
+                    {"model_type": "loras", "filename": "bogus2.safetensors"},
+                ],
+            },
+        )
+        assert resp.status == 200
+        job_id = (await resp.json())["data"]["job_id"]
+        await foreign_import.get_job(job_id).task
+
+        progress = await client.get(f"{API}/jobs/{job_id}")
+        data = (await progress.json())["data"]
+        assert data["state"] == "done"
+        assert data["imported"] == []
+        failed_filenames = {
+            item.get("filename") if isinstance(item, dict) else item for item in data["failed"]
+        }
+        assert failed_filenames == {"bogus1.safetensors", "bogus2.safetensors"}

@@ -60,14 +60,26 @@ def add_imports_routes(routes):
         except foreign_import.ForeignRootError as exc:
             return err(str(exc), status=400)
 
-        first_type = files[0].get("model_type", "")
-        try:
-            base = foreign_import.dest_base(first_type)
-            foreign_import.ensure_space(base, _selection_size(root, files))
-        except ValueError as exc:
-            return err(str(exc), status=400)
-        except foreign_import.InsufficientSpaceError as exc:
-            return err("insufficient_space", status=409, needed=exc.needed, available=exc.available)
+        # Group selections by model_type and check disk space for each destination separately.
+        # A selection spanning multiple filesystems can pass a single-type check but fail
+        # mid-copy if checked only against the first destination.
+        by_type: dict[str, list[dict]] = {}
+        for item in files:
+            model_type = item.get("model_type", "")
+            if model_type not in by_type:
+                by_type[model_type] = []
+            by_type[model_type].append(item)
+
+        for model_type, type_files in by_type.items():
+            try:
+                base = foreign_import.dest_base(model_type)
+                foreign_import.ensure_space(base, _selection_size(root, type_files))
+            except ValueError as exc:
+                return err(str(exc), status=400)
+            except foreign_import.InsufficientSpaceError as exc:
+                return err(
+                    "insufficient_space", status=409, needed=exc.needed, available=exc.available
+                )
 
         job = foreign_import.start_import(root, files)
         return ok({"job_id": job.id})
@@ -83,6 +95,9 @@ def add_imports_routes(routes):
     @routes.post("/tiny-model-manager/api/import/jobs/{job_id}/cancel")
     @json_route
     async def cancel_import_job(request):
+        # This route deliberately accepts BOTH job kinds (scan and import), unlike the GET
+        # routes which are kind-specific. A scan hashes an entire library and can run for
+        # minutes, so the UI must be able to abort it.
         job = foreign_import.get_job(request.match_info["job_id"])
         if job is None:
             return err("job_not_found", status=404)
