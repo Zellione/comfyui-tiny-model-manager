@@ -222,12 +222,13 @@ Allows users to upload custom preview images for a model or workflow entry when 
   applies to model updates: if there is no installed copy, we have no `model_id` to link media to, so
   `_fill_thumbnail` would skip the catalog entry. For this reason, routes always check the
   `catalog_entries.thumbnail_url` field if it is set, before falling through to joined model media.
-- **Hash assignment on first upload**: Both `_compute_media_hash` (models) and `catalog_media_hash`
-  (catalog) are deterministic: `sha1(f"{model_id}") if model_id else sha1(f"catalog:{source_id}:{entry_id}")`.
-  When a model or catalog entry is first uploaded to, the routes check if it has a `media_hash`; if not,
-  they compute and assign one (via `update_model_media_hash` / `_set_catalog_media_hash`). On re-upload,
-  the hash is reused. This ensures the media directory persists across multiple uploads for the same
-  model/entry.
+- **Hash assignment on first upload**: Both `_compute_media_hash` and `catalog_media_hash` are deterministic:
+  `_compute_media_hash(platform, source_id, filename)` keys on `f"{platform}:{source_id}"` if both are
+  truthy, else on `filename`, then hashes with sha1; `catalog_media_hash(platform, page_id)` keys on
+  `f"catalog:{platform}:{page_id}"` and hashes with sha256. When a model or catalog entry is first
+  uploaded to, the routes check if it has a `media_hash`; if not, they compute and assign one (via
+  `update_model_media_hash` / `_set_catalog_media_hash`). On re-upload, the hash is reused. This
+  ensures the media directory persists across multiple uploads for the same model/entry.
 
 ## Workflow store (F-129)
 
