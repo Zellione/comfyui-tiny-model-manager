@@ -1,10 +1,27 @@
 name: CI
 
 on:
+  # paths-ignore is exclusive, not inclusive: a run is skipped only when EVERY changed path
+  # matches the list. A commit touching both a .md file and a .py file still runs the full
+  # pipeline. Do not "fix" this into a paths: allowlist — that would silently skip newly
+  # added file types instead of testing them. The list is repeated verbatim for both
+  # triggers because GitHub Actions does not support YAML anchors; keep the two in sync.
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - '.serena/memories/**'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitattributes'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - '.serena/memories/**'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitattributes'
 
 jobs:
   backend:

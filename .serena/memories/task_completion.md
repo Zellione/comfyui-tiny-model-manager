@@ -56,6 +56,27 @@ Long functions usually trip S3776 because a nested loop is doing two jobs. Split
 responsibility (per-item conversion helper, per-candidate match helper) rather than
 shuffling conditionals around.
 
+## Doc-only changes skip CI entirely (#163)
+
+`.github/workflows/ci.yml` carries a `paths-ignore` list on **both** the `push` and
+`pull_request` triggers: `**/*.md`, `.serena/memories/**`, `docs/**`, `LICENSE`,
+`.gitattributes`. The list is duplicated because GitHub Actions does not support YAML
+anchors — keep the two copies in sync.
+
+`paths-ignore` is exclusive: a run is skipped only when *every* changed path matches. A PR
+touching a `.md` file **and** a `.py` file still runs the whole matrix. Never convert this
+to a `paths:` allowlist — that would silently skip newly added file types.
+
+Consequences for the project workflow:
+- **A doc-only PR publishes no Sonar analysis, so there is no quality gate.**
+  `get_project_quality_gate_status` 404s for that PR. That is expected, not a failure —
+  do not poll waiting for a gate that will never appear (CLAUDE.md feature step 11).
+- Safe today because `main` has **no** `required_status_checks` (verified via
+  `gh api repos/Zellione/comfyui-tiny-model-manager/branches/main/protection` — the key is
+  absent; only reviews / linear-history rules are set). If required checks are ever turned
+  on, a skipped workflow reports no status at all and the PR would stay pending forever;
+  the workaround is a companion job that reports success for the ignored paths.
+
 ## CI hangs
 
 `gh run view <id> --log | tail` — the last test file printed is the one that hung; pytest
