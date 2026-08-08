@@ -3,22 +3,22 @@
 <div class="workflows-tabs">
   <button
     class="workflows-tab"
-    [class.workflows-tab--active]="activeTab() === 'browse'"
-    (click)="activeTab.set('browse')"
-  >
-    {{ 'workflows.tabs.browse' | translate }}
-  </button>
-  <button
-    class="workflows-tab"
     [class.workflows-tab--active]="activeTab() === 'installed'"
     (click)="activeTab.set('installed')"
   >
     {{ 'workflows.tabs.installed' | translate }}
   </button>
+  <button
+    class="workflows-tab"
+    [class.workflows-tab--active]="activeTab() === 'browse'"
+    (click)="activeTab.set('browse')"
+  >
+    {{ 'workflows.tabs.browse' | translate }}
+  </button>
 </div>
 
-@if (activeTab() === 'browse') {
-  <app-workflows-browse />
-} @else {
+@if (activeTab() === 'installed') {
   <app-workflows-installed />
+} @else if (activeTab() === 'browse') {
+  <app-workflows-browse />
 }
