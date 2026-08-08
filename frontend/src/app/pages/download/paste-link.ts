@@ -309,8 +309,9 @@ export class PasteLink {
     const type = this.linkModelType();
     const baseModel = this.linkBaseModel();
     if (kind.type === 'hf-resolve') {
+      // `downloadUrl`, not the pasted URL: a `/blob/` link serves the HTML file viewer.
       this.installed.enqueue(
-        this.pasteUrl(),
+        kind.downloadUrl,
         type,
         kind.filename,
         'huggingface',

@@ -23,6 +23,13 @@ _HF_REPO_ID_RE = re.compile(
     r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}(/[A-Za-z0-9][A-Za-z0-9._-]{0,127})?$"
 )
 
+# A search query that is unambiguously a full repo id (owner *and* name). Unlike
+# _HF_REPO_ID_RE the owner half is mandatory, so a plain keyword never triggers the
+# extra exact-id request in search().
+_EXACT_REPO_ID_RE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+)
+
 
 def validate_repo_id(repo_id: str) -> str:
     """Validate a HuggingFace repo ID and return it URL-encoded for safe use in URL paths."""
@@ -125,6 +132,27 @@ class HuggingFaceProvider(ModelProvider):
             return {"Authorization": f"Bearer {token}"}
         return {}
 
+    async def _lookup_exact_repo(self, repo_id: str) -> dict | None:
+        """Fetch a single repo by its exact id; None when it is absent or unreachable.
+
+        The /models list endpoint is filtered by ``pipeline_tag``, so a repo whose pipeline
+        differs from the selected model type never shows up there even when the user pasted
+        its full id. This second, unfiltered lookup is what makes an exact id always findable.
+        A provider hiccup must never fail an otherwise-good search, so every error maps to None.
+        """
+        try:
+            safe_id = validate_repo_id(repo_id)
+        except ValueError:
+            return None
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{_API}/models/{safe_id}", headers=self.auth_headers())
+                if resp.status_code != 200:
+                    return None
+                return resp.json()
+        except httpx.HTTPError:
+            return None
+
     async def search(
         self,
         query: str,
@@ -142,9 +170,19 @@ class HuggingFaceProvider(ModelProvider):
             resp = await client.get(f"{_API}/models", params=params, headers=self.auth_headers())
             resp.raise_for_status()
             data = resp.json()
+        # Read before the exact hit is prepended: an extra item would make the page
+        # limit + 1 long and silently disable the "Load more" button.
+        has_more = len(data) == limit
+        repo_id = query.strip()
+        if p == 0 and _EXACT_REPO_ID_RE.fullmatch(repo_id):
+            exact = await self._lookup_exact_repo(repo_id)
+            if exact:
+                exact_id = exact.get("id") or exact.get("modelId")
+                data = [m for m in data if (m.get("id") or m.get("modelId")) != exact_id]
+                data.insert(0, exact)
         for model in data:
             _enrich_hf_model(model)
-        return {"items": data, "hasMore": len(data) == limit, "nextPage": p + 1}
+        return {"items": data, "hasMore": has_more, "nextPage": p + 1}
 
     async def get_model_files(self, repo_id: str) -> list[dict]:
         """Returns model files (.safetensors etc.) from a HuggingFace repo."""
