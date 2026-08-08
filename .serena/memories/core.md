@@ -15,19 +15,20 @@ py/                    # Python backend
     workflow_repo.py   # F-129 persistence for workflow_entries + workflows
     keyword_repo.py    # trigger-word persistence
   routes/              # aiohttp route handlers: catalog, download, metadata, models, settings, workflow (node insert), workflows (workflow store), images (F-130), notifications, static, tags, _helpers
-  services/            # business logic: downloader, metadata_fetcher, model_paths, reconciler, reorganizer, url_guard, backend_notifier, disk_scanner, auto_migrator, workflow_store, image_recreate
+  services/            # business logic: downloader, metadata_fetcher, model_paths, reconciler, reorganizer, url_guard, backend_notifier, disk_scanner, auto_migrator, workflow_store, image_recreate, media_upload (F-159)
     providers/         # civitai_provider, huggingface_provider (both implement base.py)
   nodes/               # ComfyUI nodes: lora_loader_with_triggers, checkpoint_loader_with_triggers, vae_loader, controlnet_loader, embedding_helper, upscale_model_loader
 frontend/              # Angular SPA (builds to ../web/)
   src/app/
     pages/             # download, catalog-detail, model-detail, models, settings, workflows, images
-    components/        # shared UI: toast, media-gallery, edit-meta-form, text-diff-field, tag-autocomplete-input, …
+    components/        # shared UI: toast, media-gallery, edit-meta-form, text-diff-field, tag-autocomplete-input, media-upload-zone (F-159)
     services/          # Angular services: civitai, huggingface, download, model, keywords, settings, notification, installed-files, workflow (node insert), workflow-store (F-129), image (F-130), tags
+    utils/             # link-detector.ts, mime detection, etc.
 js/                    # ComfyUI JS extension; whole folder copied into web/ by ng build
   extension.js         # registerExtension wiring: settings, topbar button, workflow-insert poll
   workflow-insert.js   # dependency-injected insert logic (no ComfyUI imports) — unit-testable;
                        # spec lives at frontend/src/comfy-extension/workflow-insert.spec.ts
-tests/                 # pytest integration + unit tests (includes test_routes_tags.py)
+tests/                 # pytest integration + unit tests (includes test_routes_tags.py, test_media_upload.py, test_media_cleanup.py)
 conftest.py            # root conftest: installs ComfyUI stubs (server, folder_paths, comfy.sd, comfy.utils) at import time
 tests/conftest.py      # ext_dir fixture: tmp_path + init_db; route tests use aiohttp_client + ext_dir
 web/                   # compiled frontend output (git-ignored; each worktree has its own)
@@ -190,6 +191,43 @@ civitai_version_id, civitai_model_id, model_type, thumbnail}`.
   (`js/extension.js`) only. (No longer a blanket rule: F-144's `missing_models_integration`
   is deliberately surfaced in *both* the ComfyUI panel and the Angular Settings page, kept in
   sync over `BroadcastChannel('tmm')`. The Angular page is therefore no longer keyword-only.)
+
+## Card-image upload (F-159)
+
+Allows users to upload custom preview images for a model or workflow entry when none exists.
+
+- **Uploads are marked by filename pattern, not a DB column**: `upload-<12-hex-digits>.<ext>` (e.g.
+  `upload-a1b2c3d4e5f6.jpg`). This is essential for catalog entries: they have no `model_media`
+  row per file (the directory listing is the source of truth), so the `uploaded` flag must be
+  computed from the filename alone. `py/services/media_upload.py` owns the `UPLOAD_NAME_RE` regex
+  and every upload/delete route sanitises filenames through it.
+- **`media_upload` service has constrained imports** to avoid circular dependencies: top-level
+  imports are standard library only. `media_cleanup` and `model_paths` are imported inside
+  functions because `media_cleanup` imports `model_repo` and the route layer imports `media_upload`.
+  A top-level `import media_cleanup` in `media_upload` would close the cycle: routes → upload →
+  cleanup → repo, routes → repo.
+- **`uploaded` flag is computed in the route layer, never in model_repo**: Routes `_meta_response_data`
+  (models detail) and `_list_catalog_media` (catalog detail) check each file's basename against
+  `UPLOAD_NAME_RE`. This preserves the `db → services → routes` layering: the repo does not know
+  about uploads, so its other serialisations (Models-page card grid, which has no delete affordance)
+  never include the flag. Annotating in the repo would invert that.
+- **Catalog media delete by basename**: `_list_catalog_media` iterates the directory and numbers
+  items by enumeration order. If it assigned `id` from `model_id` + array index, every file add/remove
+  would renumber all subsequent items, breaking delete requests that arrived while the list was stale.
+  Instead, deletes consume `basename` and the route resolves it through `contained_path` to prevent
+  traversal.
+- **Catalog upload fills `thumbnail_url` when empty**: When a catalog entry's `thumbnail_url` is blank,
+  the card would show no image even if media files exist (because `_fill_thumbnail` only joins through
+  the installed model's `model_media` rows). Uploading an image then fills that field. The same rule
+  applies to model updates: if there is no installed copy, we have no `model_id` to link media to, so
+  `_fill_thumbnail` would skip the catalog entry. For this reason, routes always check the
+  `catalog_entries.thumbnail_url` field if it is set, before falling through to joined model media.
+- **Hash assignment on first upload**: Both `_compute_media_hash` (models) and `catalog_media_hash`
+  (catalog) are deterministic: `sha1(f"{model_id}") if model_id else sha1(f"catalog:{source_id}:{entry_id}")`.
+  When a model or catalog entry is first uploaded to, the routes check if it has a `media_hash`; if not,
+  they compute and assign one (via `update_model_media_hash` / `_set_catalog_media_hash`). On re-upload,
+  the hash is reused. This ensures the media directory persists across multiple uploads for the same
+  model/entry.
 
 ## Workflow store (F-129)
 
