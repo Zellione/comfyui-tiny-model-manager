@@ -62,10 +62,17 @@ Pure and dependency-light, so it is cheap to unit test.
 never trusted: the stored extension is derived from the sniff, and a part whose bytes match none of
 the four signatures is rejected.
 
-`store_upload` streams the part in chunks with a running byte count and aborts past
-`MAX_UPLOAD_BYTES` (removing the partial file) rather than buffering the whole body in memory. The
-target directory is resolved through the existing `media_cleanup.media_subdir()` traversal guard —
-nothing is ever written to a path built from request data.
+`store_upload` reads the part in chunks into a bounded buffer, aborting the moment the running byte
+count passes `MAX_UPLOAD_BYTES` — so an oversized upload never allocates more than the cap and
+nothing is written to disk. It only touches the filesystem once the bytes are complete and the type
+has been sniffed, so there is no partial file to clean up. The target directory is resolved through
+the existing `media_cleanup.media_subdir()` traversal guard — nothing is ever written to a path
+built from request data.
+
+`media_cleanup` and `model_paths` are imported **inside** the two functions that need them, not at
+module top. `media_cleanup` imports `model_repo`, and `_meta_response_data`'s annotation makes the
+route layer import `media_upload`; keeping the module's top-level imports to the standard library
+keeps it a leaf and rules out an import cycle.
 
 `delete_upload` rejects any `name` that does not match `UPLOAD_NAME_RE` before touching the
 filesystem, then resolves through `model_paths.contained_path`. This mirrors the "nothing is deleted
@@ -109,11 +116,16 @@ parts; 413 for a part over `MAX_UPLOAD_BYTES`; 404 when the model or catalog ent
 
 ### Gallery serialisation
 
-Every gallery item gains an `uploaded: bool` field, computed with `media_upload.is_uploaded`:
+Every gallery item gains an `uploaded: bool` field, computed with `media_upload.is_uploaded`, in the
+**route** layer:
 
 - `py/routes/catalog.py::_list_catalog_media`
-- `py/db/model_repo.py` — the two places that serialise `model_media` rows: `_hydrate_model` and the
-  bulk `_group_by_model_id` path used by the list endpoint
+- `py/routes/metadata.py::_meta_response_data` — the single place `model_media` rows reach the
+  Model Detail page (shared by the get, refetch and refetch-apply routes)
+
+`py/db/model_repo.py` is deliberately left alone. It serialises media rows in two other places, but
+those feed the Models-page card grid, which only picks the first image for a thumbnail and has no
+upload control. Annotating there would also force a `db → services` import, inverting the layering.
 
 ## Frontend
 
