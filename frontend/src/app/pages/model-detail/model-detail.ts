@@ -23,7 +23,7 @@ import { formatBytes } from '../../utils/format';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
 import { EditMetaForm } from '../../components/edit-meta-form/edit-meta-form';
 import { RefetchReviewModal } from '../../components/refetch-review-modal/refetch-review-modal';
-import { MediaGallery } from '../../components/media-gallery/media-gallery';
+import { MediaGallery, GalleryMedia } from '../../components/media-gallery/media-gallery';
 import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover';
 
 @Component({
@@ -70,6 +70,14 @@ export class ModelDetail implements OnInit {
   refetchPreviewData = signal<RefetchPreviewResponse | null>(null);
   showRefetchModal = signal(false);
   refetchNoChanges = signal(false);
+  readonly uploadBusy = signal(false);
+  readonly uploadError = signal('');
+
+  /**
+   * Uploading is offered while nothing but the user's own images is on show — an empty
+   * gallery included. A fetched preview means the model already has artwork.
+   */
+  readonly canUpload = computed(() => (this.meta()?.media ?? []).every((m) => m.uploaded));
 
   readonly displayTitle = computed(() => this.catalogEntry()?.display_name || this.modelBasename);
   readonly showLinkSourcePanel = computed(() => !this.meta()?.source_url);
@@ -487,6 +495,41 @@ export class ModelDetail implements OnInit {
         this.translate.instant('model_detail.notify.trigger_copy_failed'),
       );
     }
+  }
+
+  uploadImages(files: File[]) {
+    if (!files.length) return;
+    this.uploadBusy.set(true);
+    this.uploadError.set('');
+    this.modelService
+      .uploadModelMedia(this.modelType, this.modelPath, files)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (media) => {
+          const current = this.meta();
+          if (current) this.meta.set({ ...current, media });
+          this.uploadBusy.set(false);
+        },
+        error: () => {
+          this.uploadError.set(this.translate.instant('media_gallery.upload_failed'));
+          this.uploadBusy.set(false);
+        },
+      });
+  }
+
+  removeImage(item: GalleryMedia) {
+    this.modelService
+      .deleteModelMedia(this.modelType, this.modelPath, item.mediaId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (media) => {
+          const current = this.meta();
+          if (current) this.meta.set({ ...current, media });
+        },
+        error: () => {
+          this.uploadError.set(this.translate.instant('media_gallery.upload_failed'));
+        },
+      });
   }
 
   formatBytes = formatBytes;

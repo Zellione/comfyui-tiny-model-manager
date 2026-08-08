@@ -29,6 +29,8 @@ export interface MediaItem {
   id: number;
   media_type: string;
   local_path: string;
+  /** True when the file is a user upload (`upload-<hex>.<ext>`), so it can be removed. */
+  uploaded: boolean;
 }
 
 /** Result of a metadata re-fetch: either fresh metadata, or a signal that the stale
@@ -280,6 +282,48 @@ export class ModelService {
     meta: { description?: string; trigger_words?: string[]; tags?: string[]; base_model?: string },
   ): Observable<void> {
     return this.http.put<void>(`${API}/catalog/${platform}/${pageId}/metadata`, meta);
+  }
+
+  private mediaForm(files: File[]): FormData {
+    const form = new FormData();
+    for (const file of files) form.append('files', file, file.name);
+    return form;
+  }
+
+  uploadModelMedia(modelType: string, path: string, files: File[]): Observable<MediaItem[]> {
+    return this.http
+      .post<{
+        success: boolean;
+        media: MediaItem[];
+      }>(`${API}/models/${modelType}/${path}/media`, this.mediaForm(files))
+      .pipe(map((r) => r.media));
+  }
+
+  deleteModelMedia(modelType: string, path: string, mediaId: number): Observable<MediaItem[]> {
+    return this.http
+      .delete<{
+        success: boolean;
+        media: MediaItem[];
+      }>(`${API}/models/${modelType}/${path}/media/${mediaId}`)
+      .pipe(map((r) => r.media));
+  }
+
+  uploadCatalogMedia(platform: string, pageId: string, files: File[]): Observable<MediaItem[]> {
+    return this.http
+      .post<{
+        success: boolean;
+        media: MediaItem[];
+      }>(`${API}/catalog/${platform}/${pageId}/media`, this.mediaForm(files))
+      .pipe(map((r) => r.media));
+  }
+
+  deleteCatalogMedia(platform: string, pageId: string, name: string): Observable<MediaItem[]> {
+    return this.http
+      .delete<{
+        success: boolean;
+        media: MediaItem[];
+      }>(`${API}/catalog/${platform}/${pageId}/media/${name}`)
+      .pipe(map((r) => r.media));
   }
 
   linkSource(modelType: string, path: string, sourceUrl: string): Observable<void> {

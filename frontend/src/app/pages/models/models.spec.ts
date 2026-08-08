@@ -694,7 +694,7 @@ describe('Models component', () => {
         description: '',
         trigger_words: [],
         tags: [],
-        media: [{ id: 1, media_type: 'image', local_path: '/m/preview.jpg' }],
+        media: [{ id: 1, media_type: 'image', local_path: '/m/preview.jpg', uploaded: false }],
         base_model: '',
         source_platform: '',
         source_url: '',

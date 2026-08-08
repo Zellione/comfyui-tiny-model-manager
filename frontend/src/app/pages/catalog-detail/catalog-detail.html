@@ -77,13 +77,27 @@
       @if (!editMode()) {
         <!-- Gallery (catalog-owned media; survives uninstall) -->
         @if (displayMedia().length > 0) {
-          <app-media-gallery [media]="displayMedia()" />
+          <app-media-gallery
+            [media]="displayMedia()"
+            [uploadable]="canUpload()"
+            [uploadBusy]="uploadBusy()"
+            [uploadError]="uploadError()"
+            (filesSelected)="uploadImages($event)"
+            (removeRequested)="removeImage($event)"
+          />
         } @else if (entry()!.thumbnail_url) {
           <div class="catalog-thumb-wrap">
             <img [src]="mediaUrl(entry()!.thumbnail_url)" alt="thumbnail" class="catalog-thumb" />
           </div>
         } @else {
-          <app-media-gallery [media]="[]" />
+          <app-media-gallery
+            [media]="[]"
+            [uploadable]="true"
+            [uploadBusy]="uploadBusy()"
+            [uploadError]="uploadError()"
+            (filesSelected)="uploadImages($event)"
+            (removeRequested)="removeImage($event)"
+          />
         }
 
         <!-- Tags -->

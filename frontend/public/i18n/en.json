@@ -424,7 +424,15 @@
   },
   "media_gallery": {
     "no_preview": "NO PREVIEW",
-    "close_preview": "Close preview"
+    "close_preview": "Close preview",
+    "upload_hint": "DROP AN IMAGE HERE",
+    "upload_browse": "or click to browse",
+    "uploading": "UPLOADING…",
+    "remove_image": "Remove image",
+    "upload_error_type": "Only JPEG, PNG, WebP and GIF images are accepted.",
+    "upload_error_size": "Images must be 10 MB or smaller.",
+    "upload_error_count": "At most 10 images at a time.",
+    "upload_failed": "Upload failed."
   },
   "workflows": {
     "title": "Workflows",

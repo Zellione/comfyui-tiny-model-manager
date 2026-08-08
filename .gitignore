@@ -13,3 +13,5 @@ coverage.xml
 .playwright-mcp/
 playwright-report/
 test-results/
+# Subagent-driven-development scratch workspace (ledgers, briefs, review packages)
+.superpowers/

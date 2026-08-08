@@ -1,4 +1,13 @@
-import { Component, HostListener, computed, input, linkedSignal, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  HostListener,
+  computed,
+  input,
+  linkedSignal,
+  output,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MediaItem } from '../../services/model';
@@ -9,6 +18,7 @@ import {
   showPosterOnLoad,
   videoPosterUrl as buildVideoPosterUrl,
 } from '../../utils/media-events';
+import { MediaUploadZone } from '../media-upload-zone/media-upload-zone';
 
 /** A gallery entry, normalised from either a local MediaItem or a remote URL. */
 export interface GalleryMedia {
@@ -16,6 +26,12 @@ export interface GalleryMedia {
   isVideo: boolean;
   /** Poster image for videos; null when none can be derived (remote URLs). */
   poster: string | null;
+  /** True for user uploads, which are the only removable items. */
+  uploaded: boolean;
+  /** `model_media` row id; 0 for remote URLs and for catalog items, which delete by name. */
+  mediaId: number;
+  /** Stored path; the parent takes its basename when deleting catalog media. */
+  localPath: string;
 }
 
 /**
@@ -30,9 +46,10 @@ export interface GalleryMedia {
  */
 @Component({
   selector: 'app-media-gallery',
-  imports: [CommonModule, TranslatePipe],
+  imports: [CommonModule, TranslatePipe, MediaUploadZone],
   templateUrl: './media-gallery.html',
   styleUrl: './media-gallery.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MediaGallery {
   /** Locally-stored media records (model-detail, catalog-detail). */
@@ -52,6 +69,9 @@ export class MediaGallery {
         src: mediaUrl(m.local_path),
         isVideo: m.media_type === 'video',
         poster: m.media_type === 'video' ? buildVideoPosterUrl(m.local_path) : null,
+        uploaded: m.uploaded === true,
+        mediaId: m.id,
+        localPath: m.local_path,
       }));
     }
     return this.urls().map((url) => ({
@@ -59,6 +79,10 @@ export class MediaGallery {
       isVideo: isVideo(url),
       // Remote videos have no poster route — the ▶ fallback stands alone.
       poster: null,
+      // Remote previews are not ours to remove or replace.
+      uploaded: false,
+      mediaId: 0,
+      localPath: '',
     }));
   });
 
@@ -80,6 +104,25 @@ export class MediaGallery {
   });
 
   readonly lightboxOpen = signal(false);
+
+  /** Set by the page when this gallery may accept uploads. */
+  uploadable = input(false);
+  /** Forwarded to the zone while the page's upload request is in flight. */
+  uploadBusy = input(false);
+  /** Server-side error message from the page. */
+  uploadError = input('');
+
+  readonly filesSelected = output<File[]>();
+  readonly removeRequested = output<GalleryMedia>();
+
+  /**
+   * The zone appears while nothing but the user's own uploads is on show — an empty
+   * gallery counts, which is the "model has no images" case from the issue. A single
+   * fetched preview hides it again.
+   */
+  readonly showUploadZone = computed(
+    () => this.uploadable() && this.items().every((i) => i.uploaded),
+  );
 
   readonly activeMedia = computed(() => {
     const items = this.items();
@@ -108,5 +151,13 @@ export class MediaGallery {
   @HostListener('document:keydown.escape')
   onEscape() {
     if (this.lightboxOpen()) this.lightboxOpen.set(false);
+  }
+
+  onFilesSelected(files: File[]) {
+    this.filesSelected.emit(files);
+  }
+
+  requestRemove(item: GalleryMedia) {
+    this.removeRequested.emit(item);
   }
 }

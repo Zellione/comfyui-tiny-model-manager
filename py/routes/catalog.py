@@ -7,7 +7,7 @@ from aiohttp import web
 
 from .. import config as cfg
 from ..db import model_repo
-from ..services import model_paths
+from ..services import media_upload, model_paths
 from ._helpers import err, json_route, ok
 
 _MEDIA_VIDEO_EXTS = {"mp4", "webm", "mov"}
@@ -35,7 +35,14 @@ def _list_catalog_media(media_hash: str) -> list[dict]:
             continue
         ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
         media_type = "video" if ext in _MEDIA_VIDEO_EXTS else "image"
-        items.append({"id": i, "media_type": media_type, "local_path": full})
+        items.append(
+            {
+                "id": i,
+                "media_type": media_type,
+                "local_path": full,
+                "uploaded": media_upload.is_uploaded(full),
+            }
+        )
     return items
 
 
@@ -212,6 +219,60 @@ async def _handle_update_catalog_metadata(platform: str, page_id: str, body: dic
     return ok()
 
 
+async def _ensure_catalog_media_hash(platform: str, page_id: str, entry: dict) -> str:
+    """Return the entry's media_hash, assigning the deterministic one when it is empty."""
+    from ..services.metadata_fetcher import catalog_media_hash
+
+    existing = entry.get("media_hash") or ""
+    if existing:
+        return existing
+    media_hash = catalog_media_hash(platform, page_id)
+    await model_repo.set_catalog_media_fields(platform, page_id, media_hash=media_hash)
+    return media_hash
+
+
+async def _handle_upload_catalog_media(request, platform: str, page_id: str) -> web.Response:
+    entry = await model_repo.get_catalog_entry(platform, page_id)
+    if not entry:
+        return err(_CATALOG_NOT_FOUND, status=404)
+    media_hash = await _ensure_catalog_media_hash(platform, page_id, entry)
+
+    stored: list[str] = []
+    try:
+        reader = await request.multipart()
+        async for part in reader:
+            if part.name != "files":
+                continue
+            if len(stored) >= media_upload.MAX_FILES:
+                raise media_upload.TooManyFiles()
+            stored.append(await media_upload.store_upload(media_hash, part))
+    except media_upload.UploadError as exc:
+        # No media rows on this side — the gallery is a directory listing — so undoing
+        # the files is the whole rollback. The model side also drops its rows.
+        media_upload.discard_uploads(media_hash, stored)
+        return err(exc.client_message, status=exc.client_status)
+
+    if not stored:
+        return err("No image supplied", status=400)
+    # _fill_thumbnail only joins through model_media, so a catalog entry with no installed
+    # model would keep a blank card without this.
+    if not entry.get("thumbnail_url"):
+        await model_repo.set_catalog_media_fields(platform, page_id, thumbnail_url=stored[0])
+    return ok(media=_list_catalog_media(media_hash))
+
+
+async def _handle_delete_catalog_media(platform: str, page_id: str, name: str) -> web.Response:
+    entry = await model_repo.get_catalog_entry(platform, page_id)
+    if not entry:
+        return err(_CATALOG_NOT_FOUND, status=404)
+    media_hash = entry.get("media_hash") or ""
+    if not media_upload.delete_upload(media_hash, name):
+        return err("Only uploaded images can be removed", status=400)
+    if os.path.basename(entry.get("thumbnail_url") or "") == name:
+        await model_repo.set_catalog_media_fields(platform, page_id, thumbnail_url="")
+    return ok(media=_list_catalog_media(media_hash))
+
+
 def add_catalog_routes(routes):
 
     @routes.get("/tiny-model-manager/api/catalog")
@@ -250,6 +311,22 @@ def add_catalog_routes(routes):
         if entry is None:
             return err("Could not fetch metadata from source", status=502)
         return ok(_annotate_catalog_detail(entry))
+
+    @routes.post("/tiny-model-manager/api/catalog/{platform}/{page_id:.*}/media")
+    @json_route
+    async def upload_catalog_media(request):
+        return await _handle_upload_catalog_media(
+            request, request.match_info["platform"], request.match_info["page_id"]
+        )
+
+    @routes.delete("/tiny-model-manager/api/catalog/{platform}/{page_id:.*}/media/{name}")
+    @json_route
+    async def delete_catalog_media(request):
+        return await _handle_delete_catalog_media(
+            request.match_info["platform"],
+            request.match_info["page_id"],
+            request.match_info["name"],
+        )
 
     @routes.delete("/tiny-model-manager/api/catalog/{platform}/{page_id:.*}")
     @json_route

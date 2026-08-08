@@ -10,6 +10,7 @@ import {
   RepoFile,
   CatalogEntryDetail,
   RefetchPreviewResponse,
+  MediaItem,
 } from '../../services/model';
 import { DownloadService } from '../../services/download';
 import { WorkflowService } from '../../services/workflow';
@@ -98,6 +99,8 @@ const mockModelService = {
   getRepoFiles: vi.fn(() => of([] as RepoFile[])),
   getCatalogEntry: vi.fn(() => of(null)),
   linkSource: vi.fn(() => of(undefined)),
+  uploadModelMedia: vi.fn(() => of([] as MediaItem[])),
+  deleteModelMedia: vi.fn(() => of([] as MediaItem[])),
 };
 
 const mockDownloadService = {
@@ -855,6 +858,81 @@ describe('ModelDetail', () => {
       );
       component.save();
       expect(mockModelService.updateMetadata).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('image upload', () => {
+    const media = (over: Partial<MediaItem> = {}): MediaItem => ({
+      id: 1,
+      media_type: 'image',
+      local_path: '/m/h/0.jpg',
+      uploaded: false,
+      ...over,
+    });
+
+    it('canUpload is true when the model has no media', () => {
+      component.meta.set({ ...makeMeta(), media: [] });
+      expect(component.canUpload()).toBe(true);
+    });
+
+    it('canUpload stays true while every image is an upload', () => {
+      component.meta.set({
+        ...makeMeta(),
+        media: [media({ local_path: '/m/h/upload-0123456789ab.png', uploaded: true })],
+      });
+      expect(component.canUpload()).toBe(true);
+    });
+
+    it('canUpload is false once a fetched image exists', () => {
+      component.meta.set({ ...makeMeta(), media: [media()] });
+      expect(component.canUpload()).toBe(false);
+    });
+
+    it('uploadImages replaces the media from the response', () => {
+      const stored = media({ id: 9, local_path: '/m/h/upload-0123456789ab.png', uploaded: true });
+      mockModelService.uploadModelMedia.mockReturnValue(of([stored]));
+      component.meta.set({ ...makeMeta(), media: [] });
+
+      component.uploadImages([new File(['a'], 'a.png', { type: 'image/png' })]);
+
+      expect(mockModelService.uploadModelMedia).toHaveBeenCalled();
+      expect(component.meta()!.media).toEqual([stored]);
+      expect(component.uploadBusy()).toBe(false);
+      expect(component.uploadError()).toBe('');
+    });
+
+    it('uploadImages surfaces a failure and clears busy', () => {
+      mockModelService.uploadModelMedia.mockReturnValue(throwError(() => new Error('boom')));
+      component.meta.set({ ...makeMeta(), media: [] });
+
+      component.uploadImages([new File(['a'], 'a.png', { type: 'image/png' })]);
+
+      expect(component.uploadError()).toBe('Upload failed.');
+      expect(component.uploadBusy()).toBe(false);
+    });
+
+    it('removeImage deletes by media id and replaces the media', () => {
+      mockModelService.deleteModelMedia.mockReturnValue(of([]));
+      component.meta.set({
+        ...makeMeta(),
+        media: [media({ id: 9, local_path: '/m/h/upload-0123456789ab.png', uploaded: true })],
+      });
+
+      component.removeImage({
+        src: '',
+        isVideo: false,
+        poster: null,
+        uploaded: true,
+        mediaId: 9,
+        localPath: '/m/h/upload-0123456789ab.png',
+      });
+
+      expect(mockModelService.deleteModelMedia).toHaveBeenCalledWith(
+        component.modelType,
+        component.modelPath,
+        9,
+      );
+      expect(component.meta()!.media).toEqual([]);
     });
   });
 });

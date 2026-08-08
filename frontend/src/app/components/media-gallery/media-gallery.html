@@ -23,43 +23,67 @@
     @if (items().length > 1) {
       <div class="gallery-thumbs">
         @for (thumb of items(); track thumb.src; let i = $index) {
-          <button
-            type="button"
-            class="gallery-thumb"
-            [class.active]="i === galleryIdx()"
-            (click)="galleryIdx.set(i)"
-          >
-            @if (!thumb.isVideo) {
-              <img
-                [src]="thumb.src"
-                alt=""
-                style="display: none"
-                (load)="onImgLoad($event)"
-                (error)="onImgError($event)"
-              />
-            } @else {
-              <div class="gallery-thumb-video-wrap">
-                <div class="gallery-thumb-video">▶</div>
-                @if (thumb.poster) {
-                  <img
-                    [src]="thumb.poster"
-                    alt=""
-                    style="display: none"
-                    (load)="onVideoPosterLoad($event)"
-                    (error)="onImgError($event)"
-                  />
-                }
-              </div>
+          <div class="gallery-thumb-wrap">
+            <button
+              type="button"
+              class="gallery-thumb"
+              [class.active]="i === galleryIdx()"
+              (click)="galleryIdx.set(i)"
+            >
+              @if (!thumb.isVideo) {
+                <img
+                  [src]="thumb.src"
+                  alt=""
+                  style="display: none"
+                  (load)="onImgLoad($event)"
+                  (error)="onImgError($event)"
+                />
+              } @else {
+                <div class="gallery-thumb-video-wrap">
+                  <div class="gallery-thumb-video">▶</div>
+                  @if (thumb.poster) {
+                    <img
+                      [src]="thumb.poster"
+                      alt=""
+                      style="display: none"
+                      (load)="onVideoPosterLoad($event)"
+                      (error)="onImgError($event)"
+                    />
+                  }
+                </div>
+              }
+            </button>
+            @if (thumb.uploaded) {
+              <button
+                type="button"
+                class="gallery-thumb-remove"
+                [attr.aria-label]="'media_gallery.remove_image' | translate"
+                (click)="requestRemove(thumb)"
+              >
+                ✕
+              </button>
             }
-          </button>
+          </div>
         }
       </div>
     }
   </div>
 } @else {
   <div class="gallery">
-    <div class="gallery-main gallery-placeholder">{{ 'media_gallery.no_preview' | translate }}</div>
+    @if (!showUploadZone()) {
+      <div class="gallery-main gallery-placeholder">
+        {{ 'media_gallery.no_preview' | translate }}
+      </div>
+    }
   </div>
+}
+
+@if (showUploadZone()) {
+  <app-media-upload-zone
+    [busy]="uploadBusy()"
+    [error]="uploadError()"
+    (filesSelected)="onFilesSelected($event)"
+  />
 }
 
 @if (lightboxOpen() && activeMedia() && !activeMedia()!.isVideo) {

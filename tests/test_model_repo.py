@@ -686,3 +686,32 @@ async def test_get_all_media_paths_resolves_paths(ext_dir):
     await model_repo.add_media(model_id, "image", "/tmp/media/0.jpg")
 
     assert await model_repo.get_all_media_paths() == {os.path.realpath("/tmp/media/0.jpg")}
+
+
+async def test_set_catalog_media_fields_updates_only_what_is_given(ext_dir):
+    from py.db import model_repo
+
+    await model_repo.upsert_catalog_entry(
+        source_platform="civitai",
+        source_page_id="77",
+        source_page_url="https://civitai.com/models/77",
+        display_name="Seventy Seven",
+        thumbnail_url="",
+        base_model="SDXL",
+    )
+
+    assert await model_repo.set_catalog_media_fields("civitai", "77", media_hash="abc") is True
+    entry = await model_repo.get_catalog_entry("civitai", "77")
+    assert entry["media_hash"] == "abc"
+    assert entry["thumbnail_url"] == ""
+
+    await model_repo.set_catalog_media_fields("civitai", "77", thumbnail_url="/media/abc/x.png")
+    entry = await model_repo.get_catalog_entry("civitai", "77")
+    assert entry["media_hash"] == "abc"
+    assert entry["thumbnail_url"] == "/media/abc/x.png"
+
+
+async def test_set_catalog_media_fields_reports_a_missing_entry(ext_dir):
+    from py.db import model_repo
+
+    assert await model_repo.set_catalog_media_fields("civitai", "nope", media_hash="abc") is False

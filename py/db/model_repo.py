@@ -702,6 +702,34 @@ async def get_catalog_entry(source_platform: str, source_page_id: str) -> dict |
         return entry
 
 
+async def set_catalog_media_fields(
+    source_platform: str,
+    source_page_id: str,
+    media_hash: str | None = None,
+    thumbnail_url: str | None = None,
+) -> bool:
+    """Update a catalog entry's media_hash and/or thumbnail_url. None leaves a field alone."""
+    assignments = []
+    params: list[str] = []
+    if media_hash is not None:
+        assignments.append("media_hash = ?")
+        params.append(media_hash)
+    if thumbnail_url is not None:
+        assignments.append("thumbnail_url = ?")
+        params.append(thumbnail_url)
+    if not assignments:
+        return False
+    params.extend([source_platform, source_page_id])
+    async with get_db() as db:
+        cursor = await db.execute(
+            f"UPDATE catalog_entries SET {', '.join(assignments)}"
+            " WHERE source_platform = ? AND source_page_id = ?",
+            params,
+        )
+        await db.commit()
+        return cursor.rowcount > 0
+
+
 async def delete_catalog_entry(source_platform: str, source_page_id: str) -> dict | None:
     """Deletes the catalog entry and returns media info needed for disk cleanup."""
     async with get_db() as db:
