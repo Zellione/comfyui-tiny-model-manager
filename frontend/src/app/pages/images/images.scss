@@ -1,5 +1,17 @@
 // Mirrors the workflows browse layout so all three search views read the same.
 
+// ── Page container ────────────────────────────────────────────────────────────
+
+// Same page-level container as the download and workflows pages. Without it the
+// host stays `display: inline` with no max-width and no gutter, so the page ran
+// edge-to-edge while every other view was centred at 1440px.
+:host {
+  display: block;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 28px 28px 100px;
+}
+
 .page-hint {
   margin: 0 0 1rem;
   font-size: 0.82rem;
@@ -300,13 +312,11 @@
   min-width: 0;
 }
 
-.detail-main-media {
-  width: 100%;
-  height: 300px;
-  object-fit: contain;
-  background: var(--bg-2);
-  border-radius: var(--radius-sm);
+// The column also carries the prompt, so the width bound goes on the gallery
+// itself rather than on the grid track.
+app-media-gallery {
   display: block;
+  max-width: 460px;
 }
 
 .detail-prompt {

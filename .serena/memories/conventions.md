@@ -304,13 +304,19 @@ a path is rare: `meta.comfy` ~11 %, A1111-style params only ~56 %, no `meta` at 
 
 ## `MediaGallery` is the app's only gallery (issue #155)
 
-`components/media-gallery` is the single gallery implementation. Four pages feed it, via two
+`components/media-gallery` is the single gallery implementation. Five pages feed it, via two
 alternative inputs that it normalises internally to `GalleryMedia { src, isVideo, poster }`:
 
 - `[media]="MediaItem[]"` — locally-stored records (`model-detail`, `catalog-detail`).
   `src = mediaUrl(local_path)`, poster derived from the media-poster route for videos.
 - `[urls]="string[]"` — remote CivitAI/HuggingFace preview URLs (`download-search`,
-  `workflows-browse`). Video detected with the `isVideo(url)` extension heuristic; `poster: null`.
+  `workflows-browse`, `images`). Video detected with the `isVideo(url)` extension heuristic;
+  `poster: null`. The `images` page has exactly one item, so no thumb strip renders.
+
+**When hunting for copies of a shared component, do not grep for its name.** The first sweep for
+#155 searched for `gallery` and missed the `images` page entirely, because it called its preview
+`detail-main-media` and had no thumb strip. Grep for the *style declarations* that characterise the
+duplicate (`height: 300px` + `object-fit: contain`, `var(--bg-2)`) instead.
 
 `media` wins when both are set. Before #155 each of these pages carried its own near-duplicate
 markup, index signal and SCSS (320px / 300px fixed-height full-width boxes, no lightbox); they
@@ -338,7 +344,22 @@ extend this component.**
   `.detail-body--no-media` when there are no images — most HuggingFace repos ship none, and a fixed
   track would otherwise leave a dead 460px gap. `workflows-browse` keeps its `1fr 420px` grid
   because that column also holds the description, and bounds the element instead
-  (`app-media-gallery { max-width: 460px }`).
+  (`app-media-gallery { max-width: 460px }`). `images` does the same (its column holds the prompt).
+
+## Every top-level page needs its own container — there is no global one (issue #155)
+
+`app.scss` gives `<main>` only a `min-height`; **no max-width or padding is applied app-wide**. Each
+routed page must constrain itself, in one of two established ways:
+
+- `:host { display: block; max-width: 1440px; margin: 0 auto; padding: 28px 28px 80px; }` —
+  `download` (80px bottom), `workflows` and `images` (100px bottom).
+- a `.page { max-width: 1440px }` wrapper element in the template — `models`, `settings`,
+  `model-detail`, `catalog-detail`.
+
+A page that defines neither renders `display: inline` with no max-width and **no gutter**, so it runs
+edge-to-edge and its heading sits flush at x=0. The `images` page shipped in that state from #130
+until #155 caught it. **When adding a routed page, copy one of the two container patterns above and
+check it against a sibling page at a wide viewport.**
 
 ## Other recurring SonarQube rules
 

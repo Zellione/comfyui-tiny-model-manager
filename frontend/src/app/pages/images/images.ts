@@ -8,6 +8,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { CivitaiImage, ImageResource, ImageService, RecreateResult } from '../../services/image';
 import { DownloadService } from '../../services/download';
 import { NotificationService } from '../../services/notification';
+import { MediaGallery } from '../../components/media-gallery/media-gallery';
 import { isVideo } from '../../utils/media';
 import { hideOnError, showOnLoad } from '../../utils/media-events';
 
@@ -29,7 +30,7 @@ const RECREATE_ERROR_KEYS: Record<string, string> = {
  */
 @Component({
   selector: 'app-images',
-  imports: [CommonModule, FormsModule, TranslatePipe],
+  imports: [CommonModule, FormsModule, MediaGallery, TranslatePipe],
   templateUrl: './images.html',
   styleUrl: './images.scss',
 })
@@ -264,6 +265,16 @@ export class Images {
   isVideoItem(image: CivitaiImage): boolean {
     return image.type === 'video' || isVideo(image.url);
   }
+
+  /**
+   * The selected image as a single-entry gallery list. A computed rather than an
+   * inline `[image.url]` literal: `app-media-gallery` takes it as a signal input,
+   * so a literal would hand it a fresh array on every change-detection cycle.
+   */
+  readonly detailMediaUrls = computed(() => {
+    const image = this.selected();
+    return image ? [image.url] : [];
+  });
 
   onImgLoad(event: Event) {
     showOnLoad(event);
