@@ -664,3 +664,18 @@ async def test_delete_catalog_media_refuses_a_name_that_is_not_an_upload(client)
     resp = await client.delete("/tiny-model-manager/api/catalog/civitai/123/media/0.jpg")
 
     assert resp.status == 400
+
+
+async def test_upload_catalog_media_rolls_back_on_invalid_second_file(client):
+    """Failed multipart upload leaves earlier parts on disk (F-159 regression test)."""
+    await _make_entry()
+
+    resp = await client.post(
+        "/tiny-model-manager/api/catalog/civitai/123/media",
+        data=_upload_form(_UPLOAD_PNG, b"<html>not an image</html>"),
+    )
+
+    assert resp.status == 400
+    # Verify nothing was stored on disk
+    detail = await client.get("/tiny-model-manager/api/catalog/civitai/123")
+    assert len((await detail.json())["data"]["media"]) == 0

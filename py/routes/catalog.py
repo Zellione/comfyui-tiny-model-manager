@@ -243,12 +243,30 @@ async def _handle_upload_catalog_media(request, platform: str, page_id: str) -> 
         if part.name != "files":
             continue
         if len(stored) >= media_upload.MAX_FILES:
+            # Rollback: delete stored files
+            for file_path in stored:
+                try:
+                    media_upload.delete_upload(media_hash, os.path.basename(file_path))
+                except Exception:
+                    pass
             return err(f"At most {media_upload.MAX_FILES} files per upload", status=400)
         try:
             stored.append(await media_upload.store_upload(media_hash, part))
         except media_upload.UploadTooLarge:
+            # Rollback: delete stored files
+            for file_path in stored:
+                try:
+                    media_upload.delete_upload(media_hash, os.path.basename(file_path))
+                except Exception:
+                    pass
             return err("Image too large", status=413)
         except media_upload.UnsupportedImage:
+            # Rollback: delete stored files
+            for file_path in stored:
+                try:
+                    media_upload.delete_upload(media_hash, os.path.basename(file_path))
+                except Exception:
+                    pass
             return err("Unsupported image type", status=400)
 
     if not stored:

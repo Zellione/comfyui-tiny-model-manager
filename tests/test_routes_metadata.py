@@ -1209,3 +1209,20 @@ async def test_metadata_marks_fetched_media_as_not_uploaded(client):
 
     media = (await resp.json())["data"]["media"]
     assert media[0]["uploaded"] is False
+
+
+async def test_upload_media_rolls_back_on_invalid_second_file(client):
+    """Failed multipart upload leaves earlier parts on disk (F-159 regression test)."""
+    from py.db import model_repo
+
+    await model_repo.register_model(filename="a.safetensors", model_type="checkpoints")
+
+    resp = await client.post(
+        "/tiny-model-manager/api/models/checkpoints/a.safetensors/media",
+        data=_upload_form(_UPLOAD_PNG, b"<html>not an image</html>"),
+    )
+
+    assert resp.status == 400
+    # Verify nothing was stored on disk
+    model = await model_repo.get_model_by_filename("a.safetensors")
+    assert len(model.get("media", [])) == 0

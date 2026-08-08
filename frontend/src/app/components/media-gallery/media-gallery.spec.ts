@@ -259,6 +259,7 @@ describe('MediaGallery', () => {
       fixture.detectChanges();
 
       expect(component.showUploadZone()).toBe(true);
+      expect(fixture.nativeElement.querySelector('app-media-upload-zone')).not.toBeNull();
     });
 
     it('hides the upload zone once a fetched image is present', () => {
@@ -270,6 +271,7 @@ describe('MediaGallery', () => {
       fixture.detectChanges();
 
       expect(component.showUploadZone()).toBe(false);
+      expect(fixture.nativeElement.querySelector('app-media-upload-zone')).toBeNull();
     });
 
     it('never shows the upload zone for remote urls', () => {

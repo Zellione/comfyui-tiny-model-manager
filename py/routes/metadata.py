@@ -448,20 +448,57 @@ async def _upload_model_media(request):
         return err("Model not found", status=404)
     media_hash = await _ensure_model_media_hash(meta)
 
+    stored_files: list[str] = []
+    stored_media_ids: list[int] = []
     stored = 0
     reader = await request.multipart()
     async for part in reader:
         if part.name != "files":
             continue
         if stored >= media_upload.MAX_FILES:
+            # Rollback: delete stored files and media rows
+            for file_path in stored_files:
+                try:
+                    media_upload.delete_upload(media_hash, os.path.basename(file_path))
+                except Exception:
+                    pass
+            for media_id in stored_media_ids:
+                try:
+                    await model_repo.delete_media_row(media_id)
+                except Exception:
+                    pass
             return err(f"At most {media_upload.MAX_FILES} files per upload", status=400)
         try:
             dest = await media_upload.store_upload(media_hash, part)
         except media_upload.UploadTooLarge:
+            # Rollback: delete stored files and media rows
+            for file_path in stored_files:
+                try:
+                    media_upload.delete_upload(media_hash, os.path.basename(file_path))
+                except Exception:
+                    pass
+            for media_id in stored_media_ids:
+                try:
+                    await model_repo.delete_media_row(media_id)
+                except Exception:
+                    pass
             return err("Image too large", status=413)
         except media_upload.UnsupportedImage:
+            # Rollback: delete stored files and media rows
+            for file_path in stored_files:
+                try:
+                    media_upload.delete_upload(media_hash, os.path.basename(file_path))
+                except Exception:
+                    pass
+            for media_id in stored_media_ids:
+                try:
+                    await model_repo.delete_media_row(media_id)
+                except Exception:
+                    pass
             return err("Unsupported image type", status=400)
-        await model_repo.add_media(meta["id"], "image", dest)
+        stored_files.append(dest)
+        media_id = await model_repo.add_media(meta["id"], "image", dest)
+        stored_media_ids.append(media_id)
         stored += 1
 
     if not stored:
