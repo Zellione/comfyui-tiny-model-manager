@@ -10,10 +10,17 @@ manually and re-checks each ``Location`` before issuing the next request, so a
 trusted host cannot bounce a fetch onto an internal address.
 
 Both providers do redirect their downloads, and both land inside the allowlist
-(``civitai.com`` → ``b2.civitai.com``; ``huggingface.co`` → ``us.aws.cdn.hf.co``).
+(``huggingface.co`` → ``us.aws.cdn.hf.co``; ``civitai.com`` → either
+``b2.civitai.com`` or, since CivitAI began moving delivery off Backblaze B2,
+``civitai-delivery-worker-prod.<account-id>.r2.cloudflarestorage.com``). That
+migration is partial, so which host a CivitAI download lands on depends on the
+individual file.
+
 If a provider ever moves its CDN to a host outside these suffixes, downloads will
 fail with ``RedirectNotAllowed`` naming the blocked host — add the suffix here
-rather than relaxing the per-hop check.
+rather than relaxing the per-hop check, and keep it as narrow as the new host
+allows (see the R2 entry below for a third-party CDN scoped to the provider's own
+tenant rather than to the whole CDN).
 """
 
 from contextlib import asynccontextmanager
@@ -28,6 +35,11 @@ _ALLOWED_HOST_SUFFIXES = (
     "hf.co",
     "civitai.com",
     "civitai.red",
+    # CivitAI's Cloudflare R2 delivery buckets. R2 endpoints are
+    # ``<bucket>.<account-id>.r2.cloudflarestorage.com``, so pinning the account id
+    # trusts only buckets CivitAI owns — and survives a bucket rename — whereas a bare
+    # ``r2.cloudflarestorage.com`` suffix would trust every R2 tenant on the internet.
+    "5ac0637cfd0766c97916cefa3764fbdf.r2.cloudflarestorage.com",
 )
 
 _MAX_REDIRECTS = 5

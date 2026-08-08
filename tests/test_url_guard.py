@@ -17,6 +17,9 @@ class TestAllowedHosts:
             "https://image.civitai.com/xyz/width=450/img.jpeg",
             "https://civitai.red/api/download/models/123",
             "https://cdn.civitai.red/blob/abc",
+            # CivitAI's Cloudflare R2 delivery bucket, which downloads now redirect to.
+            "https://civitai-delivery-worker-prod.5ac0637cfd0766c97916cefa3764fbdf"
+            ".r2.cloudflarestorage.com/default/1/x.zip",
         ],
     )
     def test_trusted_hosts_allowed(self, url):
@@ -33,6 +36,13 @@ class TestBlockedHosts:
             "https://evil.com/payload",
             "https://huggingface.co.evil.com/x",  # suffix-spoof must not match
             "https://notciviai.red/x",
+            # R2 is trusted per CivitAI account, not wholesale: a bucket in someone
+            # else's Cloudflare account is still an untrusted host.
+            "https://civitai-delivery-worker-prod.0123456789abcdef0123456789abcdef"
+            ".r2.cloudflarestorage.com/x",
+            "https://bucket.r2.cloudflarestorage.com/x",
+            # The account id must sit on its own label, not be glued to another one.
+            "https://evil-5ac0637cfd0766c97916cefa3764fbdf.r2.cloudflarestorage.com/x",
             "file:///etc/passwd",
             "ftp://huggingface.co/x",
             "",
@@ -77,6 +87,28 @@ class TestGuardedStream:
             "https://civitai.com/api/download/models/1",
             "https://b2.civitai.com/file/x.zip",
         ]
+
+    async def test_follows_the_real_civitai_r2_hop_without_replaying_the_key(self):
+        """The post-migration chain: civitai.com -> the R2 delivery bucket.
+
+        R2 hands out a pre-signed URL, so the API key must not travel to the second hop.
+        """
+        r2 = (
+            "https://civitai-delivery-worker-prod.5ac0637cfd0766c97916cefa3764fbdf"
+            ".r2.cloudflarestorage.com/default/1/x.zip"
+        )
+        hops = {"https://civitai.com/api/download/models/1": r2}
+        seen: list[httpx.Request] = []
+        async with httpx.AsyncClient(transport=_chain_transport(hops, seen)) as client:
+            payload = await _read(
+                client, "https://civitai.com/api/download/models/1", {"Authorization": "Bearer k"}
+            )
+        assert payload == b"payload"
+        assert [str(r.url) for r in seen] == [
+            "https://civitai.com/api/download/models/1",
+            r2,
+        ]
+        assert "authorization" not in seen[1].headers
 
     async def test_follows_the_real_huggingface_cdn_hop(self):
         hops = {"https://huggingface.co/a/b/resolve/main/m.st": "https://us.aws.cdn.hf.co/xet/abc"}
