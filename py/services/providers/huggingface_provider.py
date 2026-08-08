@@ -81,7 +81,12 @@ def _build_search_params(
         filter_values = ["gguf", *extra_tags]
         params["filter"] = filter_values if len(filter_values) > 1 else filter_values[0]
     else:
-        params["pipeline_tag"] = HF_TYPE_MAP.get(model_type, "text-to-image")
+        # Only filter by pipeline when the model type actually maps to one. Types such as
+        # vae, text_encoders or controlnet have no meaningful HuggingFace pipeline, and
+        # defaulting them to text-to-image hides nearly every genuinely matching repo.
+        pipeline_tag = HF_TYPE_MAP.get(model_type)
+        if pipeline_tag:
+            params["pipeline_tag"] = pipeline_tag
         if extra_tags:
             params["filter"] = extra_tags
     return params
@@ -135,9 +140,9 @@ class HuggingFaceProvider(ModelProvider):
     async def _lookup_exact_repo(self, repo_id: str) -> dict | None:
         """Fetch a single repo by its exact id; None when it is absent or unreachable.
 
-        The /models list endpoint is filtered by ``pipeline_tag``, so a repo whose pipeline
-        differs from the selected model type never shows up there even when the user pasted
-        its full id. This second, unfiltered lookup is what makes an exact id always findable.
+        The /models list endpoint is filtered by ``pipeline_tag`` whenever the selected model
+        type maps to one, so a repo whose pipeline differs never shows up there even when the
+        user pasted its full id. This second, unfiltered lookup is what makes an exact id always findable.
         A provider hiccup must never fail an otherwise-good search, so every error maps to None.
         """
         try:

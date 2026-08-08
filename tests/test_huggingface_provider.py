@@ -323,7 +323,10 @@ class TestSearch:
         assert captured_params.get("filter") == "gguf"
         assert "pipeline_tag" not in captured_params
 
-    async def test_non_gguf_uses_pipeline_tag(self, provider, monkeypatch):
+    @pytest.mark.parametrize("model_type", ["checkpoints", "loras", "embeddings"])
+    async def test_non_gguf_uses_pipeline_tag_for_mapped_type(
+        self, provider, monkeypatch, model_type
+    ):
         captured_params: dict = {}
 
         def handler(r: httpx.Request) -> httpx.Response:
@@ -331,9 +334,53 @@ class TestSearch:
             return httpx.Response(200, json=[])
 
         _patch_client(monkeypatch, httpx.MockTransport(handler))
-        await provider.search("test", format="")
-        assert "pipeline_tag" in captured_params
+        await provider.search("test", model_type, format="")
+        assert captured_params.get("pipeline_tag") == "text-to-image"
         assert "filter" not in captured_params
+
+    @pytest.mark.parametrize(
+        "model_type",
+        ["", "vae", "text_encoders", "controlnet", "unet", "upscale_models", "diffusion_models"],
+    )
+    async def test_unmapped_type_sends_no_pipeline_tag(self, provider, monkeypatch, model_type):
+        """An unmapped type must not be narrowed to an unrelated pipeline (#161)."""
+        captured_params: dict = {}
+
+        def handler(r: httpx.Request) -> httpx.Response:
+            captured_params.update(dict(r.url.params))
+            return httpx.Response(200, json=[])
+
+        _patch_client(monkeypatch, httpx.MockTransport(handler))
+        await provider.search("test", model_type, format="")
+        assert "pipeline_tag" not in captured_params
+
+    async def test_unmapped_type_still_sends_tag_filters(self, provider, monkeypatch):
+        captured_filters: list[str] = []
+        captured_params: dict = {}
+
+        def handler(r: httpx.Request) -> httpx.Response:
+            captured_filters.extend(r.url.params.get_list("filter"))
+            captured_params.update(dict(r.url.params))
+            return httpx.Response(200, json=[])
+
+        _patch_client(monkeypatch, httpx.MockTransport(handler))
+        await provider.search("test", "text_encoders", tags=["gguf-my-repo"])
+        assert captured_filters == ["gguf-my-repo"]
+        assert "pipeline_tag" not in captured_params
+
+    async def test_gguf_filter_unaffected_by_unmapped_type(self, provider, monkeypatch):
+        captured_filters: list[str] = []
+        captured_params: dict = {}
+
+        def handler(r: httpx.Request) -> httpx.Response:
+            captured_filters.extend(r.url.params.get_list("filter"))
+            captured_params.update(dict(r.url.params))
+            return httpx.Response(200, json=[])
+
+        _patch_client(monkeypatch, httpx.MockTransport(handler))
+        await provider.search("test", "text_encoders", format=".gguf")
+        assert captured_filters == ["gguf"]
+        assert "pipeline_tag" not in captured_params
 
     async def test_has_more_true_when_full_page(self, provider, monkeypatch):
         items = [{"modelId": str(i), "id": str(i), "siblings": [], "tags": []} for i in range(20)]
@@ -358,7 +405,7 @@ class TestSearch:
             return httpx.Response(200, json=[])
 
         _patch_client(monkeypatch, httpx.MockTransport(handler))
-        await provider.search("test", tags=["lora", "anime"])
+        await provider.search("test", "loras", tags=["lora", "anime"])
         assert "lora" in captured_filters
         assert "anime" in captured_filters
         assert captured_has_pipeline_tag[0]
