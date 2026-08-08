@@ -491,12 +491,23 @@ verbatim would leak the CivitAI API key to whatever host a redirect names.
 `url_guard._redirect_headers` reproduces httpx's rule — drop `Authorization` unless the hop is
 same-origin or a plain http→https upgrade on the same host. Do not "simplify" that away.
 
-Both providers redirect and both land inside the allowlist, verified live:
-`civitai.com` → `b2.civitai.com`, `huggingface.co` → `us.aws.cdn.hf.co`. Auth is only needed on
-the first hop (the CDN URL is pre-signed via query param), so stripping it is safe — confirmed
-by a real download through the hardened path. If a provider moves its CDN off these suffixes,
-downloads fail with the blocked host named; add the suffix to `_ALLOWED_HOST_SUFFIXES` rather
-than relaxing the check.
+Both providers redirect and every hop lands inside the allowlist, verified live:
+`huggingface.co` → `us.aws.cdn.hf.co`, and `civitai.com` → **either** `b2.civitai.com` **or**
+`civitai-delivery-worker-prod.<account-id>.r2.cloudflarestorage.com`. CivitAI is migrating
+delivery off Backblaze B2 onto Cloudflare R2 and the migration is partial, so which host a
+download lands on depends on the individual file — a CivitAI download bug that "only happens
+sometimes" is very likely this. Auth is only needed on the first hop (both CDN URLs are
+pre-signed via query param), so stripping it is safe — confirmed by real downloads through the
+hardened path on both CivitAI hosts.
+
+If a provider moves its CDN off these suffixes, downloads fail with the blocked host named; add
+the suffix to `_ALLOWED_HOST_SUFFIXES` rather than relaxing the check — and **scope the new
+suffix as narrowly as the host allows**. R2 is the worked example: its endpoints are
+`<bucket>.<account-id>.r2.cloudflarestorage.com`, so the allowlist pins CivitAI's account id
+(`5ac0637cfd0766c97916cefa3764fbdf.r2.cloudflarestorage.com`) rather than the shared
+`r2.cloudflarestorage.com`, which would trust every R2 tenant on the internet. Pinning the
+tenant still survives a bucket rename. Any shared-CDN host (R2, S3, Cloudfront) gets the same
+treatment: allowlist the provider's tenant, never the CDN.
 
 ### S7044 — URL path traversal (SSRF)
 - **For string parameters**: `urllib.parse.quote(value, safe="/")` is recognized as a sanitizer by SonarQube's taint engine. Custom regex validators alone are NOT sufficient. The return value of `quote()` must be **assigned back** and used in URL construction.
