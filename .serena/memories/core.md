@@ -395,10 +395,18 @@ The nav tab set is **Models / Workflows / Images / Download / Settings**
 | `models` | `Models` (the library page) |
 | `models/:platform` | `CatalogDetail` — takes `?pageId=` |
 | `models/:type/:path` | `ModelDetail` (`:path` is a filename that may contain `/`, so `routerLink` array form encodes it) |
-| `workflows` | `Workflows` — shell with a `browse`/`installed` toggle over `WorkflowsBrowse` + `WorkflowsInstalled` |
+| `workflows` | `Workflows` — shell with an `installed`/`browse` toggle over `WorkflowsInstalled` + `WorkflowsBrowse` |
 | `images` | `Images` (F-130) — single page; the installed side lives in Workflows → Installed |
 | `download`, `settings` | `Download`, `Settings` |
 | `catalog`, `catalog/:platform` | legacy redirects → `models…` |
+
+The Workflows shell picks its own initial tab (#156): its constructor calls
+`WorkflowStoreService.list()` and lands on **Installed** when the store holds at least one entry,
+otherwise on **Browse** (also the fallback when the request fails). `activeTab` is therefore
+`'browse' | 'installed' | null`, and `null` (still resolving) mounts *neither* child — rendering
+Browse eagerly and switching afterwards would flash the wrong tab. `WorkflowsInstalled` still
+fetches the list itself; the duplicate `GET /api/workflows` is deliberate, it keeps the two
+components decoupled and it is a local SQLite read.
 
 Catalog detail and model detail are told apart purely by **segment count** (2 vs 3) — do not add a
 two-segment `models/…` route without checking that.
