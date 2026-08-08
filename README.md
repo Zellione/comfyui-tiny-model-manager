@@ -122,8 +122,8 @@ account at [registry.comfy.org](https://registry.comfy.org).
 | GET | `/tiny-model-manager/api/models/{type}/{path}/metadata` | Get stored metadata — returns `description`, `trigger_words`, `tags`, `media`, `base_model`, `source_platform`, `source_url` |
 | PUT | `/tiny-model-manager/api/models/{type}/{path}/metadata` | Update `description`, `trigger_words`, `tags`, and optionally `base_model` |
 | POST | `/tiny-model-manager/api/models/{type}/{path}/refetch` | Re-fetch metadata/tags from the source platform; response includes `base_model` and `source_url` |
-| POST | `/tiny-model-manager/api/models/{type}/{path}/media` | Upload a user-supplied card image (max 10 MB, image/video types); body: `FormData` with `file` field; response includes `uploaded: true` and `media_hash` |
-| DELETE | `/tiny-model-manager/api/models/{type}/{path}/media/{media_id}` | Remove a user-uploaded card image by index; only accepts uploads (basename matching `upload-<12-hex>.<ext>`) |
+| POST | `/tiny-model-manager/api/models/{type}/{path}/media` | Upload JPEG/PNG/WebP/GIF card images (max 10 MB per file, up to 10 per request); body: `FormData` with repeated `files` field; response is the refreshed gallery `{"success": true, "media": […]}` |
+| DELETE | `/tiny-model-manager/api/models/{type}/{path}/media/{media_id}` | Remove a user-uploaded card image by media row id; only accepts uploads (basename matching `upload-<12-hex>.<ext>`) |
 | GET | `/tiny-model-manager/api/search/civitai` | Search CivitAI — params: `q`, `type`, `base_model`, `sort`, `period`, `page`, `cursor` |
 | GET | `/tiny-model-manager/api/civitai/versions/{model_id}` | Get CivitAI model versions |
 | GET | `/tiny-model-manager/api/civitai/resolve/{version_id}` | Resolve a CivitAI direct download URL to filename + model type |
@@ -135,7 +135,7 @@ account at [registry.comfy.org](https://registry.comfy.org).
 | POST | `/tiny-model-manager/api/download/missing` | Resolve one entry of ComfyUI's Missing Models panel (CivitAI → HuggingFace → the workflow's own URL) and enqueue it — body `{filename, directory, url?}`; answers `{task_id, …}`, `{already_installed}` or `{unresolved, search_term}` |
 | GET | `/tiny-model-manager/api/download/status` | Get all download task statuses |
 | GET | `/tiny-model-manager/api/media/{path}` | Serve a stored preview image/video |
-| POST | `/tiny-model-manager/api/catalog/{platform}/{page_id}/media` | Upload a user-supplied card image for a catalog entry (max 10 MB, image/video types); body: `FormData` with `file` field; fills empty `thumbnail_url` and returns `{uploaded: true, media_hash}` |
+| POST | `/tiny-model-manager/api/catalog/{platform}/{page_id}/media` | Upload JPEG/PNG/WebP/GIF card images for a catalog entry (max 10 MB per file, up to 10 per request); body: `FormData` with repeated `files` field; fills empty `thumbnail_url`; response is the refreshed gallery `{"success": true, "media": […]}` |
 | DELETE | `/tiny-model-manager/api/catalog/{platform}/{page_id}/media/{name}` | Remove a user-uploaded card image by filename; only accepts uploads (basename matching `upload-<12-hex>.<ext>`) |
 | GET | `/tiny-model-manager/api/settings` | Get current settings |
 | PUT | `/tiny-model-manager/api/settings` | Update settings |
