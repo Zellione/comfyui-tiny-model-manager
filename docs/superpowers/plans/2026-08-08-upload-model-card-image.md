@@ -1880,9 +1880,13 @@ Add the two handlers:
 
 Make sure `computed` and `signal` are in the `@angular/core` import list.
 
-> The specs assert the raw key (`'media_gallery.upload_failed'`) because
-> `provideTranslateServiceForTests` returns keys verbatim — the same convention the other
-> page specs in this repo already rely on.
+> **Correction (found during Task 7).** An earlier draft of this plan claimed
+> `provideTranslateServiceForTests` returns keys verbatim. It does not: it loads the real
+> `frontend/public/i18n/en.json` through a `StaticTranslateLoader`, so `translate.instant()`
+> resolves properly. The specs therefore assert the **translated** string — for
+> `media_gallery.upload_failed` that is `'Upload failed.'`. Storing the resolved string in the
+> signal via `translate.instant(...)` is the house pattern (see `model-detail.ts` where
+> `model_detail.notify.saved` is handled the same way). The same correction applies to Task 8.
 
 In `model-detail.html`, replace line 119:
 
