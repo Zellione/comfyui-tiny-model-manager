@@ -76,6 +76,33 @@ civitai_version_id, civitai_model_id, model_type, thumbnail}`.
 - `huggingface_provider.validate_repo_id` is **public** (was `_validate_repo_id`) so
   `link_resolver` can reuse it.
 
+## HuggingFace search & link quirks (#157, #158)
+
+- **`_build_search_params` sends `pipeline_tag` on every non-GGUF search**
+  (`HF_TYPE_MAP.get(model_type, "text-to-image")`), which silently hides any repo whose
+  pipeline differs from the selected model type — including one the user pasted by exact id.
+  Verified against the live API: `?search=huihui-ai/Huihui-Qwen3-VL-4B-Instruct-abliterated`
+  returns the repo, the same query `&pipeline_tag=text-to-image` returns `[]`. The `search`
+  param itself handles `owner/repo` fine, so **the query string was never the problem**.
+  Fix: `HuggingFaceProvider._lookup_exact_repo()` does an *unfiltered*
+  `GET /api/models/{owner}/{repo}` and `search()` prepends the hit. Guards that matter —
+  `_EXACT_REPO_ID_RE` requires both halves (a keyword query must not cost an extra request),
+  page 0 only, dedupe by `id`/`modelId`, every failure maps to `None`, and **`hasMore` is read
+  before the prepend** or the extra item makes the page `limit + 1` and kills "Load more".
+  The blanket `pipeline_tag` default is still wrong for types `HF_TYPE_MAP` does not know
+  (`vae`, `text_encoders`, `controlnet`, `unet`, …) — deliberately left alone, not yet filed.
+- **A HuggingFace `/blob/` URL serves the HTML file-viewer page, not the file.** It is what the
+  repo file browser's copy-link gives you, so it is what users paste. `detectLink`
+  (`frontend/src/app/utils/link-detector.ts`) matches both markers via `HF_FILE_RE` and the
+  `hf-resolve` kind carries `downloadUrl`, always rewritten to `/resolve/`; `submitDirectLink()`
+  enqueues that, never `pasteUrl()`. Backend has the same rewrite in
+  `missing_model_resolver.direct_download_url()` — do not re-solve this in a third place.
+- **Subfolder paths in HF filenames are already handled end to end**: `downloader.enqueue()`
+  and `validate_target()` both basename HuggingFace filenames, and
+  `InstalledFilesService.fileStatus()` compares on the basename. So a
+  `text_encoders/model.safetensors` link needs no special casing — keep the full path in
+  `filename` (matches what the HF repo-file listing yields) and let the backend reduce it.
+
 ## Disk scanning & auto-migration (F-92)
 
 - `py/services/disk_scanner.py` — `scan_all() -> {model_type: [{filename, base_dir,
