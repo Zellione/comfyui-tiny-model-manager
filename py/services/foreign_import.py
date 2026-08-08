@@ -319,3 +319,90 @@ def ensure_space(dest_dir: str, needed_bytes: int) -> None:
     available = shutil.disk_usage(dest_dir).free
     if available < needed_bytes:
         raise InsufficientSpaceError(needed_bytes, available)
+
+
+async def _civitai_lookup(sha256: str) -> dict | None:
+    """Patchable seam: the CivitAI by-hash lookup used to enrich an imported model.
+
+    HuggingFace exposes no by-hash endpoint, so enrichment is CivitAI-only; an HF-origin
+    model imports without metadata and the user can re-fetch it from the detail page.
+    """
+    from .providers.civitai_provider import CivitaiProvider
+
+    return await CivitaiProvider().lookup_by_hash(sha256)
+
+
+async def _register_imported(final_path: str, model_type: str, file_hash: str) -> None:
+    """Register a freshly copied file, then fill in CivitAI metadata if the hash matches."""
+    relative = os.path.relpath(final_path, dest_base(model_type)).replace("\\", "/")
+    if not file_hash:
+        file_hash = await asyncio.to_thread(model_paths.compute_file_hash, final_path)
+    await model_repo.register_model(relative, model_type, file_hash=file_hash)
+
+    try:
+        metadata = await _civitai_lookup(file_hash)
+    except Exception:
+        metadata = None
+    if not metadata:
+        return
+
+    # register_model is an upsert, so this fills in the fields the first call left empty.
+    await model_repo.register_model(
+        relative,
+        model_type,
+        base_model=metadata.get("base_model", ""),
+        tags=metadata.get("tags", []),
+        description=metadata.get("description", ""),
+        file_hash=file_hash,
+        source_platform="civitai",
+        source_id=str(metadata.get("civitai_version_id", "") or ""),
+        civitai_model_id=str(metadata.get("civitai_model_id", "") or ""),
+    )
+
+
+async def _import_one(job: ImportJob, selection: dict) -> None:
+    relative = selection.get("filename", "")
+    model_type = selection.get("model_type", "")
+    try:
+        src = source_path(job.source_root, model_type, relative)
+        dest = resolve_destination(model_type, relative)
+        final = await asyncio.to_thread(copy_file, src, dest)
+    except ValueError as exc:
+        job.failed.append({"filename": relative, "reason": str(exc)})
+        return
+    except OSError as exc:
+        job.failed.append({"filename": relative, "reason": exc.strerror or "copy_failed"})
+        return
+    await _register_imported(final, model_type, selection.get("file_hash", ""))
+    job.imported.append(relative)
+
+
+async def _run_import(job: ImportJob, selections: list[dict]) -> None:
+    try:
+        total = len(selections)
+        if not total:
+            job.progress = 100.0
+        for index, selection in enumerate(selections):
+            if job.cancelled:
+                job.state = "cancelled"
+                return
+            await _import_one(job, selection)
+            job.progress = (index + 1) / total * 100
+        job.state = "done"
+    except Exception as exc:
+        job.state = "error"
+        job.error = str(exc)
+    finally:
+        job.completed_at = time.time()
+
+
+def start_import(root: str, selections: list[dict]) -> ImportJob:
+    """Begin copying ``selections`` out of an already-validated foreign root.
+
+    Each selection is ``{"model_type", "filename", "file_hash"}``; ``file_hash`` carries the
+    digest the scan already computed so the file is never hashed twice.
+    """
+    job = ImportJob(id=str(uuid.uuid4()), kind="import", source_root=root)
+    _jobs[job.id] = job
+    job.task = spawn(_run_import(job, selections))
+    return job

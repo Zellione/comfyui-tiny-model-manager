@@ -354,3 +354,165 @@ class TestDestinationAndCopy:
         root = _make_source_tree(tmp_path)
         resolved = foreign_import.source_path(str(root), "loras", "style/neon.safetensors")
         assert os.path.isfile(resolved)
+
+
+class TestImportJob:
+    async def test_copies_and_registers(self, tmp_path, monkeypatch, ext_dir):
+        import folder_paths
+
+        from py.db import model_repo
+        from py.services import foreign_import
+
+        monkeypatch.setattr(folder_paths, "models_dir", str(tmp_path / "local"))
+        monkeypatch.setattr(foreign_import, "_civitai_lookup", _no_civitai_match)
+        root = _make_source_tree(tmp_path)
+
+        job = foreign_import.start_import(
+            str(root),
+            [{"model_type": "loras", "filename": "style/neon.safetensors", "file_hash": ""}],
+        )
+        await job.task
+
+        assert job.state == "done"
+        assert job.imported == ["style/neon.safetensors"]
+        assert job.failed == []
+        copied = tmp_path / "local" / "loras" / "style" / "neon.safetensors"
+        assert copied.read_bytes() == b"b" * 32
+        rows = await model_repo.get_file_hash_map()
+        assert list(rows.values()) == ["style/neon.safetensors"]
+
+    async def test_enriches_from_civitai(self, tmp_path, monkeypatch, ext_dir):
+        import folder_paths
+
+        from py.db import model_repo
+        from py.services import foreign_import
+
+        monkeypatch.setattr(folder_paths, "models_dir", str(tmp_path / "local"))
+
+        async def fake_lookup(sha256):
+            return {
+                "base_model": "SDXL 1.0",
+                "description": "A neon style",
+                "tags": ["style", "neon"],
+                "civitai_version_id": 4242,
+                "civitai_model_id": 99,
+            }
+
+        monkeypatch.setattr(foreign_import, "_civitai_lookup", fake_lookup)
+        root = _make_source_tree(tmp_path)
+
+        job = foreign_import.start_import(
+            str(root),
+            [{"model_type": "loras", "filename": "style/neon.safetensors", "file_hash": ""}],
+        )
+        await job.task
+
+        row = await model_repo.get_model_by_filename("style/neon.safetensors")
+        assert row["base_model"] == "SDXL 1.0"
+        assert row["description"] == "A neon style"
+        assert row["source_platform"] == "civitai"
+        assert row["source_id"] == "4242"
+        assert row["civitai_model_id"] == "99"
+
+    async def test_civitai_failure_still_imports(self, tmp_path, monkeypatch, ext_dir):
+        import folder_paths
+        import httpx
+
+        from py.db import model_repo
+        from py.services import foreign_import
+
+        monkeypatch.setattr(folder_paths, "models_dir", str(tmp_path / "local"))
+
+        async def exploding_lookup(sha256):
+            raise httpx.ConnectError("offline")
+
+        monkeypatch.setattr(foreign_import, "_civitai_lookup", exploding_lookup)
+        root = _make_source_tree(tmp_path)
+
+        job = foreign_import.start_import(
+            str(root),
+            [{"model_type": "loras", "filename": "style/neon.safetensors", "file_hash": ""}],
+        )
+        await job.task
+
+        assert job.state == "done"
+        assert job.imported == ["style/neon.safetensors"]
+        assert await model_repo.get_model_by_filename("style/neon.safetensors") is not None
+
+    async def test_missing_source_is_recorded_and_job_continues(
+        self, tmp_path, monkeypatch, ext_dir
+    ):
+        import folder_paths
+
+        from py.services import foreign_import
+
+        monkeypatch.setattr(folder_paths, "models_dir", str(tmp_path / "local"))
+        monkeypatch.setattr(foreign_import, "_civitai_lookup", _no_civitai_match)
+        root = _make_source_tree(tmp_path)
+
+        job = foreign_import.start_import(
+            str(root),
+            [
+                {"model_type": "loras", "filename": "ghost.safetensors", "file_hash": ""},
+                {"model_type": "checkpoints", "filename": "sd15.safetensors", "file_hash": ""},
+            ],
+        )
+        await job.task
+
+        assert job.state == "done"
+        assert job.imported == ["sd15.safetensors"]
+        assert job.failed == [{"filename": "ghost.safetensors", "reason": "source_not_found"}]
+        assert job.progress == 100.0
+
+    async def test_reuses_the_hash_from_the_scan(self, tmp_path, monkeypatch, ext_dir):
+        import folder_paths
+
+        from py.db import model_repo
+        from py.services import foreign_import
+
+        monkeypatch.setattr(folder_paths, "models_dir", str(tmp_path / "local"))
+        monkeypatch.setattr(foreign_import, "_civitai_lookup", _no_civitai_match)
+
+        def forbidden(path):
+            raise AssertionError("compute_file_hash must not run when a hash is supplied")
+
+        monkeypatch.setattr(foreign_import.model_paths, "compute_file_hash", forbidden)
+        root = _make_source_tree(tmp_path)
+
+        job = foreign_import.start_import(
+            str(root),
+            [
+                {
+                    "model_type": "loras",
+                    "filename": "style/neon.safetensors",
+                    "file_hash": "cafebabe",
+                }
+            ],
+        )
+        await job.task
+
+        assert job.state == "done"
+        assert await model_repo.get_file_hash_map() == {"cafebabe": "style/neon.safetensors"}
+
+    async def test_cancel_stops_before_the_next_file(self, tmp_path, monkeypatch, ext_dir):
+        import folder_paths
+
+        from py.services import foreign_import
+
+        monkeypatch.setattr(folder_paths, "models_dir", str(tmp_path / "local"))
+        monkeypatch.setattr(foreign_import, "_civitai_lookup", _no_civitai_match)
+        root = _make_source_tree(tmp_path)
+
+        job = foreign_import.start_import(
+            str(root),
+            [{"model_type": "loras", "filename": "style/neon.safetensors", "file_hash": ""}],
+        )
+        foreign_import.cancel_job(job.id)
+        await job.task
+        assert job.state == "cancelled"
+        assert job.imported == []
+
+
+async def _no_civitai_match(sha256):
+    """Stand-in for the CivitAI by-hash lookup: always a miss."""
+    return None
