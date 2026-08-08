@@ -13,15 +13,53 @@ describe('detectLink', () => {
       repo: 'user/repo',
       revision: 'main',
       filename: 'model.safetensors',
+      downloadUrl: 'https://huggingface.co/user/repo/resolve/main/model.safetensors',
     });
   });
 
-  it('strips query string from HF resolve filename', () => {
+  it('strips query string from HF resolve filename and download URL', () => {
     const result = detectLink(
       'https://huggingface.co/user/repo/resolve/main/model.safetensors?download=true',
     );
     if (result.type !== 'hf-resolve') throw new Error('wrong type');
     expect(result.filename).toBe('model.safetensors');
+    expect(result.downloadUrl).toBe(
+      'https://huggingface.co/user/repo/resolve/main/model.safetensors',
+    );
+  });
+
+  it('detects HuggingFace blob URL and rewrites it to a resolve download URL', () => {
+    const result = detectLink('https://huggingface.co/user/repo/blob/main/model.safetensors');
+    expect(result).toEqual({
+      type: 'hf-resolve',
+      repo: 'user/repo',
+      revision: 'main',
+      filename: 'model.safetensors',
+      downloadUrl: 'https://huggingface.co/user/repo/resolve/main/model.safetensors',
+    });
+  });
+
+  it('keeps the subfolder prefix of a nested blob URL', () => {
+    const result = detectLink(
+      'https://huggingface.co/Comfy-Org/Qwen3-VL/blob/main/text_encoders/qwen3vl_4b_bf16.safetensors',
+    );
+    expect(result).toEqual({
+      type: 'hf-resolve',
+      repo: 'Comfy-Org/Qwen3-VL',
+      revision: 'main',
+      filename: 'text_encoders/qwen3vl_4b_bf16.safetensors',
+      downloadUrl:
+        'https://huggingface.co/Comfy-Org/Qwen3-VL/resolve/main/text_encoders/qwen3vl_4b_bf16.safetensors',
+    });
+  });
+
+  it('leaves the percent-encoding of a file path intact in the download URL', () => {
+    const result = detectLink('https://huggingface.co/user/repo/blob/main/my%20model.safetensors');
+    if (result.type !== 'hf-resolve') throw new Error('wrong type');
+    expect(result.filename).toBe('my model.safetensors');
+    expect(result.downloadUrl).toBe(
+      'https://huggingface.co/user/repo/resolve/main/my%20model.safetensors',
+    );
   });
 
   it('detects HuggingFace repo URL', () => {

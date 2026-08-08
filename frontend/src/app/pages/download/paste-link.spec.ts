@@ -9,6 +9,7 @@ import { DownloadService, DownloadTask } from '../../services/download';
 import { ModelService } from '../../services/model';
 import { NotificationService } from '../../services/notification';
 import { KeywordsService } from '../../services/keywords';
+import { detectLink } from '../../utils/link-detector';
 import { InstalledFilesService } from '../../services/installed-files';
 import { FilenameKeyword } from '../../utils/filename-detector';
 
@@ -385,6 +386,7 @@ describe('PasteLink — submit and HF repo download', () => {
       repo: 'user/repo',
       revision: 'main',
       filename: 'model.safetensors',
+      downloadUrl: 'https://huggingface.co/user/repo/resolve/main/model.safetensors',
     });
     c.linkModelType.set('loras');
     c.linkBaseModel.set('SDXL 1.0');
@@ -401,6 +403,27 @@ describe('PasteLink — submit and HF repo download', () => {
     );
     expect(c.pasteUrl()).toBe('');
     expect(c.linkKind().type).toBe('empty');
+  });
+
+  it('submitDirectLink downloads the resolve URL, not the pasted blob URL', async () => {
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    const blobUrl =
+      'https://huggingface.co/Comfy-Org/Qwen3-VL/blob/main/text_encoders/qwen3vl_4b_bf16.safetensors';
+    c.pasteUrl.set(blobUrl);
+    c.linkKind.set(detectLink(blobUrl));
+    c.linkModelType.set('text_encoders');
+
+    c.submitDirectLink();
+
+    expect(mockDownloadService.startDownload).toHaveBeenCalledWith(
+      'https://huggingface.co/Comfy-Org/Qwen3-VL/resolve/main/text_encoders/qwen3vl_4b_bf16.safetensors',
+      'text_encoders',
+      'text_encoders/qwen3vl_4b_bf16.safetensors',
+      'huggingface',
+      'Comfy-Org/Qwen3-VL',
+      '',
+    );
   });
 
   it('submitDirectLink enqueues a CivitAI download link', async () => {

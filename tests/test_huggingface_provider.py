@@ -388,6 +388,118 @@ class TestSearch:
 
 
 # ---------------------------------------------------------------------------
+# search — exact repo-id lookup (#158)
+# ---------------------------------------------------------------------------
+
+
+_EXACT_ID = "huihui-ai/Huihui-Qwen3-VL-4B-Instruct-abliterated"
+
+
+def _repo(repo_id: str) -> dict:
+    return {"id": repo_id, "modelId": repo_id, "siblings": [], "tags": []}
+
+
+def _routing_transport(
+    list_items: list[dict],
+    exact_response: httpx.Response | Exception,
+    seen: list[str],
+) -> httpx.MockTransport:
+    """Serve /api/models (list) and /api/models/{owner}/{repo} (exact) from one transport.
+
+    Every requested path is appended to *seen* so a test can assert the exact-id lookup was
+    or was not attempted.
+    """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.path)
+        if request.url.path == "/api/models":
+            return httpx.Response(200, json=list_items)
+        if isinstance(exact_response, Exception):
+            raise exact_response
+        return exact_response
+
+    return httpx.MockTransport(handler)
+
+
+class TestSearchExactRepoId:
+    async def test_exact_repo_prepended_when_list_misses_it(self, provider, monkeypatch):
+        seen: list[str] = []
+        _patch_client(
+            monkeypatch,
+            _routing_transport(
+                [_repo("other/repo")], httpx.Response(200, json=_repo(_EXACT_ID)), seen
+            ),
+        )
+        result = await provider.search(_EXACT_ID)
+        assert [m["id"] for m in result["items"]] == [_EXACT_ID, "other/repo"]
+        assert f"/api/models/{_EXACT_ID}" in seen
+
+    async def test_exact_repo_not_duplicated(self, provider, monkeypatch):
+        seen: list[str] = []
+        _patch_client(
+            monkeypatch,
+            _routing_transport(
+                [_repo("other/repo"), _repo(_EXACT_ID)],
+                httpx.Response(200, json=_repo(_EXACT_ID)),
+                seen,
+            ),
+        )
+        result = await provider.search(_EXACT_ID)
+        assert [m["id"] for m in result["items"]] == [_EXACT_ID, "other/repo"]
+
+    async def test_missing_repo_leaves_results_unchanged(self, provider, monkeypatch):
+        seen: list[str] = []
+        _patch_client(
+            monkeypatch,
+            _routing_transport([_repo("other/repo")], httpx.Response(404, json={}), seen),
+        )
+        result = await provider.search(_EXACT_ID)
+        assert [m["id"] for m in result["items"]] == ["other/repo"]
+
+    async def test_lookup_error_leaves_results_unchanged(self, provider, monkeypatch):
+        seen: list[str] = []
+        _patch_client(
+            monkeypatch,
+            _routing_transport([_repo("other/repo")], httpx.ConnectError("boom"), seen),
+        )
+        result = await provider.search(_EXACT_ID)
+        assert [m["id"] for m in result["items"]] == ["other/repo"]
+
+    async def test_keyword_query_does_not_trigger_lookup(self, provider, monkeypatch):
+        seen: list[str] = []
+        _patch_client(
+            monkeypatch,
+            _routing_transport(
+                [_repo("other/repo")], httpx.Response(200, json=_repo(_EXACT_ID)), seen
+            ),
+        )
+        await provider.search("qwen image")
+        assert seen == ["/api/models"]
+
+    async def test_later_pages_do_not_trigger_lookup(self, provider, monkeypatch):
+        seen: list[str] = []
+        _patch_client(
+            monkeypatch,
+            _routing_transport(
+                [_repo("other/repo")], httpx.Response(200, json=_repo(_EXACT_ID)), seen
+            ),
+        )
+        await provider.search(_EXACT_ID, p=1)
+        assert seen == ["/api/models"]
+
+    async def test_has_more_ignores_the_prepended_hit(self, provider, monkeypatch):
+        seen: list[str] = []
+        items = [_repo(f"owner/repo{i}") for i in range(20)]
+        _patch_client(
+            monkeypatch,
+            _routing_transport(items, httpx.Response(200, json=_repo(_EXACT_ID)), seen),
+        )
+        result = await provider.search(_EXACT_ID)
+        assert len(result["items"]) == 21
+        assert result["hasMore"] is True
+
+
+# ---------------------------------------------------------------------------
 # lookup_by_repo_id
 # ---------------------------------------------------------------------------
 
