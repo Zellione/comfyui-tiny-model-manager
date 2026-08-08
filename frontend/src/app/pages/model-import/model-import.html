@@ -1,0 +1,107 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">{{ 'import.title' | translate }}</h1>
+      <p class="page-subtitle">{{ 'import.intro' | translate }}</p>
+    </div>
+    <div class="page-head-actions">
+      <a class="btn-secondary btn-small" routerLink="/models">
+        {{ 'import.back' | translate }}
+      </a>
+    </div>
+  </div>
+
+  <div class="import-source">
+    <label class="import-label" for="import-path">{{ 'import.path_label' | translate }}</label>
+    <input
+      id="import-path"
+      class="import-path"
+      type="text"
+      [value]="sourcePath()"
+      (input)="sourcePath.set($any($event.target).value)"
+      [placeholder]="'import.path_placeholder' | translate"
+      [disabled]="busy()"
+    />
+    <button class="btn-primary btn-small" (click)="scan()" [disabled]="busy()">
+      {{ 'import.scan' | translate }}
+    </button>
+  </div>
+
+  @if (errorKey()) {
+    <p class="import-error">{{ errorKey() | translate }}</p>
+  }
+
+  @if (busy()) {
+    <div class="import-progress">
+      <span>{{ (scanning() ? 'import.scanning' : 'import.importing') | translate }}</span>
+      <progress [value]="progress()" max="100"></progress>
+      <span>{{ progress() | number: '1.0-0' }}%</span>
+    </div>
+  }
+
+  @if (summary(); as done) {
+    <p class="import-summary">
+      {{ 'import.summary' | translate: { imported: done.imported, failed: done.failed } }}
+    </p>
+  }
+
+  @if (scanned() && groups().length === 0) {
+    <p class="import-empty">{{ 'import.no_files' | translate }}</p>
+  }
+
+  @for (group of groups(); track group.modelType) {
+    <section class="import-group">
+      <header class="import-group-head">
+        <h2>{{ group.modelType }}</h2>
+        <button
+          class="btn-secondary btn-small"
+          (click)="toggleGroup(group.modelType, true)"
+          [disabled]="busy()"
+        >
+          {{ 'import.select_all' | translate }}
+        </button>
+      </header>
+      <ul class="import-list">
+        @for (file of group.files; track file.filename) {
+          <li class="import-row" [class.is-installed]="file.status !== 'new'">
+            <label>
+              <input
+                type="checkbox"
+                [checked]="isSelected(group.modelType, file.filename)"
+                (change)="toggleFile(group.modelType, file.filename, $any($event.target).checked)"
+                [disabled]="file.status !== 'new' || busy()"
+              />
+              <span class="import-name">{{ file.filename }}</span>
+            </label>
+            <span class="import-size">{{ formatSize(file.size_bytes) }}</span>
+            <span class="import-status">
+              @switch (file.status) {
+                @case ('new') {
+                  {{ 'import.status_new' | translate }}
+                }
+                @case ('installed') {
+                  {{ 'import.status_installed' | translate }}
+                }
+                @case ('unreadable') {
+                  {{ 'import.status_unreadable' | translate }}
+                }
+              }
+            </span>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  @if (scanned() && groups().length > 0) {
+    <div class="import-actions">
+      <button
+        class="btn-primary"
+        (click)="startImport()"
+        [disabled]="busy() || selectedCount() === 0"
+      >
+        {{ 'import.import_selected' | translate }} ({{ selectedCount() }})
+      </button>
+    </div>
+  }
+</div>

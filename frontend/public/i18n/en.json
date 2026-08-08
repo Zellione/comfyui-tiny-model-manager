@@ -24,6 +24,7 @@
   "models": {
     "title": "Installed Models",
     "rescan": "Rescan",
+    "import_from_folder": "Import from another folder",
     "reorganize_question": "Reorganize all installed models into base-model subfolders?",
     "organize_subfolders": "Organize into subfolders",
     "filter_all": "All",
@@ -480,6 +481,32 @@
       "open_failed": "Could not hand the workflow to ComfyUI.",
       "export_failed": "Export failed.",
       "delete_failed": "Could not delete the workflow."
+    }
+  },
+  "import": {
+    "title": "Import from another folder",
+    "intro": "Paste the path to another ComfyUI installation's models folder. Files already in your library are detected by content, not by name.",
+    "path_label": "Source folder",
+    "path_placeholder": "D:\\OtherComfyUI\\models",
+    "scan": "Scan",
+    "scanning": "Hashing files…",
+    "cancel": "Cancel",
+    "back": "Back to models",
+    "import_selected": "Import selected",
+    "importing": "Copying files…",
+    "select_all": "Select all",
+    "status_new": "New",
+    "status_installed": "Already installed",
+    "status_unreadable": "Unreadable",
+    "no_files": "No model files found in that folder.",
+    "summary": "Imported {{imported}}, failed {{failed}}.",
+    "errors": {
+      "path_not_absolute": "Enter an absolute path, for example D:\\OtherComfyUI\\models.",
+      "path_not_found": "That folder does not exist.",
+      "path_is_local_root": "That is this installation's own models folder.",
+      "no_files_selected": "Select at least one model to import.",
+      "insufficient_space": "Not enough free disk space for the selected models.",
+      "generic": "The import failed. Check the ComfyUI console for details."
     }
   },
   "images": {

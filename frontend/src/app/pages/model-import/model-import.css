@@ -1,0 +1,68 @@
+.import-source {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.import-path {
+  flex: 1;
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+}
+
+.import-error {
+  color: var(--tmm-danger, #d9534f);
+}
+
+.import-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.import-progress progress {
+  flex: 1;
+}
+
+.import-group {
+  margin-bottom: 1.5rem;
+}
+
+.import-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.import-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* An explicit max-height, not `flex: 1; min-height: 0` — the latter collapses to zero
+     inside an auto-height column and would hide every row. */
+  max-height: 22rem;
+  overflow-y: auto;
+}
+
+.import-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.3rem 0;
+}
+
+.import-row.is-installed {
+  opacity: 0.55;
+}
+
+.import-name {
+  word-break: break-all;
+}
+
+.import-actions {
+  margin-top: 1rem;
+}
