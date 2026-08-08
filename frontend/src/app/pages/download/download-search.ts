@@ -15,6 +15,7 @@ import { hideOnError, showOnLoad } from '../../utils/media-events';
 import { ModelTypeSelect } from '../../components/model-type-select/model-type-select';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
 import { TagAutocompleteInput } from '../../components/tag-autocomplete-input/tag-autocomplete-input';
+import { MediaGallery } from '../../components/media-gallery/media-gallery';
 import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { NotificationService } from '../../services/notification';
@@ -36,6 +37,7 @@ type Platform = 'civitai' | 'huggingface';
     ModelTypeSelect,
     BaseModelSelect,
     TagAutocompleteInput,
+    MediaGallery,
     SafeHtmlPipe,
     TranslatePipe,
   ],
@@ -187,7 +189,6 @@ export class DownloadSearch {
 
   selectedModel = signal<CivitaiModel | null>(null);
   selectedHfModel = signal<HfModel | null>(null);
-  galleryIndex = signal<number>(0);
   versions = signal<CivitaiVersion[]>([]);
   hfFiles = signal<{ filename: string; size: number; url: string }[]>([]);
   selectedHfRepoId = signal('');
@@ -415,7 +416,6 @@ export class DownloadSearch {
   selectCivitai(model: CivitaiModel) {
     const targetId = model.id;
     this.selectedModel.set(model);
-    this.galleryIndex.set(0);
     this.versions.set([]);
     this.versionsError.set('');
     this.loadingVersions.set(true);
@@ -510,7 +510,6 @@ export class DownloadSearch {
     const repoId = model.modelId ?? model.id;
     this.selectedHfModel.set(model);
     this.selectedHfRepoId.set(repoId);
-    this.galleryIndex.set(0);
     this.hfFiles.set([]);
     this.hfRowTypes.set({});
     this.hfRowBaseModels.set({});
@@ -583,28 +582,21 @@ export class DownloadSearch {
       .filter(Boolean);
   }
 
-  isVideo = isVideo;
-
-  setGalleryIndex(i: number) {
-    this.galleryIndex.set(i);
-  }
-
-  currentGalleryUrl(model: CivitaiModel): string {
-    const images = this.civitaiGalleryImages(model);
-    return images[this.galleryIndex()] ?? '';
-  }
+  /**
+   * Gallery URLs for the selected model, as a computed rather than a method call:
+   * `app-media-gallery` takes them as a signal input, so a method would hand it a
+   * fresh array on every change-detection cycle.
+   */
+  readonly civitaiGalleryUrls = computed(() => {
+    const model = this.selectedModel();
+    return model ? this.civitaiGalleryImages(model) : [];
+  });
 
   civitaiModelBaseModel(model: CivitaiModel): string {
     return model.modelVersions?.[0]?.baseModel ?? '';
   }
 
-  hfGalleryImages(model: HfModel): string[] {
-    return model.images ?? [];
-  }
-
-  currentHfGalleryUrl(model: HfModel): string {
-    return this.hfGalleryImages(model)[this.galleryIndex()] ?? '';
-  }
+  readonly hfGalleryUrls = computed(() => this.selectedHfModel()?.images ?? []);
 
   civitaiTriggerWords(model: CivitaiModel): string[] {
     return model.modelVersions?.[0]?.trainedWords ?? [];

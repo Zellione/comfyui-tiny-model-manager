@@ -332,52 +332,11 @@
   min-width: 0;
 }
 
-.detail-main-media {
-  width: 100%;
-  height: 300px;
-  object-fit: contain;
-  background: var(--bg-2);
-  border-radius: var(--radius-sm);
+// The column also carries the description, so the width bound goes on the
+// gallery itself rather than on the grid track.
+app-media-gallery {
   display: block;
-}
-
-.detail-thumbs {
-  display: flex;
-  gap: 0.35rem;
-  margin-top: 0.5rem;
-  overflow-x: auto;
-}
-
-.detail-thumb {
-  width: 52px;
-  height: 52px;
-  flex-shrink: 0;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: var(--surface-hi);
-  cursor: pointer;
-
-  &.active {
-    border-color: var(--accent);
-  }
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-
-  .thumb-video {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    color: var(--text-3);
-  }
+  max-width: 460px;
 }
 
 .detail-description {

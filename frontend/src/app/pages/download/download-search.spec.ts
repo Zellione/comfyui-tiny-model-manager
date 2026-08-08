@@ -441,12 +441,13 @@ describe('DownloadSearch — F-80 HuggingFace model selection', () => {
     await configureTestBed();
   });
 
-  it('selectHf resets galleryIndex to 0', async () => {
+  // The gallery index itself is owned and reset by MediaGallery (see its spec);
+  // here we only assert that selection re-points the gallery at the new repo.
+  it('selectHf points the gallery at the selected repo', async () => {
     const fixture = await createFixture();
     const c = fixture.componentInstance;
-    c.galleryIndex.set(3);
     c.selectHf(hfModel());
-    expect(c.galleryIndex()).toBe(0);
+    expect(c.hfGalleryUrls()).toEqual(hfModel().images ?? []);
   });
 });
 
@@ -630,12 +631,18 @@ describe('DownloadSearch — display helpers', () => {
     ]);
   });
 
-  it('currentGalleryUrl follows galleryIndex', async () => {
+  it('civitaiGalleryUrls tracks the selected model', async () => {
     const c = (await createFixture()).componentInstance;
-    const model = richCivitaiModel();
-    expect(c.currentGalleryUrl(model)).toBe('https://img/a.jpg');
-    c.setGalleryIndex(1);
-    expect(c.currentGalleryUrl(model)).toBe('https://img/b.mp4');
+    expect(c.civitaiGalleryUrls()).toEqual([]);
+
+    c.selectedModel.set(richCivitaiModel());
+    expect(c.civitaiGalleryUrls()).toEqual(['https://img/a.jpg', 'https://img/b.mp4']);
+  });
+
+  it('civitaiGalleryUrls keeps a stable reference while the selection is unchanged', async () => {
+    const c = (await createFixture()).componentInstance;
+    c.selectedModel.set(richCivitaiModel());
+    expect(c.civitaiGalleryUrls()).toBe(c.civitaiGalleryUrls());
   });
 
   it('civitaiModelBaseModel returns the first version base model', async () => {
@@ -653,13 +660,12 @@ describe('DownloadSearch — display helpers', () => {
     expect(c.civitaiSourceUrl(richCivitaiModel())).toBe('https://civitai.com/models/7');
   });
 
-  it('hfGalleryImages and currentHfGalleryUrl follow galleryIndex', async () => {
+  it('hfGalleryUrls tracks the selected repo and defaults to empty', async () => {
     const c = (await createFixture()).componentInstance;
-    const model = hfGalleryModel();
-    expect(c.hfGalleryImages(model)).toHaveLength(2);
-    expect(c.currentHfGalleryUrl(model)).toBe('https://hf/img1.jpg');
-    c.setGalleryIndex(1);
-    expect(c.currentHfGalleryUrl(model)).toBe('https://hf/img2.jpg');
+    expect(c.hfGalleryUrls()).toEqual([]);
+
+    c.selectedHfModel.set(hfGalleryModel());
+    expect(c.hfGalleryUrls()).toEqual(['https://hf/img1.jpg', 'https://hf/img2.jpg']);
   });
 
   it('hfSourceUrl builds a repo url from the modelId', async () => {

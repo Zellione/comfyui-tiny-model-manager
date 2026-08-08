@@ -178,34 +178,8 @@
 
         <div class="detail-body">
           <div class="detail-media">
-            @if (currentGalleryUrl(model)) {
-              @if (isVideo(currentGalleryUrl(model))) {
-                <video class="detail-main-media" [src]="currentGalleryUrl(model)" controls muted>
-                  <track kind="captions" />
-                </video>
-              } @else {
-                <img
-                  class="detail-main-media"
-                  [src]="currentGalleryUrl(model)"
-                  alt=""
-                  (error)="onImgError($event)"
-                />
-              }
-              <div class="detail-thumbs">
-                @for (url of galleryImages(model); track url; let i = $index) {
-                  <button
-                    class="detail-thumb"
-                    [class.active]="galleryIndex() === i"
-                    (click)="setGalleryIndex(i)"
-                  >
-                    @if (isVideo(url)) {
-                      <span class="thumb-video">▶</span>
-                    } @else {
-                      <img [src]="url" alt="" (error)="onImgError($event)" />
-                    }
-                  </button>
-                }
-              </div>
+            @if (galleryUrls().length > 0) {
+              <app-media-gallery [urls]="galleryUrls()" />
             }
             @if (model.description) {
               <div class="detail-description" [innerHTML]="model.description | safeHtml"></div>

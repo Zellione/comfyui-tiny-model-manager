@@ -9,6 +9,7 @@ import { CivitaiModel, CivitaiVersion } from '../../services/civitai';
 import { WorkflowStoreService } from '../../services/workflow-store';
 import { NotificationService } from '../../services/notification';
 import { TagAutocompleteInput } from '../../components/tag-autocomplete-input/tag-autocomplete-input';
+import { MediaGallery } from '../../components/media-gallery/media-gallery';
 import { SafeHtmlPipe } from '../../utils/safe-html.pipe';
 import { isVideo } from '../../utils/media';
 import { hideOnError, showOnLoad } from '../../utils/media-events';
@@ -22,7 +23,14 @@ import { hideOnError, showOnLoad } from '../../utils/media-events';
  */
 @Component({
   selector: 'app-workflows-browse',
-  imports: [CommonModule, FormsModule, TagAutocompleteInput, SafeHtmlPipe, TranslatePipe],
+  imports: [
+    CommonModule,
+    FormsModule,
+    TagAutocompleteInput,
+    MediaGallery,
+    SafeHtmlPipe,
+    TranslatePipe,
+  ],
   templateUrl: './workflows-browse.html',
   styleUrl: './workflows-browse.scss',
 })
@@ -64,7 +72,6 @@ export class WorkflowsBrowse {
 
   results = signal<CivitaiModel[]>([]);
   selectedModel = signal<CivitaiModel | null>(null);
-  galleryIndex = signal(0);
   installedVersionIds = signal<string[]>([]);
 
   hasSearched = signal(false);
@@ -180,7 +187,6 @@ export class WorkflowsBrowse {
 
   select(model: CivitaiModel) {
     this.selectedModel.set(model);
-    this.galleryIndex.set(0);
   }
 
   download(model: CivitaiModel, version: CivitaiVersion) {
@@ -262,13 +268,15 @@ export class WorkflowsBrowse {
       .filter(Boolean);
   }
 
-  currentGalleryUrl(model: CivitaiModel): string {
-    return this.galleryImages(model)[this.galleryIndex()] ?? '';
-  }
-
-  setGalleryIndex(i: number) {
-    this.galleryIndex.set(i);
-  }
+  /**
+   * Gallery URLs for the selected model, as a computed rather than a method call:
+   * `app-media-gallery` takes them as a signal input, so a method would hand it a
+   * fresh array on every change-detection cycle.
+   */
+  readonly galleryUrls = computed(() => {
+    const model = this.selectedModel();
+    return model ? this.galleryImages(model) : [];
+  });
 
   modelBaseModel(model: CivitaiModel): string {
     return model.modelVersions?.[0]?.baseModel ?? '';
@@ -277,8 +285,6 @@ export class WorkflowsBrowse {
   sourceUrl(model: CivitaiModel): string {
     return `https://civitai.com/models/${model.id}`;
   }
-
-  isVideo = isVideo;
 
   onImgLoad(event: Event) {
     showOnLoad(event);

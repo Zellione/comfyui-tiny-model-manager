@@ -347,9 +347,15 @@
 
 .detail-body {
   display: grid;
-  grid-template-columns: 1fr 580px;
+  grid-template-columns: minmax(0, 460px) 1fr;
   gap: 1rem;
   align-items: start;
+
+  // Most HuggingFace repos ship no preview images; without this the media column
+  // would leave a dead 460px gap instead of giving the file list the full width.
+  &--no-media {
+    grid-template-columns: 1fr;
+  }
 
   @media (max-width: 900px) {
     grid-template-columns: 1fr;
@@ -433,94 +439,6 @@
 .meta-stat {
   font-size: 0.78rem;
   color: var(--text-3);
-}
-
-// ── Gallery ───────────────────────────────────────────────────────────────────
-
-.gallery {
-  display: flex;
-  flex-direction: row;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  align-items: flex-start;
-}
-
-.gallery-main {
-  flex: 1;
-  height: 320px;
-  background: var(--bg-2);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  img,
-  video {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    display: block;
-  }
-}
-
-.gallery-thumbs {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  overflow-y: auto;
-  overflow-x: hidden;
-  max-height: 320px;
-  padding-right: 2px;
-
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-strong) transparent;
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: var(--border-strong);
-    border-radius: 2px;
-  }
-}
-
-.gallery-thumb {
-  width: 58px;
-  height: 80px;
-  flex-shrink: 0;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: var(--surface-hi);
-  cursor: pointer;
-  border: 2px solid transparent;
-  position: relative;
-  transition: border-color var(--dur);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover {
-    border-color: var(--border-strong);
-  }
-  &.active {
-    border-color: var(--accent);
-  }
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-}
-
-.video-icon {
-  font-size: 1.2rem;
-  color: var(--text-3);
-  pointer-events: none;
 }
 
 // ── Chips ─────────────────────────────────────────────────────────────────────
