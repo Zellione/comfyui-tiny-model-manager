@@ -9,8 +9,11 @@ irreversibly, and links need admin rights on Windows or a shared filesystem.
 """
 
 import os
+from dataclasses import dataclass
 
 import folder_paths
+
+from . import disk_scanner
 
 
 class ForeignRootError(ValueError):
@@ -69,3 +72,42 @@ def validate_root(path: str) -> str:
     if _overlaps_local_library(real_root):
         raise ForeignRootError("path_is_local_root")
     return real_root
+
+
+@dataclass
+class SourceFile:
+    """One model file found in the foreign root.
+
+    ``filename`` is relative to the type folder and always uses forward slashes, matching
+    what ``disk_scanner.scan_dir`` yields and what the ``models`` table stores.
+    """
+
+    model_type: str
+    filename: str
+    abs_path: str
+    size_bytes: int
+    status: str = "pending"  # pending | new | installed | unreadable
+    file_hash: str = ""
+
+
+def scan_source(root: str) -> list[SourceFile]:
+    """List every model file under ``root``, typed by its immediate subfolder name.
+
+    A file sitting directly in the root has no type subfolder and is skipped: guessing a
+    type would risk filing a LoRA into checkpoints.
+    """
+    files: list[SourceFile] = []
+    for name in sorted(os.listdir(root)):
+        type_dir = os.path.join(root, name)
+        if name in disk_scanner.SKIP_TYPES or not os.path.isdir(type_dir):
+            continue
+        for entry in disk_scanner.scan_dir(type_dir, disk_scanner.BROAD_EXTENSIONS):
+            files.append(
+                SourceFile(
+                    model_type=name,
+                    filename=entry["filename"],
+                    abs_path=os.path.join(type_dir, entry["filename"]),
+                    size_bytes=entry["size_bytes"],
+                )
+            )
+    return files

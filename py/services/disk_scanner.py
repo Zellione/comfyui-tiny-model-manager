@@ -10,8 +10,8 @@ import folder_paths
 
 from .. import config as cfg
 
-_BROAD_EXTENSIONS = {".safetensors", ".ckpt", ".pt", ".bin", ".gguf", ".pth"}
-_SKIP_TYPES = {"configs", "custom_nodes"}
+BROAD_EXTENSIONS = {".safetensors", ".ckpt", ".pt", ".bin", ".gguf", ".pth"}
+SKIP_TYPES = {"configs", "custom_nodes"}
 
 
 def scan_dir(base_dir: str, extensions: set) -> list:
@@ -39,12 +39,12 @@ def scan_dir(base_dir: str, extensions: set) -> list:
 def _scan_registered_types(result: dict, scanned: set) -> None:
     """Phase 1: scan every registered ComfyUI folder type into result."""
     for folder_type, (dirs, extensions) in folder_paths.folder_names_and_paths.items():
-        if folder_type in _SKIP_TYPES:
+        if folder_type in SKIP_TYPES:
             continue
         models = []
         for base_dir in dirs:
             scanned.add(os.path.normpath(base_dir))
-            models.extend(scan_dir(base_dir, set(extensions) | _BROAD_EXTENSIONS))
+            models.extend(scan_dir(base_dir, set(extensions) | BROAD_EXTENSIONS))
         if models:
             result[folder_type] = models
 
@@ -54,13 +54,13 @@ def _scan_root_subdirs(result: dict, scanned: set, root: str, skip_types: bool) 
     if not os.path.isdir(root):
         return
     for name in sorted(os.listdir(root)):
-        if skip_types and name in _SKIP_TYPES:
+        if skip_types and name in SKIP_TYPES:
             continue
         physical = os.path.normpath(os.path.join(root, name))
         if not os.path.isdir(physical) or physical in scanned:
             continue
         scanned.add(physical)
-        models = scan_dir(physical, _BROAD_EXTENSIONS)
+        models = scan_dir(physical, BROAD_EXTENSIONS)
         if models:
             result.setdefault(name, []).extend(models)
 

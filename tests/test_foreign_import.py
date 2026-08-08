@@ -88,3 +88,67 @@ class TestValidateRoot:
         with pytest.raises(foreign_import.ForeignRootError) as excinfo:
             foreign_import.validate_root(str(custom))
         assert str(excinfo.value) == "path_is_local_root"
+
+
+def _make_source_tree(tmp_path):
+    """Build a small foreign models root and return its path."""
+    root = tmp_path / "foreign" / "models"
+    (root / "checkpoints").mkdir(parents=True)
+    (root / "loras" / "style").mkdir(parents=True)
+    (root / "configs").mkdir(parents=True)
+    (root / "checkpoints" / "sd15.safetensors").write_bytes(b"a" * 16)
+    (root / "loras" / "style" / "neon.safetensors").write_bytes(b"b" * 32)
+    (root / "loras" / "notes.txt").write_text("ignored")
+    (root / "configs" / "cfg.safetensors").write_bytes(b"c" * 8)
+    (root / "loose.safetensors").write_bytes(b"d" * 4)
+    return root
+
+
+class TestScanSource:
+    def test_groups_by_type_subfolder(self, tmp_path, ext_dir):
+        from py.services import foreign_import
+
+        files = foreign_import.scan_source(str(_make_source_tree(tmp_path)))
+        assert {f.model_type for f in files} == {"checkpoints", "loras"}
+
+    def test_preserves_relative_subfolder(self, tmp_path, ext_dir):
+        from py.services import foreign_import
+
+        files = foreign_import.scan_source(str(_make_source_tree(tmp_path)))
+        lora = next(f for f in files if f.model_type == "loras")
+        assert lora.filename == "style/neon.safetensors"
+
+    def test_records_absolute_path_and_size(self, tmp_path, ext_dir):
+        from py.services import foreign_import
+
+        root = _make_source_tree(tmp_path)
+        files = foreign_import.scan_source(str(root))
+        ckpt = next(f for f in files if f.model_type == "checkpoints")
+        assert ckpt.abs_path == os.path.join(str(root), "checkpoints", "sd15.safetensors")
+        assert ckpt.size_bytes == 16
+
+    def test_non_model_extensions_ignored(self, tmp_path, ext_dir):
+        from py.services import foreign_import
+
+        files = foreign_import.scan_source(str(_make_source_tree(tmp_path)))
+        assert all(not f.filename.endswith(".txt") for f in files)
+
+    def test_skip_types_ignored(self, tmp_path, ext_dir):
+        from py.services import foreign_import
+
+        files = foreign_import.scan_source(str(_make_source_tree(tmp_path)))
+        assert all(f.model_type != "configs" for f in files)
+
+    def test_loose_files_at_root_ignored(self, tmp_path, ext_dir):
+        """A file directly in the models root has no type subfolder, so it has no type."""
+        from py.services import foreign_import
+
+        files = foreign_import.scan_source(str(_make_source_tree(tmp_path)))
+        assert all(f.filename != "loose.safetensors" for f in files)
+
+    def test_files_start_pending_and_unhashed(self, tmp_path, ext_dir):
+        from py.services import foreign_import
+
+        files = foreign_import.scan_source(str(_make_source_tree(tmp_path)))
+        assert {f.status for f in files} == {"pending"}
+        assert all(f.file_hash == "" for f in files)
