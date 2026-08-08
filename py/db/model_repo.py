@@ -1135,6 +1135,22 @@ async def get_file_hash_map() -> dict[str, str]:
         return {row["file_hash"].lower(): row["filename"] for row in rows if row["file_hash"]}
 
 
+async def set_file_hash(filename: str, file_hash: str) -> bool:
+    """Store a SHA-256 on an already-registered model. Returns True if a row changed.
+
+    The foreign-folder import (F-154) hashes local files the DB does not know a hash for
+    and caches the result here, so a repeated scan does not re-read the whole library.
+    An unregistered on-disk file has no row, so it is silently a no-op.
+    """
+    async with get_db() as db:
+        cursor = await db.execute(
+            "UPDATE models SET file_hash = ? WHERE filename = ?",
+            (file_hash.lower(), filename),
+        )
+        await db.commit()
+        return cursor.rowcount > 0
+
+
 async def register_model(
     filename: str,
     model_type: str,
