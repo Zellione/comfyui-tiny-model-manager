@@ -101,8 +101,22 @@ describe('MediaGallery', () => {
       fixture.detectChanges();
 
       expect(component.items()).toEqual([
-        { src: 'https://cdn.example/img.jpeg', isVideo: false, poster: null },
-        { src: 'https://cdn.example/clip.mp4', isVideo: true, poster: null },
+        {
+          src: 'https://cdn.example/img.jpeg',
+          isVideo: false,
+          poster: null,
+          uploaded: false,
+          mediaId: 0,
+          localPath: '',
+        },
+        {
+          src: 'https://cdn.example/clip.mp4',
+          isVideo: true,
+          poster: null,
+          uploaded: false,
+          mediaId: 0,
+          localPath: '',
+        },
       ]);
     });
 
@@ -218,6 +232,86 @@ describe('MediaGallery', () => {
       fixture.detectChanges();
 
       expect(fixture.nativeElement.querySelector('.lightbox')).toBeNull();
+    });
+  });
+
+  describe('upload affordances', () => {
+    it('hides the upload zone when uploadable is false', () => {
+      fixture.componentRef.setInput('media', []);
+      fixture.detectChanges();
+
+      expect(component.showUploadZone()).toBe(false);
+    });
+
+    it('shows the upload zone for an empty gallery when uploadable', () => {
+      fixture.componentRef.setInput('media', []);
+      fixture.componentRef.setInput('uploadable', true);
+      fixture.detectChanges();
+
+      expect(component.showUploadZone()).toBe(true);
+    });
+
+    it('shows the upload zone while every item is an upload', () => {
+      fixture.componentRef.setInput('media', [
+        makeItem({ id: 1, local_path: '/m/h/upload-0123456789ab.png', uploaded: true }),
+      ]);
+      fixture.componentRef.setInput('uploadable', true);
+      fixture.detectChanges();
+
+      expect(component.showUploadZone()).toBe(true);
+    });
+
+    it('hides the upload zone once a fetched image is present', () => {
+      fixture.componentRef.setInput('media', [
+        makeItem({ id: 1, local_path: '/m/h/upload-0123456789ab.png', uploaded: true }),
+        makeItem({ id: 2, local_path: '/m/h/0.jpg', uploaded: false }),
+      ]);
+      fixture.componentRef.setInput('uploadable', true);
+      fixture.detectChanges();
+
+      expect(component.showUploadZone()).toBe(false);
+    });
+
+    it('never shows the upload zone for remote urls', () => {
+      fixture.componentRef.setInput('urls', ['https://example.test/a.jpg']);
+      fixture.componentRef.setInput('uploadable', true);
+      fixture.detectChanges();
+
+      expect(component.showUploadZone()).toBe(false);
+      expect(component.items()[0].uploaded).toBe(false);
+    });
+
+    it('carries mediaId and localPath on each local item', () => {
+      fixture.componentRef.setInput('media', [
+        makeItem({ id: 42, local_path: '/m/h/upload-0123456789ab.png', uploaded: true }),
+      ]);
+      fixture.detectChanges();
+
+      expect(component.items()[0].mediaId).toBe(42);
+      expect(component.items()[0].localPath).toBe('/m/h/upload-0123456789ab.png');
+    });
+
+    it('re-emits a remove request for the given item', () => {
+      const emitted: unknown[] = [];
+      fixture.componentRef.setInput('media', [
+        makeItem({ id: 42, local_path: '/m/h/upload-0123456789ab.png', uploaded: true }),
+      ]);
+      fixture.detectChanges();
+      component.removeRequested.subscribe((v) => emitted.push(v));
+
+      component.requestRemove(component.items()[0]);
+
+      expect(emitted.length).toBe(1);
+      expect((emitted[0] as { mediaId: number }).mediaId).toBe(42);
+    });
+
+    it('re-emits selected files', () => {
+      const emitted: File[][] = [];
+      component.filesSelected.subscribe((f) => emitted.push(f));
+
+      component.onFilesSelected([new File(['a'], 'a.png', { type: 'image/png' })]);
+
+      expect(emitted.length).toBe(1);
     });
   });
 });

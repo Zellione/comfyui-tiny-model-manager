@@ -54,6 +54,11 @@
   padding-bottom: 2px;
 }
 
+.gallery-thumb-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
 .gallery-thumb {
   width: 64px;
   height: 64px;
@@ -80,6 +85,26 @@
   &:hover:not(.active) {
     border-color: var(--border-strong);
   }
+}
+
+.gallery-thumb-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  line-height: 1;
+  font-size: 0.6rem;
+  border: none;
+  border-radius: 2px;
+  background: rgb(0 0 0 / 65%);
+  color: #fff;
+  cursor: pointer;
+}
+
+.gallery-thumb-remove:hover {
+  background: var(--tmm-danger, #f7768e);
 }
 
 .gallery-thumb-video-wrap {
