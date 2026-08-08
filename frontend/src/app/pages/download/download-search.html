@@ -264,42 +264,13 @@
         </div>
 
         <!-- Inner two-column body -->
-        <div class="detail-body">
+        <div class="detail-body" [class.detail-body--no-media]="civitaiGalleryUrls().length === 0">
           <!-- Left: gallery only -->
-          <div class="detail-media">
-            @if (civitaiGalleryImages(model).length > 0) {
-              <div class="gallery">
-                @if (civitaiGalleryImages(model).length > 1) {
-                  <div class="gallery-thumbs">
-                    @for (url of civitaiGalleryImages(model); track url; let i = $index) {
-                      <div
-                        class="gallery-thumb"
-                        [class.active]="galleryIndex() === i"
-                        (click)="setGalleryIndex(i)"
-                        (keydown.enter)="setGalleryIndex(i)"
-                      >
-                        @if (isVideo(url)) {
-                          <span class="video-icon">▶</span>
-                        } @else {
-                          <img [src]="url" alt="" loading="lazy" (error)="onImgError($event)" />
-                        }
-                      </div>
-                    }
-                  </div>
-                }
-                <div class="gallery-main">
-                  @if (isVideo(currentGalleryUrl(model))) {
-                    <video [src]="currentGalleryUrl(model)" controls loop muted autoplay>
-                      <track kind="captions" />
-                    </video>
-                  } @else {
-                    <img [src]="currentGalleryUrl(model)" alt="" (error)="onImgError($event)" />
-                  }
-                </div>
-              </div>
-            }
-          </div>
-          <!-- /detail-media -->
+          @if (civitaiGalleryUrls().length > 0) {
+            <div class="detail-media">
+              <app-media-gallery [urls]="civitaiGalleryUrls()" />
+            </div>
+          }
 
           <!-- Right: versions + file picker -->
           <div class="detail-downloads">
@@ -448,42 +419,13 @@
         </div>
 
         <!-- Inner two-column body -->
-        <div class="detail-body">
+        <div class="detail-body" [class.detail-body--no-media]="hfGalleryUrls().length === 0">
           <!-- Left: gallery -->
-          <div class="detail-media">
-            @if (hfGalleryImages(model).length > 0) {
-              <div class="gallery">
-                @if (hfGalleryImages(model).length > 1) {
-                  <div class="gallery-thumbs">
-                    @for (url of hfGalleryImages(model); track url; let i = $index) {
-                      <div
-                        class="gallery-thumb"
-                        [class.active]="galleryIndex() === i"
-                        (click)="setGalleryIndex(i)"
-                        (keydown.enter)="setGalleryIndex(i)"
-                      >
-                        @if (isVideo(url)) {
-                          <span class="video-icon">▶</span>
-                        } @else {
-                          <img [src]="url" alt="" loading="lazy" (error)="onImgError($event)" />
-                        }
-                      </div>
-                    }
-                  </div>
-                }
-                <div class="gallery-main">
-                  @if (isVideo(currentHfGalleryUrl(model))) {
-                    <video [src]="currentHfGalleryUrl(model)" controls loop muted autoplay>
-                      <track kind="captions" />
-                    </video>
-                  } @else {
-                    <img [src]="currentHfGalleryUrl(model)" alt="" (error)="onImgError($event)" />
-                  }
-                </div>
-              </div>
-            }
-          </div>
-          <!-- /detail-media -->
+          @if (hfGalleryUrls().length > 0) {
+            <div class="detail-media">
+              <app-media-gallery [urls]="hfGalleryUrls()" />
+            </div>
+          }
 
           <!-- Right: files list -->
           <div class="detail-downloads">

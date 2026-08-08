@@ -364,6 +364,20 @@ describe('Images', () => {
       expect(c.isVideoItem(makeImage())).toBe(false);
     });
 
+    it('detailMediaUrls follows the selection and is empty with none', async () => {
+      const c = await createComponent();
+      expect(c.detailMediaUrls()).toEqual([]);
+
+      c.selected.set(makeImage({ url: 'https://x/frog.jpeg' }));
+      expect(c.detailMediaUrls()).toEqual(['https://x/frog.jpeg']);
+    });
+
+    it('detailMediaUrls keeps a stable reference while the selection is unchanged', async () => {
+      const c = await createComponent();
+      c.selected.set(makeImage());
+      expect(c.detailMediaUrls()).toBe(c.detailMediaUrls());
+    });
+
     it('reveals an image once it loads and hides it on error', async () => {
       const c = await createComponent();
       const img = document.createElement('img');
@@ -504,7 +518,11 @@ describe('Images', () => {
       );
       const el = (await render()).nativeElement;
       expect(el.querySelector('.row-thumb .video-only-icon')).toBeTruthy();
-      expect(el.querySelector('video.detail-main-media')).toBeTruthy();
+      // The detail preview is the shared gallery, which picks the <video> branch
+      // from the .mp4 extension.
+      const video: HTMLVideoElement = el.querySelector('app-media-gallery .gallery-main video');
+      expect(video).toBeTruthy();
+      expect(video.getAttribute('src')).toBe('https://x/a.mp4');
     });
   });
 });

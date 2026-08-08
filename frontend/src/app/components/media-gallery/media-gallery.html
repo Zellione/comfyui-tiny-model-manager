@@ -1,11 +1,11 @@
-@if (media().length > 0) {
+@if (items().length > 0) {
   <div class="gallery">
     <div class="gallery-main">
       @if (activeMedia(); as m) {
-        @if (m.media_type === 'image') {
+        @if (!m.isVideo) {
           <button type="button" class="gallery-main-btn" (click)="lightboxOpen.set(true)">
             <img
-              [src]="mediaUrl(m.local_path)"
+              [src]="m.src"
               alt="preview"
               style="display: none"
               (load)="onImgLoad($event)"
@@ -13,24 +13,25 @@
             />
           </button>
         } @else {
-          <video [src]="mediaUrl(m.local_path)" [poster]="videoPosterUrl(m.local_path)" controls>
+          <!-- attr binding, not property: a null poster property stringifies to "null" -->
+          <video [src]="m.src" [attr.poster]="m.poster" controls>
             <track kind="captions" />
           </video>
         }
       }
     </div>
-    @if (media().length > 1) {
+    @if (items().length > 1) {
       <div class="gallery-thumbs">
-        @for (thumb of media(); track thumb.id; let i = $index) {
+        @for (thumb of items(); track thumb.src; let i = $index) {
           <button
             type="button"
             class="gallery-thumb"
             [class.active]="i === galleryIdx()"
             (click)="galleryIdx.set(i)"
           >
-            @if (thumb.media_type === 'image') {
+            @if (!thumb.isVideo) {
               <img
-                [src]="mediaUrl(thumb.local_path)"
+                [src]="thumb.src"
                 alt=""
                 style="display: none"
                 (load)="onImgLoad($event)"
@@ -39,13 +40,15 @@
             } @else {
               <div class="gallery-thumb-video-wrap">
                 <div class="gallery-thumb-video">▶</div>
-                <img
-                  [src]="videoPosterUrl(thumb.local_path)"
-                  alt=""
-                  style="display: none"
-                  (load)="onVideoPosterLoad($event)"
-                  (error)="onImgError($event)"
-                />
+                @if (thumb.poster) {
+                  <img
+                    [src]="thumb.poster"
+                    alt=""
+                    style="display: none"
+                    (load)="onVideoPosterLoad($event)"
+                    (error)="onImgError($event)"
+                  />
+                }
               </div>
             }
           </button>
@@ -59,7 +62,7 @@
   </div>
 }
 
-@if (lightboxOpen() && activeMedia()?.media_type === 'image') {
+@if (lightboxOpen() && activeMedia() && !activeMedia()!.isVideo) {
   <button
     type="button"
     class="lightbox"
@@ -67,7 +70,7 @@
     (click)="lightboxOpen.set(false)"
   >
     <img
-      [src]="mediaUrl(activeMedia()!.local_path)"
+      [src]="activeMedia()!.src"
       alt="full size preview"
       style="display: none"
       (load)="onImgLoad($event)"

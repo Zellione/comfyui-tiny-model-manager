@@ -246,18 +246,16 @@ describe('WorkflowsBrowse', () => {
     const c = await createComponent();
     const model = makeModel();
     expect(c.galleryImages(model)).toEqual(['https://img/a.jpg']);
-    expect(c.currentGalleryUrl(model)).toBe('https://img/a.jpg');
-    c.setGalleryIndex(5);
-    expect(c.currentGalleryUrl(model)).toBe('');
     expect(c.modelBaseModel(model)).toBe('Flux.1 D');
     expect(c.sourceUrl(model)).toBe('https://civitai.com/models/123');
   });
 
-  it('select resets the gallery index', async () => {
+  it('galleryUrls tracks the selected model and defaults to empty', async () => {
     const c = await createComponent();
-    c.setGalleryIndex(3);
+    expect(c.galleryUrls()).toEqual([]);
+
     c.select(makeModel());
-    expect(c.galleryIndex()).toBe(0);
+    expect(c.galleryUrls()).toEqual(['https://img/a.jpg']);
   });
 
   it('toggles image visibility on load and error', async () => {

@@ -163,18 +163,7 @@
 
         <div class="detail-body">
           <div class="detail-media">
-            @if (isVideoItem(image)) {
-              <video class="detail-main-media" [src]="image.url" controls>
-                <track kind="captions" />
-              </video>
-            } @else {
-              <img
-                class="detail-main-media"
-                [src]="image.url"
-                alt=""
-                (error)="onImgError($event)"
-              />
-            }
+            <app-media-gallery [urls]="detailMediaUrls()" />
             @if (image.meta?.prompt) {
               <div class="detail-prompt">
                 <div class="detail-section-title">{{ 'images.detail.prompt' | translate }}</div>

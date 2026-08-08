@@ -298,8 +298,68 @@ a path is rare: `meta.comfy` ~11 %, A1111-style params only ~56 %, no `meta` at 
   - `(load)="onVideoPosterLoad($event)"`: shows the img (`display: block`) and hides the preceding sibling via `img.previousElementSibling.style.display = 'none'`.
   - `(error)="onImgError($event)"`: keeps img hidden; ▶ stays visible.
   - The ▶ div **must come before** the img in the DOM — `onVideoPosterLoad` relies on `previousElementSibling`.
-- **Main panel video in MediaGallery**: `[poster]="videoPosterUrl(m.local_path)"` on the `<video>` element — native HTML5 poster, no JS needed.
+- **Main panel video in MediaGallery**: `[attr.poster]="m.poster"` on the `<video>` element — native HTML5 poster, no JS needed. **Attribute binding, not property binding**: remote gallery entries carry `poster: null`, and `[poster]="null"` sets the DOM property, which stringifies to the literal `"null"` and makes the browser request a file called `null`. `[attr.poster]` removes the attribute instead. Same trap applies to any nullable URL-valued binding (`src`, `href`, `poster`).
 - **Catalog cards**: wrap is not needed (unlike `.gallery-thumb-video-wrap`); ▶ div and img are siblings inside `.thumb-link`. The `img` uses `class="thumb"` (same as normal thumbnails) so it fills the card slot.
+- Remote gallery entries have no poster route, so their thumbnails render the ▶ fallback alone — the poster `<img>` is `@if`-guarded on `thumb.poster`.
+
+## `MediaGallery` is the app's only gallery (issue #155)
+
+`components/media-gallery` is the single gallery implementation. Five pages feed it, via two
+alternative inputs that it normalises internally to `GalleryMedia { src, isVideo, poster }`:
+
+- `[media]="MediaItem[]"` — locally-stored records (`model-detail`, `catalog-detail`).
+  `src = mediaUrl(local_path)`, poster derived from the media-poster route for videos.
+- `[urls]="string[]"` — remote CivitAI/HuggingFace preview URLs (`download-search`,
+  `workflows-browse`, `images`). Video detected with the `isVideo(url)` extension heuristic;
+  `poster: null`. The `images` page has exactly one item, so no thumb strip renders.
+
+**When hunting for copies of a shared component, do not grep for its name.** The first sweep for
+#155 searched for `gallery` and missed the `images` page entirely, because it called its preview
+`detail-main-media` and had no thumb strip. Grep for the *style declarations* that characterise the
+duplicate (`height: 300px` + `object-fit: contain`, `var(--bg-2)`) instead.
+
+`media` wins when both are set. Before #155 each of these pages carried its own near-duplicate
+markup, index signal and SCSS (320px / 300px fixed-height full-width boxes, no lightbox); they
+drifted apart visually, which is exactly what #155 reported. **Do not hand-roll a new gallery —
+extend this component.**
+
+### Two traps when feeding it
+
+- **Bind a `computed()`, never a method call.** `[urls]="galleryImages(model)"` returns a fresh
+  array on every change-detection cycle, so the signal input rewrites constantly. Pages expose
+  `readonly galleryUrls = computed(() => …selectedModel()…)` instead, which memoises on the
+  selection.
+- **The selected index resets itself.** `galleryIdx` is a `linkedSignal` sourced from a *string*
+  identity of the items (`items().map(i => i.src).join('|')`), not from the array — a string
+  compares by value, so re-setting an input to structurally identical content keeps the user's
+  selection, while pointing the gallery at different media snaps back to the first item. Parents
+  must **not** reset a gallery index on selection any more; that state no longer lives there.
+
+### Layout
+
+- The gallery is 16/9, `var(--radius)`, black backdrop, thumb strip below, click-to-zoom lightbox
+  (Esc closes). Preview videos use `controls` — they do **not** autoplay.
+- Pages own the width constraint. `download-search`'s detail grid is
+  `minmax(0, 460px) 1fr` (media column bounded, download list flexible) and collapses to `1fr` via
+  `.detail-body--no-media` when there are no images — most HuggingFace repos ship none, and a fixed
+  track would otherwise leave a dead 460px gap. `workflows-browse` keeps its `1fr 420px` grid
+  because that column also holds the description, and bounds the element instead
+  (`app-media-gallery { max-width: 460px }`). `images` does the same (its column holds the prompt).
+
+## Every top-level page needs its own container — there is no global one (issue #155)
+
+`app.scss` gives `<main>` only a `min-height`; **no max-width or padding is applied app-wide**. Each
+routed page must constrain itself, in one of two established ways:
+
+- `:host { display: block; max-width: 1440px; margin: 0 auto; padding: 28px 28px 80px; }` —
+  `download` (80px bottom), `workflows` and `images` (100px bottom).
+- a `.page { max-width: 1440px }` wrapper element in the template — `models`, `settings`,
+  `model-detail`, `catalog-detail`.
+
+A page that defines neither renders `display: inline` with no max-width and **no gutter**, so it runs
+edge-to-edge and its heading sits flush at x=0. The `images` page shipped in that state from #130
+until #155 caught it. **When adding a routed page, copy one of the two container patterns above and
+check it against a sibling page at a wide viewport.**
 
 ## Other recurring SonarQube rules
 
