@@ -1,0 +1,28 @@
+<div class="upload-zone" [class.dragging]="dragging()" [class.busy]="busy()">
+  <label
+    class="upload-drop"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave()"
+    (drop)="onDrop($event)"
+  >
+    <input
+      type="file"
+      class="upload-input"
+      multiple
+      [accept]="acceptAttr"
+      [disabled]="busy()"
+      (change)="onPicked($event)"
+    />
+    @if (busy()) {
+      <span class="upload-text">{{ 'media_gallery.uploading' | translate }}</span>
+    } @else {
+      <span class="upload-text">{{ 'media_gallery.upload_hint' | translate }}</span>
+      <span class="upload-browse">{{ 'media_gallery.upload_browse' | translate }}</span>
+    }
+  </label>
+  @if (localError()) {
+    <p class="upload-error">{{ localError() | translate }}</p>
+  } @else if (error()) {
+    <p class="upload-error">{{ error() }}</p>
+  }
+</div>

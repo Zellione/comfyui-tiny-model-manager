@@ -1,0 +1,56 @@
+.upload-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.upload-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 1.25rem 1rem;
+  border: 1px dashed var(--tmm-border, #4a4a4a);
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s ease;
+}
+
+.upload-zone.dragging .upload-drop {
+  border-color: var(--tmm-accent, #7aa2f7);
+}
+
+.upload-zone.busy .upload-drop {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.upload-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.upload-text {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.upload-browse {
+  font-size: 0.7rem;
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+.upload-error {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--tmm-danger, #f7768e);
+}
