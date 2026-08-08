@@ -76,12 +76,17 @@ civitai_version_id, civitai_model_id, model_type, thumbnail}`.
 - `huggingface_provider.validate_repo_id` is **public** (was `_validate_repo_id`) so
   `link_resolver` can reuse it.
 
-## HuggingFace search & link quirks (#157, #158)
+## HuggingFace search & link quirks (#157, #158, #161)
 
-- **`_build_search_params` sends `pipeline_tag` on every non-GGUF search**
-  (`HF_TYPE_MAP.get(model_type, "text-to-image")`), which silently hides any repo whose
-  pipeline differs from the selected model type — including one the user pasted by exact id.
-  Verified against the live API: `?search=huihui-ai/Huihui-Qwen3-VL-4B-Instruct-abliterated`
+- **`_build_search_params` only sends `pipeline_tag` when `HF_TYPE_MAP` maps the model type**
+  (`checkpoints`, `loras`, `embeddings` → `text-to-image`). It used to default *every* other
+  type to `text-to-image` too, which silently hid nearly every genuinely matching repo for
+  `vae`, `text_encoders`, `controlnet`, `unet`, `upscale_models`, `diffusion_models`, … —
+  those repos are not tagged `text-to-image` on the Hub (#161). Do not reintroduce the
+  default: an unmapped type must search unfiltered. The GGUF branch (`filter=gguf`) never
+  sent a `pipeline_tag` and is untouched; tag filters still ride along in both branches.
+- Even for a *mapped* type the filter can hide a repo the user pasted by exact id. Verified
+  against the live API: `?search=huihui-ai/Huihui-Qwen3-VL-4B-Instruct-abliterated`
   returns the repo, the same query `&pipeline_tag=text-to-image` returns `[]`. The `search`
   param itself handles `owner/repo` fine, so **the query string was never the problem**.
   Fix: `HuggingFaceProvider._lookup_exact_repo()` does an *unfiltered*
@@ -89,8 +94,6 @@ civitai_version_id, civitai_model_id, model_type, thumbnail}`.
   `_EXACT_REPO_ID_RE` requires both halves (a keyword query must not cost an extra request),
   page 0 only, dedupe by `id`/`modelId`, every failure maps to `None`, and **`hasMore` is read
   before the prepend** or the extra item makes the page `limit + 1` and kills "Load more".
-  The blanket `pipeline_tag` default is still wrong for types `HF_TYPE_MAP` does not know
-  (`vae`, `text_encoders`, `controlnet`, `unet`, …) — deliberately left alone, not yet filed.
 - **A HuggingFace `/blob/` URL serves the HTML file-viewer page, not the file.** It is what the
   repo file browser's copy-link gives you, so it is what users paste. `detectLink`
   (`frontend/src/app/utils/link-detector.ts`) matches both markers via `HF_FILE_RE` and the
