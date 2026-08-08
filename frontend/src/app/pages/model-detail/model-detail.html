@@ -116,7 +116,14 @@
         <!-- ── Read view ── -->
 
         <!-- Gallery -->
-        <app-media-gallery [media]="meta()!.media" />
+        <app-media-gallery
+          [media]="meta()!.media"
+          [uploadable]="canUpload()"
+          [uploadBusy]="uploadBusy()"
+          [uploadError]="uploadError()"
+          (filesSelected)="uploadImages($event)"
+          (removeRequested)="removeImage($event)"
+        />
 
         <!-- Tags -->
         @if (meta()!.tags && meta()!.tags.length > 0) {
