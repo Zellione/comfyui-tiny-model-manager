@@ -121,6 +121,16 @@ async def ext_dir(tmp_path):
 
 
 @pytest.fixture(autouse=True)
+def reset_folder_paths_state():
+    """Clear folder_paths state between tests to avoid pollution from fixtures that modify it."""
+    import folder_paths
+
+    yield
+    # Clean up any modifications to folder_names_and_paths made by test fixtures
+    folder_paths.folder_names_and_paths.clear()
+
+
+@pytest.fixture(autouse=True)
 def reset_downloader_state():
     """Give every test a download queue bound to its own event loop.
 

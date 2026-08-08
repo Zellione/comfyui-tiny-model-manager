@@ -248,3 +248,109 @@ async def _noop_local_hashes() -> set[str]:
     from py.db import model_repo
 
     return set(await model_repo.get_file_hash_map())
+
+
+class TestDestinationAndCopy:
+    def test_dest_base_uses_first_candidate_dir(self, tmp_path, monkeypatch, ext_dir):
+        import folder_paths
+
+        from py.services import foreign_import
+
+        monkeypatch.setattr(folder_paths, "models_dir", str(tmp_path / "local"))
+        assert foreign_import.dest_base("loras") == os.path.join(str(tmp_path / "local"), "loras")
+
+    def test_unsafe_model_type_rejected(self, ext_dir):
+        from py.services import foreign_import
+
+        with pytest.raises(ValueError, match="invalid_model_type"):
+            foreign_import.dest_base("..")
+
+    def test_traversing_filename_rejected(self, tmp_path, monkeypatch, ext_dir):
+        import folder_paths
+
+        from py.services import foreign_import
+
+        monkeypatch.setattr(folder_paths, "models_dir", str(tmp_path / "local"))
+        with pytest.raises(ValueError, match="unsafe_filename"):
+            foreign_import.resolve_destination("loras", "../../escape.safetensors")
+
+    def test_resolve_destination_keeps_subfolder(self, tmp_path, monkeypatch, ext_dir):
+        import folder_paths
+
+        from py.services import foreign_import
+
+        monkeypatch.setattr(folder_paths, "models_dir", str(tmp_path / "local"))
+        dest = foreign_import.resolve_destination("loras", "style/neon.safetensors")
+        assert dest.endswith(os.path.join("loras", "style", "neon.safetensors"))
+
+    def test_copy_creates_the_file(self, tmp_path, ext_dir):
+        from py.services import foreign_import
+
+        src = tmp_path / "src.safetensors"
+        src.write_bytes(b"payload")
+        dest = tmp_path / "out" / "dest.safetensors"
+        final = foreign_import.copy_file(str(src), str(dest))
+        assert final == str(dest)
+        assert (tmp_path / "out" / "dest.safetensors").read_bytes() == b"payload"
+
+    def test_copy_suffixes_on_collision(self, tmp_path, ext_dir):
+        from py.services import foreign_import
+
+        src = tmp_path / "src.safetensors"
+        src.write_bytes(b"payload")
+        dest = tmp_path / "dest.safetensors"
+        dest.write_bytes(b"existing")
+        final = foreign_import.copy_file(str(src), str(dest))
+        assert final == str(tmp_path / "dest_1.safetensors")
+        assert dest.read_bytes() == b"existing"
+
+    def test_failed_copy_leaves_no_partial_file(self, tmp_path, monkeypatch, ext_dir):
+        import shutil
+
+        from py.services import foreign_import
+
+        src = tmp_path / "src.safetensors"
+        src.write_bytes(b"payload")
+        dest = tmp_path / "out" / "dest.safetensors"
+
+        def boom(source, target):
+            with open(target, "wb") as handle:
+                handle.write(b"half")
+            raise OSError("disk fell over")
+
+        monkeypatch.setattr(shutil, "copyfile", boom)
+        with pytest.raises(OSError):
+            foreign_import.copy_file(str(src), str(dest))
+        assert list((tmp_path / "out").iterdir()) == []
+
+    def test_ensure_space_raises_when_short(self, tmp_path, monkeypatch, ext_dir):
+        import shutil
+
+        from py.services import foreign_import
+
+        monkeypatch.setattr(
+            shutil, "disk_usage", lambda path: shutil._ntuple_diskusage(100, 90, 10)
+        )
+        with pytest.raises(foreign_import.InsufficientSpaceError) as excinfo:
+            foreign_import.ensure_space(str(tmp_path), 50)
+        assert excinfo.value.needed == 50
+        assert excinfo.value.available == 10
+
+    def test_ensure_space_passes_when_ample(self, tmp_path, ext_dir):
+        from py.services import foreign_import
+
+        foreign_import.ensure_space(str(tmp_path), 1)
+
+    def test_source_path_rejects_traversal(self, tmp_path, ext_dir):
+        from py.services import foreign_import
+
+        root = _make_source_tree(tmp_path)
+        with pytest.raises(ValueError, match="source_not_found"):
+            foreign_import.source_path(str(root), "loras", "../../etc/passwd")
+
+    def test_source_path_resolves_existing_file(self, tmp_path, ext_dir):
+        from py.services import foreign_import
+
+        root = _make_source_tree(tmp_path)
+        resolved = foreign_import.source_path(str(root), "loras", "style/neon.safetensors")
+        assert os.path.isfile(resolved)

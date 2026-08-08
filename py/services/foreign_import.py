@@ -10,6 +10,7 @@ irreversibly, and links need admin rights on Windows or a shared filesystem.
 
 import asyncio
 import os
+import shutil
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -242,3 +243,79 @@ def start_scan(root: str) -> ImportJob:
     _jobs[job.id] = job
     job.task = spawn(_run_scan(job))
     return job
+
+
+class InsufficientSpaceError(RuntimeError):
+    """Not enough free space on the destination filesystem for the selected files."""
+
+    def __init__(self, needed: int, available: int):
+        super().__init__("insufficient_space")
+        self.needed = needed
+        self.available = available
+
+
+def dest_base(model_type: str) -> str:
+    """The local directory an imported model of ``model_type`` belongs in."""
+    if not model_paths.is_safe_segment(model_type):
+        raise ValueError("invalid_model_type")
+    dirs = model_paths.candidate_dirs(model_type)
+    if dirs:
+        return dirs[0]
+    return os.path.join(folder_paths.models_dir, model_type)
+
+
+def resolve_destination(model_type: str, filename: str) -> str:
+    """Absolute destination for ``filename``, confined to the type's local directory."""
+    dest = model_paths.contained_path(dest_base(model_type), filename)
+    if dest is None:
+        raise ValueError("unsafe_filename")
+    return dest
+
+
+def source_path(root: str, model_type: str, filename: str) -> str:
+    """Absolute path of a selected source file, confined to ``root/model_type``."""
+    if not model_paths.is_safe_segment(model_type):
+        raise ValueError("invalid_model_type")
+    path = model_paths.contained_path(os.path.join(root, model_type), filename)
+    if path is None or not os.path.isfile(path):
+        raise ValueError("source_not_found")
+    return path
+
+
+def _unique_path(dest: str) -> str:
+    """``dest``, or the first ``_1``/``_2``… variant that does not exist yet."""
+    if not os.path.exists(dest):
+        return dest
+    stem, ext = os.path.splitext(dest)
+    counter = 1
+    while os.path.exists(f"{stem}_{counter}{ext}"):
+        counter += 1
+    return f"{stem}_{counter}{ext}"
+
+
+def copy_file(src: str, dest: str) -> str:
+    """Copy ``src`` to ``dest``, returning the path actually written.
+
+    The copy lands on a ``.tmm-part`` temporary name and is renamed into place only once
+    complete, so an interrupted copy never leaves a truncated file that looks like a
+    working model. Synchronous; call via ``asyncio.to_thread``.
+    """
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    final = _unique_path(dest)
+    part = final + ".tmm-part"
+    try:
+        shutil.copyfile(src, part)
+        os.replace(part, final)
+    except Exception:
+        if os.path.exists(part):
+            os.remove(part)
+        raise
+    return final
+
+
+def ensure_space(dest_dir: str, needed_bytes: int) -> None:
+    """Raise ``InsufficientSpaceError`` unless ``dest_dir`` has room for ``needed_bytes``."""
+    os.makedirs(dest_dir, exist_ok=True)
+    available = shutil.disk_usage(dest_dir).free
+    if available < needed_bytes:
+        raise InsufficientSpaceError(needed_bytes, available)
