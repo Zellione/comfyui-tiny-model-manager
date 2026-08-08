@@ -7,6 +7,7 @@ const makeItem = (overrides: Partial<MediaItem> = {}): MediaItem => ({
   id: 1,
   media_type: 'image',
   local_path: '/media/hash/image.jpg',
+  uploaded: false,
   ...overrides,
 });
 

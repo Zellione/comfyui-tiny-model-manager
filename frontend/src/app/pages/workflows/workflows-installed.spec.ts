@@ -169,7 +169,7 @@ describe('WorkflowsInstalled', () => {
   it('prefers a locally stored image over the remote thumbnail', async () => {
     const c = await createComponent();
     const entry = makeEntry(10, {
-      media: [{ id: 0, media_type: 'image', local_path: '/media/hash/0.jpg' }],
+      media: [{ id: 0, media_type: 'image', local_path: '/media/hash/0.jpg', uploaded: false }],
     });
     expect(c.thumbUrl(entry)).toContain('%2Fmedia%2Fhash%2F0.jpg');
   });
@@ -182,7 +182,7 @@ describe('WorkflowsInstalled', () => {
   it('ignores video media when picking the thumbnail', async () => {
     const c = await createComponent();
     const entry = makeEntry(10, {
-      media: [{ id: 0, media_type: 'video', local_path: '/media/hash/0.mp4' }],
+      media: [{ id: 0, media_type: 'video', local_path: '/media/hash/0.mp4', uploaded: false }],
     });
     expect(c.thumbUrl(entry)).toBe('https://img/remote.jpg');
   });

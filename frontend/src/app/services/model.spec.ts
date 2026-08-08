@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ModelService, HashLookupResult, ResolveLinkResult } from './model';
+import { ModelService, HashLookupResult, ResolveLinkResult, MediaItem } from './model';
 
 describe('ModelService', () => {
   let service: ModelService;
@@ -193,5 +193,61 @@ describe('ModelService', () => {
       req.flush({ success: true, data: mockResult });
       expect(result).toEqual(mockResult);
     });
+  });
+
+  it('uploadModelMedia posts a FormData with one files part per file', () => {
+    const files = [
+      new File(['a'], 'a.png', { type: 'image/png' }),
+      new File(['b'], 'b.png', { type: 'image/png' }),
+    ];
+    let result: MediaItem[] | undefined;
+    service.uploadModelMedia('checkpoints', 'a.safetensors', files).subscribe((m) => {
+      result = m;
+    });
+
+    const req = http.expectOne('/tiny-model-manager/api/models/checkpoints/a.safetensors/media');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body instanceof FormData).toBe(true);
+    expect((req.request.body as FormData).getAll('files').length).toBe(2);
+
+    req.flush({
+      success: true,
+      media: [{ id: 1, media_type: 'image', local_path: '/m/u.png', uploaded: true }],
+    });
+    expect(result?.length).toBe(1);
+    expect(result?.[0].uploaded).toBe(true);
+  });
+
+  it('deleteModelMedia deletes by media id and returns the refreshed gallery', () => {
+    let result: MediaItem[] | undefined;
+    service.deleteModelMedia('checkpoints', 'a.safetensors', 7).subscribe((m) => {
+      result = m;
+    });
+
+    const req = http.expectOne('/tiny-model-manager/api/models/checkpoints/a.safetensors/media/7');
+    expect(req.request.method).toBe('DELETE');
+
+    req.flush({ success: true, media: [] });
+    expect(result).toEqual([]);
+  });
+
+  it('uploadCatalogMedia posts a FormData to the catalog media route', () => {
+    const files = [new File(['a'], 'a.png', { type: 'image/png' })];
+    service.uploadCatalogMedia('civitai', '123', files).subscribe();
+
+    const req = http.expectOne('/tiny-model-manager/api/catalog/civitai/123/media');
+    expect(req.request.method).toBe('POST');
+    expect((req.request.body as FormData).getAll('files').length).toBe(1);
+    req.flush({ success: true, media: [] });
+  });
+
+  it('deleteCatalogMedia deletes by basename', () => {
+    service.deleteCatalogMedia('civitai', '123', 'upload-0123456789ab.png').subscribe();
+
+    const req = http.expectOne(
+      '/tiny-model-manager/api/catalog/civitai/123/media/upload-0123456789ab.png',
+    );
+    expect(req.request.method).toBe('DELETE');
+    req.flush({ success: true, media: [] });
   });
 });
