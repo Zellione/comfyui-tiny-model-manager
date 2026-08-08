@@ -59,6 +59,8 @@ const mockModelService = {
   refetchCatalog: vi.fn(),
   refetchMetadata: vi.fn(),
   deleteModel: vi.fn(),
+  uploadCatalogMedia: vi.fn(),
+  deleteCatalogMedia: vi.fn(),
 };
 
 const mockDownloadService = {
@@ -650,6 +652,84 @@ describe('CatalogDetail — cancelEdit restores per-file base models', () => {
     fixture.componentInstance.setFileBaseModel('test.safetensors', 'Pony');
     fixture.componentInstance.cancelEdit();
     expect(fixture.componentInstance.fileBaseModels()['test.safetensors']).toBe('SDXL 1.0');
+  });
+});
+
+describe('CatalogDetail — image upload', () => {
+  const media = (over: Partial<(typeof mockEntry)['media'][0]> = {}) => ({
+    id: 0,
+    media_type: 'image' as const,
+    local_path: '/m/h/0.jpg',
+    uploaded: false,
+    ...over,
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockModelService.getCatalogEntry.mockReturnValue(of(mockEntry));
+    mockModelService.getRepoFiles.mockReturnValue(of([]));
+  });
+
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('canUpload is true when the entry has no media', async () => {
+    const fixture = await createFixture();
+    fixture.componentInstance.entry.set({ ...mockEntry, media: [] });
+    expect(fixture.componentInstance.canUpload()).toBe(true);
+  });
+
+  it('canUpload is false once a fetched image exists', async () => {
+    const fixture = await createFixture();
+    fixture.componentInstance.entry.set({ ...mockEntry, media: [media()] });
+    expect(fixture.componentInstance.canUpload()).toBe(false);
+  });
+
+  it('uploadImages replaces the media from the response', async () => {
+    const stored = media({ local_path: '/m/h/upload-0123456789ab.png', uploaded: true });
+    mockModelService.uploadCatalogMedia.mockReturnValue(of([stored]));
+    const fixture = await createFixture();
+    fixture.componentInstance.entry.set({ ...mockEntry, media: [] });
+
+    fixture.componentInstance.uploadImages([new File(['a'], 'a.png', { type: 'image/png' })]);
+
+    expect(fixture.componentInstance.entry()!.media).toEqual([stored]);
+    expect(fixture.componentInstance.uploadBusy()).toBe(false);
+  });
+
+  it('uploadImages surfaces a failure', async () => {
+    mockModelService.uploadCatalogMedia.mockReturnValue(throwError(() => new Error('boom')));
+    const fixture = await createFixture();
+    fixture.componentInstance.entry.set({ ...mockEntry, media: [] });
+
+    fixture.componentInstance.uploadImages([new File(['a'], 'a.png', { type: 'image/png' })]);
+
+    expect(fixture.componentInstance.uploadError()).toBe('Upload failed.');
+    expect(fixture.componentInstance.uploadBusy()).toBe(false);
+  });
+
+  it('removeImage deletes by basename, not by the positional id', async () => {
+    mockModelService.deleteCatalogMedia.mockReturnValue(of([]));
+    const fixture = await createFixture();
+    fixture.componentInstance.entry.set({
+      ...mockEntry,
+      media: [media({ local_path: '/m/h/upload-0123456789ab.png', uploaded: true })],
+    });
+
+    fixture.componentInstance.removeImage({
+      src: '',
+      isVideo: false,
+      poster: null,
+      uploaded: true,
+      mediaId: 0,
+      localPath: '/m/h/upload-0123456789ab.png',
+    });
+
+    expect(mockModelService.deleteCatalogMedia).toHaveBeenCalledWith(
+      fixture.componentInstance.platform,
+      fixture.componentInstance.pageId,
+      'upload-0123456789ab.png',
+    );
+    expect(fixture.componentInstance.entry()!.media).toEqual([]);
   });
 });
 

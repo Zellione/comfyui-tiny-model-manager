@@ -31,7 +31,7 @@ import { detectFromFilename, FilenameKeyword } from '../../utils/filename-detect
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { BaseModelSelect } from '../../components/base-model-select/base-model-select';
 import { EditMetaForm } from '../../components/edit-meta-form/edit-meta-form';
-import { MediaGallery } from '../../components/media-gallery/media-gallery';
+import { MediaGallery, GalleryMedia } from '../../components/media-gallery/media-gallery';
 import { ConfirmPopover } from '../../components/confirm-popover/confirm-popover';
 
 @Component({
@@ -121,6 +121,11 @@ export class CatalogDetail implements OnInit {
   readonly displayTriggerWords = computed(() => this.entry()?.trigger_words ?? []);
   readonly displayTags = computed(() => this.entry()?.tags ?? []);
   readonly displayMedia = computed(() => this.entry()?.media ?? []);
+
+  readonly uploadBusy = signal(false);
+  readonly uploadError = signal('');
+
+  readonly canUpload = computed(() => this.displayMedia().every((m) => m.uploaded));
 
   private readonly keywordsService = inject(KeywordsService);
   private readonly keywords = toSignal(this.keywordsService.getKeywords(), {
@@ -508,6 +513,44 @@ export class CatalogDetail implements OnInit {
 
   private detect(filename: string) {
     return detectFromFilename(filename, this.keywords());
+  }
+
+  uploadImages(files: File[]) {
+    if (!files.length) return;
+    this.uploadBusy.set(true);
+    this.uploadError.set('');
+    this.modelService
+      .uploadCatalogMedia(this.platform, this.pageId, files)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (media) => {
+          const current = this.entry();
+          if (current) this.entry.set({ ...current, media });
+          this.uploadBusy.set(false);
+        },
+        error: () => {
+          this.uploadError.set(this.translate.instant('media_gallery.upload_failed'));
+          this.uploadBusy.set(false);
+        },
+      });
+  }
+
+  removeImage(item: GalleryMedia) {
+    // Catalog media is a directory listing, so its `id` is the enumeration index and
+    // renumbers on every read. The basename is the only stable handle.
+    const name = item.localPath.split('/').pop() ?? '';
+    this.modelService
+      .deleteCatalogMedia(this.platform, this.pageId, name)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (media) => {
+          const current = this.entry();
+          if (current) this.entry.set({ ...current, media });
+        },
+        error: () => {
+          this.uploadError.set(this.translate.instant('media_gallery.upload_failed'));
+        },
+      });
   }
 
   mediaUrl = mediaUrl;
