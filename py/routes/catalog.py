@@ -231,11 +231,6 @@ async def _ensure_catalog_media_hash(platform: str, page_id: str, entry: dict) -
     return media_hash
 
 
-async def _rollback_catalog_upload(media_hash: str, stored: list[str]) -> None:
-    """Undo the files this request created. Never raises."""
-    media_upload.discard_uploads(media_hash, stored)
-
-
 async def _handle_upload_catalog_media(request, platform: str, page_id: str) -> web.Response:
     entry = await model_repo.get_catalog_entry(platform, page_id)
     if not entry:
@@ -252,7 +247,9 @@ async def _handle_upload_catalog_media(request, platform: str, page_id: str) -> 
                 raise media_upload.TooManyFiles()
             stored.append(await media_upload.store_upload(media_hash, part))
     except media_upload.UploadError as exc:
-        await _rollback_catalog_upload(media_hash, stored)
+        # No media rows on this side — the gallery is a directory listing — so undoing
+        # the files is the whole rollback. The model side also drops its rows.
+        media_upload.discard_uploads(media_hash, stored)
         return err(exc.client_message, status=exc.client_status)
 
     if not stored:
