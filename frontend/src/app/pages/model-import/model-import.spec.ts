@@ -157,4 +157,31 @@ describe('ModelImport', () => {
     expect(importService.startImport).not.toHaveBeenCalled();
     expect(component.errorKey()).toBe('import.errors.no_files_selected');
   });
+
+  it('does not collide when a filename or model type contains a space', () => {
+    component.applyScanState(
+      jobState({
+        files: [
+          {
+            model_type: 'loras alpha',
+            filename: 'beta',
+            size_bytes: 1,
+            status: 'new',
+            file_hash: 'h1',
+          },
+          {
+            model_type: 'loras',
+            filename: 'alpha beta',
+            size_bytes: 2,
+            status: 'new',
+            file_hash: 'h2',
+          },
+        ],
+      }),
+    );
+    component.toggleFile('loras alpha', 'beta', true);
+    expect(component.isSelected('loras alpha', 'beta')).toBe(true);
+    expect(component.isSelected('loras', 'alpha beta')).toBe(false);
+    expect(component.selectedCount()).toBe(1);
+  });
 });
