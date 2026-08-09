@@ -24,6 +24,40 @@ def _selection_size(source_root: str, files: list[dict]) -> int:
     return total
 
 
+def _grouped_by_type(files: list[dict]) -> dict[str, list[dict]]:
+    """Bucket a selection by ``model_type``, preserving the client's ordering."""
+    by_type: dict[str, list[dict]] = {}
+    for item in files:
+        by_type.setdefault(item.get("model_type", ""), []).append(item)
+    return by_type
+
+
+def _space_error(root: str, files: list[dict]):
+    """Check free space per destination; return an error response, or None when all fit.
+
+    Each model type is checked against its own destination: a selection can span types
+    that live on different filesystems, so one combined check against a single base would
+    pass and then fail mid-copy.
+    """
+    for model_type, type_files in _grouped_by_type(files).items():
+        try:
+            base = foreign_import.dest_base(model_type)
+            foreign_import.ensure_space(base, _selection_size(root, type_files))
+        except ValueError as exc:
+            return err(str(exc), status=400)
+        except foreign_import.InsufficientSpaceError as exc:
+            return err("insufficient_space", status=409, needed=exc.needed, available=exc.available)
+    return None
+
+
+def _job_response(job_id: str, kind: str):
+    """Serialise a job of the expected kind, or 404 when it is absent or the wrong kind."""
+    job = foreign_import.get_job(job_id)
+    if job is None or job.kind != kind:
+        return err("job_not_found", status=404)
+    return ok(foreign_import.job_to_dict(job))
+
+
 def add_imports_routes(routes):
 
     @routes.post("/tiny-model-manager/api/import/scan")
@@ -40,10 +74,7 @@ def add_imports_routes(routes):
     @routes.get("/tiny-model-manager/api/import/scan/{job_id}")
     @json_route
     async def get_scan(request):
-        job = foreign_import.get_job(request.match_info["job_id"])
-        if job is None or job.kind != "scan":
-            return err("job_not_found", status=404)
-        return ok(foreign_import.job_to_dict(job))
+        return _job_response(request.match_info["job_id"], "scan")
 
     @routes.post("/tiny-model-manager/api/import/start")
     @json_route
@@ -60,26 +91,9 @@ def add_imports_routes(routes):
         except foreign_import.ForeignRootError as exc:
             return err(str(exc), status=400)
 
-        # Group selections by model_type and check disk space for each destination separately.
-        # A selection spanning multiple filesystems can pass a single-type check but fail
-        # mid-copy if checked only against the first destination.
-        by_type: dict[str, list[dict]] = {}
-        for item in files:
-            model_type = item.get("model_type", "")
-            if model_type not in by_type:
-                by_type[model_type] = []
-            by_type[model_type].append(item)
-
-        for model_type, type_files in by_type.items():
-            try:
-                base = foreign_import.dest_base(model_type)
-                foreign_import.ensure_space(base, _selection_size(root, type_files))
-            except ValueError as exc:
-                return err(str(exc), status=400)
-            except foreign_import.InsufficientSpaceError as exc:
-                return err(
-                    "insufficient_space", status=409, needed=exc.needed, available=exc.available
-                )
+        space_error = _space_error(root, files)
+        if space_error is not None:
+            return space_error
 
         job = foreign_import.start_import(root, files)
         return ok({"job_id": job.id})
@@ -87,10 +101,7 @@ def add_imports_routes(routes):
     @routes.get("/tiny-model-manager/api/import/jobs/{job_id}")
     @json_route
     async def get_import_job(request):
-        job = foreign_import.get_job(request.match_info["job_id"])
-        if job is None or job.kind != "import":
-            return err("job_not_found", status=404)
-        return ok(foreign_import.job_to_dict(job))
+        return _job_response(request.match_info["job_id"], "import")
 
     @routes.post("/tiny-model-manager/api/import/jobs/{job_id}/cancel")
     @json_route

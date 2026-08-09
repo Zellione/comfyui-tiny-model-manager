@@ -112,7 +112,7 @@ describe('ModelImport', () => {
       }),
     );
     expect(component.groups().map((g) => g.modelType)).toEqual(['checkpoints', 'loras']);
-    expect(component.groups()[1].files.length).toBe(2);
+    expect(component.groups()[1].files).toHaveLength(2);
   });
 
   it('only counts selectable new files in select-all', () => {
