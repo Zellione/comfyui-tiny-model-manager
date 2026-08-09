@@ -230,6 +230,61 @@ Allows users to upload custom preview images for a model or workflow entry when 
   `update_model_media_hash` / `_set_catalog_media_hash`). On re-upload, the hash is reused. This
   ensures the media directory persists across multiple uploads for the same model/entry.
 
+## Foreign folder import (F-154)
+
+Copies models out of another ComfyUI installation's models folder into the local library.
+
+- `py/services/foreign_import.py` owns both phases. Job state is an in-memory `_jobs` dict of
+  `ImportJob`, mirroring `downloader._tasks`; `start_scan` / `start_import` return the job and
+  its `.task` so tests can await it — **never drain `background._background_tasks`**.
+- **Copy only, by design.** Move breaks the source installation irreversibly and links need
+  admin rights on Windows or a shared filesystem. Do not add them without a new decision.
+- **The type comes from the immediate subfolder name**; a file sitting directly in the models
+  root has no type and is skipped rather than guessed at. `validate_root` appends a `models`
+  subdirectory when it finds one, so pasting a ComfyUI root works too, and it rejects a path
+  that is, contains, or sits inside a local model directory — scanning a parent of the local
+  library would copy files onto themselves.
+- **Duplicates are decided by SHA-256, never by filename**: a truncated local copy must not
+  hide a good source file. The local side starts from `model_repo.get_file_hash_map()` and
+  `model_repo.set_file_hash()` caches anything newly hashed, so a second scan is nearly free.
+  An *unregistered* local file has no row to cache into and is re-hashed each time.
+- The scan publishes its file list **before** hashing starts and fills in per-file status as it
+  goes, so a large library is browsable within a second.
+- **The same hash is reused for enrichment** — `_civitai_lookup` (the monkeypatch seam) is
+  CivitAI-only because HuggingFace exposes no by-hash endpoint. A provider outage leaves the
+  model registered without metadata; it never fails the import.
+- Copies land on a `.tmm-part` name and are `os.replace`d into position, so an interrupted copy
+  never leaves a truncated file that looks like a working model. Collisions get a `_1`/`_2`
+  suffix. Destinations always go through `contained_path` / `is_safe_segment`.
+- `py/routes/imports.py` — named `imports` because `import` is a keyword. It **re-validates the
+  client's `source_root`** on the import call: the value came from a previous response but it
+  still arrives as request data and it becomes a filesystem path.
+- `_helpers.err()` now takes `**extra`, used for the 409's `needed`/`available` byte counts.
+- **The disk-space precheck runs PER DISTINCT model_type destination** (grouping the selection
+  by type and calling `ensure_space(dest_base(model_type), group_total)` for each), NOT once
+  against the first selection's base. A selection can span types that live on different filesystems.
+- **`POST /api/import/jobs/{job_id}/cancel` deliberately accepts BOTH job kinds**, unlike the
+  two GET routes which are kind-specific, because a scan hashes an entire library and must be abortable.
+- Frontend: `pages/model-import/` at **`models/import`, declared before `models/:platform`** —
+  two segments, so the catalog-detail route would otherwise swallow it. The last-used path is
+  remembered in the `import_source_root` setting.
+
+## Workflow insertion (F-94)
+
+- Pipeline is frontend → backend queue → JS extension: `POST /workflow/insert` appends to the
+  in-memory `_pending` list in `py/routes/workflow.py`; `js/workflow-insert.js` polls
+  `/workflow/pending`, maps `model_type` via `NODE_TYPE_MAP`, creates the node, then acks.
+- **A queued item of a type missing from `NODE_TYPE_MAP` is skipped and never acked**, so it
+  stays in `_pending` forever and the Models page keeps that card under the "processing"
+  overlay (`pendingFilenames`). Hence `WORKFLOW_INSERTABLE_TYPES` / `isWorkflowInsertable()`
+  in `frontend/src/app/services/workflow.ts`: the UI only offers insertion for those 6 types.
+  The frontend cannot import the extension module at runtime, so `workflow.spec.ts` asserts
+  the constant equals `Object.keys(NODE_TYPE_MAP)` — specs *can* import `js/workflow-insert.js`
+  (see `comfy-extension/workflow-insert.spec.ts`), so drift fails the suite instead of silently
+  shipping.
+- Models page cards: 1 insertable file → direct insert; 2+ → `app-file-picker-popover`. Always
+  use the **file's** `model_type`, never the entry's — one catalog entry can mix types.
+
 ## Workflow store (F-129)
 
 Browsing/downloading CivitAI's `Workflows` model type. **`routes/workflow.py` (singular) is the
@@ -411,7 +466,7 @@ download through TMM (correct folder + full model card) instead of ComfyUI's own
   `/resolve/` before the raw fallback downloads it. `/blob/` serves the HTML file-viewer page, and
   both workflows and ComfyUI's "copy URL" button hand out that form — taking it verbatim stores a
   web page under a `.safetensors` name that only fails at load time.
-  **A row whose directory cannot be established gets no button** (guessing puts a LoRA in
+- **A row whose directory cannot be established gets no button** (guessing puts a LoRA in
   checkpoints). Injection is made idempotent by the `data-tmm-missing` /
   `data-tmm-missing-all` markers plus a `syncing` re-entrancy flag, since our own `appendChild`
   calls are mutations the observer would otherwise re-fire on.
