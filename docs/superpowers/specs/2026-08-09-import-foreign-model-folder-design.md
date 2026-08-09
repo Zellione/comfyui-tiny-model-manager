@@ -87,9 +87,11 @@ Both jobs are started through `background.spawn` so no request blocks on I/O.
 
 Input is the selected `{model_type, filename}` list plus the validated source root.
 
-1. **Free-space precheck.** The selection total is compared against `shutil.disk_usage` for the
-   destination. A shortfall refuses the whole job upfront with needed-vs-available, rather than
-   dying part-way through.
+1. **Free-space precheck.** The selection is grouped by distinct `model_type`, and the group total
+   is compared against `shutil.disk_usage` for that type's destination filesystem. This ensures
+   each destination has room; a selection spanning multiple types on different filesystems is
+   checked separately. A shortfall refuses the whole job upfront with needed-vs-available, rather
+   than dying part-way through.
 2. Destination is `model_paths.candidate_dirs(model_type)[0]`, falling back to `models_dir/<type>`
    for an unknown type. The relative subfolder path is preserved and the result is validated with
    `model_paths.contained_path`, so nothing is ever written to a raw request-supplied path.
@@ -103,8 +105,10 @@ Input is the selected `{model_type, filename}` list plus the validated source ro
    `name`, `base_model`, `description`, `tags`, trigger words and source linkage from the shared
    metadata dict shape. HuggingFace exposes **no** by-hash lookup, so HF-origin models import
    without metadata; the user can still use "Re-fetch metadata" or the link resolver afterwards.
-7. A per-file failure is recorded with its reason, the partial file is removed, and the job
+7. A per-file copy failure is recorded with its reason, the partial file is removed, and the job
    continues with the remaining files.
+8. A per-file registration failure is recorded with reason `"register_failed"` and the copied file
+   is left in place; the user can re-run the import to retry (registration is an upsert).
 
 ### Routes
 
@@ -114,7 +118,7 @@ Input is the selected `{model_type, filename}` list plus the validated source ro
 | `GET /tiny-model-manager/api/import/scan/{job_id}` | `{state, progress, files: [...]}` |
 | `POST /tiny-model-manager/api/import/start` | body `{source_root, files: [{model_type, filename}]}`; returns `{job_id}` |
 | `GET /tiny-model-manager/api/import/jobs/{job_id}` | `{state, progress, imported, skipped, failed: [...]}` |
-| `POST /tiny-model-manager/api/import/jobs/{job_id}/cancel` | stops after the current file |
+| `POST /tiny-model-manager/api/import/jobs/{job_id}/cancel` | stops after the current file; accepts both scan and import jobs, unlike the kind-specific GET routes |
 
 ## Frontend
 

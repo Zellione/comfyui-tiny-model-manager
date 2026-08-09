@@ -512,7 +512,84 @@ class TestImportJob:
         assert job.state == "cancelled"
         assert job.imported == []
 
+    async def test_registration_failure_does_not_kill_the_job(self, tmp_path, monkeypatch, ext_dir):
+        import folder_paths
+
+        from py.services import foreign_import
+
+        monkeypatch.setattr(folder_paths, "models_dir", str(tmp_path / "local"))
+
+        async def exploding_register(final_path, model_type, file_hash):
+            raise RuntimeError("database error")
+
+        monkeypatch.setattr(foreign_import, "_register_imported", exploding_register)
+        root = _make_source_tree(tmp_path)
+
+        job = foreign_import.start_import(
+            str(root),
+            [
+                {"model_type": "loras", "filename": "style/neon.safetensors", "file_hash": ""},
+                {"model_type": "checkpoints", "filename": "sd15.safetensors", "file_hash": ""},
+            ],
+        )
+        await job.task
+
+        assert job.state == "done"
+        assert job.progress == 100.0
+        assert job.imported == []
+        assert len(job.failed) == 2
+        assert job.failed[0] == {"filename": "style/neon.safetensors", "reason": "register_failed"}
+        assert job.failed[1] == {"filename": "sd15.safetensors", "reason": "register_failed"}
+        # Files are still on disk despite registration failure
+        assert (tmp_path / "local" / "loras" / "style" / "neon.safetensors").exists()
+        assert (tmp_path / "local" / "checkpoints" / "sd15.safetensors").exists()
+
 
 async def _no_civitai_match(sha256):
     """Stand-in for the CivitAI by-hash lookup: always a miss."""
     return None
+
+
+class TestJobPruning:
+    async def test_finished_jobs_older_than_retention_are_dropped(
+        self, tmp_path, monkeypatch, ext_dir
+    ):
+        from py.services import foreign_import
+
+        root = _make_source_tree(tmp_path)
+        monkeypatch.setattr(foreign_import, "_hash_unknown_local_files", _noop_local_hashes)
+
+        # Create and finish a scan job
+        job1 = foreign_import.start_scan(str(root))
+        await job1.task
+        assert foreign_import.get_job(job1.id) is not None
+
+        # Manually expire the job by pretending it finished long ago
+        job1.completed_at = 0.0
+
+        # Start a new job, which triggers pruning
+        job2 = foreign_import.start_scan(str(root))
+
+        # The old job should be pruned
+        assert foreign_import.get_job(job1.id) is None
+        assert foreign_import.get_job(job2.id) is not None
+
+    async def test_running_jobs_are_never_pruned(self, tmp_path, monkeypatch, ext_dir):
+        from py.services import foreign_import
+
+        root = _make_source_tree(tmp_path)
+        monkeypatch.setattr(foreign_import, "_hash_unknown_local_files", _noop_local_hashes)
+
+        job = foreign_import.start_scan(str(root))
+        # Job is still running
+        assert job.state == "running"
+
+        # Manually trigger pruning by calling it directly
+        foreign_import._prune_jobs()
+
+        # Running job should still be there
+        assert foreign_import.get_job(job.id) is not None
+
+        # Let the job finish
+        await job.task
+        assert job.state == "done"

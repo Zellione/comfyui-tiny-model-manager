@@ -21,6 +21,9 @@ from ..background import spawn
 from ..db import model_repo
 from . import disk_scanner, model_paths
 
+# Finished jobs are pruned after this many seconds to avoid unbounded memory growth.
+_JOB_RETENTION_SECONDS = 300
+
 
 class ForeignRootError(ValueError):
     """The supplied source path is not a usable foreign models root.
@@ -154,6 +157,18 @@ def cancel_job(job_id: str) -> bool:
     return True
 
 
+def _prune_jobs() -> None:
+    """Drop finished jobs older than _JOB_RETENTION_SECONDS. Never prunes running jobs."""
+    now = time.time()
+    expired = [
+        job_id
+        for job_id, job in _jobs.items()
+        if job.completed_at is not None and (now - job.completed_at) > _JOB_RETENTION_SECONDS
+    ]
+    for job_id in expired:
+        del _jobs[job_id]
+
+
 def job_to_dict(job: ImportJob) -> dict:
     """Serialise a job for the API.
 
@@ -239,6 +254,7 @@ async def _run_scan(job: ImportJob) -> None:
 
 def start_scan(root: str) -> ImportJob:
     """Begin scanning an already-validated foreign models root."""
+    _prune_jobs()
     job = ImportJob(id=str(uuid.uuid4()), kind="scan", source_root=root)
     _jobs[job.id] = job
     job.task = spawn(_run_scan(job))
@@ -373,7 +389,14 @@ async def _import_one(job: ImportJob, selection: dict) -> None:
     except OSError as exc:
         job.failed.append({"filename": relative, "reason": exc.strerror or "copy_failed"})
         return
-    await _register_imported(final, model_type, selection.get("file_hash", ""))
+    try:
+        await _register_imported(final, model_type, selection.get("file_hash", ""))
+    except Exception:
+        # Registration failure is recorded but the copied file is left in place.
+        # Deleting a successfully copied model because its DB row failed would be worse;
+        # the user can re-run the import (registration is an upsert).
+        job.failed.append({"filename": relative, "reason": "register_failed"})
+        return
     job.imported.append(relative)
 
 
@@ -402,6 +425,7 @@ def start_import(root: str, selections: list[dict]) -> ImportJob:
     Each selection is ``{"model_type", "filename", "file_hash"}``; ``file_hash`` carries the
     digest the scan already computed so the file is never hashed twice.
     """
+    _prune_jobs()
     job = ImportJob(id=str(uuid.uuid4()), kind="import", source_root=root)
     _jobs[job.id] = job
     job.task = spawn(_run_import(job, selections))
