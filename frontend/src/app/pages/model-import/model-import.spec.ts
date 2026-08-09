@@ -185,3 +185,13 @@ describe('ModelImport', () => {
     expect(component.selectedCount()).toBe(1);
   });
 });
+
+describe('models/import routing', () => {
+  it('is declared before the catalog-detail wildcard', async () => {
+    const { routes } = await import('../../app.routes');
+    const importIndex = routes.findIndex((r) => r.path === 'models/import');
+    const platformIndex = routes.findIndex((r) => r.path === 'models/:platform');
+    expect(importIndex).toBeGreaterThanOrEqual(0);
+    expect(importIndex).toBeLessThan(platformIndex);
+  });
+});

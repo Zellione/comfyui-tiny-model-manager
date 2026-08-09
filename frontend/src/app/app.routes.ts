@@ -4,6 +4,13 @@ import { Router, Routes } from '@angular/router';
 export const routes: Routes = [
   { path: '', redirectTo: 'models', pathMatch: 'full' },
   { path: 'models', loadComponent: () => import('./pages/models/models').then((m) => m.Models) },
+  // MUST precede `models/:platform`: catalog detail and model detail are told apart purely
+  // by segment count, so this two-segment literal would otherwise resolve to catalog detail
+  // with platform === 'import'.
+  {
+    path: 'models/import',
+    loadComponent: () => import('./pages/model-import/model-import').then((m) => m.ModelImport),
+  },
   // Two segments — cannot collide with the three-segment model-detail route below.
   {
     path: 'models/:platform',
