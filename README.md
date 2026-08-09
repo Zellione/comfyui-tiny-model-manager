@@ -51,6 +51,19 @@ work regardless.
 
 ---
 
+## Features
+
+- [x] Browse and download models from CivitAI and HuggingFace
+- [x] Organize models by base model type
+- [x] Edit model metadata and upload card images
+- [x] Download and manage ComfyUI workflows from CivitAI
+- [x] Recreate workflows from CivitAI image generation results
+- [x] Embed models with one-click node insertion
+- [x] Resolve missing models in workflows
+- [x] Import selected models from another ComfyUI installation's model folder
+
+---
+
 ## Developer Setup
 
 ### Python environment

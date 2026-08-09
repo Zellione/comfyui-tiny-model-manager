@@ -14,6 +14,8 @@ export interface TmmSettings {
   organize_into_subfolders: boolean;
   cleanup_stale_media_on_start: boolean;
   missing_models_integration: boolean;
+  /** Last foreign models root used by the import page (F-154); absent until first used. */
+  import_source_root?: string;
 }
 
 @Injectable({ providedIn: 'root' })

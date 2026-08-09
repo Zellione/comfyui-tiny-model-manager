@@ -4,6 +4,7 @@ from ..db.database import init_db
 from .catalog import add_catalog_routes
 from .download import add_download_routes
 from .images import add_images_routes
+from .imports import add_imports_routes
 from .metadata import add_metadata_routes
 from .models import add_model_routes
 from .notifications import add_notification_routes
@@ -28,6 +29,7 @@ def register_routes(routes, ext_dir: str):
     register_workflow_routes(routes)
     add_workflows_routes(routes)
     add_images_routes(routes)
+    add_imports_routes(routes)
 
     async def _startup():
         await init_db()

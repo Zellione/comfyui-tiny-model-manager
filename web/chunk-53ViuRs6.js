@@ -1,0 +1,1 @@
+function o(t){return t>=1e9?(t/1e9).toFixed(1)+` GB`:t>=1e6?(t/1e6).toFixed(1)+` MB`:(t/1e3).toFixed(0)+` KB`}function e(t){if(!t)return``;let n=[`B`,`KB`,`MB`,`GB`,`TB`],r=Math.min(Math.floor(Math.log(t)/Math.log(1024)),n.length-1);return(t/Math.pow(1024,r)).toFixed(1)+` `+n[r]}export{o as n,e as t};

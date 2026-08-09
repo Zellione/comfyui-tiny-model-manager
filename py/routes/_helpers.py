@@ -29,9 +29,15 @@ def ok(data=_UNSET, **extra) -> web.Response:
     return web.json_response(payload)
 
 
-def err(message: str, status: int = 500) -> web.Response:
-    """Build a failure envelope with the given HTTP status."""
-    return web.json_response({"success": False, "error": message}, status=status)
+def err(message: str, status: int = 500, **extra) -> web.Response:
+    """Build a failure envelope with the given HTTP status.
+
+    ``extra`` carries structured detail a client can act on — the import's
+    ``needed``/``available`` byte counts, for example — alongside the error key.
+    """
+    payload: dict = {"success": False, "error": message}
+    payload.update(extra)
+    return web.json_response(payload, status=status)
 
 
 def json_route(handler):
