@@ -755,6 +755,39 @@ describe('DownloadSearch — CivitAI selection and downloads', () => {
     expect(c.selectedCivitaiCount()).toBe(1);
   });
 
+  it('isModelPaid and isVersionPaid reflect paidAccess on versions', async () => {
+    const c = (await createFixture()).componentInstance;
+    const paidVersion: CivitaiVersion = {
+      ...richCivitaiModel().modelVersions[0],
+      paidAccess: { permanent: true, endsAt: null },
+    };
+    const paidModel: CivitaiModel = { ...richCivitaiModel(), modelVersions: [paidVersion] };
+
+    expect(c.isVersionPaid(paidVersion)).toBe(true);
+    expect(c.isVersionPaid(richCivitaiModel().modelVersions[0])).toBe(false);
+    expect(c.isModelPaid(paidModel)).toBe(true);
+    expect(c.isModelPaid(richCivitaiModel())).toBe(false);
+  });
+
+  it('renders a paid badge in the version picker for a paid version', async () => {
+    const versions: CivitaiVersion[] = [
+      { ...richCivitaiModel().modelVersions[0], paidAccess: { permanent: true, endsAt: null } },
+    ];
+    const paidModel: CivitaiModel = { ...richCivitaiModel(), modelVersions: versions };
+    mockCivitaiService.search.mockReturnValue(of({ items: [paidModel], metadata: {} }));
+    mockCivitaiService.getVersions.mockReturnValue(of({ versions, model_type: 'checkpoints' }));
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+
+    c.query.set('paid model');
+    c.search();
+    await fixture.whenStable();
+    c.selectCivitai(paidModel);
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('.badge--paid')).toBeTruthy();
+  });
+
   it('toggleCivitaiFile selects then deselects a file', async () => {
     const c = (await createFixture()).componentInstance;
     expect(c.isCivitaiFileSelected(5, mockCivitaiFile)).toBe(false);

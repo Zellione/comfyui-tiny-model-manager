@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import time
 import uuid
@@ -25,6 +26,20 @@ class _Cancelled(Exception):
     pass
 
 
+class DownloadRefused(Exception):
+    """The server refused the download with a structured error (e.g. the CivitAI paywall).
+
+    ``code`` is a machine-readable reason (``login_required`` / ``early_access`` / ``""``)
+    surfaced to the frontend so it can show a translated hint; ``message`` is the
+    provider's own human-readable explanation.
+    """
+
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
 @dataclass
 class DownloadTask:
     id: str
@@ -38,6 +53,7 @@ class DownloadTask:
     downloaded_bytes: int = 0
     total_bytes: int = 0
     error: str | None = None
+    error_code: str = ""
     dest_path: str = ""
     cancelled: bool = False
     history_id: int | None = None
@@ -151,6 +167,7 @@ def _task_to_dict(t: DownloadTask) -> dict:
         "downloaded_bytes": t.downloaded_bytes,
         "total_bytes": t.total_bytes,
         "error": t.error,
+        "error_code": t.error_code,
         "history_id": t.history_id,
     }
 
@@ -179,12 +196,37 @@ async def _worker():
 _DOWNLOAD_TIMEOUT = httpx.Timeout(None, connect=30.0, read=120.0, write=120.0, pool=30.0)
 
 
+async def _raise_refusal(resp) -> None:
+    """Surface the provider's own refusal message instead of the bare HTTP status.
+
+    CivitAI answers 401 (no/invalid key) and 403 (paywalled asset) with a JSON body whose
+    ``message`` explains the refusal; falls through silently so ``raise_for_status`` keeps
+    handling responses without such a body.
+    """
+    try:
+        payload = json.loads(await resp.aread())
+    except ValueError:
+        return
+    message = payload.get("message") if isinstance(payload, dict) else None
+    if not message:
+        return
+    if resp.status_code == 401:
+        code = "login_required"
+    elif resp.status_code == 403 and payload.get("error") == "Early Access":
+        code = "early_access"
+    else:
+        code = ""
+    raise DownloadRefused(code, message)
+
+
 async def _stream_file(task: DownloadTask, headers: dict) -> None:
     # No follow_redirects on the client: guarded_stream resolves the chain itself so
     # every hop is re-checked against the provider allowlist (both CivitAI and
     # HuggingFace redirect downloads to their CDNs).
     async with httpx.AsyncClient(timeout=_DOWNLOAD_TIMEOUT) as client:
         async with guarded_stream(client, "GET", task.url, headers=headers) as resp:
+            if resp.is_error:
+                await _raise_refusal(resp)
             resp.raise_for_status()
             total = int(resp.headers.get("content-length", 0))
             task.total_bytes = total
@@ -231,14 +273,21 @@ async def _run_download(task: DownloadTask):
             await model_repo.update_download_history_status(task.history_id, "cancelled")
         if os.path.isfile(task.dest_path):
             os.remove(task.dest_path)
+    except DownloadRefused as exc:
+        await _fail_task(task, exc.message, exc.code)
     except Exception as exc:
-        task.status = "error"
-        task.error = str(exc)
-        task.completed_at = time.time()
-        if task.history_id is not None:
-            await model_repo.update_download_history_status(task.history_id, "error")
-        if os.path.isfile(task.dest_path):
-            os.remove(task.dest_path)
+        await _fail_task(task, str(exc))
+
+
+async def _fail_task(task: DownloadTask, message: str, code: str = "") -> None:
+    task.status = "error"
+    task.error = message
+    task.error_code = code
+    task.completed_at = time.time()
+    if task.history_id is not None:
+        await model_repo.update_download_history_status(task.history_id, "error")
+    if os.path.isfile(task.dest_path):
+        os.remove(task.dest_path)
 
 
 async def resume_interrupted_downloads() -> None:

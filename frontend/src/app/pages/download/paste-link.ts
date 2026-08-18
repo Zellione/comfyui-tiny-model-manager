@@ -9,6 +9,7 @@ import {
   CivitaiVersion,
   CivitaiFile,
   CivitaiDirectLinkInfo,
+  isPaidVersion,
 } from '../../services/civitai';
 import { HuggingFaceService } from '../../services/huggingface';
 import { detectLink, LinkKind } from '../../utils/link-detector';
@@ -85,6 +86,10 @@ export class PasteLink {
     const k = this.linkKind();
     return k.type === 'civitai-model' ? k : null;
   });
+
+  isVersionPaid(version: CivitaiVersion): boolean {
+    return isPaidVersion(version);
+  }
   linkFilename = computed(() => {
     const k = this.linkKind();
     if (k.type === 'hf-resolve') return k.filename;

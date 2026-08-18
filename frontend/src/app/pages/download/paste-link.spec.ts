@@ -254,6 +254,28 @@ describe('PasteLink — applyLinkResolution', () => {
     expect(c.linkResolving()).toBe(false);
   });
 
+  it('civitai-model: renders a paid badge for a version with paidAccess', async () => {
+    const versions: CivitaiVersion[] = [
+      {
+        id: 12,
+        name: 'v1',
+        baseModel: 'SDXL 1.0',
+        downloadUrl: 'https://civitai.com',
+        trainedWords: [],
+        images: [],
+        files: [],
+        paidAccess: { permanent: true, endsAt: null },
+      },
+    ];
+    const fixture = await createFixture();
+    const c = fixture.componentInstance;
+    c.linkKind.set({ type: 'civitai-model', modelId: 99 });
+    c['applyLinkResolution']({ tag: 'civitai-model', versions, model_type: 'checkpoints' });
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('.badge--paid')).toBeTruthy();
+  });
+
   it('civitai-model: uses version.baseModel when set, ignoring filename detection', async () => {
     const versions: CivitaiVersion[] = [
       {

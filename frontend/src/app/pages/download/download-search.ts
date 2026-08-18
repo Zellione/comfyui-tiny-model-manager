@@ -5,7 +5,13 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import { toObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { skip, debounceTime } from 'rxjs';
-import { CivitaiService, CivitaiModel, CivitaiVersion, CivitaiFile } from '../../services/civitai';
+import {
+  CivitaiService,
+  CivitaiModel,
+  CivitaiVersion,
+  CivitaiFile,
+  isPaidVersion,
+} from '../../services/civitai';
 import { HuggingFaceService, HfModel } from '../../services/huggingface';
 import { MODEL_TYPES, ModelType } from '../../utils/model-types';
 import { BASE_MODEL_PRESETS } from '../../utils/base-models';
@@ -594,6 +600,14 @@ export class DownloadSearch {
 
   civitaiModelBaseModel(model: CivitaiModel): string {
     return model.modelVersions?.[0]?.baseModel ?? '';
+  }
+
+  isVersionPaid(version: CivitaiVersion): boolean {
+    return isPaidVersion(version);
+  }
+
+  isModelPaid(model: CivitaiModel): boolean {
+    return (model.modelVersions ?? []).some(isPaidVersion);
   }
 
   readonly hfGalleryUrls = computed(() => this.selectedHfModel()?.images ?? []);

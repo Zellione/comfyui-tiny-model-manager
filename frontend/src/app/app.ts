@@ -35,6 +35,20 @@ export class App implements OnInit {
           'success',
           this.translate.instant('app.download_complete', { filename: task.filename }),
         );
+      } else if (task.error_code === 'early_access') {
+        this.notifService.show(
+          'error',
+          this.translate.instant('app.download_failed_early_access', {
+            filename: task.filename,
+          }),
+        );
+      } else if (task.error_code === 'login_required') {
+        this.notifService.show(
+          'error',
+          this.translate.instant('app.download_failed_login_required', {
+            filename: task.filename,
+          }),
+        );
       } else if (task.error) {
         this.notifService.show(
           'error',

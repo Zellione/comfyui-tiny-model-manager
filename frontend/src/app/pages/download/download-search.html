@@ -167,6 +167,11 @@
                   @if (civitaiModelBaseModel(model)) {
                     <span class="badge badge-accent">{{ civitaiModelBaseModel(model) }}</span>
                   }
+                  @if (isModelPaid(model)) {
+                    <span class="badge badge--paid">{{
+                      'download_search.paid_badge' | translate
+                    }}</span>
+                  }
                   @for (tag of model.tags ?? []; track tag; let i = $index) {
                     @if (i < 2) {
                       <span class="tag-chip" [class.tag-chip--active]="tagFilter().includes(tag)">{{
@@ -251,6 +256,9 @@
             @if (civitaiModelBaseModel(model)) {
               <span class="badge badge-accent">{{ civitaiModelBaseModel(model) }}</span>
             }
+            @if (isModelPaid(model)) {
+              <span class="badge badge--paid">{{ 'download_search.paid_badge' | translate }}</span>
+            }
             @if (model.creator.username) {
               <span class="meta-author">by {{ model.creator.username }}</span>
             }
@@ -299,6 +307,11 @@
                       <strong>{{ v.name }}</strong>
                       @if (v.baseModel) {
                         <span class="badge badge-accent">{{ v.baseModel }}</span>
+                      }
+                      @if (isVersionPaid(v)) {
+                        <span class="badge badge--paid">{{
+                          'download_search.paid_badge' | translate
+                        }}</span>
                       }
                     </div>
                     @for (f of v.files; track f.id) {

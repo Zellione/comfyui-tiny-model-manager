@@ -216,6 +216,12 @@ textarea {
     color: #1a1a1a;
     font-weight: 600;
   }
+
+  &--paid {
+    background: color-mix(in oklch, var(--warn) 20%, transparent);
+    color: var(--warn);
+    font-weight: 600;
+  }
 }
 
 .progress-bar {
