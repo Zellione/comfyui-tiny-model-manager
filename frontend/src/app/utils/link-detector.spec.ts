@@ -77,6 +77,18 @@ describe('detectLink', () => {
     expect(result).toEqual({ type: 'civitai-model', modelId: 67890 });
   });
 
+  it('detects CivitAI direct download URL on the civitai.red domain', () => {
+    const result = detectLink('https://civitai.red/api/download/models/12345');
+    expect(result).toEqual({ type: 'civitai-download', versionId: 12345 });
+  });
+
+  it('detects CivitAI model page URL on the civitai.red domain', () => {
+    const result = detectLink(
+      'https://civitai.red/models/2237711/z-image-turbo?modelVersionId=3225140',
+    );
+    expect(result).toEqual({ type: 'civitai-model', modelId: 2237711 });
+  });
+
   it('returns unknown for unrecognised URL', () => {
     expect(detectLink('https://example.com/some-model.safetensors')).toEqual({
       type: 'unknown',

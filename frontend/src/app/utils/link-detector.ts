@@ -12,8 +12,10 @@ export type LinkKind =
 const HF_FILE_RE =
   /^https:\/\/huggingface\.co\/([\w.-]+\/[\w.-]+)\/(?:resolve|blob)\/([\w.-]+)\/(.+)$/;
 const HF_REPO_RE = /^https:\/\/huggingface\.co\/([\w.-]+\/[\w.-]+)\/?$/;
-const CIVITAI_DL_RE = /^https:\/\/civitai\.com\/api\/download\/models\/(\d+)/;
-const CIVITAI_MDL_RE = /^https:\/\/civitai\.com\/models\/(\d+)/;
+// CivitAI serves the same site (identical model/version IDs) on civitai.com and its
+// official alternate domain civitai.red; the backend allowlists both (url_guard.py).
+const CIVITAI_DL_RE = /^https:\/\/civitai\.(?:com|red)\/api\/download\/models\/(\d+)/;
+const CIVITAI_MDL_RE = /^https:\/\/civitai\.(?:com|red)\/models\/(\d+)/;
 
 export function detectLink(url: string): LinkKind {
   const s = url.trim();
