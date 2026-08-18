@@ -21,6 +21,14 @@ export interface CivitaiVersion {
   trainedWords: string[];
   files: CivitaiFile[];
   images: { url: string; type?: string }[];
+  availability?: string;
+  paidAccess?: { permanent?: boolean; endsAt?: string | null } | null;
+}
+
+// `paidAccess` marks permanently monetized versions; timed early access is flagged via
+// `availability` instead. Either way the download needs a Buzz purchase on CivitAI.
+export function isPaidVersion(v: CivitaiVersion): boolean {
+  return !!v.paidAccess || v.availability === 'EarlyAccess';
 }
 
 export interface CivitaiModel {

@@ -15,6 +15,7 @@ export interface DownloadTask {
   downloaded_bytes: number;
   total_bytes: number;
   error: string | null;
+  error_code?: string;
   history_id: number | null;
 }
 

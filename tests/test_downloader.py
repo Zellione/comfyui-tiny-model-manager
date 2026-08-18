@@ -5,7 +5,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from py.services.downloader import DownloadTask, _Cancelled, _run_download, _stream_file
+from py.services.downloader import (
+    DownloadRefused,
+    DownloadTask,
+    _Cancelled,
+    _run_download,
+    _stream_file,
+    _task_to_dict,
+)
 
 
 def _task(dest_path: str, **kwargs) -> DownloadTask:
@@ -44,6 +51,7 @@ class TestStreamFile:
             yield data
 
         mock_resp = MagicMock()
+        mock_resp.is_error = False
         mock_resp.raise_for_status = MagicMock()
         mock_resp.headers = {"content-length": "200"}
         mock_resp.aiter_bytes = fake_aiter_bytes
@@ -70,6 +78,7 @@ class TestStreamFile:
             yield b"data"
 
         mock_resp = MagicMock()
+        mock_resp.is_error = False
         mock_resp.raise_for_status = MagicMock()
         mock_resp.headers = {}
         mock_resp.aiter_bytes = fake_aiter_bytes
@@ -95,6 +104,7 @@ class TestStreamFile:
             yield b"data"
 
         mock_resp = MagicMock()
+        mock_resp.is_error = False
         mock_resp.raise_for_status = MagicMock()
         mock_resp.headers = {}
         mock_resp.aiter_bytes = fake_aiter_bytes
@@ -130,6 +140,7 @@ class TestStreamFile:
             yield data
 
         mock_resp = MagicMock()
+        mock_resp.is_error = False
         mock_resp.raise_for_status = MagicMock()
         mock_resp.headers = {}  # no content-length
         mock_resp.aiter_bytes = fake_aiter_bytes
@@ -145,6 +156,67 @@ class TestStreamFile:
                 await _stream_file(task, {})
 
         assert task.progress == 0.0
+
+    async def test_json_error_body_raises_download_refused_early_access(self, tmp_path):
+        task = _task(dest_path=str(tmp_path / "model.safetensors"))
+
+        mock_resp = MagicMock()
+        mock_resp.is_error = True
+        mock_resp.status_code = 403
+        mock_resp.aread = AsyncMock(
+            return_value=b'{"error":"Early Access","message":'
+            b'"This asset is in Early Access. You can use Buzz access it now!"}'
+        )
+        mock_client = MagicMock()
+
+        with patch("py.services.downloader.httpx.AsyncClient", return_value=_AsyncCM(mock_client)):
+            with patch("py.services.downloader.guarded_stream", return_value=_AsyncCM(mock_resp)):
+                with pytest.raises(DownloadRefused) as exc_info:
+                    await _stream_file(task, {})
+
+        assert exc_info.value.code == "early_access"
+        assert "Buzz" in exc_info.value.message
+
+    async def test_json_error_body_raises_download_refused_login_required(self, tmp_path):
+        task = _task(dest_path=str(tmp_path / "model.safetensors"))
+
+        mock_resp = MagicMock()
+        mock_resp.is_error = True
+        mock_resp.status_code = 401
+        mock_resp.aread = AsyncMock(
+            return_value=b'{"error":"Unauthorized","message":'
+            b'"The creator of this asset requires you to be logged in to download it"}'
+        )
+        mock_client = MagicMock()
+
+        with patch("py.services.downloader.httpx.AsyncClient", return_value=_AsyncCM(mock_client)):
+            with patch("py.services.downloader.guarded_stream", return_value=_AsyncCM(mock_resp)):
+                with pytest.raises(DownloadRefused) as exc_info:
+                    await _stream_file(task, {})
+
+        assert exc_info.value.code == "login_required"
+        assert "logged in" in exc_info.value.message
+
+    async def test_non_json_error_body_keeps_http_status_error(self, tmp_path):
+        import httpx
+
+        task = _task(dest_path=str(tmp_path / "model.safetensors"))
+
+        mock_resp = MagicMock()
+        mock_resp.is_error = True
+        mock_resp.status_code = 502
+        mock_resp.aread = AsyncMock(return_value=b"<html>Bad Gateway</html>")
+        mock_resp.raise_for_status = MagicMock(
+            side_effect=httpx.HTTPStatusError(
+                "Server error '502 Bad Gateway'", request=MagicMock(), response=MagicMock()
+            )
+        )
+        mock_client = MagicMock()
+
+        with patch("py.services.downloader.httpx.AsyncClient", return_value=_AsyncCM(mock_client)):
+            with patch("py.services.downloader.guarded_stream", return_value=_AsyncCM(mock_resp)):
+                with pytest.raises(httpx.HTTPStatusError):
+                    await _stream_file(task, {})
 
 
 class TestRunDownload:
@@ -204,6 +276,28 @@ class TestRunDownload:
         assert "connection refused" in task.error
         assert task.completed_at is not None
         assert not dest.exists()
+
+    async def test_download_refused_sets_error_code_and_message(self, tmp_path, monkeypatch):
+        import py.services.downloader as dl
+
+        dest = tmp_path / "model.safetensors"
+        dest.write_bytes(b"partial")
+        task = _task(dest_path=str(dest))
+
+        async def fake_stream(t, headers):
+            raise DownloadRefused("early_access", "This asset is in Early Access.")
+
+        monkeypatch.setattr(dl, "_stream_file", fake_stream)
+        monkeypatch.setattr(dl, "spawn", lambda coro: coro.close())
+
+        await _run_download(task)
+
+        assert task.status == "error"
+        assert task.error == "This asset is in Early Access."
+        assert task.error_code == "early_access"
+        assert task.completed_at is not None
+        assert not dest.exists()
+        assert _task_to_dict(task)["error_code"] == "early_access"
 
     async def test_success_updates_history_status(self, ext_dir, tmp_path, monkeypatch):
         import py.services.downloader as dl

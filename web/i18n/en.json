@@ -19,7 +19,9 @@
   "app": {
     "download_complete": "Download complete: {{filename}}",
     "download_failed": "Download failed: {{filename}}",
-    "download_failed_with_error": "Download failed: {{filename}} — {{error}}"
+    "download_failed_with_error": "Download failed: {{filename}} — {{error}}",
+    "download_failed_early_access": "Download failed: {{filename}} — this is a paid model on CivitAI. Purchase it with Buzz on civitai.com, then try again.",
+    "download_failed_login_required": "Download failed: {{filename}} — CivitAI requires a login for this download. Add your CivitAI API key in the settings."
   },
   "models": {
     "title": "Installed Models",
@@ -250,6 +252,7 @@
     "cancel": "Cancel"
   },
   "download_search": {
+    "paid_badge": "Paid",
     "search": "Search",
     "searching": "Searching…",
     "placeholder": "Search models…",
@@ -354,6 +357,7 @@
     }
   },
   "paste_link": {
+    "paid_badge": "Paid",
     "title": "Paste a link",
     "placeholder": "https://huggingface.co/… or https://civitai.com/models/…",
     "resolving": "Resolving…",

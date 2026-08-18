@@ -149,6 +149,9 @@
               @if (v.baseModel) {
                 <span class="badge">{{ v.baseModel }}</span>
               }
+              @if (isVersionPaid(v)) {
+                <span class="badge badge--paid">{{ 'paste_link.paid_badge' | translate }}</span>
+              }
             </div>
             @for (f of v.files; track f.id) {
               <div class="version-row">

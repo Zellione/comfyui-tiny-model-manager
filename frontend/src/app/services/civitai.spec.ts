@@ -1,7 +1,36 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { CivitaiService } from './civitai';
+import { CivitaiService, CivitaiVersion, isPaidVersion } from './civitai';
+
+describe('isPaidVersion', () => {
+  const version = (extra: Partial<CivitaiVersion>): CivitaiVersion => ({
+    id: 1,
+    name: 'v1',
+    baseModel: '',
+    downloadUrl: '',
+    trainedWords: [],
+    files: [],
+    images: [],
+    ...extra,
+  });
+
+  it('is true when paidAccess is set', () => {
+    expect(isPaidVersion(version({ paidAccess: { permanent: true, endsAt: null } }))).toBe(true);
+  });
+
+  it('is true when availability is EarlyAccess', () => {
+    expect(isPaidVersion(version({ availability: 'EarlyAccess' }))).toBe(true);
+  });
+
+  it('is false for a public version without paidAccess', () => {
+    expect(isPaidVersion(version({ availability: 'Public', paidAccess: null }))).toBe(false);
+  });
+
+  it('is false when neither field is present', () => {
+    expect(isPaidVersion(version({}))).toBe(false);
+  });
+});
 
 describe('CivitaiService', () => {
   let service: CivitaiService;
