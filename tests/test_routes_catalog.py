@@ -3,13 +3,13 @@
 import os
 from pathlib import Path
 
-import pytest
-from aiohttp import web
+import pytest  # pi-lens-ignore: reportMissingImports
+from aiohttp import web  # pi-lens-ignore: reportMissingImports
 
 
 @pytest.fixture
 async def client(aiohttp_client, ext_dir):
-    import folder_paths
+    import folder_paths  # pi-lens-ignore: reportMissingImports
 
     models_dir = os.path.join(ext_dir, "models")
     for folder_type in ("checkpoints", "loras"):
@@ -64,7 +64,7 @@ class TestListCatalog:
         assert entry["is_empty"] is True
 
     async def test_installed_file_on_disk_makes_is_empty_false(self, client, ext_dir):
-        import folder_paths
+        import folder_paths  # pi-lens-ignore: reportMissingImports
 
         from py.db import model_repo
 
@@ -200,7 +200,7 @@ class TestListCatalog:
             assert isinstance(entry["trigger_words"], list)
 
     async def test_file_without_catalog_entry_is_unknown(self, client, ext_dir):
-        import folder_paths
+        import folder_paths  # pi-lens-ignore: reportMissingImports
 
         loras_dir = folder_paths.folder_names_and_paths["loras"][0][0]
         fpath = os.path.join(loras_dir, "orphan.safetensors")
@@ -374,11 +374,13 @@ class TestDeleteCatalogEntry:
         assert files == []
 
     async def test_deletes_media_from_disk(self, client, ext_dir):
+        from py import config as cfg
         from py.db import model_repo
 
         entry_id = await _make_entry(page_id="111")
-        # Create a fake media file
-        media_path = os.path.join(ext_dir, "media", "testhash", "0.jpg")
+        # Create a fake media file inside the media dir (stored as a legacy
+        # absolute value — the delete route must resolve it back to disk).
+        media_path = os.path.join(cfg.media_dir(), "testhash", "0.jpg")
         os.makedirs(os.path.dirname(media_path), exist_ok=True)
         Path(media_path).touch()
         # Insert a model linked to this entry with media
@@ -486,8 +488,11 @@ class TestCatalogMetadata:
         )
         assert resp.status == 200
         entry = await model_repo.get_catalog_entry("civitai", "503")
+        # pi-lens-ignore: reportOptionalSubscript
         assert entry["description"] == "new"
+        # pi-lens-ignore: reportOptionalSubscript
         assert entry["trigger_words"] == ["a", "b"]
+        # pi-lens-ignore: reportOptionalSubscript
         assert entry["tags"] == []  # cleared
 
     async def test_put_metadata_returns_404_for_unknown_entry(self, client, ext_dir):
@@ -566,7 +571,7 @@ _UPLOAD_PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
 
 
 def _upload_form(*payloads: bytes):
-    from aiohttp import FormData
+    from aiohttp import FormData  # pi-lens-ignore: reportMissingImports
 
     form = FormData()
     for i, payload in enumerate(payloads):
@@ -607,7 +612,9 @@ async def test_upload_catalog_media_fills_an_empty_thumbnail(client):
     stored = (await resp.json())["media"][0]["local_path"]
 
     entry = await model_repo.get_catalog_entry("civitai", "123")
+    # pi-lens-ignore: reportOptionalSubscript
     assert entry["thumbnail_url"] == stored
+    # pi-lens-ignore: reportOptionalSubscript
     assert entry["media_hash"] != ""
 
 
@@ -622,6 +629,7 @@ async def test_upload_catalog_media_keeps_an_existing_thumbnail(client):
     )
 
     entry = await model_repo.get_catalog_entry("civitai", "123")
+    # pi-lens-ignore: reportOptionalSubscript
     assert entry["thumbnail_url"] == "/media/x/0.jpg"
 
 
@@ -661,6 +669,7 @@ async def test_delete_catalog_media_removes_the_file_and_clears_the_thumbnail(cl
     assert (await resp.json())["media"] == []
     assert not os.path.exists(stored)
     entry = await model_repo.get_catalog_entry("civitai", "123")
+    # pi-lens-ignore: reportOptionalSubscript
     assert entry["thumbnail_url"] == ""
 
 

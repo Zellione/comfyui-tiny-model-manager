@@ -1,6 +1,6 @@
 import os
 
-from aiohttp import web
+from aiohttp import web  # pi-lens-ignore: reportMissingImports
 
 from ..services import model_paths
 

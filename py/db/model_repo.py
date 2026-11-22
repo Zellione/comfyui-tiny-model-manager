@@ -609,11 +609,11 @@ async def _fill_video_status(db, e: dict) -> None:
         e["is_video_only"] = False
         return
     first_video = next((r["local_path"] for r in rows if r["media_type"] == "video"), None)
-    poster = (
-        await asyncio.to_thread(extract_video_poster, model_paths.resolve_media_path(first_video))
-        if first_video
-        else None
-    )
+    poster = None
+    if first_video:
+        resolved = model_paths.resolve_media_path(first_video)
+        if resolved:
+            poster = await asyncio.to_thread(extract_video_poster, resolved)
     if poster:
         model_row = await (
             await db.execute(
@@ -999,13 +999,14 @@ async def get_live_media_hashes() -> set[str]:
 async def get_all_media_paths() -> set[str]:
     """Resolved paths of every file a model_media row points at.
 
-    Stored values are media_dir-relative (legacy absolute values pass through
-    ``resolve_media_path`` unchanged), so both resolve to the same absolute set the
-    stale-media scan compares against.
+    Stored values are media_dir-relative (legacy absolute values resolve unchanged
+    when they point inside the media dir), so both resolve to the same absolute set
+    the stale-media scan compares against.
     """
     async with get_db() as db:
         rows = await (await db.execute("SELECT local_path FROM model_media")).fetchall()
-        return {os.path.realpath(model_paths.resolve_media_path(r["local_path"])) for r in rows}
+        resolved = [model_paths.resolve_media_path(r["local_path"]) for r in rows]
+        return {p for p in resolved if p is not None}
 
 
 async def delete_media_row(media_id: int) -> None:

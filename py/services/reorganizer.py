@@ -14,7 +14,7 @@ import os
 import re
 import shutil
 
-import folder_paths
+import folder_paths  # pi-lens-ignore: reportMissingImports
 
 from ..db import model_repo
 

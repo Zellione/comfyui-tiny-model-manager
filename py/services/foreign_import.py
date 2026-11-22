@@ -15,7 +15,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 
-import folder_paths
+import folder_paths  # pi-lens-ignore: reportMissingImports
 
 from ..background import spawn
 from ..db import model_repo

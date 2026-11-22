@@ -146,6 +146,24 @@ class TestMediaPathStorage:
         from py import config as cfg
         from py.services.model_paths import resolve_media_path
 
-        assert resolve_media_path("abc123/0.jpg") == os.path.join(cfg.media_dir(), "abc123/0.jpg")
-        # Legacy absolute values (stable external dir) pass through unchanged.
-        assert resolve_media_path("/srv/media/abc123/0.jpg") == "/srv/media/abc123/0.jpg"
+        assert resolve_media_path("abc123/0.jpg") == os.path.realpath(
+            os.path.join(cfg.media_dir(), "abc123/0.jpg")
+        )
+
+    def test_resolve_media_path_accepts_legacy_absolute_values_inside_the_media_dir(self, ext_dir):
+        """Rows written before issue #176 stored absolute paths inside the then-current
+        media dir; they must keep resolving."""
+        from py import config as cfg
+        from py.services.model_paths import resolve_media_path
+
+        absolute = os.path.join(cfg.media_dir(), "abc123", "0.jpg")
+        assert resolve_media_path(absolute) == os.path.realpath(absolute)
+
+    def test_resolve_media_path_rejects_values_outside_the_media_dir(self, ext_dir):
+        """A stored value must never drive file access outside the media dir (CWE-22):
+        traversal relatives and foreign absolute values resolve to None."""
+        from py.services.model_paths import resolve_media_path
+
+        assert resolve_media_path("../../secret.txt") is None
+        assert resolve_media_path("abc123/../../x.jpg") is None
+        assert resolve_media_path("/srv/media/abc123/0.jpg") is None

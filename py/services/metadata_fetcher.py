@@ -246,14 +246,19 @@ async def _fetch_and_store_repo_files(
 
 
 def _remove_dir_if_empty(path: str | None) -> None:
-    """Remove ``path`` if it exists and is an empty directory; ignore errors."""
-    if not path or not os.path.isdir(path):
+    """Remove ``path`` if it exists, is an empty directory, and stays inside the
+    media dir (a stored value must not drive removal outside it, CWE-22)."""
+    if not path:
+        return
+    base = os.path.realpath(cfg.media_dir())
+    full = os.path.realpath(path)
+    if full == base or not full.startswith(base + os.sep):
         return
     try:
-        if not os.listdir(path):
-            os.rmdir(path)
+        if not os.listdir(full):
+            os.rmdir(full)
     except Exception:
-        _log.debug("Could not remove media directory %s", path, exc_info=True)
+        _log.debug("Could not remove media directory %r", full, exc_info=True)
 
 
 async def _migrate_model_media(db, row) -> None:
@@ -279,14 +284,15 @@ async def _migrate_model_media(db, row) -> None:
             continue
         new_path = new_path_candidate
         # Stored values are media_dir-relative since issue #176; legacy absolute values
-        # resolve unchanged.
-        old_abs = os.path.realpath(model_paths.resolve_media_path(old_path))
-        if os.path.isfile(old_abs) and old_abs != new_path:
+        # resolve unchanged when they point inside the media dir. A value that resolves
+        # outside it is left untouched on disk (CWE-22).
+        old_abs = model_paths.resolve_media_path(old_path)
+        if old_abs is not None and os.path.isfile(old_abs) and old_abs != new_path:
             try:
                 shutil.move(old_abs, new_path)
             except Exception:
                 _log.warning(
-                    "Media migration could not move %s to %s; DB row now points at the"
+                    "Media migration could not move %r to %r; DB row now points at the"
                     " new path while the file stayed behind",
                     old_abs,
                     new_path,
@@ -389,11 +395,13 @@ async def _download_images(model_id: int, media_hash: str, urls: list[str]):
             first_video = dest
         await model_repo.add_media(model_id, media_type, dest)
     if not has_image and first_video:
-        poster = await asyncio.to_thread(
-            extract_video_poster, model_paths.resolve_media_path(first_video)
-        )
-        if poster:
-            await model_repo.add_media(model_id, "image", model_paths.to_stored_media_path(poster))
+        resolved = model_paths.resolve_media_path(first_video)
+        if resolved:
+            poster = await asyncio.to_thread(extract_video_poster, resolved)
+            if poster:
+                await model_repo.add_media(
+                    model_id, "image", model_paths.to_stored_media_path(poster)
+                )
 
 
 def catalog_media_hash(platform: str, page_id: str) -> str:
@@ -418,11 +426,11 @@ async def _download_catalog_images(media_hash: str, urls: list[str]) -> str:
         if first_video is None:
             first_video = path
     if first_video:
-        poster = await asyncio.to_thread(
-            extract_video_poster, model_paths.resolve_media_path(first_video)
-        )
-        if poster:
-            return model_paths.to_stored_media_path(poster)
+        resolved = model_paths.resolve_media_path(first_video)
+        if resolved:
+            poster = await asyncio.to_thread(extract_video_poster, resolved)
+            if poster:
+                return model_paths.to_stored_media_path(poster)
     return ""
 
 

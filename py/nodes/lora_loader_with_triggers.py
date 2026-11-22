@@ -1,6 +1,6 @@
-import comfy.sd
-import comfy.utils
-import folder_paths
+import comfy.sd  # pi-lens-ignore: reportMissingImports
+import comfy.utils  # pi-lens-ignore: reportMissingImports
+import folder_paths  # pi-lens-ignore: reportMissingImports
 
 from ._utils import get_trigger_words_sync
 

@@ -132,13 +132,23 @@ def compute_file_hash(path) -> str:
 # ---------------------------------------------------------------------------
 
 
-def resolve_media_path(local_path: str) -> str:
-    """Absolute path of a stored media ``local_path``.
+def resolve_media_path(local_path: str) -> str | None:
+    """Real absolute path of a stored media ``local_path``, or None when it is not
+    inside the media dir.
 
-    Relative values resolve against the media dir; legacy absolute values (a stable
-    external media dir, or a not-yet-migrated row) pass through unchanged.
+    Relative values resolve against the media dir; legacy absolute values (rows written
+    before issue #176, or a media dir configured outside the default location) resolve
+    as-is. The canonical containment check keeps a corrupted or injected stored value
+    from driving file access outside the media dir (CWE-22).
     """
-    return os.path.join(cfg.media_dir(), local_path)
+    base = os.path.realpath(cfg.media_dir())
+    candidate = (
+        local_path if os.path.isabs(local_path) else os.path.join(cfg.media_dir(), local_path)
+    )
+    full = os.path.realpath(candidate)
+    if full == base or full.startswith(base + os.sep):
+        return full
+    return None
 
 
 def to_stored_media_path(path: str) -> str:

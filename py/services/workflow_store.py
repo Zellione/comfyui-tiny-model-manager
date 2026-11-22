@@ -170,15 +170,17 @@ async def _fetch_archive(url: str, dest: str, headers: dict) -> None:
     hop against the allowlist and drops the CivitAI key once the origin changes.
     """
     written = 0
-    async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
-        async with guarded_stream(client, "GET", url, headers=headers) as resp:
-            resp.raise_for_status()
-            async with aiofiles.open(dest, "wb") as f:
-                async for chunk in resp.aiter_bytes(65536):
-                    written += len(chunk)
-                    if written > _MAX_ARCHIVE_BYTES:
-                        raise WorkflowTooLargeError("archive_too_large")
-                    await f.write(chunk)
+    async with (
+        httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client,
+        guarded_stream(client, "GET", url, headers=headers) as resp,
+        aiofiles.open(dest, "wb") as f,
+    ):
+        resp.raise_for_status()
+        async for chunk in resp.aiter_bytes(65536):
+            written += len(chunk)
+            if written > _MAX_ARCHIVE_BYTES:
+                raise WorkflowTooLargeError("archive_too_large")
+            await f.write(chunk)
 
 
 def _pick_version(page: dict, version_id: str) -> dict | None:

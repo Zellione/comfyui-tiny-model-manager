@@ -154,7 +154,12 @@ def _delete_media_paths(paths: list[str]) -> None:
     """
     dirs_to_check: set[str] = set()
     for p in paths:
+        # Stored values are media_dir-relative (issue #176); legacy absolute values
+        # resolve unchanged when they point inside the media dir.
         full = model_paths.resolve_media_path(p)
+        if full is None:
+            # Stored value escapes the media dir — never delete outside it (CWE-22).
+            continue
         try:
             if os.path.isfile(full):
                 os.remove(full)

@@ -223,22 +223,24 @@ async def _stream_file(task: DownloadTask, headers: dict) -> None:
     # No follow_redirects on the client: guarded_stream resolves the chain itself so
     # every hop is re-checked against the provider allowlist (both CivitAI and
     # HuggingFace redirect downloads to their CDNs).
-    async with httpx.AsyncClient(timeout=_DOWNLOAD_TIMEOUT) as client:
-        async with guarded_stream(client, "GET", task.url, headers=headers) as resp:
-            if resp.is_error:
-                await _raise_refusal(resp)
-            resp.raise_for_status()
-            total = int(resp.headers.get("content-length", 0))
-            task.total_bytes = total
-            downloaded = 0
-            async with aiofiles.open(task.dest_path, "wb") as f:
-                async for chunk in resp.aiter_bytes(65536):
-                    if task.cancelled:
-                        raise _Cancelled()
-                    await f.write(chunk)
-                    downloaded += len(chunk)
-                    task.downloaded_bytes = downloaded
-                    task.progress = (downloaded / total * 100) if total else 0.0
+    async with (
+        httpx.AsyncClient(timeout=_DOWNLOAD_TIMEOUT) as client,
+        guarded_stream(client, "GET", task.url, headers=headers) as resp,
+        aiofiles.open(task.dest_path, "wb") as f,
+    ):
+        if resp.is_error:
+            await _raise_refusal(resp)
+        resp.raise_for_status()
+        total = int(resp.headers.get("content-length", 0))
+        task.total_bytes = total
+        downloaded = 0
+        async for chunk in resp.aiter_bytes(65536):
+            if task.cancelled:
+                raise _Cancelled()
+            await f.write(chunk)
+            downloaded += len(chunk)
+            task.downloaded_bytes = downloaded
+            task.progress = (downloaded / total * 100) if total else 0.0
 
 
 async def _run_download(task: DownloadTask):
