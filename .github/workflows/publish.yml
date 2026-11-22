@@ -1,7 +1,6 @@
 name: Publish to Comfy Registry
 
-# Bumping `version` in pyproject.toml is the release trigger. The path filter also keeps the
-# refreshed-web/ commit pushed back below from retriggering this workflow.
+# Bumping `version` in pyproject.toml is the release trigger.
 on:
   push:
     branches: [main]
@@ -15,13 +14,14 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      pull-requests: write
 
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: '26'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -34,18 +34,27 @@ jobs:
         working-directory: frontend
 
       # web/ is tracked so that git-based installs work too. Refresh it here so the published
-      # archive and the repository always agree at release time.
-      - name: Commit refreshed web/ bundle
+      # archive and the repository always agree at release time. main is protected against
+      # direct pushes, so a drifted bundle lands on a standing branch with a PR for the
+      # maintainer to merge — the publish step below runs regardless, since it packages
+      # this build.
+      - name: Refresh web/ bundle for the repository
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name  'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git config user.email 'github-actions[bot]@users.noreply[bot]@github.com'
           if git diff --quiet -- web; then
             echo 'web/ already up to date'
-          else
-            git add web
-            git commit -m 'chore: rebuild web bundle for release [skip ci]'
-            git push
+            exit 0
           fi
+          git add web
+          git commit -m 'chore: rebuild web bundle for release [skip ci]'
+          git push -f origin HEAD:web-refresh
+          gh pr create --title "chore: rebuild web bundle for release" \
+            --body "The release build refreshed the tracked web/ bundle. Merging keeps git-based installs in sync with the published registry archive." \
+            --head web-refresh --base main || \
+            echo 'web-refresh PR already open; it now carries this refresh'
 
       - name: Publish to Comfy Registry
         uses: Comfy-Org/publish-node-action@main
