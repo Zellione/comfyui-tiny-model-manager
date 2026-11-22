@@ -67,6 +67,20 @@ class TestListModels:
 
 
 class TestDeleteModel:
+    async def test_dangling_symlink_is_skipped(self, client, checkpoints_dir):
+        # A symlink whose target no longer exists must not crash the disk scan
+        # (os.walk lists it, os.stat raises FileNotFoundError).
+        os.symlink(
+            os.path.join(checkpoints_dir, "gone.safetensors"),
+            os.path.join(checkpoints_dir, "ghost.safetensors"),
+        )
+
+        resp = await client.get("/tiny-model-manager/api/models")
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        filenames = [f["filename"] for f in data.get("checkpoints", [])]
+        assert "ghost.safetensors" not in filenames
+
     async def test_delete_existing_file(self, client, checkpoints_dir):
         model_file = os.path.join(checkpoints_dir, "to_delete.safetensors")
         open(model_file, "wb").close()

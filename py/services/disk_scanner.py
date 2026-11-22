@@ -23,8 +23,14 @@ def scan_dir(base_dir: str, extensions: set) -> list:
         for fname in files:
             if os.path.splitext(fname)[1].lower() in extensions:
                 full = os.path.join(root, fname)
+                try:
+                    stat = os.stat(full)
+                except FileNotFoundError:
+                    # os.walk also lists dangling symlinks (e.g. after a model was
+                    # moved out of the tree, leaving only the link behind); ComfyUI
+                    # cannot load such a file, so skip it instead of failing the scan.
+                    continue
                 rel = os.path.relpath(full, base_dir).replace("\\", "/")
-                stat = os.stat(full)
                 entries.append(
                     {
                         "filename": rel,

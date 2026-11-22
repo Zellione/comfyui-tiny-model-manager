@@ -99,8 +99,14 @@ def _collect_model_files(base_dir: str, allowed: set, key: str, result: dict) ->
             if os.path.splitext(fname)[1].lower() not in allowed:
                 continue
             full = os.path.join(root, fname)
+            try:
+                s = os.stat(full)
+            except FileNotFoundError:
+                # os.walk also lists dangling symlinks (e.g. after a model was moved
+                # out of the tree, leaving only the link behind); ComfyUI cannot load
+                # such a file, so skip it instead of failing the whole scan.
+                continue
             rel = os.path.relpath(full, base_dir).replace("\\", "/")
-            s = os.stat(full)
             result.setdefault(key, []).append(
                 {
                     "filename": rel,
