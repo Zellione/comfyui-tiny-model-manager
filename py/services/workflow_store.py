@@ -24,8 +24,8 @@ import tempfile
 import zipfile
 
 import aiofiles
-import folder_paths
-import httpx
+import folder_paths  # pi-lens-ignore: reportMissingImports
+import httpx  # pi-lens-ignore: reportMissingImports
 
 from .. import config as cfg
 from ..db import workflow_repo

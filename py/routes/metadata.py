@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
+# pi-lens-ignore: reportMissingImports
 from aiohttp import web
 
 from ..db import model_repo

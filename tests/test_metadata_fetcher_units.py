@@ -3,6 +3,7 @@
 import os
 from unittest.mock import AsyncMock, patch
 
+# pi-lens-ignore: reportMissingImports
 import pytest
 
 from py.db import model_repo
@@ -109,7 +110,8 @@ class TestMigrateExistingMedia:
         assert not os.path.exists(old_dir), "emptied old dir should be removed"
         row = await model_repo.get_model_by_filename("mig.safetensors")
         assert row["media_hash"] == media_hash
-        assert [m["local_path"] for m in row["media"]] == [new_path]
+        # issue #176: the stored path is media_dir-relative, not absolute.
+        assert [m["local_path"] for m in row["media"]] == [f"{media_hash}/preview.jpg"]
 
     async def test_missing_file_updates_db_without_moving(self, ext_dir):
         from py import config as cfg
@@ -123,5 +125,5 @@ class TestMigrateExistingMedia:
         media_hash = _compute_media_hash("civitai", "56", "ghost.safetensors")
         row = await model_repo.get_model_by_filename("ghost.safetensors")
         assert row["media_hash"] == media_hash
-        expected = os.path.join(cfg.media_dir(), media_hash, "gone.jpg")
+        expected = f"{media_hash}/gone.jpg"
         assert [m["local_path"] for m in row["media"]] == [expected]

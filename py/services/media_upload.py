@@ -100,13 +100,13 @@ def is_uploaded(path: str) -> bool:
 
 
 async def store_upload(media_hash: str, part) -> str:
-    """Store one multipart part in the media dir; return the absolute path written.
+    """Store one multipart part in the media dir; return the media_dir-relative path written.
 
     Raises ``UploadTooLarge`` past the cap and ``UnsupportedImage`` when the bytes are
     not one of the four accepted formats. Neither case touches the filesystem, so there
     is no partial file to clean up.
     """
-    from . import media_cleanup
+    from . import media_cleanup, model_paths
 
     chunks: list[bytes] = []
     total = 0
@@ -128,7 +128,7 @@ async def store_upload(media_hash: str, part) -> str:
     os.makedirs(dest_dir, exist_ok=True)
     dest = os.path.join(dest_dir, upload_name(ext))
     await asyncio.to_thread(Path(dest).write_bytes, data)
-    return dest
+    return model_paths.to_stored_media_path(dest)
 
 
 def delete_upload(media_hash: str, name: str) -> bool:

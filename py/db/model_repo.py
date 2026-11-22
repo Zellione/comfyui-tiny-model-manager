@@ -3,6 +3,7 @@ import json
 import os
 from datetime import datetime, timezone
 
+from ..services import model_paths
 from ..video_poster import extract_video_poster
 from .database import get_db
 
@@ -608,7 +609,11 @@ async def _fill_video_status(db, e: dict) -> None:
         e["is_video_only"] = False
         return
     first_video = next((r["local_path"] for r in rows if r["media_type"] == "video"), None)
-    poster = await asyncio.to_thread(extract_video_poster, first_video) if first_video else None
+    poster = (
+        await asyncio.to_thread(extract_video_poster, model_paths.resolve_media_path(first_video))
+        if first_video
+        else None
+    )
     if poster:
         model_row = await (
             await db.execute(
@@ -620,10 +625,10 @@ async def _fill_video_status(db, e: dict) -> None:
             await db.execute(
                 "INSERT OR IGNORE INTO model_media (model_id, media_type, local_path)"
                 " VALUES (?, 'image', ?)",
-                (model_row["id"], poster),
+                (model_row["id"], model_paths.to_stored_media_path(poster)),
             )
             await db.commit()
-        e["thumbnail_url"] = poster
+        e["thumbnail_url"] = model_paths.to_stored_media_path(poster)
         e["is_video_only"] = False
     else:
         e["is_video_only"] = True
@@ -992,10 +997,15 @@ async def get_live_media_hashes() -> set[str]:
 
 
 async def get_all_media_paths() -> set[str]:
-    """Resolved paths of every file a model_media row points at."""
+    """Resolved paths of every file a model_media row points at.
+
+    Stored values are media_dir-relative (legacy absolute values pass through
+    ``resolve_media_path`` unchanged), so both resolve to the same absolute set the
+    stale-media scan compares against.
+    """
     async with get_db() as db:
         rows = await (await db.execute("SELECT local_path FROM model_media")).fetchall()
-        return {os.path.realpath(r["local_path"]) for r in rows}
+        return {os.path.realpath(model_paths.resolve_media_path(r["local_path"])) for r in rows}
 
 
 async def delete_media_row(media_id: int) -> None:

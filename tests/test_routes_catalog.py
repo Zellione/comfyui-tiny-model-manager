@@ -82,6 +82,7 @@ class TestListCatalog:
         assert entry["is_empty"] is False
 
     async def test_installed_file_exposes_civitai_version_name(self, client, ext_dir):
+        # pi-lens-ignore: reportMissingImports
         import folder_paths
 
         from py.db import model_repo
@@ -584,7 +585,12 @@ async def test_upload_catalog_media_appears_in_the_next_detail_read(client):
     media = (await resp.json())["media"]
     assert len(media) == 1
     assert media[0]["uploaded"] is True
-    assert os.path.isfile(media[0]["local_path"])
+    # issue #176: the gallery reports media_dir-relative paths, so resolve before stat.
+    from py import config as cfg
+
+    local_path = media[0]["local_path"]
+    assert not os.path.isabs(local_path)
+    assert os.path.isfile(os.path.join(cfg.media_dir(), local_path))
 
     detail = await client.get("/tiny-model-manager/api/catalog/civitai/123")
     assert len((await detail.json())["data"]["media"]) == 1

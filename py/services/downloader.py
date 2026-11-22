@@ -7,8 +7,8 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 import aiofiles
-import folder_paths
-import httpx
+import folder_paths  # pi-lens-ignore: reportMissingImports
+import httpx  # pi-lens-ignore: reportMissingImports
 
 from ..background import spawn
 from ..db import model_repo

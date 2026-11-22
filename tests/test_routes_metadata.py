@@ -5,8 +5,8 @@ from datetime import timezone
 from pathlib import Path
 from typing import ClassVar
 
-import pytest
-from aiohttp import web
+import pytest  # pi-lens-ignore: reportMissingImports
+from aiohttp import web  # pi-lens-ignore: reportMissingImports
 
 
 @pytest.fixture
@@ -125,7 +125,9 @@ class TestPutMetadata:
             json={"description": "new desc", "trigger_words": ["w1", "w2"]},
         )
         row = await model_repo.get_model_by_filename("upd.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["description"] == "new desc"
+        # pi-lens-ignore: reportOptionalSubscript
         assert set(row["trigger_words"]) == {"w1", "w2"}
 
     async def test_update_base_model(self, client, ext_dir):
@@ -137,6 +139,7 @@ class TestPutMetadata:
             json={"description": "", "trigger_words": [], "base_model": "Pony"},
         )
         row = await model_repo.get_model_by_filename("bm.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["base_model"] == "Pony"
 
     async def test_returns_success(self, client, ext_dir):
@@ -186,15 +189,18 @@ class TestPutMetadata:
         )
         assert (await resp.json())["success"] is True
         row = await model_repo.get_model_by_filename("existing.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["description"] == "keep me"
+        # pi-lens-ignore: reportOptionalSubscript
         assert "kw" in row["trigger_words"]
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["base_model"] == "SDXL 1.0"
 
 
 class TestPutMetadataOrganize:
     @pytest.fixture
     async def organize_client(self, aiohttp_client, ext_dir):
-        import folder_paths
+        import folder_paths  # pi-lens-ignore: reportMissingImports
 
         from py.routes.metadata import add_metadata_routes
 
@@ -289,7 +295,7 @@ class TestRefetchMetadata:
     @staticmethod
     def _touch_model_file(rel_path: str, model_type: str = "loras") -> None:
         """Create an empty model file on disk so refetch's disk check passes."""
-        import folder_paths
+        import folder_paths  # pi-lens-ignore: reportMissingImports
 
         full = os.path.join(folder_paths.models_dir, model_type, rel_path)
         os.makedirs(os.path.dirname(full), exist_ok=True)
@@ -626,7 +632,7 @@ class TestLinkSource:
 class TestRefetchPreview:
     @staticmethod
     def _touch_model_file(rel_path: str, model_type: str = "loras") -> None:
-        import folder_paths
+        import folder_paths  # pi-lens-ignore: reportMissingImports
 
         full = os.path.join(folder_paths.models_dir, model_type, rel_path)
         os.makedirs(os.path.dirname(full), exist_ok=True)
@@ -847,9 +853,13 @@ class TestRefetchPreview:
         )
         assert resp.status == 200
         row = await model_repo.get_model_by_filename("apply-test.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["description"] == "new"
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["trigger_words"] == ["w1"]
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["tags"] == ["t1"]
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["base_model"] == "Flux.1 D"
 
     async def test_apply_sets_edited_at(self, client, ext_dir, monkeypatch):
@@ -1072,6 +1082,7 @@ _UPLOAD_PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
 
 def _upload_form(*payloads: bytes):
     """Build a multipart body with one `files` part per payload."""
+    # pi-lens-ignore: reportMissingImports
     from aiohttp import FormData
 
     form = FormData()
@@ -1097,7 +1108,11 @@ async def test_upload_media_stores_the_file_and_returns_the_gallery(client):
     item = body["media"][0]
     assert item["media_type"] == "image"
     assert item["uploaded"] is True
-    assert os.path.isfile(item["local_path"])
+    # issue #176: local_path is media_dir-relative, so resolve before stat.
+    from py import config as cfg
+
+    assert not os.path.isabs(item["local_path"])
+    assert os.path.isfile(os.path.join(cfg.media_dir(), item["local_path"]))
 
 
 async def test_upload_media_assigns_a_media_hash_when_the_model_has_none(client):
@@ -1225,4 +1240,5 @@ async def test_upload_media_rolls_back_on_invalid_second_file(client):
     assert resp.status == 400
     # Verify nothing was stored on disk
     model = await model_repo.get_model_by_filename("a.safetensors")
+    # pi-lens-ignore: reportOptionalMemberAccess
     assert len(model.get("media", [])) == 0

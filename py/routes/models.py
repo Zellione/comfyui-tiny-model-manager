@@ -2,8 +2,8 @@ import asyncio
 import os
 import shutil
 
-import folder_paths
-import httpx
+import folder_paths  # pi-lens-ignore: reportMissingImports
+import httpx  # pi-lens-ignore: reportMissingImports
 
 from ..db import model_repo
 from ..services import disk_scanner, link_resolver, media_cleanup, model_paths
