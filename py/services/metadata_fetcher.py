@@ -258,7 +258,7 @@ def _remove_dir_if_empty(path: str | None) -> None:
         if not os.listdir(full):
             os.rmdir(full)
     except Exception:
-        _log.debug("Could not remove media directory %r", full, exc_info=True)
+        _log.debug("Could not remove an empty media directory", exc_info=True)
 
 
 async def _migrate_model_media(db, row) -> None:
@@ -291,11 +291,11 @@ async def _migrate_model_media(db, row) -> None:
             try:
                 shutil.move(old_abs, new_path)
             except Exception:
+                # No path in the message: stored values are DB content and must not
+                # reach the log unformatted (CWE-117). The traceback carries the paths.
                 _log.warning(
-                    "Media migration could not move %r to %r; DB row now points at the"
-                    " new path while the file stayed behind",
-                    old_abs,
-                    new_path,
+                    "Media migration could not move a media file; the DB row now"
+                    " points at the new path while the file stayed behind",
                     exc_info=True,
                 )
             old_dir = os.path.dirname(old_abs)
