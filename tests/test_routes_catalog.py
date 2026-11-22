@@ -212,6 +212,24 @@ class TestListCatalog:
         filenames = [f["filename"] for f in data["unknown_files"]["loras"]]
         assert "orphan.safetensors" in filenames
 
+    async def test_dangling_symlink_is_skipped(self, client, ext_dir):
+        import folder_paths  # pi-lens-ignore: reportMissingImports
+
+        loras_dir = folder_paths.folder_names_and_paths["loras"][0][0]
+        # os.walk lists symlinks whose target no longer exists (e.g. after a model
+        # was moved out of the tree, leaving only the link behind). The scan must
+        # not crash and must not report such an entry as a model file.
+        os.symlink(
+            os.path.join(ext_dir, "moved_away.safetensors"),
+            os.path.join(loras_dir, "ghost.safetensors"),
+        )
+
+        resp = await client.get("/tiny-model-manager/api/catalog")
+        assert resp.status == 200
+        data = (await resp.json())["data"]
+        filenames = [f["filename"] for f in data["unknown_files"].get("loras", [])]
+        assert "ghost.safetensors" not in filenames
+
 
 class TestGetCatalogEntry:
     async def test_returns_404_for_missing_entry(self, client, ext_dir):
