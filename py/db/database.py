@@ -1,6 +1,8 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 
+# pi-lens-ignore: reportMissingImports
 import aiosqlite
 
 from .. import config as cfg
@@ -440,9 +442,48 @@ async def _ensure_download_history_table(db) -> None:
     )
 
 
+async def _migrate_media_paths(db) -> None:
+    """Rewrite stored media paths from absolute to media_dir-relative (issue #176).
+
+    ``model_media.local_path`` and ``catalog_entries.thumbnail_url`` used to be written
+    as absolute paths, so moving the ComfyUI folder broke every gallery reference. Rows
+    are now stored relative to the media dir; this step repairs what older versions left
+    behind. Idempotent: after the first pass no absolute value that can be repaired
+    remains, and values that match neither rule (a stable external media dir, a file
+    that is gone) are deliberately left in place and logged once.
+    """
+    from ..services import model_paths
+
+    fixed = 0
+    stale = 0
+    for table, column in (("model_media", "local_path"), ("catalog_entries", "thumbnail_url")):
+        rows = await (await db.execute(f"SELECT id, {column} AS value FROM {table}")).fetchall()
+        for row in rows:
+            value = row[1]
+            if not value or not os.path.isabs(value):
+                continue
+            repaired = model_paths.normalize_stored_media_path(value)
+            if repaired is None:
+                stale += 1
+                continue
+            await db.execute(f"UPDATE {table} SET {column} = ? WHERE id = ?", (repaired, row[0]))
+            fixed += 1
+    if fixed:
+        _log.info("Rewrote %d stored media path(s) to media-dir-relative form", fixed)
+    if stale:
+        _log.warning(
+            "Leaving %d media path(s) in place: they point outside the media dir and no "
+            "verifiable copy exists inside it (moved folder with missing files, or a "
+            "custom external media dir); requests for them will 404",
+            stale,
+        )
+
+
 # Ordered migration steps run after the column additions. The catalog_entries table and the
 # catalog_entry_id column must exist before _migrate_f40_catalog seeds and links them, so the
-# order here matters. Each step is isolated: a failure is logged and the remaining steps run.
+# order here matters. _migrate_media_paths runs last: it also repairs thumbnail values the
+# F-40 catalog seed copied from still-absolute model_media rows. Each step is isolated:
+# a failure is logged and the remaining steps run.
 _MIGRATION_STEPS = (
     ("tag schema", _migrate_tags_schema),
     ("reorganize_queue", _migrate_reorganize_queue),
@@ -451,6 +492,7 @@ _MIGRATION_STEPS = (
     ("F-40 catalog", _migrate_f40_catalog),
     ("download_history", _ensure_download_history_table),
     ("filename_keywords", _migrate_filename_keywords),
+    ("media paths", _migrate_media_paths),
 )
 
 

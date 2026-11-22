@@ -11,6 +11,7 @@ single source of truth for that candidate-path logic so the search order stays c
 
 import os
 
+# pi-lens-ignore: reportMissingImports
 import folder_paths
 
 from .. import config as cfg
@@ -119,3 +120,72 @@ def compute_file_hash(path) -> str:
         for chunk in iter(lambda: f.read(1024 * 1024), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+# ---------------------------------------------------------------------------
+# Media path storage (issue #176)
+#
+# ``model_media.local_path`` and ``catalog_entries.thumbnail_url`` are stored relative to
+# ``cfg.media_dir()`` so that moving the ComfyUI folder keeps them valid. Media files
+# always live in ``<media_dir>/<media_hash>/<name>``, which is the layout the repair
+# below relies on.
+# ---------------------------------------------------------------------------
+
+
+def resolve_media_path(local_path: str) -> str | None:
+    """Real absolute path of a stored media ``local_path``, or None when it is not
+    inside the media dir.
+
+    Relative values resolve against the media dir; legacy absolute values (rows written
+    before issue #176, or a media dir configured outside the default location) resolve
+    as-is. The canonical containment check keeps a corrupted or injected stored value
+    from driving file access outside the media dir (CWE-22).
+    """
+    base = os.path.realpath(cfg.media_dir())
+    candidate = (
+        local_path if os.path.isabs(local_path) else os.path.join(cfg.media_dir(), local_path)
+    )
+    full = os.path.realpath(candidate)
+    if full == base or full.startswith(base + os.sep):
+        return full
+    return None
+
+
+def to_stored_media_path(path: str) -> str:
+    """The media-dir-relative form of a media file path, for storage in the DB.
+
+    Absolute paths inside the current media dir come back relative (forward slashes);
+    relative paths are normalised to forward slashes; anything else is returned
+    unchanged so an absolute path into a stable external dir keeps working.
+    """
+    if os.path.isabs(path):
+        root = os.path.realpath(cfg.media_dir())
+        full = os.path.realpath(path)
+        if full == root or full.startswith(root + os.sep):
+            return os.path.relpath(full, root).replace(os.sep, "/")
+        return path
+    return path.replace(os.sep, "/")
+
+
+def normalize_stored_media_path(stored: str) -> str | None:
+    """Return the repaired media-dir-relative value for a stored media path, or None.
+
+    Used by the startup migration: absolute values under the current media dir are
+    relativised, and stale values from an old install location are rewritten when the
+    ``<hash>/<name>`` tail is verifiably present in the current media dir (the whole
+    tree was moved with the files still inside). Relative values and absolute values
+    that match neither are returned as None — a stable external media dir must keep
+    working, and a file that is simply gone must not be silently rewritten.
+    """
+    if not os.path.isabs(stored):
+        return None
+    fixed = to_stored_media_path(stored)
+    if fixed != stored:
+        return fixed
+    parts = stored.replace("\\", "/").split("/")
+    if len(parts) >= 2:
+        tail = "/".join(parts[-2:])
+        candidate = contained_path(cfg.media_dir(), tail)
+        if candidate is not None and os.path.isfile(candidate):
+            return tail
+    return None

@@ -2,6 +2,7 @@
 
 import os
 
+# pi-lens-ignore: reportMissingImports
 import pytest
 
 
@@ -91,6 +92,25 @@ class TestCleanupModelMedia:
 
         assert removed == 0
         assert os.path.isfile(paths[0])
+
+    async def test_keeps_media_claimed_by_a_relative_stored_path(self, media_root):
+        """issue #176: stored local_path values are media_dir-relative.
+
+        Cleanup must resolve them against the media dir; an unresolved relative
+        value would never match a realpath'd file and live media would be wiped.
+        """
+        from py import config as cfg
+        from py.services.media_cleanup import cleanup_model_media
+
+        paths = _make_media_dir(media_root, "relpath")
+        # Register with the relative stored form (the post-#176 storage format).
+        stored = [os.path.relpath(p, cfg.media_dir()) for p in paths]
+        await _register_model("rel.safetensors", "relpath", stored)
+
+        removed = await cleanup_model_media("relpath")
+
+        assert removed == 0
+        assert all(os.path.isfile(p) for p in paths)
 
     async def test_keeps_media_owned_by_a_workflow_entry(self, media_root):
         """F-129: workflow entries must be in the live-hash union.

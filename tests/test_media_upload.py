@@ -2,6 +2,7 @@
 
 import os
 
+# pi-lens-ignore: reportMissingImports
 import pytest
 
 _JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 32
@@ -68,14 +69,18 @@ def test_is_uploaded_is_false_for_fetched_media(path):
 
 
 async def test_store_upload_writes_a_sniffed_name(ext_dir):
+    from py import config as cfg
     from py.services import media_upload
 
     dest = await media_upload.store_upload("deadbeef", _FakePart(_PNG))
 
-    assert os.path.isfile(dest)
+    # issue #176: the stored path is media_dir-relative so a moved folder stays valid.
+    assert dest.startswith("deadbeef/")
     assert dest.endswith(".png")
     assert media_upload.is_uploaded(dest)
-    with open(dest, "rb") as fh:
+    full = os.path.join(cfg.media_dir(), dest)
+    assert os.path.isfile(full)
+    with open(full, "rb") as fh:
         assert fh.read() == _PNG
 
 
@@ -109,12 +114,13 @@ async def test_store_upload_rejects_an_oversized_part_without_writing(ext_dir):
 
 
 async def test_delete_upload_removes_the_file(ext_dir):
+    from py import config as cfg
     from py.services import media_upload
 
     dest = await media_upload.store_upload("deadbeef", _FakePart(_PNG))
 
     assert media_upload.delete_upload("deadbeef", os.path.basename(dest)) is True
-    assert not os.path.exists(dest)
+    assert not os.path.exists(os.path.join(cfg.media_dir(), dest))
 
 
 @pytest.mark.parametrize("name", ["0.jpg", "../../etc/passwd", "upload-zzzzzzzzzzzz.png", ""])

@@ -1,5 +1,6 @@
 """Tests for py/db/database.py — schema creation and migrations."""
 
+# pi-lens-ignore: reportMissingImports
 import aiosqlite
 
 
@@ -258,3 +259,133 @@ class TestTagMigration:
         await model_repo.set_tags(mid, ["lora"])
         row2 = await model_repo.get_model_by_filename("b.safetensors")
         assert row2["tags"] == ["lora"]
+
+
+class TestMediaPathMigration:
+    """issue #176: stored media paths are rewritten from absolute to media_dir-relative.
+
+    The ext_dir fixture already ran init_db(), so these tests seed the legacy absolute
+    values after the fact and call the migration step directly — the same way it runs on
+    every startup for databases created by older versions.
+    """
+
+    async def _seed(self, media_rows: list[str], thumbnails: list[str]) -> None:
+        from py import config as cfg
+
+        async with aiosqlite.connect(cfg.db_path()) as db:
+            await db.execute(
+                "INSERT INTO models (filename, model_type) VALUES ('m.safetensors', 'loras')"
+            )
+            await db.commit()
+            for path in media_rows:
+                await db.execute(
+                    "INSERT INTO model_media (model_id, media_type, local_path)"
+                    " VALUES (1, 'image', ?)",
+                    (path,),
+                )
+            await db.execute(
+                "INSERT INTO catalog_entries (source_platform, source_page_id, thumbnail_url)"
+                " VALUES ('civitai', '77', ?)",
+                (thumbnails[0] if thumbnails else "",),
+            )
+            await db.commit()
+
+    async def _read(self) -> tuple[list[str], str]:
+        from py import config as cfg
+
+        async with aiosqlite.connect(cfg.db_path()) as db:
+            db.row_factory = aiosqlite.Row
+            media = await (await db.execute("SELECT local_path FROM model_media")).fetchall()
+            thumb = await (await db.execute("SELECT thumbnail_url FROM catalog_entries")).fetchone()
+        return [r["local_path"] for r in media], thumb["thumbnail_url"]
+
+    async def test_relativises_absolute_paths_under_the_media_dir(self, ext_dir):
+        """A DB whose absolute values still point inside the (unchanged) media dir is
+        rewritten to the relative form."""
+        import os
+
+        from py import config as cfg
+        from py.db.database import _migrate_media_paths
+
+        abs_path = os.path.join(cfg.media_dir(), "abc123", "0.jpg")
+        await self._seed([abs_path], [abs_path])
+
+        async with aiosqlite.connect(cfg.db_path()) as db:
+            await _migrate_media_paths(db)
+            await db.commit()
+
+        media, thumb = await self._read()
+        assert media == ["abc123/0.jpg"]
+        assert thumb == "abc123/0.jpg"
+
+    async def test_repairs_stale_absolute_paths_when_the_file_moved_with_the_tree(self, ext_dir):
+        """The moved-folder case: the stored absolute path is dead, but the
+        <hash>/<name> file exists in the current media dir, so the row is repaired."""
+        import os
+
+        from py import config as cfg
+        from py.db.database import _migrate_media_paths
+
+        target = os.path.join(cfg.media_dir(), "abc123", "0.jpg")
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(target, "wb") as f:
+            f.write(b"x")
+        stale = "/old/root/ComfyUI/custom_nodes/comfyui-tiny-model-manager/data/media/abc123/0.jpg"
+        await self._seed([stale], [])
+
+        async with aiosqlite.connect(cfg.db_path()) as db:
+            await _migrate_media_paths(db)
+            await db.commit()
+
+        media, _ = await self._read()
+        assert media == ["abc123/0.jpg"]
+
+    async def test_leaves_unverifiable_stale_paths_in_place(self, ext_dir):
+        """A stale path whose file did not survive the move is not rewritten: it keeps
+        working if the location is real (e.g. a stable external media dir) and 404s
+        gracefully otherwise, instead of being silently pointed at the wrong file."""
+        from py import config as cfg
+        from py.db.database import _migrate_media_paths
+
+        stale = "/old/root/somewhere/abc123/gone.jpg"
+        await self._seed([stale], [])
+
+        async with aiosqlite.connect(cfg.db_path()) as db:
+            await _migrate_media_paths(db)
+            await db.commit()
+
+        media, _ = await self._read()
+        assert media == [stale]
+
+    async def test_relative_values_are_untouched(self, ext_dir):
+        from py import config as cfg
+        from py.db.database import _migrate_media_paths
+
+        await self._seed(["abc123/0.jpg"], ["abc123/1.jpg"])
+
+        async with aiosqlite.connect(cfg.db_path()) as db:
+            await _migrate_media_paths(db)
+            await db.commit()
+
+        media, thumb = await self._read()
+        assert media == ["abc123/0.jpg"]
+        assert thumb == "abc123/1.jpg"
+
+    async def test_migration_is_idempotent(self, ext_dir):
+        """A second pass over an already-relative DB changes nothing."""
+        import os
+
+        from py import config as cfg
+        from py.db.database import _migrate_media_paths
+
+        abs_path = os.path.join(cfg.media_dir(), "abc123", "0.jpg")
+        await self._seed([abs_path], [])
+
+        async with aiosqlite.connect(cfg.db_path()) as db:
+            await _migrate_media_paths(db)
+            await db.commit()
+            await _migrate_media_paths(db)
+            await db.commit()
+
+        media, _ = await self._read()
+        assert media == ["abc123/0.jpg"]

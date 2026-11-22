@@ -2,7 +2,10 @@ import asyncio
 import os
 import shutil
 
+# pi-lens-ignore: reportMissingImports
 import folder_paths
+
+# pi-lens-ignore: reportMissingImports
 from aiohttp import web
 
 from .. import config as cfg
@@ -39,8 +42,8 @@ def _list_catalog_media(media_hash: str) -> list[dict]:
             {
                 "id": i,
                 "media_type": media_type,
-                "local_path": full,
-                "uploaded": media_upload.is_uploaded(full),
+                "local_path": f"{media_hash}/{name}",
+                "uploaded": media_upload.is_uploaded(name),
             }
         )
     return items
@@ -144,13 +147,23 @@ def _scan_all_files() -> dict[str, list[dict]]:
 
 
 def _delete_media_paths(paths: list[str]) -> None:
-    """Remove media files and empty parent directories."""
+    """Remove media files and empty parent directories.
+
+    Stored values are media_dir-relative (issue #176); legacy absolute values resolve
+    unchanged.
+    """
     dirs_to_check: set[str] = set()
     for p in paths:
+        # Stored values are media_dir-relative (issue #176); legacy absolute values
+        # resolve unchanged when they point inside the media dir.
+        full = model_paths.resolve_media_path(p)
+        if full is None:
+            # Stored value escapes the media dir — never delete outside it (CWE-22).
+            continue
         try:
-            if os.path.isfile(p):
-                os.remove(p)
-                dirs_to_check.add(os.path.dirname(p))
+            if os.path.isfile(full):
+                os.remove(full)
+                dirs_to_check.add(os.path.dirname(full))
         except OSError:
             pass
     for d in dirs_to_check:

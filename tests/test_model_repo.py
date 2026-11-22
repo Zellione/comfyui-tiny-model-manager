@@ -2,7 +2,7 @@
 
 from typing import ClassVar
 
-import pytest
+import pytest  # pi-lens-ignore: reportMissingImports
 
 
 class TestUpsertModel:
@@ -22,8 +22,11 @@ class TestUpsertModel:
         id2 = await model_repo.upsert_model("m.safetensors", "loras", "civitai", "999", "new")
         assert id1 == id2  # same row
         row = await model_repo.get_model_by_filename("m.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["model_type"] == "loras"
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["source_id"] == "999"
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["description"] == "new"
 
     async def test_truncates_long_description(self, ext_dir):
@@ -33,6 +36,7 @@ class TestUpsertModel:
         long_desc = "x" * (_MAX_DESCRIPTION + 100)
         await model_repo.upsert_model("m.safetensors", "checkpoints", "", "", long_desc)
         row = await model_repo.get_model_by_filename("m.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert len(row["description"]) == _MAX_DESCRIPTION
 
 
@@ -50,7 +54,9 @@ class TestUpsertModelWithMeta:
             tags=["fantasy", "portrait"],
         )
         row = await model_repo.get_model_by_filename("lora.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert set(row["trigger_words"]) == {"word1", "word2"}
+        # pi-lens-ignore: reportOptionalSubscript
         assert set(row["tags"]) == {"fantasy", "portrait"}
 
     async def test_upsert_replaces_trigger_words(self, ext_dir):
@@ -75,6 +81,7 @@ class TestUpsertModelWithMeta:
             tags=[],
         )
         row = await model_repo.get_model_by_filename("lora.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["trigger_words"] == ["new"]
 
 
@@ -85,6 +92,7 @@ class TestSetTriggerWords:
         mid = await model_repo.upsert_model("t.safetensors", "loras", "", "", "")
         await model_repo.set_trigger_words(mid, ["a", "b"])
         row = await model_repo.get_model_by_filename("t.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert set(row["trigger_words"]) == {"a", "b"}
 
     async def test_truncates_long_word(self, ext_dir):
@@ -95,6 +103,7 @@ class TestSetTriggerWords:
         long_word = "w" * (_MAX_WORD + 50)
         await model_repo.set_trigger_words(mid, [long_word])
         row = await model_repo.get_model_by_filename("t.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert len(row["trigger_words"][0]) == _MAX_WORD
 
 
@@ -105,11 +114,12 @@ class TestSetTags:
         mid = await model_repo.upsert_model("t.safetensors", "loras", "", "", "")
         await model_repo.set_tags(mid, ["tag1", "tag2"])
         row = await model_repo.get_model_by_filename("t.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert set(row["tags"]) == {"tag1", "tag2"}
 
     async def test_shared_tag_deduplicates_in_tags_table(self, ext_dir):
         """Two models sharing the same tag name produce a single row in the tags table."""
-        import aiosqlite
+        import aiosqlite  # pi-lens-ignore: reportMissingImports
 
         from py import config as cfg
         from py.db import model_repo
@@ -125,7 +135,7 @@ class TestSetTags:
 
     async def test_orphan_tag_pruned_after_unlink(self, ext_dir):
         """A tag name with no remaining model links is deleted from the tags table."""
-        import aiosqlite
+        import aiosqlite  # pi-lens-ignore: reportMissingImports
 
         from py import config as cfg
         from py.db import model_repo
@@ -147,7 +157,9 @@ class TestAddMedia:
         media_id = await model_repo.add_media(mid, "image", "/some/path/img.jpg")
         assert isinstance(media_id, int)
         row = await model_repo.get_model_by_filename("m.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert len(row["media"]) == 1
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["media"][0]["media_type"] == "image"
 
     async def test_add_video_media(self, ext_dir):
@@ -156,6 +168,7 @@ class TestAddMedia:
         mid = await model_repo.upsert_model("m.safetensors", "checkpoints", "", "", "")
         await model_repo.add_media(mid, "video", "/some/path/vid.mp4")
         row = await model_repo.get_model_by_filename("m.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["media"][0]["media_type"] == "video"
 
     async def test_invalid_media_type_raises(self, ext_dir):
@@ -211,6 +224,7 @@ class TestGetMetadataByFilenames:
         await model_repo.upsert_model("c.safetensors", "loras", "", "", "")
         await model_repo.update_model_meta("a.safetensors", "desc a", ["wa1", "wa2"], ["ta"])
         await model_repo.update_model_meta("b.safetensors", "desc b", ["wb"], ["tb1", "tb2"])
+        # pi-lens-ignore: reportOptionalSubscript
         a_id = (await model_repo.get_model_by_filename("a.safetensors"))["id"]
         await model_repo.add_media(a_id, "image", "media/a1.jpg")
         await model_repo.add_media(a_id, "video", "media/a2.mp4")
@@ -246,7 +260,9 @@ class TestUpdateModelMeta:
         await model_repo.upsert_model("u.safetensors", "loras", "", "", "old")
         await model_repo.update_model_meta("u.safetensors", "new desc", ["w1"], ["t1"])
         row = await model_repo.get_model_by_filename("u.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["description"] == "new desc"
+        # pi-lens-ignore: reportOptionalSubscript
         assert "w1" in row["trigger_words"]
 
     async def test_updates_base_model_when_provided(self, ext_dir):
@@ -255,6 +271,7 @@ class TestUpdateModelMeta:
         await model_repo.upsert_model("u.safetensors", "loras", "", "", "")
         await model_repo.update_model_meta("u.safetensors", "", [], base_model="Pony")
         row = await model_repo.get_model_by_filename("u.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["base_model"] == "Pony"
 
     async def test_does_not_update_base_model_when_none(self, ext_dir):
@@ -263,6 +280,7 @@ class TestUpdateModelMeta:
         await model_repo.upsert_model("u.safetensors", "loras", "", "", "", base_model="Flux.1 D")
         await model_repo.update_model_meta("u.safetensors", "desc", [], base_model=None)
         row = await model_repo.get_model_by_filename("u.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["base_model"] == "Flux.1 D"
 
     async def test_creates_row_when_none_exists(self, ext_dir):
@@ -285,8 +303,11 @@ class TestUpdateModelMeta:
         # Updating only base_model must not touch description or trigger_words
         await model_repo.update_model_meta("partial.safetensors", base_model="Flux.1 D")
         row = await model_repo.get_model_by_filename("partial.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["description"] == "orig desc"
+        # pi-lens-ignore: reportOptionalSubscript
         assert "kw1" in row["trigger_words"]
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["base_model"] == "Flux.1 D"
 
     async def test_updates_readme_html_when_provided(self, ext_dir):
@@ -295,6 +316,7 @@ class TestUpdateModelMeta:
         await model_repo.upsert_model("readme.safetensors", "loras", "", "", "")
         await model_repo.update_model_meta("readme.safetensors", readme_html="<h1>Hello</h1>")
         row = await model_repo.get_model_by_filename("readme.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["readme_html"] == "<h1>Hello</h1>"
 
 
@@ -310,6 +332,7 @@ class TestUpsertPreservesBaseModel:
             "hf.safetensors", "loras", "huggingface", "user/repo", "new desc", base_model=""
         )
         row = await model_repo.get_model_by_filename("hf.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["base_model"] == "Flux.1 D"  # preserved
 
     async def test_upsert_sets_base_model_when_previously_empty(self, ext_dir):
@@ -318,12 +341,13 @@ class TestUpsertPreservesBaseModel:
         await model_repo.upsert_model("hf2.safetensors", "loras", "", "", "", base_model="")
         await model_repo.upsert_model("hf2.safetensors", "loras", "", "", "", base_model="SDXL 1.0")
         row = await model_repo.get_model_by_filename("hf2.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["base_model"] == "SDXL 1.0"
 
 
 class TestCascadeDelete:
     async def test_delete_model_cascades_to_child_rows(self, ext_dir):
-        import aiosqlite
+        import aiosqlite  # pi-lens-ignore: reportMissingImports
 
         from py import config as cfg
         from py.db import model_repo
@@ -355,7 +379,7 @@ class TestFieldSeparation:
     """F-32: base_model, trigger_words, and tags are stored as distinct first-class fields."""
 
     async def test_base_model_never_stored_in_tags(self, ext_dir):
-        import aiosqlite
+        import aiosqlite  # pi-lens-ignore: reportMissingImports
 
         from py import config as cfg
         from py.db import model_repo
@@ -375,7 +399,7 @@ class TestFieldSeparation:
             assert (await cur.fetchone())[0] == 0
 
     async def test_trigger_words_never_stored_in_tags(self, ext_dir):
-        import aiosqlite
+        import aiosqlite  # pi-lens-ignore: reportMissingImports
 
         from py import config as cfg
         from py.db import model_repo
@@ -410,12 +434,19 @@ class TestFieldSeparation:
             base_model="Pony",
         )
         row = await model_repo.get_model_by_filename("dist.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["base_model"] == "Pony"
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["trigger_words"] == ["tw1"]
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["tags"] == ["portrait"]
+        # pi-lens-ignore: reportOptionalSubscript
         assert "Pony" not in row["trigger_words"]
+        # pi-lens-ignore: reportOptionalSubscript
         assert "Pony" not in row["tags"]
+        # pi-lens-ignore: reportOptionalSubscript
         assert "tw1" not in row["tags"]
+        # pi-lens-ignore: reportOptionalSubscript
         assert "portrait" not in row["trigger_words"]
 
 
@@ -426,6 +457,7 @@ class TestUpdateModelType:
         await model_repo.upsert_model("move.safetensors", "checkpoints", "", "", "")
         await model_repo.update_model_type("move.safetensors", "loras")
         row = await model_repo.get_model_by_filename("move.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["model_type"] == "loras"
 
 
@@ -435,7 +467,9 @@ class TestGetModelSourceInfo:
 
         await model_repo.upsert_model("src.safetensors", "loras", "civitai", "777", "")
         info = await model_repo.get_model_source_info("src.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert info["source_platform"] == "civitai"
+        # pi-lens-ignore: reportOptionalSubscript
         assert info["source_id"] == "777"
 
     async def test_returns_none_for_unknown(self, ext_dir):
@@ -604,6 +638,7 @@ class TestRegisterModel:
 
         await model_repo.register_model("notags.safetensors", "checkpoints", tags=[])
         row = await model_repo.get_model_by_filename("notags.safetensors")
+        # pi-lens-ignore: reportOptionalSubscript
         assert row["tags"] == []
 
 
@@ -617,6 +652,7 @@ async def test_register_model_stores_file_hash(ext_dir):
     )
     assert isinstance(model_id, int)
     row = await model_repo.get_model_by_filename("hashed.safetensors")
+    # pi-lens-ignore: reportOptionalSubscript
     assert row["file_hash"] == "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899"
 
 
@@ -631,8 +667,11 @@ async def test_register_model_stores_civitai_ids(ext_dir):
         civitai_model_id="789",
     )
     row = await model_repo.get_model_by_filename("civitai_linked.safetensors")
+    # pi-lens-ignore: reportOptionalSubscript
     assert row["source_platform"] == "civitai"
+    # pi-lens-ignore: reportOptionalSubscript
     assert row["source_id"] == "12345"
+    # pi-lens-ignore: reportOptionalSubscript
     assert row["civitai_model_id"] == "789"
 
 
@@ -644,6 +683,7 @@ async def test_register_model_file_hash_defaults_to_none(ext_dir):
         model_type="checkpoints",
     )
     row = await model_repo.get_model_by_filename("no_hash.safetensors")
+    # pi-lens-ignore: reportOptionalSubscript
     assert row["file_hash"] is None
 
 
@@ -680,12 +720,21 @@ async def test_get_live_media_hashes_covers_models_and_catalog_entries(ext_dir):
 async def test_get_all_media_paths_resolves_paths(ext_dir):
     import os
 
+    from py import config as cfg
     from py.db import model_repo
 
     model_id = await model_repo.upsert_model_with_meta("a.safetensors", "loras", "", "", "", [], [])
+    # Media-dir-relative (current) and legacy absolute inside the media dir both resolve.
+    await model_repo.add_media(model_id, "image", "abc123/0.jpg")
+    legacy_abs = os.path.join(cfg.media_dir(), "abc123", "1.jpg")
+    await model_repo.add_media(model_id, "image", legacy_abs)
+    # A stored value outside the media dir no longer claims a file (CWE-22).
     await model_repo.add_media(model_id, "image", "/tmp/media/0.jpg")
 
-    assert await model_repo.get_all_media_paths() == {os.path.realpath("/tmp/media/0.jpg")}
+    assert await model_repo.get_all_media_paths() == {
+        os.path.realpath(os.path.join(cfg.media_dir(), "abc123/0.jpg")),
+        os.path.realpath(legacy_abs),
+    }
 
 
 async def test_set_catalog_media_fields_updates_only_what_is_given(ext_dir):
@@ -702,12 +751,16 @@ async def test_set_catalog_media_fields_updates_only_what_is_given(ext_dir):
 
     assert await model_repo.set_catalog_media_fields("civitai", "77", media_hash="abc") is True
     entry = await model_repo.get_catalog_entry("civitai", "77")
+    # pi-lens-ignore: reportOptionalSubscript
     assert entry["media_hash"] == "abc"
+    # pi-lens-ignore: reportOptionalSubscript
     assert entry["thumbnail_url"] == ""
 
     await model_repo.set_catalog_media_fields("civitai", "77", thumbnail_url="/media/abc/x.png")
     entry = await model_repo.get_catalog_entry("civitai", "77")
+    # pi-lens-ignore: reportOptionalSubscript
     assert entry["media_hash"] == "abc"
+    # pi-lens-ignore: reportOptionalSubscript
     assert entry["thumbnail_url"] == "/media/abc/x.png"
 
 

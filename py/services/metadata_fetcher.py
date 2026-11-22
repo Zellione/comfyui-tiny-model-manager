@@ -7,12 +7,13 @@ import os
 import shutil
 from pathlib import Path
 
+# pi-lens-ignore: reportMissingImports
 import httpx
 
 from .. import config as cfg
 from ..db import model_repo
 from ..video_poster import extract_video_poster
-from . import media_cleanup
+from . import media_cleanup, model_paths
 from .providers import get_provider
 from .providers.base import ProviderMetadata
 from .url_guard import guarded_stream, is_allowed_url
@@ -245,14 +246,19 @@ async def _fetch_and_store_repo_files(
 
 
 def _remove_dir_if_empty(path: str | None) -> None:
-    """Remove ``path`` if it exists and is an empty directory; ignore errors."""
-    if not path or not os.path.isdir(path):
+    """Remove ``path`` if it exists, is an empty directory, and stays inside the
+    media dir (a stored value must not drive removal outside it, CWE-22)."""
+    if not path:
+        return
+    base = os.path.realpath(cfg.media_dir())
+    full = os.path.realpath(path)
+    if full == base or not full.startswith(base + os.sep):
         return
     try:
-        if not os.listdir(path):
-            os.rmdir(path)
+        if not os.listdir(full):
+            os.rmdir(full)
     except Exception:
-        _log.debug("Could not remove media directory %s", path, exc_info=True)
+        _log.debug("Could not remove an empty media directory", exc_info=True)
 
 
 async def _migrate_model_media(db, row) -> None:
@@ -277,20 +283,25 @@ async def _migrate_model_media(db, row) -> None:
         if not new_path_candidate.startswith(os.path.realpath(new_dir) + os.sep):
             continue
         new_path = new_path_candidate
-        if os.path.isfile(old_path) and old_path != new_path:
+        # Stored values are media_dir-relative since issue #176; legacy absolute values
+        # resolve unchanged when they point inside the media dir. A value that resolves
+        # outside it is left untouched on disk (CWE-22).
+        old_abs = model_paths.resolve_media_path(old_path)
+        if old_abs is not None and os.path.isfile(old_abs) and old_abs != new_path:
             try:
-                shutil.move(old_path, new_path)
+                shutil.move(old_abs, new_path)
             except Exception:
+                # No path in the message: stored values are DB content and must not
+                # reach the log unformatted (CWE-117). The traceback carries the paths.
                 _log.warning(
-                    "Media migration could not move %s to %s; DB row now points at the"
-                    " new path while the file stayed behind",
-                    old_path,
-                    new_path,
+                    "Media migration could not move a media file; the DB row now"
+                    " points at the new path while the file stayed behind",
                     exc_info=True,
                 )
-            old_dir = os.path.dirname(old_path)
+            old_dir = os.path.dirname(old_abs)
         await db.execute(
-            "UPDATE model_media SET local_path = ? WHERE id = ?", (new_path, media_row["id"])
+            "UPDATE model_media SET local_path = ? WHERE id = ?",
+            (f"{media_hash}/{filename}", media_row["id"]),
         )
 
     await db.execute("UPDATE models SET media_hash = ? WHERE id = ?", (media_hash, row["id"]))
@@ -332,11 +343,11 @@ _CONTENT_TYPE_EXT: dict[str, str] = {
 async def _fetch_url_to_file(
     client: httpx.AsyncClient, url: str, dest_dir: str, index: int
 ) -> tuple[str, str] | None:
-    """Download url to dest_dir/{index}.{ext}. Returns (dest, ext) or None on failure."""
+    """Download url to dest_dir/{index}.{ext}. Returns (name, ext) or None on failure."""
     try:
         existing = next(Path(dest_dir).glob(f"{index}.*"), None)
         if existing:
-            return str(existing), existing.suffix.lstrip(".")
+            return existing.name, existing.suffix.lstrip(".")
         # guarded_stream re-checks every redirect hop; a media URL that bounces off the
         # allowlist raises and is swallowed below, dropping that one preview.
         async with guarded_stream(client, "GET", url) as resp:
@@ -346,7 +357,7 @@ async def _fetch_url_to_file(
         ext = _CONTENT_TYPE_EXT.get(content_type, "jpg")
         dest = os.path.join(dest_dir, f"{index}.{ext}")
         await asyncio.to_thread(Path(dest).write_bytes, content)
-        return dest, ext
+        return f"{index}.{ext}", ext
     except Exception:
         return None
 
@@ -354,8 +365,9 @@ async def _fetch_url_to_file(
 async def _iter_downloaded_urls(media_hash: str, urls: list[str]) -> list[tuple[str, str]]:
     """Download up to 5 URLs into the media hash dir; return (dest, ext) pairs.
 
-    URLs are fetched server-side, so each is confined to a trusted provider host
-    (SSRF guard) before any request is made.
+    ``dest`` is the media_dir-relative stored form (``<media_hash>/<name>``). URLs are
+    fetched server-side, so each is confined to a trusted provider host (SSRF guard)
+    before any request is made.
     """
     dest_dir = _media_subdir(media_hash)
     os.makedirs(dest_dir, exist_ok=True)
@@ -365,7 +377,7 @@ async def _iter_downloaded_urls(media_hash: str, urls: list[str]) -> list[tuple[
         for i, url in enumerate(safe_urls[:5]):
             result = await _fetch_url_to_file(client, url, dest_dir, i)
             if result:
-                results.append(result)
+                results.append((f"{media_hash}/{result[0]}", result[1]))
     return results
 
 
@@ -383,9 +395,13 @@ async def _download_images(model_id: int, media_hash: str, urls: list[str]):
             first_video = dest
         await model_repo.add_media(model_id, media_type, dest)
     if not has_image and first_video:
-        poster = await asyncio.to_thread(extract_video_poster, first_video)
-        if poster:
-            await model_repo.add_media(model_id, "image", poster)
+        resolved = model_paths.resolve_media_path(first_video)
+        if resolved:
+            poster = await asyncio.to_thread(extract_video_poster, resolved)
+            if poster:
+                await model_repo.add_media(
+                    model_id, "image", model_paths.to_stored_media_path(poster)
+                )
 
 
 def catalog_media_hash(platform: str, page_id: str) -> str:
@@ -397,7 +413,11 @@ _VIDEO_EXTS = {"mp4", "webm", "mov"}
 
 
 async def _download_catalog_images(media_hash: str, urls: list[str]) -> str:
-    """Download gallery images into the catalog media dir. Returns the first image path."""
+    """Download gallery images into the catalog media dir.
+
+    Returns the first image's media_dir-relative path (a poster when only videos were
+    found), or "" when nothing usable landed.
+    """
     results = await _iter_downloaded_urls(media_hash, urls)
     first_video: str | None = None
     for path, ext in results:
@@ -406,9 +426,11 @@ async def _download_catalog_images(media_hash: str, urls: list[str]) -> str:
         if first_video is None:
             first_video = path
     if first_video:
-        poster = await asyncio.to_thread(extract_video_poster, first_video)
-        if poster:
-            return poster
+        resolved = model_paths.resolve_media_path(first_video)
+        if resolved:
+            poster = await asyncio.to_thread(extract_video_poster, resolved)
+            if poster:
+                return model_paths.to_stored_media_path(poster)
     return ""
 
 
